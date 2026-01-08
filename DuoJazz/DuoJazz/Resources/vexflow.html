@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.5/build/cjs/vexflow.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: transparent;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        #output {
+            display: inline-block;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="output"></div>
+    <script>
+        const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Barline, Beam, Annotation } = Vex.Flow;
+
+        // Color scheme
+        let colors = {
+            staff: '#000000',
+            notes: '#000000'
+        };
+
+        function setDarkMode(isDark) {
+            colors = {
+                staff: isDark ? '#FFFFFF' : '#000000',
+                notes: isDark ? '#FFFFFF' : '#000000'
+            };
+        }
+
+        function renderNotation(config) {
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+
+            const { measures, clef, keySignature, timeSignature, height, chords } = config;
+
+            if (!measures || measures.length === 0) return;
+
+            // Build a map of beat -> chord text for quick lookup
+            const chordMap = new Map();
+            if (chords && Array.isArray(chords)) {
+                chords.forEach(chord => {
+                    chordMap.set(chord.beat, chord.text);
+                });
+            }
+
+            // Parse time signature for voice
+            const [numBeats, beatValue] = timeSignature ? timeSignature.split('/').map(Number) : [4, 4];
+
+            // First pass: create voices and calculate minimum widths
+            let globalBeat = 1.0; // Track beat position across all measures
+            const beatsPerMeasure = numBeats;
+
+            const measureData = measures.map((measureNotes, measureIndex) => {
+                const isFirstMeasure = measureIndex === 0;
+                const measureStartBeat = measureIndex * beatsPerMeasure + 1;
+
+                // Create StaveNotes with chord annotations
+                const staveNotes = measureNotes.map((note, noteIndex) => {
+                    const staveNote = new StaveNote({
+                        clef: clef,
+                        keys: [note.key],
+                        duration: note.duration
+                    });
+                    if (note.accidental) {
+                        staveNote.addModifier(new Accidental(note.accidental));
+                    }
+
+                    // Check if there's a chord at this beat position
+                    const noteBeat = note.beat ? parseFloat(note.beat) : (measureStartBeat + noteIndex * 0.5);
+                    if (chordMap.has(noteBeat)) {
+                        const chordText = chordMap.get(noteBeat);
+                        const annotation = new Annotation(chordText)
+                            .setFont('Arial', 14, 'bold')
+                            .setVerticalJustification(Annotation.VerticalJustify.TOP)
+                            .setStyle({ fillStyle: colors.notes });
+                        staveNote.addModifier(annotation);
+                        chordMap.delete(noteBeat); // Remove so we don't add twice
+                    }
+
+                    return staveNote;
+                });
+
+                // Create voice
+                const voice = new Voice({ num_beats: numBeats, beat_value: beatValue }).setStrict(false);
+                voice.addTickables(staveNotes);
+
+                // Calculate minimum width needed for this measure's content
+                const formatter = new Formatter();
+                formatter.joinVoices([voice]);
+                const minWidth = formatter.preCalculateMinTotalWidth([voice]);
+
+                // Add space for clef/key/time on first measure
+                let extraSpace = 20; // padding
+                if (isFirstMeasure) {
+                    extraSpace += 50; // clef
+                    extraSpace += getKeyAccidentalCount(keySignature) * 12; // key sig
+                    extraSpace += 40; // time sig
+                }
+
+                return {
+                    staveNotes,
+                    voice,
+                    minWidth: minWidth + extraSpace + 30 // Add safety margin
+                };
+            });
+
+            // Calculate total width
+            const padding = 20;
+            const totalWidth = padding + measureData.reduce((sum, m) => sum + m.minWidth, 0) + padding;
+
+            // Create renderer
+            const renderer = new Renderer(output, Renderer.Backends.SVG);
+            renderer.resize(totalWidth, height || 150);
+            const context = renderer.getContext();
+            context.setFont('Arial', 10);
+
+            // Second pass: draw staves and notes with calculated widths
+            let xPosition = padding;
+
+            measureData.forEach((data, measureIndex) => {
+                const isFirstMeasure = measureIndex === 0;
+                const isLastMeasure = measureIndex === measures.length - 1;
+                const currentWidth = data.minWidth;
+
+                // Create stave with calculated width
+                const stave = new Stave(xPosition, 20, currentWidth);
+
+                if (isFirstMeasure) {
+                    stave.addClef(clef);
+                    if (keySignature && keySignature !== 'C') {
+                        stave.addKeySignature(keySignature);
+                    }
+                    if (timeSignature) {
+                        stave.addTimeSignature(timeSignature);
+                    }
+                }
+
+                if (isLastMeasure) {
+                    stave.setEndBarType(Barline.type.END);
+                }
+
+                stave.setStyle({ strokeStyle: colors.staff, fillStyle: colors.staff });
+                stave.setContext(context).draw();
+
+                if (data.staveNotes.length > 0) {
+                    // Style notes
+                    data.staveNotes.forEach(note => {
+                        note.setStyle({ strokeStyle: colors.notes, fillStyle: colors.notes });
+                    });
+
+                    // Format to stave
+                    const formatter = new Formatter();
+                    formatter.joinVoices([data.voice]);
+                    formatter.formatToStave([data.voice], stave);
+
+                    // Create and draw beams
+                    const beams = createBeamsForMeasure(data.staveNotes, numBeats);
+
+                    data.voice.draw(context, stave);
+                    beams.forEach(beam => {
+                        beam.setStyle({ strokeStyle: colors.notes, fillStyle: colors.notes });
+                        beam.setContext(context).draw();
+                    });
+                }
+
+                xPosition += currentWidth;
+            });
+        }
+
+        // Create beams by grouping eighth notes in pairs (2 per beat in 4/4)
+        function createBeamsForMeasure(staveNotes, beatsPerMeasure) {
+            const beams = [];
+
+            // Collect all beamable notes with their tick positions
+            const beamableWithPosition = [];
+            let tickPosition = 0;
+            const ticksPerBeat = 4096; // VexFlow's ticks per quarter note
+
+            for (const note of staveNotes) {
+                const dur = note.getDuration();
+                const isRest = note.isRest();
+                const isBeamable = !isRest && (dur === '8' || dur === '16' || dur === '32');
+
+                if (isBeamable) {
+                    const beatIndex = Math.floor(tickPosition / ticksPerBeat);
+                    beamableWithPosition.push({ note, beatIndex, tickPosition });
+                }
+
+                tickPosition += note.getTicks().value();
+            }
+
+            // Group by beat and create beams for each group of 2+ notes
+            const byBeat = new Map();
+            for (const item of beamableWithPosition) {
+                if (!byBeat.has(item.beatIndex)) {
+                    byBeat.set(item.beatIndex, []);
+                }
+                byBeat.get(item.beatIndex).push(item.note);
+            }
+
+            // Create a beam for each beat that has 2+ beamable notes (in beat order)
+            const sortedBeats = Array.from(byBeat.keys()).sort((a, b) => a - b);
+            for (const beatIndex of sortedBeats) {
+                const notes = byBeat.get(beatIndex);
+                if (notes.length >= 2) {
+                    try {
+                        beams.push(new Beam(notes));
+                    } catch (e) {
+                        console.warn('Failed to create beam for beat', beatIndex, ':', e);
+                    }
+                }
+            }
+
+            return beams;
+        }
+
+        // Get number of accidentals in a key signature
+        function getKeyAccidentalCount(keySignature) {
+            const accidentalCounts = {
+                'C': 0,
+                'G': 1, 'F': 1,
+                'D': 2, 'Bb': 2,
+                'A': 3, 'Eb': 3,
+                'E': 4, 'Ab': 4,
+                'B': 5, 'Db': 5,
+                'F#': 6, 'Gb': 6,
+                'C#': 7, 'Cb': 7
+            };
+            return accidentalCounts[keySignature] || 0;
+        }
+
+        function render(jsonString) {
+            try {
+                const config = JSON.parse(jsonString);
+                if (config.darkMode !== undefined) {
+                    setDarkMode(config.darkMode);
+                }
+                renderNotation(config);
+            } catch (e) {
+                console.error('Render error:', e);
+            }
+        }
+
+        window.webkit?.messageHandlers?.ready?.postMessage('ready');
+    </script>
+</body>
+</html>
