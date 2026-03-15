@@ -9,7 +9,7 @@ import Foundation
 struct Lick: Identifiable, Sendable {
     let id: String
     let name: String
-    let category: String
+    let tags: [Tag]
     let timeSignature: (beats: Int, noteValue: Int)
     let notes: [LickNote]
     let chordProgression: ChordProgression?
@@ -17,14 +17,14 @@ struct Lick: Identifiable, Sendable {
     init(
         id: String,
         name: String,
-        category: String = "ii-V-I",
+        tags: [Tag] = [.iiVI],
         timeSignature: (beats: Int, noteValue: Int) = (4, 4),
         notes: [LickNote],
         chordProgression: ChordProgression? = nil
     ) {
         self.id = id
         self.name = name
-        self.category = category
+        self.tags = tags
         self.timeSignature = timeSignature
         self.notes = notes
         self.chordProgression = chordProgression

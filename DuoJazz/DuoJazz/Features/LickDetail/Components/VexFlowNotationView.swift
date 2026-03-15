@@ -21,7 +21,7 @@ struct VexFlowNotationView: View {
             keySignature: keyOption.vexflowSignature,
             timeSignature: timeSignature,
             chords: buildChordData(),
-            isDarkMode: colorScheme == .dark
+            isDarkMode: false
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
@@ -134,9 +134,9 @@ struct VexFlowWebView: UIViewRepresentable {
         config.userContentController.add(context.coordinator, name: "ready")
 
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
-        webView.scrollView.backgroundColor = .clear
+        webView.isOpaque = true
+        webView.backgroundColor = .white
+        webView.scrollView.backgroundColor = .white
 
         // Enable horizontal scrolling for wide notation
         webView.scrollView.isScrollEnabled = true
@@ -158,6 +158,10 @@ struct VexFlowWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.pendingRender = buildRenderConfig(size: webView.bounds.size)
         context.coordinator.renderIfReady(webView: webView)
+    }
+
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "ready")
     }
 
     func makeCoordinator() -> Coordinator {
