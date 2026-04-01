@@ -7,12 +7,23 @@ import SwiftUI
 
 struct LickCardView: View {
     let lick: Lick
+    var masteryState: MasteryState = .locked
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(lick.name)
-                .font(.headline)
-                .foregroundStyle(.white)
+            HStack {
+                Text(lick.name)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                if masteryState != .locked {
+                    Image(systemName: masteryState.iconName)
+                        .font(.caption)
+                        .foregroundStyle(masteryState.color)
+                }
+            }
 
             HStack(spacing: 6) {
                 ForEach(lick.tags.prefix(2), id: \.self) { tag in

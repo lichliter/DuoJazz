@@ -13,11 +13,14 @@ final class LickMastery {
     var keyRawValue: Int
     /// 0 = not started, 1 = Learn done, 2 = Play done, 3 = Listen done
     var highestCardType: Int
+    /// When this mastery level was last updated
+    var lastCompletedAt: Date?
 
-    init(lickId: String, keyRawValue: Int, highestCardType: Int = 0) {
+    init(lickId: String, keyRawValue: Int, highestCardType: Int = 0, lastCompletedAt: Date? = nil) {
         self.lickId = lickId
         self.keyRawValue = keyRawValue
         self.highestCardType = highestCardType
+        self.lastCompletedAt = lastCompletedAt
     }
 
     var key: Key? { Key(rawValue: keyRawValue) }
@@ -62,10 +65,12 @@ struct MasteryStore {
             if cardType.rawValue > existing.highestCardType {
                 existing.highestCardType = cardType.rawValue
             }
+            existing.lastCompletedAt = Date()
         } else {
             context.insert(LickMastery(
                 lickId: lickId, keyRawValue: keyRaw,
-                highestCardType: cardType.rawValue
+                highestCardType: cardType.rawValue,
+                lastCompletedAt: Date()
             ))
         }
         try? context.save()
@@ -82,5 +87,36 @@ struct MasteryStore {
         let total = lickIds.count * CardLevel.listen.rawValue
         let achieved = lickIds.reduce(0) { $0 + level(for: $1, in: key).rawValue }
         return Double(achieved) / Double(total)
+    }
+
+    /// Best mastery level for a lick across all 12 keys
+    func bestLevel(for lickId: String) -> CardLevel {
+        let predicate = #Predicate<LickMastery> { $0.lickId == lickId }
+        let descriptor = FetchDescriptor(predicate: predicate)
+        guard let records = try? context.fetch(descriptor) else { return .none }
+        let maxRaw = records.map(\.highestCardType).max() ?? 0
+        return CardLevel(rawValue: maxRaw) ?? .none
+    }
+
+    /// Mastery breakdown across all catalog licks (best level per lick across keys)
+    func masteryBreakdown(lickIds: [String]) -> [(MasteryState, Int)] {
+        var counts: [MasteryState: Int] = [:]
+        for id in lickIds {
+            let state = MasteryState(cardLevel: bestLevel(for: id))
+            counts[state, default: 0] += 1
+        }
+        // Return in progression order, skip zero counts
+        return MasteryState.allCases.compactMap { state in
+            guard let count = counts[state], count > 0 else { return nil }
+            return (state, count)
+        }
+    }
+
+    /// Delete all mastery records (for progress reset)
+    func deleteAll() {
+        let descriptor = FetchDescriptor<LickMastery>()
+        guard let all = try? context.fetch(descriptor) else { return }
+        for record in all { context.delete(record) }
+        try? context.save()
     }
 }

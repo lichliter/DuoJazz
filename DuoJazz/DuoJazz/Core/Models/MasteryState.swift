@@ -38,6 +38,16 @@ enum MasteryState: String, Sendable, Codable, CaseIterable {
         case .legendary: "crown.fill"
         }
     }
+
+    /// Bridge from per-key card level to display mastery state
+    init(cardLevel: CardLevel) {
+        switch cardLevel {
+        case .none: self = .locked
+        case .learn: self = .learning
+        case .play: self = .mastered
+        case .listen: self = .legendary
+        }
+    }
 }
 
 extension Color {
