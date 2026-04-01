@@ -124,6 +124,14 @@ struct ModuleProgressStore {
         if lesson > 0 { return .inProgress }
         return .notStarted
     }
+
+    /// Delete all module progress records (for progress reset)
+    func deleteAll() {
+        let descriptor = FetchDescriptor<ModuleProgress>()
+        guard let all = try? context.fetch(descriptor) else { return }
+        for record in all { context.delete(record) }
+        try? context.save()
+    }
 }
 
 enum KeyStatus {

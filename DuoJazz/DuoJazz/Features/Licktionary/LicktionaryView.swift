@@ -4,8 +4,10 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct LicktionaryView: View {
+    @Environment(\.modelContext) private var modelContext
     @State private var viewModel = LicktionaryViewModel()
 
     var body: some View {
@@ -27,7 +29,10 @@ struct LicktionaryView: View {
                     )
                 }
 
-                LickGrid(licks: viewModel.searchResults)
+                LickGrid(licks: viewModel.searchResults) { lickId in
+                    let store = MasteryStore(context: modelContext)
+                    return MasteryState(cardLevel: store.bestLevel(for: lickId))
+                }
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 16)
