@@ -9,10 +9,11 @@ import Foundation
 enum BuiltInLicks {
     static let all: [Lick] = [
         shortIIVI, scaledIIVI, enclosureIIVI, descendingIIVI,
-        bluesScale, bluesApproach, bluesEnclosure,
-        bebopScale, bebopEnclosure, bebopChromatic,
+        bluesScale, bluesApproach, bluesEnclosure, bluesTurnback, bluesCallResponse,
+        bebopScale, bebopEnclosure, bebopChromatic, bebopApproach, bebopDescending,
         chromaticApproach, chordToneArpeggio,
-        thirdsUp, thirdsDown, triadsUp, triadsDown, brokenTriads
+        thirdsUp, thirdsDown, triadsUp, triadsDown, brokenTriads,
+        iiviHoneyBee, iiviDigIt, iiviCryMeEnclosure, iiviLeapFrog, iiviConfirmation,
     ]
 
     // MARK: - ii-V-I Licks
@@ -86,6 +87,27 @@ enum BuiltInLicks {
         ]
     )
 
+    /// Blues turnback: b7 down to 3rd via blues scale, classic turnaround phrase
+    static let bluesTurnback = Lick(
+        id: "blues-turnback", name: "Blues Turnback", tags: [.blues, .turnarounds],
+        elements: [
+            N(10), N(7), N(6), N(5),     // b7-5-b5-4
+            N(3), N(0, .quarter),         // b3-root
+            N(-2), N(0, .half),           // b7 below-root resolve
+        ]
+    )
+
+    /// Blues call & response: short call (b3-4-b5-4), answer resolves (b3-root)
+    static let bluesCallResponse = Lick(
+        id: "blues-call-response", name: "Blues Call & Response", tags: [.blues],
+        elements: [
+            N(3), N(5), N(6), N(5, .quarter),     // call: b3-4-b5-4
+            R(.quarter),                            // breath
+            N(3), N(0, .quarter),                   // answer: b3-root
+            N(-2), N(0, .half),                     // b7 below-root resolve
+        ]
+    )
+
     // MARK: - Bebop Licks
 
     static let bebopScale = Lick(
@@ -116,6 +138,27 @@ enum BuiltInLicks {
         ]
     )
 
+    /// Bebop approach: chromatic below into each chord tone (1-3-5-7)
+    static let bebopApproach = Lick(
+        id: "bebop-approach", name: "Bebop Approach", tags: [.bebop, .approachNotes],
+        elements: [
+            N(-1), N(0, .quarter),         // approach root
+            N(3), N(4, .quarter),          // approach 3rd
+            N(6), N(7, .quarter),          // approach 5th
+            N(10), N(11, .quarter),        // approach 7th
+        ]
+    )
+
+    /// Bebop descending: classic 8-note descending bebop dominant line
+    static let bebopDescending = Lick(
+        id: "bebop-descending", name: "Bebop Descending", tags: [.bebop, .dominant],
+        elements: [
+            N(12), N(11), N(10), N(9),     // 8-7-b7-6
+            N(7), N(5), N(4), N(2),        // 5-4-3-2
+            N(0, .half),                    // resolve to root
+        ]
+    )
+
     // MARK: - Technique Licks
 
     static let chromaticApproach = Lick(
@@ -134,6 +177,85 @@ enum BuiltInLicks {
             N(0), N(4), N(7), N(11), N(12), N(11), N(7), N(4),
             N(0, .half),
         ]
+    )
+
+    // MARK: - Intermediate ii-V-I Licks
+
+    /// Honey Bee: dorian climb on ii, dominant resolution on V, land on 3rd of I
+    static let iiviHoneyBee = Lick(
+        id: "iivi-honey-bee", name: "Honey Bee", tags: [.iiVI],
+        elements: [
+            // ii-7: dorian run up
+            N(0), N(2), N(3), N(5), N(7), N(9), N(10), N(12),
+            // V7: descend with bebop passing tone
+            N(11), N(10), N(9), N(7), N(5), N(4), N(3), N(2),
+            // Imaj7: resolve
+            N(0, .half), R(.half),
+            R(.whole),
+        ],
+        chordProgression: .longIIVI
+    )
+
+    /// Dig It: arpeggio up ii-7, chromatic approach into V7 chord tones, resolve to root
+    static let iiviDigIt = Lick(
+        id: "iivi-dig-it", name: "Dig It", tags: [.iiVI, .chordTones],
+        elements: [
+            // ii-7: arpeggio 1-b3-5-b7
+            N(0, .quarter), N(3, .quarter), N(7, .quarter), N(10, .quarter),
+            // V7: chromatic into 3rd, down to root
+            N(8), N(9), N(11), N(7), N(5), N(4), N(2), N(0),
+            // Imaj7: resolve
+            N(0, .half), R(.half),
+            R(.whole),
+        ],
+        chordProgression: .longIIVI
+    )
+
+    /// Cry Me Enclosure: double enclosure on 3rd, then 7th, resolves down to root
+    static let iiviCryMeEnclosure = Lick(
+        id: "iivi-cry-me-enclosure", name: "Cry Me Enclosure", tags: [.iiVI, .approachNotes],
+        elements: [
+            // ii-7: double enclosure targeting 5th
+            N(5), N(3), N(9), N(6),
+            N(7, .quarter), R(.quarter),
+            // V7: enclosure targeting 3rd, descend
+            N(5), N(3), N(4, .quarter),
+            N(2), N(0, .quarter), R(.quarter),
+            // Imaj7: resolve
+            N(0, .half), R(.half),
+            R(.whole),
+        ],
+        chordProgression: .longIIVI
+    )
+
+    /// Leap Frog: skips and leaps — 3rds and 4ths outlining ii-7 then V7
+    static let iiviLeapFrog = Lick(
+        id: "iivi-leap-frog", name: "Leap Frog", tags: [.iiVI, .chordTones],
+        elements: [
+            // ii-7: ascending in 3rds
+            N(0), N(3), N(2), N(5), N(4), N(7), N(5), N(9),
+            // V7: descending in 3rds
+            N(11), N(7), N(9), N(5), N(7), N(4), N(5), N(2),
+            // Imaj7: resolve
+            N(0, .half), R(.half),
+            R(.whole),
+        ],
+        chordProgression: .longIIVI
+    )
+
+    /// Confirmation: Parker-style line — chromatic runs connecting chord tones over ii-V-I
+    static let iiviConfirmation = Lick(
+        id: "iivi-confirmation", name: "Confirmation", tags: [.iiVI, .bebop, .chromaticRuns],
+        elements: [
+            // ii-7: root up chromatically to 3rd, leap to 5th
+            N(0), N(1), N(2), N(3), N(7), N(5), N(3), N(2),
+            // V7: 9th down through bebop scale
+            N(14), N(12), N(11), N(9), N(7), N(6), N(5), N(4),
+            // Imaj7: resolve to root
+            N(0, .half), R(.half),
+            R(.whole),
+        ],
+        chordProgression: .longIIVI
     )
 
     // MARK: - Triad Module Licks

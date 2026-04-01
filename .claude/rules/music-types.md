@@ -27,13 +27,19 @@ Licks are stored as **intervals (semitones from root)**, not absolute pitches. T
 
 ## Key Types
 
+- `LickElement` — enum: `.note(interval: Int, value: NoteValue)` or `.rest(value: NoteValue)`
 - `NoteValue` — rhythm: `.whole`, `.half`, `.quarter`, `.eighth`, `.sixteenth`, `.dotted(base)`, `.triplet(base)`
-- `LickNote` — single note: `interval` (semitones from root), `startBeat`, `value` (NoteValue)
 - `Key` — enum with `rawValue` = semitones from C, `midiRoot` = 60 + rawValue
-- `KeyOption` — wraps Key with display name, VexFlow signature, flat/sharp spelling
-- `Lick` — id, name, tags, timeSignature, notes, chordProgression
+- `KeyOption` — wraps Key with display name, key signature string, flat/sharp spelling
+- `Lick` — id, name, tags, timeSignature, elements: [LickElement], chordProgression
+- `LickCollection` — id, name, description, tags, lickIds, difficulty, iconName
+- `Lesson` — id, moduleId, cards: [LessonCard] (`.learn`, `.play`, `.listen`, `.quiz`)
 - `Instrument` — transposition, range, defaultClef, `recommendedOctaveOffset(for:in:)`
-- `Clef` — treble/bass/alto/tenor with `vexflowId`, `middleLineMidi`, `octaveOffset`
+- `Clef` — treble/bass/alto/tenor with `middleLineMidi`, `octaveOffset`
+- `Tag` — 12 jazz categories (iiVI, blues, bebop, turnarounds, modal, etc.)
+- `Difficulty` — beginner, intermediate, advanced
+- `ChordProgression` — array of ChordSymbol with factory presets
+- `ABCConverter` — converts Lick → ABC notation string for abcjs rendering
 
 ## Lick Authoring Pattern
 
@@ -43,15 +49,16 @@ Lick(
     name: "Display Name",
     tags: [.iiVI, .bebop],
     timeSignature: (4, 4),
-    notes: [
-        LickNote(interval: 0, startBeat: 1.0, value: .eighth),  // root
-        LickNote(interval: 4, startBeat: 1.5, value: .eighth),  // 3rd
-        // ... startBeat increments by note duration
+    elements: [
+        .note(interval: 0, value: .eighth),   // root
+        .note(interval: 4, value: .eighth),   // major 3rd
+        .rest(value: .quarter),               // quarter rest
+        // ...
     ],
     chordProgression: ChordProgression(...)  // optional
 )
 ```
 
-- `startBeat` is 1-based (beat 1 = start of measure)
 - Intervals can go negative (below root) or above 12 (above octave)
 - `pitches(in: .c)` converts intervals to absolute MIDI pitches
+- `elementsByMeasure()` groups elements into measures based on time signature

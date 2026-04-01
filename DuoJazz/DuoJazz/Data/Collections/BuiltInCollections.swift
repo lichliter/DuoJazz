@@ -8,7 +8,7 @@ import Foundation
 /// Built-in module catalog
 enum BuiltInCollections {
     static let all: [LickCollection] = [
-        triads, firstJazzPhrases, bluesBasics, bebopEssentials
+        triads, firstJazzPhrases, bluesBasics, bebopEssentials, intermediateIIVI
     ]
 
     /// Triads: diatonic 3rds, triads, and broken triads
@@ -55,6 +55,8 @@ enum BuiltInCollections {
             "blues-scale",
             "blues-approach",
             "blues-enclosure",
+            "blues-turnback",
+            "blues-call-response",
         ],
         difficulty: .beginner,
         iconName: "guitars"
@@ -70,8 +72,27 @@ enum BuiltInCollections {
             "bebop-scale",
             "bebop-enclosure",
             "bebop-chromatic",
+            "bebop-approach",
+            "bebop-descending",
         ],
         difficulty: .intermediate,
         iconName: "bolt"
+    )
+
+    /// Intermediate ii-V-I: longer lines with chromatic approaches, enclosures, and leaps
+    static let intermediateIIVI = LickCollection(
+        id: "intermediate-ii-v-i",
+        name: "ii-V-I: Next Level",
+        description: "Longer lines with chromatic runs, double enclosures, and intervallic leaps over ii-V-I.",
+        tags: [.iiVI, .bebop],
+        lickIds: [
+            "iivi-honey-bee",
+            "iivi-dig-it",
+            "iivi-cry-me-enclosure",
+            "iivi-leap-frog",
+            "iivi-confirmation",
+        ],
+        difficulty: .intermediate,
+        iconName: "flame"
     )
 }
