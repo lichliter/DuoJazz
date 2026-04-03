@@ -11,9 +11,10 @@ enum BuiltInLicks {
         shortIIVI, scaledIIVI, enclosureIIVI, descendingIIVI,
         bluesScale, bluesApproach, bluesEnclosure, bluesTurnback, bluesCallResponse,
         bebopScale, bebopEnclosure, bebopChromatic, bebopApproach, bebopDescending,
-        chromaticApproach, chordToneArpeggio,
+        chromaticApproach, chordToneArpeggio, chromaticTargeting,
         thirdsUp, thirdsDown, triadsUp, triadsDown, brokenTriads,
         iiviHoneyBee, iiviDigIt, iiviCryMeEnclosure, iiviLeapFrog, iiviConfirmation,
+        smoothIIVI,
     ]
 
     // MARK: - ii-V-I Licks
@@ -243,6 +244,21 @@ enum BuiltInLicks {
         chordProgression: .longIIVI
     )
 
+    /// Smooth ii-V-I: chord-tone arpeggio up ii-7, chromatic guide-tone descent through V7, resolve to I
+    static let smoothIIVI = Lick(
+        id: "smooth-ii-v-i", name: "Smooth ii-V-I", tags: [.iiVI],
+        elements: [
+            // ii-7: ascending chord-tone arpeggio (root-b3-5-b7)
+            N(2, .quarter), N(5, .quarter), N(9, .quarter), N(12, .quarter),
+            // V7: chromatic guide-tone descent (3rd down through b9)
+            N(11, .quarter), N(9), N(8), N(7, .quarter), N(5), N(0),
+            // Imaj7: resolve
+            N(0, .half), R(.half),
+            R(.whole),
+        ],
+        chordProgression: .longIIVI
+    )
+
     /// Confirmation: Parker-style line — chromatic runs connecting chord tones over ii-V-I
     static let iiviConfirmation = Lick(
         id: "iivi-confirmation", name: "Confirmation", tags: [.iiVI, .bebop, .chromaticRuns],
@@ -256,6 +272,21 @@ enum BuiltInLicks {
             R(.whole),
         ],
         chordProgression: .longIIVI
+    )
+
+    /// Chromatic Targeting: approach each scale degree from a half step below, ascending through the scale
+    static let chromaticTargeting = Lick(
+        id: "chromatic-targeting", name: "Chromatic Targeting", tags: [.chromaticRuns, .approachNotes],
+        elements: [
+            // Bar 1: approach root and 2nd from half step below
+            N(-1), N(0), N(2), N(4), N(1), N(2), N(4), N(5),
+            // Bar 2: approach 3rd and 4th
+            N(3), N(4), N(5), N(7), N(4), N(5), N(7), N(9),
+            // Bar 3: approach 5th and 6th
+            N(6), N(7), N(9), N(11), N(8), N(9), N(11), N(12),
+            // Bar 4: approach 7th, arrive at octave, resolve
+            N(10), N(11), N(12, .quarter), N(9), N(7), N(0, .quarter),
+        ]
     )
 
     // MARK: - Triad Module Licks
