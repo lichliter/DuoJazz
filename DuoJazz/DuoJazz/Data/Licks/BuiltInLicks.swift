@@ -149,12 +149,12 @@ enum BuiltInLicks {
         ]
     )
 
-    /// Bebop descending: classic 8-note descending bebop dominant line
+    /// Bebop Descending: 1235 digital pattern descending through the dominant scale
     static let bebopDescending = Lick(
         id: "bebop-descending", name: "Bebop Descending", tags: [.bebop, .dominant],
         elements: [
-            N(12), N(11), N(10), N(9),     // 8-7-b7-6
-            N(7), N(5), N(4), N(2),        // 5-4-3-2
+            N(12), N(11), N(9), N(7),      // 8-7-6-5 (digital group from octave)
+            N(9), N(7), N(5), N(4),        // 6-5-4-3 (down a step)
             N(0, .half),                    // resolve to root
         ]
     )
@@ -220,7 +220,7 @@ enum BuiltInLicks {
             N(7, .quarter), R(.quarter),
             // V7: enclosure targeting 3rd, descend
             N(5), N(3), N(4, .quarter),
-            N(2), N(0, .quarter), R(.quarter),
+            N(2), N(0), R(.quarter),
             // Imaj7: resolve
             N(0, .half), R(.half),
             R(.whole),
