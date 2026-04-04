@@ -15,6 +15,7 @@ enum BuiltInLicks {
         thirdsUp, thirdsDown, triadsUp, triadsDown, brokenTriads,
         iiviHoneyBee, iiviDigIt, iiviCryMeEnclosure, iiviLeapFrog, iiviConfirmation,
         smoothIIVI,
+        chromaticApproachScale,
     ]
 
     // MARK: - ii-V-I Licks
@@ -244,19 +245,18 @@ enum BuiltInLicks {
         chordProgression: .longIIVI
     )
 
-    /// Smooth ii-V-I: chord-tone arpeggio up ii-7, chromatic guide-tone descent through V7, resolve to I
+    /// Smooth ii-V-I: Am7 arpeggio down, target 3rd of V7, chromatic resolve to 5th of I
     static let smoothIIVI = Lick(
-        id: "smooth-ii-v-i", name: "Smooth ii-V-I", tags: [.iiVI],
+        id: "smooth-ii-v-i", name: "Smooth ii-V-I", tags: [.iiVI, .chromaticRuns],
         elements: [
-            // ii-7: ascending chord-tone arpeggio (root-b3-5-b7)
-            N(2, .quarter), N(5, .quarter), N(9, .quarter), N(12, .quarter),
-            // V7: chromatic guide-tone descent (3rd down through b9)
-            N(11, .quarter), N(9), N(8), N(7, .quarter), N(5), N(0),
-            // Imaj7: resolve
-            N(0, .half), R(.half),
-            R(.whole),
+            // ii-7: descending Am7 arpeggio (b7-5-b3-root)
+            N(12), N(9), N(5), N(2),
+            // V7: b13 up to 3rd, chromatic approach
+            N(3), N(11), N(9), N(8),
+            // Imaj7: resolve to 5th
+            N(7, .half), R(.half),
         ],
-        chordProgression: .longIIVI
+        chordProgression: .shortIIVI
     )
 
     /// Confirmation: Parker-style line — chromatic runs connecting chord tones over ii-V-I
@@ -286,6 +286,29 @@ enum BuiltInLicks {
             N(6), N(7), N(9), N(11), N(8), N(9), N(11), N(12),
             // Bar 4: approach 7th, arrive at octave, resolve
             N(10), N(11), N(12, .quarter), N(9), N(7), N(0, .quarter),
+        ]
+    )
+
+    /// Diatonic 3rds with chromatic connections: leap to diatonic 3rd, return, chromatic lead to next scale degree
+    static let chromaticApproachScale = Lick(
+        id: "chromatic-approach-scale", name: "3rds Chromatic Approach", tags: [.chromaticRuns, .chordTones],
+        elements: [
+            // D: up a 3rd, return, chromatic lead to E
+            N(0), N(4), N(0), N(1),
+            // E: up a 3rd, return, chromatic lead to F#
+            N(2), N(5), N(2), N(3),
+            // F#: up a 3rd, chromatic descent back
+            N(4), N(7), N(6), N(4),
+            // G: up a 3rd, return, chromatic lead to A
+            N(5), N(9), N(5), N(6),
+            // A: up a 3rd, return, chromatic lead to B
+            N(7), N(11), N(7), N(8),
+            // B: up a 3rd, return, chromatic lead to C#
+            N(9), N(12), N(9), N(10),
+            // C#: up a 3rd, chromatic descent back
+            N(11), N(14), N(13), N(11),
+            // Resolve to octave
+            N(12, .half),
         ]
     )
 
