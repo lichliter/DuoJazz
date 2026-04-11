@@ -6,8 +6,8 @@
 import SwiftUI
 
 struct AddPathSection: View {
-    let available: [LickCollection]
-    let onAdd: (LickCollection) -> Void
+    let available: [Lesson]
+    let onAdd: (Lesson) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -24,7 +24,7 @@ class PitchDetector {
     private var tracker: PitchTap?
     private var silence: Fader?
     /// Absolute minimum — never go below this even with adaptive gain
-    private let floorThreshold: Float = 0.02
+    static let floorThreshold: Float = 0.008
 
     /// Tracked peak of recent playing amplitude (fast attack, slow decay)
     private var recentPeak: Float = 0
@@ -98,7 +98,7 @@ class PitchDetector {
         } else {
             recentPeak *= peakDecay
         }
-        let threshold = max(floorThreshold, recentPeak * thresholdRatio)
+        let threshold = max(Self.floorThreshold, recentPeak * thresholdRatio)
 
         guard amp > threshold else {
             self.detectedMidi = 0

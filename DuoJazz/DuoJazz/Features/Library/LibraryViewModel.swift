@@ -7,18 +7,18 @@ import Foundation
 
 @Observable
 class LibraryViewModel {
-    var activePaths: [LickCollection] = [
-        BuiltInCollections.firstJazzPhrases,
-        BuiltInCollections.bluesBasics,
+    var activePaths: [Lesson] = [
+        BuiltInLessons.firstJazzPhrases,
+        BuiltInLessons.bluesBasics,
     ]
 
-    var availablePaths: [LickCollection] {
+    var availablePaths: [Lesson] {
         let activeIds = Set(activePaths.map(\.id))
-        return BuiltInCollections.all.filter { !activeIds.contains($0.id) }
+        return BuiltInLessons.all.filter { !activeIds.contains($0.id) }
     }
 
     // Stub progress data — will come from SwiftData in Phase 7
-    func progress(for collection: LickCollection) -> (completed: Int, total: Int) {
+    func progress(for collection: Lesson) -> (completed: Int, total: Int) {
         switch collection.id {
         case "ii-v-i-essentials": (2, collection.lickCount)
         case "blues-basics": (0, collection.lickCount)
@@ -26,7 +26,7 @@ class LibraryViewModel {
         }
     }
 
-    func startPath(_ collection: LickCollection) {
+    func startPath(_ collection: Lesson) {
         guard !activePaths.contains(where: { $0.id == collection.id }) else { return }
         activePaths.append(collection)
     }

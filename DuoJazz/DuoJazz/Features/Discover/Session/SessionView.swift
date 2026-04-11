@@ -11,8 +11,22 @@ struct SessionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    init(lesson: Lesson, key: KeyOption) {
-        _viewModel = State(initialValue: SessionViewModel(lesson: lesson, key: key))
+    let onKeyChanged: ((KeyOption) -> Void)?
+
+    init(
+        lesson: Lesson,
+        startingLickIndex: Int,
+        key: KeyOption,
+        mode: PracticeMode = .lesson,
+        onKeyChanged: ((KeyOption) -> Void)? = nil
+    ) {
+        _viewModel = State(initialValue: SessionViewModel(
+            lesson: lesson,
+            startingLickIndex: startingLickIndex,
+            key: key,
+            mode: mode
+        ))
+        self.onKeyChanged = onKeyChanged
     }
 
     var body: some View {
@@ -20,15 +34,25 @@ struct SessionView: View {
             SessionTopBar(
                 progress: viewModel.progress,
                 progressText: viewModel.progressText,
+                keyName: viewModel.currentKey.displayName,
                 onClose: { dismiss() }
             )
 
             if viewModel.isSessionComplete {
-                SessionCompleteView(onDone: { dismiss() })
+                SessionCompleteView(
+                    lickName: viewModel.lickName,
+                    keyName: viewModel.currentKey.displayName,
+                    nextKeyName: viewModel.nextLabel,
+                    onDone: { dismiss() },
+                    onContinue: viewModel.hasNext ? {
+                        viewModel.advanceNext()
+                        onKeyChanged?(viewModel.currentKey)
+                    } : nil
+                )
                     .transition(.push(from: .trailing))
             } else if let card = viewModel.currentCard {
                 cardContent(for: card)
-                    .id(viewModel.currentCardIndex)
+                    .id("\(viewModel.currentLickId)-\(viewModel.currentKey.id)-\(viewModel.currentCardIndex)")
                     .transition(.push(from: .trailing))
             }
         }
@@ -40,25 +64,32 @@ struct SessionView: View {
                 viewModel.autoRecord = profile.autoRecord
             }
         }
+        .onDisappear {
+            if viewModel.currentKey != viewModel.startingKey {
+                onKeyChanged?(viewModel.currentKey)
+            }
+        }
     }
 
     @ViewBuilder
-    private func cardContent(for card: LessonCard) -> some View {
+    private func cardContent(for card: PracticeCard) -> some View {
         switch card {
         case .learn:
             if let lick = viewModel.currentLick {
-                LearnCardView(lick: lick, key: viewModel.key, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
+                LearnCardView(lick: lick, key: viewModel.currentKey, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
             }
         case .play:
             if let lick = viewModel.currentLick {
-                PlayCardView(lick: lick, key: viewModel.key, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
+                PlayCardView(lick: lick, key: viewModel.currentKey, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
             }
         case .listen:
             if let lick = viewModel.currentLick {
-                ListenCardView(lick: lick, key: viewModel.key, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
+                ListenCardView(lick: lick, key: viewModel.currentKey, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
             }
-        case .quiz(let tag):
-            QuizCardView(tag: tag, key: viewModel.key, onNext: viewModel.nextCard)
+        case .quiz:
+            if let lick = viewModel.currentLick {
+                QuizCardView(lick: lick, key: viewModel.currentKey, autoRecord: $viewModel.autoRecord, onNext: viewModel.nextCard)
+            }
         }
     }
 }

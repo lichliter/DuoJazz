@@ -5,6 +5,7 @@
 
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// Tracks the highest card type a user has completed for a lick in a specific key
 @Model
@@ -71,16 +72,64 @@ struct MasteryStore {
         try? context.save()
     }
 
-    /// How many licks in a module are fully mastered (Listen completed) in a given key
-    func masteredCount(lickIds: [String], in key: Key) -> Int {
-        lickIds.filter { level(for: $0, in: key) >= .listen }.count
+    /// How many keys has this lick been completed in (Listen done)?
+    func completedKeyCount(for lickId: String) -> Int {
+        let listenLevel = CardLevel.listen.rawValue
+        let predicate = #Predicate<LickMastery> {
+            $0.lickId == lickId && $0.highestCardType >= listenLevel
+        }
+        let descriptor = FetchDescriptor(predicate: predicate)
+        return (try? context.fetch(descriptor).count) ?? 0
     }
 
-    /// Overall module progress: fraction of licks that have completed Listen
-    func moduleProgress(lickIds: [String], in key: Key) -> Double {
-        guard !lickIds.isEmpty else { return 0 }
-        let total = lickIds.count * CardLevel.listen.rawValue
-        let achieved = lickIds.reduce(0) { $0 + level(for: $1, in: key).rawValue }
-        return Double(achieved) / Double(total)
+    /// Per-lick medal based on how many keys completed
+    func medal(for lickId: String) -> Medal {
+        let count = completedKeyCount(for: lickId)
+        if count >= 12 { return .gold }
+        if count >= 6 { return .silver }
+        if count >= 1 { return .bronze }
+        return .none
     }
+
+    /// Key status for a specific lick in a specific key
+    func keyStatus(for lickId: String, key: Key) -> KeyStatus {
+        let lvl = level(for: lickId, in: key)
+        if lvl >= .listen { return .completed }
+        if lvl > .none { return .inProgress }
+        return .notStarted
+    }
+}
+
+/// Medal awarded based on how many keys a lick is completed in
+enum Medal: Sendable {
+    case none
+    case bronze   // 1+ keys
+    case silver   // 6+ keys
+    case gold     // all 12
+
+    var icon: String {
+        self == .none ? "" : "medal.fill"
+    }
+
+    var color: Color {
+        switch self {
+        case .none: .clear
+        case .bronze: Color(hex: 0xCD7F32)
+        case .silver: Color(hex: 0xC0C0C0)
+        case .gold: Color(hex: 0xFFD700)
+        }
+    }
+}
+
+enum KeyStatus {
+    case completed, inProgress, notStarted
+}
+
+/// Counts of licks at each medal tier
+struct MedalSummary: Sendable {
+    let bronze: Int
+    let silver: Int
+    let gold: Int
+
+    var total: Int { bronze + silver + gold }
 }
