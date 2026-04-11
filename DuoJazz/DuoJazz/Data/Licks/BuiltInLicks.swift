@@ -16,6 +16,7 @@ enum BuiltInLicks {
         iiviHoneyBee, iiviDigIt, iiviCryMeEnclosure, iiviLeapFrog, iiviConfirmation,
         smoothIIVI,
         chromaticApproachScale,
+        majorScale, naturalMinorScale, majorPentatonic, minorPentatonic, harmonicMinorScale, melodicMinorScale,
     ]
 
     // MARK: - ii-V-I Licks
@@ -382,5 +383,79 @@ enum BuiltInLicks {
             N(12, .half), R(.half), // 8
         ],
         chordProgression: .diatonicTriadsLong
+    )
+
+    // MARK: - Scale Module Licks
+
+    /// Major scale: up and down. 1-2-3-4-5-6-7-8-7-6-5-4-3-2-1
+    static let majorScale = Lick(
+        id: "major-scale", name: "Major Scale", tags: [.chordTones],
+        elements: [
+            N(0), N(2), N(4), N(5),    // 1-2-3-4
+            N(7), N(9), N(11), N(12),  // 5-6-7-8
+            N(11), N(9), N(7), N(5),   // 7-6-5-4
+            N(4), N(2),                // 3-2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Natural minor scale: 1-b3-4-5-b6-b7-8 up and down
+    static let naturalMinorScale = Lick(
+        id: "minor-scale", name: "Natural Minor Scale", tags: [.minor, .chordTones],
+        elements: [
+            N(0), N(2), N(3), N(5),    // 1-2-b3-4
+            N(7), N(8), N(10), N(12),  // 5-b6-b7-8
+            N(10), N(8), N(7), N(5),   // b7-b6-5-4
+            N(3), N(2),                // b3-2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Major pentatonic: 1-2-3-5-6-8. Triplet quarters so each half-bar fits 3 notes.
+    static let majorPentatonic = Lick(
+        id: "major-pentatonic", name: "Major Pentatonic", tags: [.pentatonic, .chordTones],
+        elements: [
+            N(0), N(2), N(4),          // 1-2-3
+            N(7), N(9), N(12),         // 5-6-8
+            N(9), N(7), N(4),          // 6-5-3
+            N(2),                      // 2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Minor pentatonic: 1-b3-4-5-b7-8. The backbone of blues and rock soloing.
+    static let minorPentatonic = Lick(
+        id: "minor-pentatonic", name: "Minor Pentatonic", tags: [.pentatonic, .minor],
+        elements: [
+            N(0), N(3), N(5),          // 1-b3-4
+            N(7), N(10), N(12),        // 5-b7-8
+            N(10), N(7), N(5),         // b7-5-4
+            N(3),                      // b3
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Harmonic minor: 1-2-b3-4-5-b6-7-8. The natural 7 gives it that exotic flavor.
+    static let harmonicMinorScale = Lick(
+        id: "harmonic-minor", name: "Harmonic Minor", tags: [.minor, .chordTones],
+        elements: [
+            N(0), N(2), N(3), N(5),    // 1-2-b3-4
+            N(7), N(8), N(11), N(12),  // 5-b6-7-8
+            N(11), N(8), N(7), N(5),   // 7-b6-5-4
+            N(3), N(2),                // b3-2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Melodic minor (ascending form): 1-2-b3-4-5-6-7-8. Minor 3rd with natural 6 and 7.
+    static let melodicMinorScale = Lick(
+        id: "melodic-minor", name: "Melodic Minor", tags: [.minor, .chordTones],
+        elements: [
+            N(0), N(2), N(3), N(5),    // 1-2-b3-4
+            N(7), N(9), N(11), N(12),  // 5-6-7-8
+            N(11), N(9), N(7), N(5),   // 7-6-5-4
+            N(3), N(2),                // b3-2
+            N(0, .half), R(.half),     // 1
+        ]
     )
 }

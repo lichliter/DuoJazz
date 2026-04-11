@@ -16,8 +16,8 @@ struct LickDetailView: View {
     @State private var player = LickPlayer()
     @State private var hasLoadedPreference = false
 
-    private var parentCollection: LickCollection? {
-        BuiltInCollections.all.first { $0.lickIds.contains(lick.id) }
+    private var parentCollection: Lesson? {
+        BuiltInLessons.all.first { $0.lickIds.contains(lick.id) }
     }
 
     var body: some View {
@@ -25,7 +25,7 @@ struct LickDetailView: View {
             // Module link + title
             VStack(alignment: .leading, spacing: 6) {
                 if let collection = parentCollection {
-                    NavigationLink(destination: ModuleDetailView(collection: collection)) {
+                    NavigationLink(destination: LessonDetailView(lesson: collection)) {
                         HStack(spacing: 6) {
                             Image(systemName: collection.iconName)
                                 .font(.subheadline)
