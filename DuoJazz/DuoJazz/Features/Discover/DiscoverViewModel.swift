@@ -7,6 +7,5 @@ import Foundation
 
 @Observable
 class DiscoverViewModel {
-    var allCollections: [LickCollection] = BuiltInCollections.all
-    var selectedKey: KeyOption = KeyOption.allOptions[0]
+    var allCollections: [Lesson] = BuiltInLessons.all
 }

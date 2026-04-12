@@ -28,7 +28,7 @@ struct LickCatalog: Sendable {
         allLicks.filter { $0.tags.contains(tag) }
     }
 
-    func licks(for collection: LickCollection) -> [Lick] {
+    func licks(for collection: Lesson) -> [Lick] {
         collection.lickIds.compactMap { licksById[$0] }
     }
 

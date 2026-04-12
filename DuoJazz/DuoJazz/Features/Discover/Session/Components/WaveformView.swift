@@ -37,7 +37,7 @@ struct WaveformView: View {
     private func barColor(for amplitude: Float) -> Color {
         if amplitude > 0.1 {
             return Color(hex: 0x22C55E)
-        } else if amplitude > 0.02 {
+        } else if amplitude > PitchDetector.floorThreshold {
             return Color(hex: 0x8B5CF6)
         } else {
             return Color(hex: 0x1E1535)

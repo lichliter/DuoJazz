@@ -120,6 +120,7 @@ class RecordingSession {
                     await self.startRecording()
                 }
             } else if accuracy >= 1.0 {
+                Feedback.success()
                 Task {
                     try? await Task.sleep(for: .seconds(1.2))
                     self.onComplete?()
