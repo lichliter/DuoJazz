@@ -28,5 +28,5 @@ struct CardBadge: View {
     static let learn = CardBadge(type: "LEARN", color: Color(hex: 0x3B82F6), icon: "lightbulb")
     static let play = CardBadge(type: "PLAY", color: Color(hex: 0x22C55E), icon: "music.note")
     static let listen = CardBadge(type: "LISTEN", color: Color(hex: 0xF59E0B), icon: "ear")
-    static let quiz = CardBadge(type: "QUIZ", color: Color(hex: 0xEF4444), icon: "bolt")
+    static let quiz = CardBadge(type: "QUIZ", color: Color(hex: 0xEF4444), icon: "target")
 }

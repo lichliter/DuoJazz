@@ -1,18 +1,36 @@
 //
-//  BuiltInCollections.swift
+//  BuiltInLessons.swift
 //  DuoJazz
 //
 
 import Foundation
 
-/// Built-in module catalog
-enum BuiltInCollections {
-    static let all: [LickCollection] = [
-        triads, firstJazzPhrases, bluesBasics, bebopEssentials, intermediateIIVI
+/// Built-in lesson catalog
+enum BuiltInLessons {
+    static let all: [Lesson] = [
+        scales, triads, firstJazzPhrases, bluesBasics, bebopEssentials, intermediateIIVI
     ]
 
+    /// Essential Scales: the vocabulary of every jazz solo
+    static let scales = Lesson(
+        id: "scales",
+        name: "Essential Scales",
+        description: "Major, minor, pentatonics, harmonic and melodic minor — the vocabulary of every solo.",
+        tags: [.chordTones, .modal],
+        lickIds: [
+            "major-scale",
+            "minor-scale",
+            "major-pentatonic",
+            "minor-pentatonic",
+            "harmonic-minor",
+            "melodic-minor",
+        ],
+        difficulty: .beginner,
+        iconName: "music.note.list"
+    )
+
     /// Triads: diatonic 3rds, triads, and broken triads
-    static let triads = LickCollection(
+    static let triads = Lesson(
         id: "triads",
         name: "Triads",
         description: "Diatonic 3rds, triads, and broken triads — the building blocks of harmony.",
@@ -29,7 +47,7 @@ enum BuiltInCollections {
     )
 
     /// First Jazz Phrases: 5 essential ii-V-I patterns
-    static let firstJazzPhrases = LickCollection(
+    static let firstJazzPhrases = Lesson(
         id: "first-jazz-phrases",
         name: "First Jazz Phrases",
         description: "5 essential ii-V-I patterns — arpeggios, scales, enclosures, and classic lines.",
@@ -46,7 +64,7 @@ enum BuiltInCollections {
     )
 
     /// Blues Basics: essential blues vocabulary
-    static let bluesBasics = LickCollection(
+    static let bluesBasics = Lesson(
         id: "blues-basics",
         name: "Blues Basics",
         description: "Build your blues vocabulary with scales, approaches, and enclosures.",
@@ -63,7 +81,7 @@ enum BuiltInCollections {
     )
 
     /// Bebop Essentials: core bebop language
-    static let bebopEssentials = LickCollection(
+    static let bebopEssentials = Lesson(
         id: "bebop-essentials",
         name: "Bebop Essentials",
         description: "Classic bebop patterns: scales, enclosures, and chromatic lines.",
@@ -80,7 +98,7 @@ enum BuiltInCollections {
     )
 
     /// Intermediate ii-V-I: longer lines with chromatic approaches, enclosures, and leaps
-    static let intermediateIIVI = LickCollection(
+    static let intermediateIIVI = Lesson(
         id: "intermediate-ii-v-i",
         name: "ii-V-I: Next Level",
         description: "Longer lines with chromatic runs, double enclosures, and intervallic leaps over ii-V-I.",

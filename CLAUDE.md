@@ -31,10 +31,10 @@ A Duolingo-style iPad app for learning jazz licks. Users complete sessions (stac
 - `Instrument` struct with 10 presets, injected app-wide via `@Environment(\.instrument)` from `ContentView`
 - `LickPreferenceStore` persists per-lick octave offset and tempo via SwiftData
 - `UserProfile` persists instrument selection and autoRecord preference via SwiftData
-- `LickMastery` + `MasteryStore` tracks card progression per lick per key
-- `ModuleProgress` + `ModuleProgressStore` tracks lesson completion with medal system (bronze/silver/gold)
+- `LickMastery` + `MasteryStore` tracks card progression per lick per key, computes per-lick medals based on count of completed keys
+- `Medal` enum (bronze/silver/gold) + `KeyStatus` enum live in `LickMastery.swift`
 - `LickCatalog.shared` — central lick lookup (by ID, tag, collection, or search)
-- `Lesson.generate(from:catalog:mastery:)` — builds 8-card sessions based on current mastery state
+- `Lesson.generate(for:in:)` — builds a fixed 5-card session for a single lick: Learn → Play → Listen → Listen → Listen
 - Xcode uses `PBXFileSystemSynchronizedRootGroup` — new .swift files auto-discovered
 
 ## 4-Tab Architecture
@@ -47,9 +47,11 @@ A Duolingo-style iPad app for learning jazz licks. Users complete sessions (stac
 | Profile | `ProfileView` | Instrument selection, mastery stats, medals |
 
 ### Session Flow
-`DiscoverView` → `ModuleDetailView` (collection + key picker) → `SessionView` (card stack) → `SessionCompleteView`
+`DiscoverView` → `ModuleDetailView` (key picker + lick rows w/ per-lick medals) → tap lick → `SessionView` (5 cards for that lick in selected key) → `SessionCompleteView`
 
-Card types in progression order: **Learn** (see + hear) → **Play** (see + record) → **Listen** (hear + record)
+Card sequence per session (always the same 5 cards for a single lick): **Learn** (see + hear) → **Play** (see + record) → **Listen** × 3 (hear + record)
+
+**Medals** are per-lick, based on how many keys the lick is completed in: Bronze (1 key), Silver (6 keys), Gold (12 keys). Module-level medals are deferred.
 
 ## Build & Test (CLI)
 

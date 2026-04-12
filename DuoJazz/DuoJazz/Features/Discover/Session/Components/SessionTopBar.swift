@@ -8,6 +8,7 @@ import SwiftUI
 struct SessionTopBar: View {
     let progress: Double
     let progressText: String
+    let keyName: String
     let onClose: () -> Void
 
     var body: some View {
@@ -33,6 +34,12 @@ struct SessionTopBar: View {
                 }
             }
             .frame(height: 8)
+
+            Text(keyName)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Color(hex: 0x8B5CF6))
+                .monospacedDigit()
+                .contentTransition(.numericText())
 
             Text(progressText)
                 .font(.caption.weight(.semibold))

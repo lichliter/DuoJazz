@@ -11,9 +11,12 @@ enum BuiltInLicks {
         shortIIVI, scaledIIVI, enclosureIIVI, descendingIIVI,
         bluesScale, bluesApproach, bluesEnclosure, bluesTurnback, bluesCallResponse,
         bebopScale, bebopEnclosure, bebopChromatic, bebopApproach, bebopDescending,
-        chromaticApproach, chordToneArpeggio,
+        chromaticApproach, chordToneArpeggio, chromaticTargeting,
         thirdsUp, thirdsDown, triadsUp, triadsDown, brokenTriads,
         iiviHoneyBee, iiviDigIt, iiviCryMeEnclosure, iiviLeapFrog, iiviConfirmation,
+        smoothIIVI,
+        chromaticApproachScale,
+        majorScale, naturalMinorScale, majorPentatonic, minorPentatonic, harmonicMinorScale, melodicMinorScale,
     ]
 
     // MARK: - ii-V-I Licks
@@ -149,12 +152,12 @@ enum BuiltInLicks {
         ]
     )
 
-    /// Bebop descending: classic 8-note descending bebop dominant line
+    /// Bebop Descending: 1235 digital pattern descending through the dominant scale
     static let bebopDescending = Lick(
         id: "bebop-descending", name: "Bebop Descending", tags: [.bebop, .dominant],
         elements: [
-            N(12), N(11), N(10), N(9),     // 8-7-b7-6
-            N(7), N(5), N(4), N(2),        // 5-4-3-2
+            N(12), N(11), N(9), N(7),      // 8-7-6-5 (digital group from octave)
+            N(9), N(7), N(5), N(4),        // 6-5-4-3 (down a step)
             N(0, .half),                    // resolve to root
         ]
     )
@@ -220,7 +223,7 @@ enum BuiltInLicks {
             N(7, .quarter), R(.quarter),
             // V7: enclosure targeting 3rd, descend
             N(5), N(3), N(4, .quarter),
-            N(2), N(0, .quarter), R(.quarter),
+            N(2), N(0), R(.quarter),
             // Imaj7: resolve
             N(0, .half), R(.half),
             R(.whole),
@@ -243,6 +246,20 @@ enum BuiltInLicks {
         chordProgression: .longIIVI
     )
 
+    /// Smooth ii-V-I: Am7 arpeggio down, target 3rd of V7, chromatic resolve to 5th of I
+    static let smoothIIVI = Lick(
+        id: "smooth-ii-v-i", name: "Smooth ii-V-I", tags: [.iiVI, .chromaticRuns],
+        elements: [
+            // ii-7: descending Am7 arpeggio (b7-5-b3-root)
+            N(12), N(9), N(5), N(2),
+            // V7: b13 up to 3rd, chromatic approach
+            N(3), N(11), N(9), N(8),
+            // Imaj7: resolve to 5th
+            N(7, .half), R(.half),
+        ],
+        chordProgression: .shortIIVI
+    )
+
     /// Confirmation: Parker-style line — chromatic runs connecting chord tones over ii-V-I
     static let iiviConfirmation = Lick(
         id: "iivi-confirmation", name: "Confirmation", tags: [.iiVI, .bebop, .chromaticRuns],
@@ -256,6 +273,44 @@ enum BuiltInLicks {
             R(.whole),
         ],
         chordProgression: .longIIVI
+    )
+
+    /// Chromatic Targeting: approach each scale degree from a half step below, ascending through the scale
+    static let chromaticTargeting = Lick(
+        id: "chromatic-targeting", name: "Chromatic Targeting", tags: [.chromaticRuns, .approachNotes],
+        elements: [
+            // Bar 1: approach root and 2nd from half step below
+            N(-1), N(0), N(2), N(4), N(1), N(2), N(4), N(5),
+            // Bar 2: approach 3rd and 4th
+            N(3), N(4), N(5), N(7), N(4), N(5), N(7), N(9),
+            // Bar 3: approach 5th and 6th
+            N(6), N(7), N(9), N(11), N(8), N(9), N(11), N(12),
+            // Bar 4: approach 7th, arrive at octave, resolve
+            N(10), N(11), N(12, .quarter), N(9), N(7), N(0, .quarter),
+        ]
+    )
+
+    /// Diatonic 3rds with chromatic connections: leap to diatonic 3rd, return, chromatic lead to next scale degree
+    static let chromaticApproachScale = Lick(
+        id: "chromatic-approach-scale", name: "3rds Chromatic Approach", tags: [.chromaticRuns, .chordTones],
+        elements: [
+            // D: up a 3rd, return, chromatic lead to E
+            N(0), N(4), N(0), N(1),
+            // E: up a 3rd, return, chromatic lead to F#
+            N(2), N(5), N(2), N(3),
+            // F#: up a 3rd, chromatic descent back
+            N(4), N(7), N(6), N(4),
+            // G: up a 3rd, return, chromatic lead to A
+            N(5), N(9), N(5), N(6),
+            // A: up a 3rd, return, chromatic lead to B
+            N(7), N(11), N(7), N(8),
+            // B: up a 3rd, return, chromatic lead to C#
+            N(9), N(12), N(9), N(10),
+            // C#: up a 3rd, chromatic descent back
+            N(11), N(14), N(13), N(11),
+            // Resolve to octave
+            N(12, .half),
+        ]
     )
 
     // MARK: - Triad Module Licks
@@ -328,5 +383,79 @@ enum BuiltInLicks {
             N(12, .half), R(.half), // 8
         ],
         chordProgression: .diatonicTriadsLong
+    )
+
+    // MARK: - Scale Module Licks
+
+    /// Major scale: up and down. 1-2-3-4-5-6-7-8-7-6-5-4-3-2-1
+    static let majorScale = Lick(
+        id: "major-scale", name: "Major Scale", tags: [.chordTones],
+        elements: [
+            N(0), N(2), N(4), N(5),    // 1-2-3-4
+            N(7), N(9), N(11), N(12),  // 5-6-7-8
+            N(11), N(9), N(7), N(5),   // 7-6-5-4
+            N(4), N(2),                // 3-2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Natural minor scale: 1-b3-4-5-b6-b7-8 up and down
+    static let naturalMinorScale = Lick(
+        id: "minor-scale", name: "Natural Minor Scale", tags: [.minor, .chordTones],
+        elements: [
+            N(0), N(2), N(3), N(5),    // 1-2-b3-4
+            N(7), N(8), N(10), N(12),  // 5-b6-b7-8
+            N(10), N(8), N(7), N(5),   // b7-b6-5-4
+            N(3), N(2),                // b3-2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Major pentatonic: 1-2-3-5-6-8. Triplet quarters so each half-bar fits 3 notes.
+    static let majorPentatonic = Lick(
+        id: "major-pentatonic", name: "Major Pentatonic", tags: [.pentatonic, .chordTones],
+        elements: [
+            N(0), N(2), N(4),          // 1-2-3
+            N(7), N(9), N(12),         // 5-6-8
+            N(9), N(7), N(4),          // 6-5-3
+            N(2),                      // 2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Minor pentatonic: 1-b3-4-5-b7-8. The backbone of blues and rock soloing.
+    static let minorPentatonic = Lick(
+        id: "minor-pentatonic", name: "Minor Pentatonic", tags: [.pentatonic, .minor],
+        elements: [
+            N(0), N(3), N(5),          // 1-b3-4
+            N(7), N(10), N(12),        // 5-b7-8
+            N(10), N(7), N(5),         // b7-5-4
+            N(3),                      // b3
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Harmonic minor: 1-2-b3-4-5-b6-7-8. The natural 7 gives it that exotic flavor.
+    static let harmonicMinorScale = Lick(
+        id: "harmonic-minor", name: "Harmonic Minor", tags: [.minor, .chordTones],
+        elements: [
+            N(0), N(2), N(3), N(5),    // 1-2-b3-4
+            N(7), N(8), N(11), N(12),  // 5-b6-7-8
+            N(11), N(8), N(7), N(5),   // 7-b6-5-4
+            N(3), N(2),                // b3-2
+            N(0, .half), R(.half),     // 1
+        ]
+    )
+
+    /// Melodic minor (ascending form): 1-2-b3-4-5-6-7-8. Minor 3rd with natural 6 and 7.
+    static let melodicMinorScale = Lick(
+        id: "melodic-minor", name: "Melodic Minor", tags: [.minor, .chordTones],
+        elements: [
+            N(0), N(2), N(3), N(5),    // 1-2-b3-4
+            N(7), N(9), N(11), N(12),  // 5-6-7-8
+            N(11), N(9), N(7), N(5),   // 7-6-5-4
+            N(3), N(2),                // b3-2
+            N(0, .half), R(.half),     // 1
+        ]
     )
 }

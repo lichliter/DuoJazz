@@ -9,57 +9,94 @@ import SwiftData
 @Observable
 class SessionViewModel {
     let lesson: Lesson
-    let key: KeyOption
+    var currentLickIndex: Int
+    let mode: PracticeMode
+    let startingKey: KeyOption
+    var currentKey: KeyOption
     var currentCardIndex = 0
     var isSessionComplete = false
     var autoRecord = false
+    private(set) var currentCards: [PracticeCard]
 
     private let catalog = LickCatalog.shared
     var modelContext: ModelContext?
 
-    init(lesson: Lesson, key: KeyOption) {
+    init(lesson: Lesson, startingLickIndex: Int, key: KeyOption, mode: PracticeMode = .lesson) {
         self.lesson = lesson
-        self.key = key
+        self.currentLickIndex = startingLickIndex
+        self.mode = mode
+        self.startingKey = key
+        self.currentKey = key
+        self.currentCards = PracticeCard.session(for: lesson.lickIds[startingLickIndex])
     }
 
-    var currentCard: LessonCard? {
-        guard currentCardIndex < lesson.cards.count else { return nil }
-        return lesson.cards[currentCardIndex]
+    var currentLickId: String {
+        lesson.lickIds[currentLickIndex]
     }
+
+    var currentCard: PracticeCard? {
+        guard currentCardIndex < currentCards.count else { return nil }
+        return currentCards[currentCardIndex]
+    }
+
+    var cardCount: Int { currentCards.count }
 
     var currentLick: Lick? {
-        guard let lickId = currentCard?.lickId else { return nil }
-        return catalog.lick(withId: lickId)
+        guard let card = currentCard else { return nil }
+        return catalog.lick(withId: card.lickId)
+    }
+
+    var lickName: String {
+        catalog.lick(withId: currentLickId)?.name ?? "Lick"
     }
 
     var progress: Double {
-        guard lesson.cardCount > 0 else { return 0 }
-        return Double(currentCardIndex) / Double(lesson.cardCount)
+        guard cardCount > 0 else { return 0 }
+        return Double(currentCardIndex) / Double(cardCount)
     }
 
     var progressText: String {
-        "\(currentCardIndex + 1)/\(lesson.cardCount)"
+        "\(currentCardIndex + 1)/\(cardCount)"
+    }
+
+    var hasNext: Bool {
+        if mode.iteratesLicks {
+            return currentLickIndex + 1 < lesson.lickIds.count
+        }
+        return mode.nextKey(after: currentKey, startingKey: startingKey) != nil
+    }
+
+    var nextLabel: String? {
+        if mode.iteratesLicks {
+            guard currentLickIndex + 1 < lesson.lickIds.count else { return nil }
+            return catalog.lick(withId: lesson.lickIds[currentLickIndex + 1])?.name
+        }
+        return mode.nextKey(after: currentKey, startingKey: startingKey)?.displayName
     }
 
     func nextCard() {
-        // Record per-lick mastery (for Licktionary display)
         if let card = currentCard, let context = modelContext {
-            let store = MasteryStore(context: context)
-            if let lickId = card.lickId {
-                store.complete(cardType: card.cardLevel, for: lickId, in: key.key)
-            }
+            MasteryStore(context: context).complete(cardType: card.cardLevel, for: card.lickId, in: currentKey.key)
         }
 
-        if currentCardIndex + 1 < lesson.cardCount {
+        if currentCardIndex + 1 < cardCount {
             currentCardIndex += 1
         } else {
-            // Lesson complete — update module progress
-            if let context = modelContext {
-                let progressStore = ModuleProgressStore(context: context)
-                let current = progressStore.completedLesson(for: lesson.moduleId, in: key.key)
-                progressStore.completeLesson(current + 1, for: lesson.moduleId, in: key.key)
-            }
             isSessionComplete = true
         }
+    }
+
+    /// Advance to the next session (next lick in Lesson mode, next key otherwise)
+    func advanceNext() {
+        if mode.iteratesLicks {
+            guard currentLickIndex + 1 < lesson.lickIds.count else { return }
+            currentLickIndex += 1
+            currentCards = PracticeCard.session(for: currentLickId)
+        } else {
+            guard let next = mode.nextKey(after: currentKey, startingKey: startingKey) else { return }
+            currentKey = next
+        }
+        currentCardIndex = 0
+        isSessionComplete = false
     }
 }

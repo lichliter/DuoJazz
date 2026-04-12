@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct PathCardView: View {
-    let collection: LickCollection
+    let collection: Lesson
     let progress: (completed: Int, total: Int)
     let onContinue: () -> Void
 

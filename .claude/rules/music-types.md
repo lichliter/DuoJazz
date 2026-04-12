@@ -33,7 +33,8 @@ Licks are stored as **intervals (semitones from root)**, not absolute pitches. T
 - `KeyOption` — wraps Key with display name, key signature string, flat/sharp spelling
 - `Lick` — id, name, tags, timeSignature, elements: [LickElement], chordProgression
 - `LickCollection` — id, name, description, tags, lickIds, difficulty, iconName
-- `Lesson` — id, moduleId, cards: [LessonCard] (`.learn`, `.play`, `.listen`, `.quiz`)
+- `Lesson` — id, moduleId, lickId, cards: [LessonCard] — always 5 cards for a single lick: Learn → Play → Listen × 3
+- `LessonCard` — enum: `.learn(lickId)`, `.play(lickId)`, `.listen(lickId)`
 - `Instrument` — transposition, range, defaultClef, `recommendedOctaveOffset(for:in:)`
 - `Clef` — treble/bass/alto/tenor with `middleLineMidi`, `octaveOffset`
 - `Tag` — 12 jazz categories (iiVI, blues, bebop, turnarounds, modal, etc.)
