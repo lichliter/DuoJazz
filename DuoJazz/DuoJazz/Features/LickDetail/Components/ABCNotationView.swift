@@ -13,18 +13,33 @@ struct ABCNotationView: View {
     let octaveOffset: Int
     var chartMode: Bool = false
 
+    @State private var isLoaded = false
+
     var body: some View {
-        ABCWebView(
-            abc: chartMode
-                ? ABCConverter.toChartABC(lick: lick, keyOption: keyOption, clef: clef)
-                : ABCConverter.toABC(lick: lick, keyOption: keyOption, clef: clef, octaveOffset: octaveOffset)
-        )
+        ZStack {
+            ABCWebView(
+                abc: chartMode
+                    ? ABCConverter.toChartABC(lick: lick, keyOption: keyOption, clef: clef)
+                    : ABCConverter.toABC(lick: lick, keyOption: keyOption, clef: clef, octaveOffset: octaveOffset),
+                onLoad: { isLoaded = true }
+            )
+
+            if !isLoaded {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(hex: 0x1E1535))
+                    .overlay {
+                        ProgressView()
+                            .tint(.secondary)
+                    }
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
 struct ABCWebView: UIViewRepresentable {
     let abc: String
+    var onLoad: (() -> Void)?
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -58,12 +73,17 @@ struct ABCWebView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onLoad: onLoad)
     }
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var isReady = false
         var pendingABC: String?
+        let onLoad: (() -> Void)?
+
+        init(onLoad: (() -> Void)? = nil) {
+            self.onLoad = onLoad
+        }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isReady = true
@@ -92,12 +112,11 @@ struct ABCWebView: UIViewRepresentable {
                     .replacingOccurrences(of: "\\", with: "\\\\")
                     .replacingOccurrences(of: "'", with: "\\'")
                     .replacingOccurrences(of: "\n", with: "\\n")
-                webView.evaluateJavaScript("render('\(escaped)')") { result, error in
+                webView.evaluateJavaScript("render('\(escaped)')") { [weak self] result, error in
                     if let error {
                         print("[ABCNotation] JS error: \(error)")
-                    }
-                    if let result {
-                        print("[ABCNotation] JS result: \(result)")
+                    } else {
+                        DispatchQueue.main.async { self?.onLoad?() }
                     }
                 }
             }
