@@ -39,8 +39,10 @@ struct ProfileView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                InstrumentCard(instrument: vm.selectedInstrument)
-                    .onTapGesture { showingInstrumentPicker = true }
+                if let vm = viewModel {
+                    InstrumentCard(instrument: vm.selectedInstrument)
+                        .onTapGesture { showingInstrumentPicker = true }
+                }
 
                 MedalSummaryCard(summary: lickMedalSummary)
             }
@@ -49,21 +51,21 @@ struct ProfileView: View {
         }
         .background(Color(hex: 0x0F0A1E))
         .navigationTitle("Profile")
-        .sheet(isPresented: $showingInstrumentPicker) {
-            InstrumentPickerView(
-                selected: vm.selectedInstrument,
-                onSelect: { picked in
-                    vm.updateInstrument(picked, profile: profile)
-                    showingInstrumentPicker = false
-                }
-            )
+        .task {
+            if viewModel == nil {
+                viewModel = ProfileViewModel(instrument: instrument)
+            }
         }
-    }
-
-    private var vm: ProfileViewModel {
-        if let viewModel { return viewModel }
-        let created = ProfileViewModel(instrument: instrument)
-        Task { @MainActor in viewModel = created }
-        return created
+        .sheet(isPresented: $showingInstrumentPicker) {
+            if let vm = viewModel {
+                InstrumentPickerView(
+                    selected: vm.selectedInstrument,
+                    onSelect: { picked in
+                        vm.updateInstrument(picked, profile: profile)
+                        showingInstrumentPicker = false
+                    }
+                )
+            }
+        }
     }
 }

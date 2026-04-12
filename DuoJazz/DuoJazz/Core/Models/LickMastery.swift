@@ -4,8 +4,11 @@
 //
 
 import Foundation
+import os.log
 import SwiftData
 import SwiftUI
+
+private let logger = Logger(subsystem: "com.brianlichliter.DuoJazz", category: "MasteryStore")
 
 /// Tracks the highest card type a user has completed for a lick in a specific key
 @Model
@@ -59,17 +62,21 @@ struct MasteryStore {
         }
         let descriptor = FetchDescriptor(predicate: predicate)
 
-        if let existing = try? context.fetch(descriptor).first {
-            if cardType.rawValue > existing.highestCardType {
-                existing.highestCardType = cardType.rawValue
+        do {
+            if let existing = try context.fetch(descriptor).first {
+                if cardType.rawValue > existing.highestCardType {
+                    existing.highestCardType = cardType.rawValue
+                }
+            } else {
+                context.insert(LickMastery(
+                    lickId: lickId, keyRawValue: keyRaw,
+                    highestCardType: cardType.rawValue
+                ))
             }
-        } else {
-            context.insert(LickMastery(
-                lickId: lickId, keyRawValue: keyRaw,
-                highestCardType: cardType.rawValue
-            ))
+            try context.save()
+        } catch {
+            logger.error("Failed to save mastery for \(lickId): \(error)")
         }
-        try? context.save()
     }
 
     /// How many keys has this lick been completed in (Listen done)?
