@@ -51,6 +51,8 @@ struct PlayCardView: View {
 
             RecordingProgress(recording: recording)
 
+            RecordingErrorBanner(state: recording.state)
+
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

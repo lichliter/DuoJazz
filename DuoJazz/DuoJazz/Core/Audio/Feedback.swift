@@ -54,10 +54,11 @@ final class Feedback {
 
         for (i, midi) in notes.enumerated() {
             Task { @MainActor [weak self] in
+                guard let self else { return }
                 try? await Task.sleep(for: .milliseconds(Int(stepMs) * i))
-                self?.sampler.startNote(midi, withVelocity: 127, onChannel: 0)
+                sampler.startNote(midi, withVelocity: 127, onChannel: 0)
                 try? await Task.sleep(for: .milliseconds(Int(holdMs)))
-                self?.sampler.stopNote(midi, onChannel: 0)
+                sampler.stopNote(midi, onChannel: 0)
             }
         }
     }

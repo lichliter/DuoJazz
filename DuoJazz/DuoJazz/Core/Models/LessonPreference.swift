@@ -4,7 +4,10 @@
 //
 
 import Foundation
+import os.log
 import SwiftData
+
+private let logger = Logger(subsystem: "com.brianlichliter.DuoJazz", category: "LessonPreferenceStore")
 
 /// Per-lesson user preferences: selected practice mode and starting key
 @Model
@@ -49,13 +52,17 @@ struct LessonPreferenceStore {
     private func upsert(lessonId: String, update: (LessonPreference) -> Void) {
         let predicate = #Predicate<LessonPreference> { $0.lessonId == lessonId }
         let descriptor = FetchDescriptor(predicate: predicate)
-        if let existing = try? context.fetch(descriptor).first {
-            update(existing)
-        } else {
-            let new = LessonPreference(lessonId: lessonId)
-            update(new)
-            context.insert(new)
+        do {
+            if let existing = try context.fetch(descriptor).first {
+                update(existing)
+            } else {
+                let new = LessonPreference(lessonId: lessonId)
+                update(new)
+                context.insert(new)
+            }
+            try context.save()
+        } catch {
+            logger.error("Failed to save lesson preference for \(lessonId): \(error)")
         }
-        try? context.save()
     }
 }
