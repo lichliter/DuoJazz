@@ -3,6 +3,7 @@
 //  DuoJazz
 //
 
+import Foundation
 import SwiftData
 
 @Model
