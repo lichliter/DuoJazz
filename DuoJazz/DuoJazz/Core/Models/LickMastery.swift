@@ -108,7 +108,7 @@ struct MasteryStore {
 }
 
 /// Medal awarded based on how many keys a lick is completed in
-enum Medal: Sendable {
+enum Medal: Sendable, Equatable {
     case none
     case bronze   // 1+ keys
     case silver   // 6+ keys
