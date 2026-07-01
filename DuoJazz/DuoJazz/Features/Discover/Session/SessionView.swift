@@ -43,6 +43,7 @@ struct SessionView: View {
                     lickName: viewModel.lickName,
                     keyName: viewModel.currentKey.displayName,
                     nextKeyName: viewModel.nextLabel,
+                    streakDidIncrement: viewModel.streakDidIncrement,
                     onDone: { dismiss() },
                     onContinue: viewModel.hasNext ? {
                         viewModel.advanceNext()
