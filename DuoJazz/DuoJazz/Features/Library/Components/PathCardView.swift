@@ -18,14 +18,14 @@ struct PathCardView: View {
     private var isStarted: Bool { progress.completed > 0 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
                 Image(systemName: collection.iconName)
                     .font(.title2)
                     .foregroundStyle(Color(hex: 0x8B5CF6))
 
                 Text(collection.name)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(AppTypography.stat)
                     .foregroundStyle(.white)
 
                 Spacer()
@@ -39,7 +39,7 @@ struct PathCardView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text("\(progress.completed)/\(progress.total)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(AppTypography.chip)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -47,10 +47,10 @@ struct PathCardView: View {
             // Progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: AppRadius.xs)
                         .fill(Color(hex: 0x1E1535))
 
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: AppRadius.xs)
                         .fill(Color(hex: 0x8B5CF6))
                         .frame(width: geo.size.width * fraction)
                 }
@@ -60,22 +60,22 @@ struct PathCardView: View {
             Button(action: onContinue) {
                 HStack {
                     Text(isStarted ? "Continue Path" : "Start Path")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(AppTypography.label)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 12))
+                        .font(AppTypography.labelSmall)
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+                .padding(.vertical, AppSpacing.sm)
                 .background(Color(hex: 0x8B5CF6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
             }
         }
-        .padding(18)
+        .padding(AppSpacing.md)
         .background(Color(hex: 0x1A1030))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: AppRadius.lg)
                 .stroke(Color(hex: 0x2D2060), lineWidth: 1)
         )
     }

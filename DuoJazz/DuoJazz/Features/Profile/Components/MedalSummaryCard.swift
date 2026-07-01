@@ -9,7 +9,7 @@ struct MedalSummaryCard: View {
     let summary: MedalSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
             Text("Medals")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
@@ -22,14 +22,14 @@ struct MedalSummaryCard: View {
                 medalColumn(medal: .gold, label: "Gold", count: summary.gold)
             }
         }
-        .padding(18)
+        .padding(AppSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(hex: 0x1A1030))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
     }
 
     private func medalColumn(medal: Medal, label: String, count: Int) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: AppSpacing.xs) {
             Image(systemName: medal.icon)
                 .font(.title2)
                 .foregroundStyle(medal.color)

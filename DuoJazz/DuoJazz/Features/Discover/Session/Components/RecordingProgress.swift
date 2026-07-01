@@ -31,7 +31,7 @@ struct RecordingProgress: View {
             EmptyView()
 
         case .recording:
-            VStack(spacing: 12) {
+            VStack(spacing: AppSpacing.sm) {
                 WaveformView(
                     amplitudes: recording.pitchDetector.amplitudeHistory,
                     detectedNote: ""
@@ -40,9 +40,9 @@ struct RecordingProgress: View {
 
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: AppRadius.xs)
                             .fill(Color(hex: 0x1E1535))
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: AppRadius.xs)
                             .fill(Color(hex: 0x22C55E))
                             .frame(width: geo.size.width * recording.progress)
                             .animation(.easeInOut(duration: 0.2), value: recording.progress)
@@ -61,7 +61,7 @@ struct RecordingProgress: View {
             }
 
         case .complete(let accuracy):
-            VStack(spacing: 6) {
+            VStack(spacing: AppSpacing.xs) {
                 Image(systemName: accuracy > 0.5 ? "checkmark.circle.fill" : "arrow.counterclockwise")
                     .font(.title)
                     .foregroundStyle(accuracy > 0.5 ? Color(hex: 0x22C55E) : Color(hex: 0xF59E0B))
@@ -78,7 +78,7 @@ struct RecordingProgress: View {
             .sensoryFeedback(accuracy > 0.5 ? .success : .warning, trigger: accuracy)
 
         case .failed:
-            HStack(spacing: 6) {
+            HStack(spacing: AppSpacing.xs) {
                 Image(systemName: "mic.slash")
                     .foregroundStyle(.red)
                 Text("Microphone access needed")
