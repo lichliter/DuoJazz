@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build DuoJazz (iOS Simulator)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project DuoJazz/DuoJazz.xcodeproj \
+            -scheme DuoJazz
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project DuoJazz/DuoJazz.xcodeproj \
+            -scheme DuoJazz \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=
