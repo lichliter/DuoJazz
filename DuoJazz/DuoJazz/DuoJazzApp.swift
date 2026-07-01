@@ -14,6 +14,6 @@ struct DuoJazzApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [LickPreference.self, UserProfile.self, LickMastery.self, LessonPreference.self])
+        .modelContainer(for: SchemaV1.self, migrationPlan: DuoJazzMigrationPlan.self)
     }
 }
