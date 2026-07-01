@@ -56,4 +56,14 @@ struct KeyOption: Identifiable, Hashable, Sendable {
     ]
 
     static let `default` = allOptions[0] // C
+
+    static func preferredOption(for key: Key, preferFlats: Bool) -> KeyOption {
+        if let match = allOptions.first(where: { $0.key == key && $0.usesFlats == preferFlats }) {
+            return match
+        }
+        if let match = allOptions.first(where: { $0.key == key }) {
+            return match
+        }
+        return .default
+    }
 }

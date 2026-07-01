@@ -76,27 +76,7 @@ class RecordingSession {
         self.matcher = matcher
 
         pitchDetector.onPitchDetected = { [weak self] midi, _ in
-            guard let self, let matcher = self.matcher else { return }
-            let result = matcher.evaluate(midi)
-            let expectedNotes = matcher.expectedMidiNotes
-
-            // Don't show "wrong" if they're still holding the previous correct note
-            switch result {
-            case .correct, .holding:
-                self.lastMatchResult = result
-            case .incorrect, .tooHigh, .tooLow:
-                let prevIndex = matcher.matchedIndices.count - 1
-                if prevIndex >= 0,
-                   abs(midi - expectedNotes[prevIndex]) <= matcher.tolerance {
-                    self.lastMatchResult = .holding(count: 0, required: matcher.requiredHoldCount)
-                } else {
-                    self.lastMatchResult = result
-                }
-            }
-
-            if case .correct = result, matcher.isComplete {
-                self.stopRecording()
-            }
+            self?.handlePitchDetected(midi)
         }
 
         do {
@@ -139,5 +119,29 @@ class RecordingSession {
         pitchDetector.stop()
         matcher?.reset()
         state = .idle
+    }
+
+    private func handlePitchDetected(_ midi: Int) {
+        guard let matcher else { return }
+        let result = matcher.evaluate(midi)
+        let expectedNotes = matcher.expectedMidiNotes
+
+        // Don't show "wrong" if they're still holding the previous correct note
+        switch result {
+        case .correct, .holding:
+            lastMatchResult = result
+        case .incorrect, .tooHigh, .tooLow:
+            let prevIndex = matcher.matchedIndices.count - 1
+            if prevIndex >= 0,
+               abs(midi - expectedNotes[prevIndex]) <= matcher.tolerance {
+                lastMatchResult = .holding(count: 0, required: matcher.requiredHoldCount)
+            } else {
+                lastMatchResult = result
+            }
+        }
+
+        if case .correct = result, matcher.isComplete {
+            stopRecording()
+        }
     }
 }
