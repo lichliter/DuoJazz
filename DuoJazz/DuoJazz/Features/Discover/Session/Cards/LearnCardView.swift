@@ -37,7 +37,6 @@ struct LearnCardView: View {
             HStack(spacing: AppSpacing.md) {
                 Text("Key of \(key.displayName)")
                     .foregroundStyle(.secondary)
-
                 OctaveButtons(offset: $octaveOffset)
             }
 
@@ -50,24 +49,7 @@ struct LearnCardView: View {
             .frame(maxHeight: 280)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
 
-            Button {
-                if recording.isRecording { recording.pitchDetector.pause() }
-                player.play(lick: lick, in: key.key, clef: instrument.defaultClef, octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset)
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: "play.fill")
-                    Text("Hear reference")
-                }
-                .foregroundStyle(Color(hex: 0x8B5CF6))
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.sm)
-                .background(Color(hex: 0x1A1030))
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.md)
-                        .stroke(Color(hex: 0x2D2060), lineWidth: 1)
-                )
-            }
+            HearReferenceButton(style: .learn) { playReference() }
 
             RecordingProgress(recording: recording)
 
@@ -82,35 +64,24 @@ struct LearnCardView: View {
         .onChange(of: octaveOffset) {
             recording.octaveOffset = octaveOffset
             recording.rebuildMatcher()
-            savePreferences()
+            if hasLoadedPreference {
+                LickCardPreferences.saveOctaveOffset(octaveOffset, for: lick.id, context: modelContext)
+            }
         }
         .onChange(of: player.isPlaying) {
-            if !player.isPlaying && recording.isRecording {
-                recording.pitchDetector.resume()
-            }
+            if !player.isPlaying && recording.isRecording { recording.pitchDetector.resume() }
         }
-        if case .complete(let acc) = recording.state, acc >= 1.0 {
-            // Auto-advancing
-        } else {
-            HStack(spacing: AppSpacing.xs) {
-                AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
-                    Task { await recording.startRecording() }
-                }
+        CardRecordingControls(recording: recording, autoRecord: $autoRecord) {
+            await recording.startRecording()
+        }
+    }
 
-                RecordButton(state: recording.state) {
-                    switch recording.state {
-                    case .idle, .failed:
-                        Task { await recording.startRecording() }
-                    case .recording:
-                        break
-                    case .complete:
-                        recording.reset()
-                    }
-                }
-            }
-            .padding(.horizontal, AppSpacing.xl)
-            .padding(.bottom, AppSpacing.xl)
-        }
+    private func playReference() {
+        if recording.isRecording { recording.pitchDetector.pause() }
+        player.play(
+            lick: lick, in: key.key, clef: instrument.defaultClef,
+            octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset
+        )
     }
 
     private func loadPreferences() {
@@ -118,58 +89,11 @@ struct LearnCardView: View {
         hasLoadedPreference = true
         recording.writtenKey = key.key
         recording.concertMidiOffset = instrument.concertMidiOffset
-        let store = LickPreferenceStore(context: modelContext)
-        if let saved = store.octaveOffset(for: lick.id) {
-            octaveOffset = saved
-        } else {
-            octaveOffset = instrument.recommendedOctaveOffset(for: lick, in: key.key)
-        }
+        octaveOffset = LickCardPreferences.octaveOffset(for: lick, in: key.key, instrument: instrument, context: modelContext)
         recording.octaveOffset = octaveOffset
-
         recording.autoRecord = autoRecord
         if recording.autoRecord {
             Task { await recording.startRecording() }
-        }
-    }
-
-    private func savePreferences() {
-        guard hasLoadedPreference else { return }
-        let store = LickPreferenceStore(context: modelContext)
-        store.setOctaveOffset(octaveOffset, for: lick.id)
-    }
-}
-
-struct OctaveButtons: View {
-    @Binding var offset: Int
-
-    var body: some View {
-        HStack(spacing: AppSpacing.xs) {
-            Button { if offset > -2 { offset -= 1 } } label: {
-                Image(systemName: "minus")
-                    .font(.subheadline.bold())
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(offset > -2 ? .white : Color(hex: 0x52525B))
-                    .background(Color(hex: 0x1A1030))
-                    .clipShape(Circle())
-            }
-            .disabled(offset <= -2)
-            .accessibilityLabel("Octave down")
-
-            Text("8va: \(offset)")
-                .font(.subheadline.weight(.semibold).monospaced())
-                .foregroundStyle(.secondary)
-                .frame(width: 56)
-
-            Button { if offset < 2 { offset += 1 } } label: {
-                Image(systemName: "plus")
-                    .font(.subheadline.bold())
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(offset < 2 ? .white : Color(hex: 0x52525B))
-                    .background(Color(hex: 0x1A1030))
-                    .clipShape(Circle())
-            }
-            .disabled(offset >= 2)
-            .accessibilityLabel("Octave up")
         }
     }
 }

@@ -89,9 +89,11 @@ final class LickPlayer {
         let beatsPerMeasure = lick.timeSignature.beats
         let totalOffset = concertMidiOffset + (octaveOffset * 12)
 
-        playbackTask = Task { @MainActor in
+        playbackTask = Task { [weak self] in
+            guard let self else { return }
+
             if countIn {
-                await playCountIn(beats: beatsPerMeasure, secondsPerBeat: secondsPerBeat)
+                await self.playCountIn(beats: beatsPerMeasure, secondsPerBeat: secondsPerBeat)
             }
 
             var currentBeat = 0.0
@@ -123,12 +125,12 @@ final class LickPlayer {
                         eighthIndex = 0
                     }
 
-                    let velocity = calculateVelocity(currentBeat: currentBeat, beatsPerMeasure: beatsPerMeasure)
-                    let legatoRatio = articulationRatio(for: value)
+                    let velocity = self.calculateVelocity(currentBeat: currentBeat, beatsPerMeasure: beatsPerMeasure)
+                    let legatoRatio = self.articulationRatio(for: value)
 
-                    sampler?.startNote(midi, withVelocity: velocity, onChannel: 0)
+                    self.sampler?.startNote(midi, withVelocity: velocity, onChannel: 0)
                     try? await Task.sleep(for: .seconds(noteDuration * legatoRatio))
-                    sampler?.stopNote(midi, onChannel: 0)
+                    self.sampler?.stopNote(midi, onChannel: 0)
 
                     let gap = noteDuration * (1.0 - legatoRatio)
                     if gap > 0.01 {
@@ -142,7 +144,9 @@ final class LickPlayer {
                 currentBeat += element.durationBeats
             }
 
-            isPlaying = false
+            await MainActor.run {
+                self.isPlaying = false
+            }
         }
     }
 
@@ -208,6 +212,8 @@ final class LickPlayer {
         for note: UInt8 in 0...127 {
             sampler?.stopNote(note, onChannel: 0)
         }
-        isPlaying = false
+        Task { @MainActor in
+            isPlaying = false
+        }
     }
 }

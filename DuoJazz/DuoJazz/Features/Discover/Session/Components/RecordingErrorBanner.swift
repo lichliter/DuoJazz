@@ -31,8 +31,8 @@ struct RecordingErrorBanner: View {
                     .foregroundStyle(.white)
                 Spacer()
                 if case .failed(let error) = state,
-                   error is PitchDetectorError,
-                   case .microphoneAccessDenied = error as! PitchDetectorError {
+                   let pitchError = error as? PitchDetectorError,
+                   case .microphoneAccessDenied = pitchError {
                     Button("Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(url)
