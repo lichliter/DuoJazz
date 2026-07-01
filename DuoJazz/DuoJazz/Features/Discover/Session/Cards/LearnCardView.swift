@@ -27,14 +27,14 @@ struct LearnCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: AppSpacing.lg) {
             CardBadge.learn
 
             Text(lick.name)
                 .font(.title.bold())
                 .foregroundStyle(.white)
 
-            HStack(spacing: 16) {
+            HStack(spacing: AppSpacing.md) {
                 Text("Key of \(key.displayName)")
                     .foregroundStyle(.secondary)
 
@@ -48,23 +48,23 @@ struct LearnCardView: View {
                 octaveOffset: octaveOffset
             )
             .frame(maxHeight: 280)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
 
             Button {
                 if recording.isRecording { recording.pitchDetector.pause() }
                 player.play(lick: lick, in: key.key, clef: instrument.defaultClef, octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset)
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: AppSpacing.xs) {
                     Image(systemName: "play.fill")
                     Text("Hear reference")
                 }
                 .foregroundStyle(Color(hex: 0x8B5CF6))
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.vertical, AppSpacing.sm)
                 .background(Color(hex: 0x1A1030))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: AppRadius.md)
                         .stroke(Color(hex: 0x2D2060), lineWidth: 1)
                 )
             }
@@ -74,7 +74,7 @@ struct LearnCardView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, 24)
+        .padding(.top, AppSpacing.lg)
         .onAppear {
             recording.onComplete = onNext
             loadPreferences()
@@ -92,7 +92,7 @@ struct LearnCardView: View {
         if case .complete(let acc) = recording.state, acc >= 1.0 {
             // Auto-advancing
         } else {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
                     Task { await recording.startRecording() }
                 }
@@ -108,8 +108,8 @@ struct LearnCardView: View {
                     }
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.bottom, AppSpacing.xl)
         }
     }
 
@@ -143,7 +143,7 @@ struct OctaveButtons: View {
     @Binding var offset: Int
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: AppSpacing.xs) {
             Button { if offset > -2 { offset -= 1 } } label: {
                 Image(systemName: "minus")
                     .font(.subheadline.bold())

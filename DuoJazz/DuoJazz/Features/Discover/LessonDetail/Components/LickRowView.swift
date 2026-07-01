@@ -13,7 +13,7 @@ struct LickRowView: View {
 
     var body: some View {
         Button(action: onStart) {
-            HStack(spacing: 14) {
+            HStack(spacing: AppSpacing.sm) {
                 ZStack {
                     Circle()
                         .fill(statusColor)
@@ -27,7 +27,7 @@ struct LickRowView: View {
                         .foregroundStyle(.white)
 
                     if let progression = lick.chordProgression {
-                        HStack(spacing: 6) {
+                        HStack(spacing: AppSpacing.xs) {
                             ForEach(progression.symbols, id: \.startBeat) { symbol in
                                 Text(symbol.functionalText)
                                     .font(.custom("Baskerville-SemiBold", size: 14))
@@ -49,13 +49,13 @@ struct LickRowView: View {
                     .font(.caption)
                     .foregroundStyle(Color(hex: 0x8B5CF6))
             }
-            .padding(14)
+            .padding(AppSpacing.sm)
             .background(keyStatus == .completed
                 ? Color(hex: 0x22C55E).opacity(0.06)
                 : Color(hex: 0x1A1030))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: AppRadius.md)
                     .stroke(keyStatus == .completed
                         ? Color(hex: 0x22C55E).opacity(0.3)
                         : Color(hex: 0x2D2060), lineWidth: 1)

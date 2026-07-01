@@ -11,7 +11,7 @@ struct DiscoverView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: AppSpacing.md) {
                 ForEach(viewModel.allCollections) { collection in
                     NavigationLink(destination: LessonDetailView(lesson: collection)) {
                         ModuleCardContent(collection: collection)
@@ -19,8 +19,8 @@ struct DiscoverView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.vertical, AppSpacing.md)
         }
         .background(Color(hex: 0x0F0A1E))
         .navigationTitle("Lessons")
@@ -31,7 +31,7 @@ struct ModuleCardContent: View {
     let collection: Lesson
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
                 Image(systemName: collection.iconName)
                     .font(.title2)
@@ -47,11 +47,11 @@ struct ModuleCardContent: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(16)
+        .padding(AppSpacing.md)
         .background(Color(hex: 0x1A1030))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: AppRadius.lg)
                 .stroke(Color(hex: 0x2D2060), lineWidth: 1)
         )
     }

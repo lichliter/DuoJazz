@@ -26,14 +26,14 @@ struct PlayCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: AppSpacing.lg) {
             CardBadge.play
 
             Text(lick.name)
                 .font(.title.bold())
                 .foregroundStyle(.white)
 
-            HStack(spacing: 16) {
+            HStack(spacing: AppSpacing.md) {
                 Text("Key of \(key.displayName)")
                     .foregroundStyle(.secondary)
 
@@ -47,7 +47,7 @@ struct PlayCardView: View {
                 octaveOffset: octaveOffset
             )
             .frame(maxHeight: 280)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
 
             RecordingProgress(recording: recording)
 
@@ -56,7 +56,7 @@ struct PlayCardView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, 24)
+        .padding(.top, AppSpacing.lg)
         .onAppear {
             recording.onComplete = onNext
             loadPreferences()
@@ -69,7 +69,7 @@ struct PlayCardView: View {
         if case .complete(let acc) = recording.state, acc >= 1.0 {
             // Auto-advancing
         } else {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
                     Task { await recording.startRecording() }
                 }
@@ -85,8 +85,8 @@ struct PlayCardView: View {
                     }
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.bottom, AppSpacing.xl)
         }
     }
 

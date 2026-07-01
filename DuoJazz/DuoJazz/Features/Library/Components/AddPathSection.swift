@@ -10,20 +10,20 @@ struct AddPathSection: View {
     let onAdd: (Lesson) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppSpacing.sm) {
             Text("Add a Path")
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
             ForEach(available) { collection in
-                HStack(spacing: 12) {
+                HStack(spacing: AppSpacing.sm) {
                     Image(systemName: collection.iconName)
                         .foregroundStyle(Color(hex: 0x8B5CF6))
                         .frame(width: 28)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(collection.name)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(AppTypography.label)
                             .foregroundStyle(.white)
                         Text("\(collection.lickCount) licks")
                             .font(.caption)
@@ -42,9 +42,9 @@ struct AddPathSection: View {
                             .foregroundStyle(Color(hex: 0x8B5CF6))
                     }
                 }
-                .padding(14)
+                .padding(AppSpacing.sm)
                 .background(Color(hex: 0x1A1030))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
             }
         }
     }

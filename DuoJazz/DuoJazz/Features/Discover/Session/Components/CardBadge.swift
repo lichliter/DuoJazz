@@ -11,16 +11,16 @@ struct CardBadge: View {
     let icon: String
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: AppSpacing.xs) {
             Image(systemName: icon)
-                .font(.system(size: 12))
+                .font(AppTypography.labelSmall)
             Text(type)
-                .font(.system(size: 12, weight: .bold))
+                .font(AppTypography.cardBadge)
                 .tracking(1)
         }
         .foregroundStyle(color)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
+        .padding(.horizontal, AppSpacing.sm)
+        .padding(.vertical, AppSpacing.xs)
         .background(color.opacity(0.15))
         .clipShape(Capsule())
     }

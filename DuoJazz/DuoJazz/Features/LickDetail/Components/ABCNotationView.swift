@@ -25,7 +25,7 @@ struct ABCNotationView: View {
             )
 
             if !isLoaded {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: AppRadius.sm)
                     .fill(Color(hex: 0x1E1535))
                     .overlay {
                         ProgressView()
@@ -33,7 +33,7 @@ struct ABCNotationView: View {
                     }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
     }
 }
 

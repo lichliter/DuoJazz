@@ -12,7 +12,7 @@ struct SessionTopBar: View {
     let onClose: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: AppSpacing.md) {
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.body)
@@ -23,11 +23,11 @@ struct SessionTopBar: View {
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: AppRadius.xs)
                         .fill(Color(hex: 0x1E1535))
                         .frame(height: 8)
 
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: AppRadius.xs)
                         .fill(Color(hex: 0x8B5CF6))
                         .frame(width: geo.size.width * progress, height: 8)
                         .animation(.easeInOut(duration: 0.3), value: progress)
@@ -46,7 +46,7 @@ struct SessionTopBar: View {
                 .foregroundStyle(Color(hex: 0xA1A1AA))
                 .monospacedDigit()
         }
-        .padding(.horizontal, 36)
-        .padding(.vertical, 16)
+        .padding(.horizontal, AppSpacing.xl)
+        .padding(.vertical, AppSpacing.md)
     }
 }

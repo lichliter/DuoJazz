@@ -41,7 +41,7 @@ struct RecordButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 Image(systemName: icon)
                     .font(.body.weight(.semibold))
                 Text(label)
@@ -49,9 +49,9 @@ struct RecordButton: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
+            .padding(.vertical, AppSpacing.md)
             .background(bgColor)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         }
         .disabled(isDisabled)
         .sensoryFeedback(.impact(flexibility: .solid), trigger: state.isRecording)
