@@ -27,36 +27,64 @@ struct StreakProvider: TimelineProvider {
     }
 }
 
-struct StreakWidgetView: View {
+struct StreakWidgetEntryView: View {
+    @Environment(\.widgetFamily) private var family
     let streak: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        switch family {
+        case .accessoryCircular:
+            StreakCircularView(streak: streak)
+        case .accessoryRectangular:
+            StreakRectangularView(streak: streak)
+        case .accessoryInline:
+            StreakInlineView(streak: streak)
+        default:
+            StreakCircularView(streak: streak)
+        }
+    }
+}
+
+private struct StreakCircularView: View {
+    let streak: Int
+
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 2) {
                 Image(systemName: "flame.fill")
-                    .font(.title2)
-                    .foregroundStyle(Color(red: 0.96, green: 0.62, blue: 0.04))
-                Text("DuoJazz")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(.caption)
+                Text("\(streak)")
+                    .font(.title3.bold())
             }
+        }
+    }
+}
 
+private struct StreakRectangularView: View {
+    let streak: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "flame.fill")
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(streak) day streak")
+                    .font(.headline)
+                Text("DuoJazz")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
             Spacer(minLength: 0)
-
-            Text("\(streak)")
-                .font(.system(size: 44, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .minimumScaleFactor(0.5)
-
-            Text("day streak")
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.6))
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .padding()
-        .containerBackground(for: .widget) {
-            Color(red: 0.10, green: 0.06, blue: 0.19)
-        }
+    }
+}
+
+private struct StreakInlineView: View {
+    let streak: Int
+
+    var body: some View {
+        Label("\(streak) day streak", systemImage: "flame.fill")
     }
 }
 
@@ -65,15 +93,21 @@ struct StreakWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StreakProvider()) { entry in
-            StreakWidgetView(streak: entry.streak)
+            StreakWidgetEntryView(streak: entry.streak)
         }
         .configurationDisplayName("Practice Streak")
-        .description("See your daily practice streak at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .description("See your daily practice streak on the Lock Screen.")
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
-#Preview(as: .systemSmall) {
+#Preview(as: .accessoryCircular) {
+    StreakWidget()
+} timeline: {
+    StreakEntry(date: .now, streak: 7)
+}
+
+#Preview(as: .accessoryRectangular) {
     StreakWidget()
 } timeline: {
     StreakEntry(date: .now, streak: 7)
