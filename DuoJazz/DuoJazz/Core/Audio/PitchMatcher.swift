@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum MatchResult: Sendable {
+enum MatchResult: Sendable, Equatable {
     case correct
     case holding(count: Int, required: Int)
     case incorrect
