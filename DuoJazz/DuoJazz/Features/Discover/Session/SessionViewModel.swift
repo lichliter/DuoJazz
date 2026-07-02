@@ -16,8 +16,6 @@ class SessionViewModel {
     var currentCardIndex = 0
     var isSessionComplete = false
     var autoRecord = false
-    private(set) var streakDidIncrement = false
-    private(set) var currentStreak = 0
     private(set) var currentCards: [PracticeCard]
 
     private let catalog = LickCatalog.shared
@@ -84,16 +82,8 @@ class SessionViewModel {
         if currentCardIndex + 1 < cardCount {
             currentCardIndex += 1
         } else {
-            recordStreakIfNeeded()
             isSessionComplete = true
         }
-    }
-
-    private func recordStreakIfNeeded() {
-        guard let context = modelContext else { return }
-        let result = StreakStore(context: context).recordPractice()
-        streakDidIncrement = result.didIncrement
-        currentStreak = result.streak
     }
 
     /// Advance to the next session (next lick in Lesson mode, next key otherwise)
@@ -108,6 +98,5 @@ class SessionViewModel {
         }
         currentCardIndex = 0
         isSessionComplete = false
-        streakDidIncrement = false
     }
 }

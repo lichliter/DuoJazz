@@ -44,8 +44,6 @@ struct ProfileView: View {
                         .onTapGesture { showingInstrumentPicker = true }
                 }
 
-                StreakCard(count: profile.currentStreak)
-
                 MedalSummaryCard(summary: lickMedalSummary)
             }
             .padding(.horizontal, AppSpacing.xl)
@@ -57,7 +55,6 @@ struct ProfileView: View {
             if viewModel == nil {
                 viewModel = ProfileViewModel(instrument: instrument)
             }
-            StreakStore(context: modelContext).syncToWidget()
         }
         .sheet(isPresented: $showingInstrumentPicker) {
             if let vm = viewModel {
