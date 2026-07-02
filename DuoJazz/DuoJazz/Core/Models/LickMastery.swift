@@ -13,12 +13,14 @@ private let logger = Logger(subsystem: "com.brianlichliter.DuoJazz", category: "
 /// Tracks the highest card type a user has completed for a lick in a specific key
 @Model
 final class LickMastery {
+    @Attribute(.unique) var compositeKey: String
     var lickId: String
     var keyRawValue: Int
     /// 0 = not started, 1 = Learn done, 2 = Play done, 3 = Listen done
     var highestCardType: Int
 
     init(lickId: String, keyRawValue: Int, highestCardType: Int = 0) {
+        self.compositeKey = "\(lickId)_\(keyRawValue)"
         self.lickId = lickId
         self.keyRawValue = keyRawValue
         self.highestCardType = highestCardType
