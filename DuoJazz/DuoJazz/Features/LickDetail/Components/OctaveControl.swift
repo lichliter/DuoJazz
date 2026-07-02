@@ -15,7 +15,7 @@ struct OctaveControl: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
+            HStack(spacing: AppSpacing.md) {
                 Button {
                     if octaveOffset > -2 {
                         octaveOffset -= 1
@@ -45,7 +45,7 @@ struct OctaveControl: View {
         }
         .padding()
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
     }
 
     private var octaveLabel: String {

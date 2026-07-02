@@ -10,10 +10,10 @@ struct DifficultyBadge: View {
 
     var body: some View {
         Text(difficulty.displayName)
-            .font(.system(size: 10, weight: .semibold))
+            .font(AppTypography.badge)
             .foregroundStyle(difficulty.color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, AppSpacing.xs)
+            .padding(.vertical, AppSpacing.xs)
             .background(difficulty.color.opacity(0.15))
             .clipShape(Capsule())
     }

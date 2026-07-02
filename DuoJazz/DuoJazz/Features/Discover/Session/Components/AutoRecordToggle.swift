@@ -37,9 +37,9 @@ struct AutoRecordToggle: View {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 56)
-                .padding(.vertical, 18)
+                .padding(.vertical, AppSpacing.md)
                 .background(autoRecord ? Color(hex: 0x8B5CF6) : Color(hex: 0x2D2060))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         }
         .accessibilityLabel(autoRecord ? "Auto-record on" : "Auto-record off")
         .accessibilityHint("Double tap to toggle automatic recording")

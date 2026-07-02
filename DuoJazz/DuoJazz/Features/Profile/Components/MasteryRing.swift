@@ -9,7 +9,7 @@ struct MasteryRing: View {
     let percentage: Int
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: AppSpacing.xs) {
             ZStack {
                 Circle()
                     .stroke(Color(hex: 0x1E1535), lineWidth: 10)
@@ -20,7 +20,7 @@ struct MasteryRing: View {
                     .rotationEffect(.degrees(-90))
 
                 Text("\(percentage)%")
-                    .font(.system(size: 32, weight: .bold))
+                    .font(AppTypography.ringValue)
                     .foregroundStyle(.white)
             }
             .frame(width: 120, height: 120)
@@ -29,8 +29,8 @@ struct MasteryRing: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(24)
+        .padding(AppSpacing.lg)
         .background(Color(hex: 0x1A1030))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
     }
 }
