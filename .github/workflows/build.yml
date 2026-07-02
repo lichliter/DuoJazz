@@ -42,7 +42,7 @@ jobs:
           xcodebuild test \
             -project DuoJazz/DuoJazz.xcodeproj \
             -scheme DuoJazz \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,name=iPad Pro (12.9-inch) (5th generation)' \
             -configuration Debug \
             -skipPackagePluginValidation \
             -skipMacroValidation \
