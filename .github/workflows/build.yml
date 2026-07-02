@@ -71,6 +71,5 @@ jobs:
             -configuration Debug \
             -skipPackagePluginValidation \
             -skipMacroValidation \
-            -allowProvisioningUpdates \
-            CODE_SIGNING_ALLOWED=YES \
-            DEVELOPMENT_TEAM=8Y6TMWQZ38
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=
