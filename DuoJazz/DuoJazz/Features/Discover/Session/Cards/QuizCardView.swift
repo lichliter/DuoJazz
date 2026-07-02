@@ -43,27 +43,9 @@ struct QuizCardView: View {
 
             Spacer(minLength: AppSpacing.lg)
 
-            Button {
-                if recording.isRecording { recording.pitchDetector.pause() }
-                player.play(lick: lick, in: key.key, clef: instrument.defaultClef, octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset)
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: "speaker.wave.2")
-                    Text("Hear reference")
-                }
-                .foregroundStyle(Color(hex: 0xEF4444))
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.sm)
-                .background(Color(hex: 0xEF4444).opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.md)
-                        .stroke(Color(hex: 0xEF4444).opacity(0.3), lineWidth: 1)
-                )
-            }
+            HearReferenceButton(style: .quiz) { playReference() }
 
             RecordingProgress(recording: recording)
-
             RecordingErrorBanner(state: recording.state)
 
             Spacer()
@@ -72,18 +54,11 @@ struct QuizCardView: View {
         .padding(.top, AppSpacing.lg)
         .onAppear {
             recording.onComplete = onNext
-            let store = LickPreferenceStore(context: modelContext)
-            if let saved = store.octaveOffset(for: lick.id) {
-                octaveOffset = saved
-            } else {
-                octaveOffset = instrument.recommendedOctaveOffset(for: lick, in: key.key)
-            }
+            octaveOffset = LickCardPreferences.octaveOffset(for: lick, in: key.key, instrument: instrument, context: modelContext)
             recording.octaveOffset = octaveOffset
             recording.writtenKey = key.key
             recording.concertMidiOffset = instrument.concertMidiOffset
-
             recording.autoRecord = autoRecord
-            // Quiz mode: start recording immediately, no reference playback
             if recording.autoRecord {
                 Task { await recording.startRecording() }
             }
@@ -93,27 +68,16 @@ struct QuizCardView: View {
                 recording.pitchDetector.resume()
             }
         }
-        if case .complete(let acc) = recording.state, acc >= 1.0 {
-            // Auto-advancing
-        } else {
-            HStack(spacing: AppSpacing.xs) {
-                AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
-                    Task { await recording.startRecording() }
-                }
-
-                RecordButton(state: recording.state) {
-                    switch recording.state {
-                    case .idle, .failed:
-                        Task { await recording.startRecording() }
-                    case .recording:
-                        break
-                    case .complete:
-                        recording.reset()
-                    }
-                }
-            }
-            .padding(.horizontal, AppSpacing.xl)
-            .padding(.bottom, AppSpacing.xl)
+        CardRecordingControls(recording: recording, autoRecord: $autoRecord) {
+            await recording.startRecording()
         }
+    }
+
+    private func playReference() {
+        if recording.isRecording { recording.pitchDetector.pause() }
+        player.play(
+            lick: lick, in: key.key, clef: instrument.defaultClef,
+            octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset
+        )
     }
 }
