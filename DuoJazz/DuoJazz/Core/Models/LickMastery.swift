@@ -66,9 +66,10 @@ struct MasteryStore {
 
         do {
             if let existing = try context.fetch(descriptor).first {
-                if cardType.rawValue > existing.highestCardType {
-                    existing.highestCardType = cardType.rawValue
-                }
+                let current = CardLevel(rawValue: existing.highestCardType) ?? .none
+                existing.highestCardType = MasteryProgression.advancedLevel(
+                    current: current, completed: cardType
+                ).rawValue
             } else {
                 context.insert(LickMastery(
                     lickId: lickId, keyRawValue: keyRaw,
@@ -93,28 +94,35 @@ struct MasteryStore {
 
     /// Per-lick medal based on how many keys completed
     func medal(for lickId: String) -> Medal {
-        let count = completedKeyCount(for: lickId)
+        Medal.forCompletedKeyCount(completedKeyCount(for: lickId))
+    }
+
+    /// Key status for a specific lick in a specific key
+    func keyStatus(for lickId: String, key: Key) -> KeyStatus {
+        KeyStatus.from(cardLevel: level(for: lickId, in: key))
+    }
+}
+
+/// Pure mastery rules shared by MasteryStore and unit tests
+enum MasteryProgression {
+    static func advancedLevel(current: CardLevel, completed: CardLevel) -> CardLevel {
+        CardLevel(rawValue: max(current.rawValue, completed.rawValue)) ?? current
+    }
+}
+
+/// Medal awarded based on how many keys a lick is completed in
+enum Medal: Sendable, Equatable {
+    case none
+    case bronze   // 1+ keys
+    case silver   // 6+ keys
+    case gold     // all 12
+
+    static func forCompletedKeyCount(_ count: Int) -> Medal {
         if count >= 12 { return .gold }
         if count >= 6 { return .silver }
         if count >= 1 { return .bronze }
         return .none
     }
-
-    /// Key status for a specific lick in a specific key
-    func keyStatus(for lickId: String, key: Key) -> KeyStatus {
-        let lvl = level(for: lickId, in: key)
-        if lvl >= .listen { return .completed }
-        if lvl > .none { return .inProgress }
-        return .notStarted
-    }
-}
-
-/// Medal awarded based on how many keys a lick is completed in
-enum Medal: Sendable {
-    case none
-    case bronze   // 1+ keys
-    case silver   // 6+ keys
-    case gold     // all 12
 
     var icon: String {
         self == .none ? "" : "medal.fill"
@@ -130,8 +138,14 @@ enum Medal: Sendable {
     }
 }
 
-enum KeyStatus {
+enum KeyStatus: Equatable {
     case completed, inProgress, notStarted
+
+    static func from(cardLevel: CardLevel) -> KeyStatus {
+        if cardLevel >= .listen { return .completed }
+        if cardLevel > .none { return .inProgress }
+        return .notStarted
+    }
 }
 
 /// Counts of licks at each medal tier

@@ -12,7 +12,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		B1T2E3S4T5F6A7B8C9D0E007 /* PBXContainerItemProxy */ = {
+		B1B2C3D4E5F6010A000A0001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D8F764462F0E18D000190EAF /* Project object */;
 			proxyType = 1;
@@ -23,7 +23,7 @@
 
 /* Begin PBXFileReference section */
 		D8F7644E2F0E18D000190EAF /* DuoJazz.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DuoJazz.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B1T2E3S4T5F6A7B8C9D0E001 /* DuoJazzTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DuoJazzTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1B2C3D4E5F60102000A0001 /* DuoJazzTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DuoJazzTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 			path = DuoJazz;
 			sourceTree = "<group>";
 		};
-		B1T2E3S4T5F6A7B8C9D0E002 /* DuoJazzTests */ = {
+		B1B2C3D4E5F60103000A0001 /* DuoJazzTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DuoJazzTests;
 			sourceTree = "<group>";
@@ -49,13 +49,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B1T2E3S4T5F6A7B8C9D0E005 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -63,7 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				D8F764502F0E18D000190EAF /* DuoJazz */,
-				B1T2E3S4T5F6A7B8C9D0E002 /* DuoJazzTests */,
+				B1B2C3D4E5F60103000A0001 /* DuoJazzTests */,
 				D8F7644F2F0E18D000190EAF /* Products */,
 			);
 			sourceTree = "<group>";
@@ -72,7 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				D8F7644E2F0E18D000190EAF /* DuoJazz.app */,
-				B1T2E3S4T5F6A7B8C9D0E001 /* DuoJazzTests.xctest */,
+				B1B2C3D4E5F60102000A0001 /* DuoJazzTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -104,27 +97,27 @@
 			productReference = D8F7644E2F0E18D000190EAF /* DuoJazz.app */;
 			productType = "com.apple.product-type.application";
 		};
-		B1T2E3S4T5F6A7B8C9D0E003 /* DuoJazzTests */ = {
+		B1B2C3D4E5F60101000A0001 /* DuoJazzTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B1T2E3S4T5F6A7B8C9D0E00B /* Build configuration list for PBXNativeTarget "DuoJazzTests" */;
+			buildConfigurationList = B1B2C3D4E5F60107000A0001 /* Build configuration list for PBXNativeTarget "DuoJazzTests" */;
 			buildPhases = (
-				B1T2E3S4T5F6A7B8C9D0E004 /* Sources */,
-				B1T2E3S4T5F6A7B8C9D0E005 /* Frameworks */,
-				B1T2E3S4T5F6A7B8C9D0E006 /* Resources */,
+				B1B2C3D4E5F60104000A0001 /* Sources */,
+				B1B2C3D4E5F60105000A0001 /* Frameworks */,
+				B1B2C3D4E5F60106000A0001 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B1T2E3S4T5F6A7B8C9D0E008 /* PBXTargetDependency */,
+				B1B2C3D4E5F6010B000A0001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				B1T2E3S4T5F6A7B8C9D0E002 /* DuoJazzTests */,
+				B1B2C3D4E5F60103000A0001 /* DuoJazzTests */,
 			);
 			name = DuoJazzTests;
 			packageProductDependencies = (
 			);
 			productName = DuoJazzTests;
-			productReference = B1T2E3S4T5F6A7B8C9D0E001 /* DuoJazzTests.xctest */;
+			productReference = B1B2C3D4E5F60102000A0001 /* DuoJazzTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -140,7 +133,7 @@
 					D8F7644D2F0E18D000190EAF = {
 						CreatedOnToolsVersion = 26.2;
 					};
-					B1T2E3S4T5F6A7B8C9D0E003 = {
+					B1B2C3D4E5F60101000A0001 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = D8F7644D2F0E18D000190EAF;
 					};
@@ -165,7 +158,7 @@
 			projectRoot = "";
 			targets = (
 				D8F7644D2F0E18D000190EAF /* DuoJazz */,
-				B1T2E3S4T5F6A7B8C9D0E003 /* DuoJazzTests */,
+				B1B2C3D4E5F60101000A0001 /* DuoJazzTests */,
 			);
 		};
 /* End PBXProject section */
@@ -178,24 +171,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B1T2E3S4T5F6A7B8C9D0E006 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		D8F7644A2F0E18D000190EAF /* Sources */ = {
+		B1B2C3D4E5F60104000A0001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B1T2E3S4T5F6A7B8C9D0E004 /* Sources */ = {
+		D8F7644A2F0E18D000190EAF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -204,11 +190,31 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		B1B2C3D4E5F60105000A0001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B1B2C3D4E5F60106000A0001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXTargetDependency section */
-		B1T2E3S4T5F6A7B8C9D0E008 /* PBXTargetDependency */ = {
+		B1B2C3D4E5F6010B000A0001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D8F7644D2F0E18D000190EAF /* DuoJazz */;
-			targetProxy = B1T2E3S4T5F6A7B8C9D0E007 /* PBXContainerItemProxy */;
+			targetProxy = B1B2C3D4E5F6010A000A0001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -400,7 +406,7 @@
 			};
 			name = Release;
 		};
-		B1T2E3S4T5F6A7B8C9D0E009 /* Debug */ = {
+		B1B2C3D4E5F60108000A0001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -418,6 +424,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.brianlichliter.DuoJazzTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -426,7 +433,7 @@
 			};
 			name = Debug;
 		};
-		B1T2E3S4T5F6A7B8C9D0E00A /* Release */ = {
+		B1B2C3D4E5F60109000A0001 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -444,6 +451,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.brianlichliter.DuoJazzTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -473,11 +481,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B1T2E3S4T5F6A7B8C9D0E00B /* Build configuration list for PBXNativeTarget "DuoJazzTests" */ = {
+		B1B2C3D4E5F60107000A0001 /* Build configuration list for PBXNativeTarget "DuoJazzTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B1T2E3S4T5F6A7B8C9D0E009 /* Debug */,
-				B1T2E3S4T5F6A7B8C9D0E00A /* Release */,
+				B1B2C3D4E5F60108000A0001 /* Debug */,
+				B1B2C3D4E5F60109000A0001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
