@@ -37,12 +37,37 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM=
 
+      - name: Resolve iPad Pro test simulator
+        id: simulator
+        run: |
+          # GitHub runners no longer ship the M1 12.9" simulator name.
+          # Prefer the large iPad Pro form factor (13-inch = former 12.9-inch).
+          SIMULATOR=$(
+            xcodebuild -showdestinations \
+              -project DuoJazz/DuoJazz.xcodeproj \
+              -scheme DuoJazz 2>/dev/null \
+              | grep -E 'platform:iOS Simulator.*name:iPad Pro (13-inch|(\(12\.9-inch\)))' \
+              | head -1 \
+              | sed -E 's/.*name:([^,}]+).*/\1/' \
+              | xargs
+          )
+          if [ -z "$SIMULATOR" ]; then
+            echo "No large iPad Pro simulator found. Available iPad Pro simulators:" >&2
+            xcodebuild -showdestinations \
+              -project DuoJazz/DuoJazz.xcodeproj \
+              -scheme DuoJazz 2>/dev/null \
+              | grep 'name:iPad Pro' >&2 || true
+            exit 1
+          fi
+          echo "name=$SIMULATOR" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $SIMULATOR"
+
       - name: Run tests
         run: |
           xcodebuild test \
             -project DuoJazz/DuoJazz.xcodeproj \
             -scheme DuoJazz \
-            -destination 'platform=iOS Simulator,name=iPad Pro (12.9-inch) (5th generation)' \
+            -destination "platform=iOS Simulator,name=${{ steps.simulator.outputs.name }}" \
             -configuration Debug \
             -skipPackagePluginValidation \
             -skipMacroValidation \
