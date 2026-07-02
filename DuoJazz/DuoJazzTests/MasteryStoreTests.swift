@@ -7,6 +7,7 @@ import SwiftData
 import Testing
 @testable import DuoJazz
 
+@MainActor
 @Suite("MasteryStore")
 struct MasteryStoreTests {
 
