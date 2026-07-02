@@ -22,7 +22,7 @@ struct PlayButton: View {
                 player.play(lick: lick, in: key, clef: clef, octaveOffset: octaveOffset, concertMidiOffset: concertMidiOffset, tempo: tempo)
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 Image(systemName: player.isPlaying ? "stop.fill" : "play.fill")
                     .contentTransition(.symbolEffect(.replace))
                 Text(player.isPlaying ? "Stop" : "Play")
@@ -30,9 +30,9 @@ struct PlayButton: View {
             .font(.headline)
             .foregroundStyle(.white)
             .frame(width: 160)
-            .padding(.vertical, 16)
+            .padding(.vertical, AppSpacing.md)
             .background(player.isPlaying ? Color(hex: 0xEF4444) : Color(hex: 0x8B5CF6))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         }
         .sensoryFeedback(.impact(flexibility: .soft), trigger: player.isPlaying)
         .animation(.easeInOut(duration: 0.15), value: player.isPlaying)

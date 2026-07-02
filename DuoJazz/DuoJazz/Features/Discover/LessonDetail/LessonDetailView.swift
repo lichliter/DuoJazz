@@ -38,8 +38,8 @@ struct LessonDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: AppSpacing.lg) {
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(lesson.name)
                         .font(.largeTitle.bold())
                         .foregroundStyle(.white)
@@ -58,7 +58,7 @@ struct LessonDetailView: View {
 
                 ModePickerView(selectedMode: $selectedMode)
 
-                VStack(spacing: 12) {
+                VStack(spacing: AppSpacing.sm) {
                     ForEach(Array(licks.enumerated()), id: \.element.id) { index, lick in
                         LickRowView(
                             lick: lick,
@@ -69,8 +69,8 @@ struct LessonDetailView: View {
                     }
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.vertical, AppSpacing.md)
         }
         .background(Color(hex: 0x0F0A1E))
         .navigationBarTitleDisplayMode(.inline)
@@ -129,18 +129,18 @@ struct ModePickerView: View {
     @Binding var selectedMode: PracticeMode
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: AppSpacing.xs) {
             ForEach(PracticeMode.allCases, id: \.self) { mode in
                 Button { selectedMode = mode } label: {
                     Text(mode.displayName)
                         .font(.caption.weight(selectedMode == mode ? .bold : .medium))
                         .foregroundStyle(selectedMode == mode ? .white : .secondary)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, AppSpacing.xs)
                         .background(selectedMode == mode ? Color(hex: 0x8B5CF6) : Color(hex: 0x1A1030))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: AppRadius.md)
                                 .stroke(selectedMode == mode ? Color.clear : Color(hex: 0x2D2060), lineWidth: 1)
                         )
                 }
@@ -171,7 +171,7 @@ struct KeyPillSelector: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 ForEach(Self.pillOptions) { option in
                     let status = statusFor(key: option.key)
                     let isSelected = option.key == selectedKey.key
@@ -181,8 +181,8 @@ struct KeyPillSelector: View {
                         Text(option.displayName)
                             .font(.caption.weight(isSelected ? .bold : .medium))
                             .foregroundStyle(style.text)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, AppSpacing.sm)
+                            .padding(.vertical, AppSpacing.xs)
                             .background(style.background)
                             .clipShape(Capsule())
                             .overlay(
@@ -191,8 +191,8 @@ struct KeyPillSelector: View {
                     }
                 }
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 4)
+            .padding(.horizontal, AppSpacing.xs)
+            .padding(.vertical, AppSpacing.xs)
         }
     }
 

@@ -18,11 +18,11 @@ struct SessionCompleteView: View {
     private static let autoAdvanceDuration: Double = 5
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: AppSpacing.lg) {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 72))
+                .font(AppTypography.celebration)
                 .foregroundStyle(Color(hex: 0x22C55E))
                 .symbolEffect(.bounce, value: appeared)
 
@@ -43,7 +43,7 @@ struct SessionCompleteView: View {
 
             if let nextKeyName, let onContinue {
                 continueButton(label: nextKeyName, action: onContinue)
-                    .padding(.horizontal, 40)
+                    .padding(.horizontal, AppSpacing.xl)
 
                 Button {
                     autoAdvanceTask?.cancel()
@@ -53,19 +53,19 @@ struct SessionCompleteView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
-                .padding(.bottom, 40)
+                .padding(.bottom, AppSpacing.xl)
             } else {
                 Button(action: onDone) {
                     Text("Done")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
+                        .padding(.vertical, AppSpacing.md)
                         .background(Color(hex: 0x8B5CF6))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .padding(.horizontal, AppSpacing.xl)
+                .padding(.bottom, AppSpacing.xl)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -86,14 +86,14 @@ struct SessionCompleteView: View {
             autoAdvanceTask?.cancel()
             action()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 Text("Continue to \(label)")
                 Image(systemName: "arrow.right")
             }
             .font(.headline)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
+            .padding(.vertical, AppSpacing.md)
             .background {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -103,7 +103,7 @@ struct SessionCompleteView: View {
                     }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         }
     }
 

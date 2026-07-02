@@ -9,7 +9,7 @@ struct LickGrid: View {
     let licks: [Lick]
 
     private let columns = [
-        GridItem(.adaptive(minimum: 280, maximum: 400), spacing: 20)
+        GridItem(.adaptive(minimum: 280, maximum: 400), spacing: AppSpacing.lg)
     ]
 
     var body: some View {
@@ -20,7 +20,7 @@ struct LickGrid: View {
                 description: Text("Try adjusting your search or filters")
             )
         } else {
-            LazyVGrid(columns: columns, spacing: 16) {
+            LazyVGrid(columns: columns, spacing: AppSpacing.md) {
                 ForEach(licks) { lick in
                     NavigationLink(destination: LickDetailView(lick: lick)) {
                         LickCardView(lick: lick)
