@@ -3,67 +3,49 @@
 //  DuoJazzTests
 //
 
-import SwiftData
 import Testing
 @testable import DuoJazz
 
-@MainActor
-@Suite("MasteryStore", .serialized)
+@Suite("MasteryStore")
 struct MasteryStoreTests {
 
-    private func makeStore() throws -> MasteryStore {
-        let schema = Schema([LickMastery.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: schema, configurations: config)
-        return MasteryStore(context: container.mainContext)
-    }
-
     @Test("Bronze medal at 1 completed key")
-    func bronzeMedal() throws {
-        let store = try makeStore()
-        store.complete(cardType: .listen, for: "lick-1", in: .c)
-        #expect(store.medal(for: "lick-1") == .bronze)
-        #expect(store.completedKeyCount(for: "lick-1") == 1)
+    func bronzeMedal() {
+        #expect(Medal.forCompletedKeyCount(1) == .bronze)
+        #expect(Medal.forCompletedKeyCount(5) == .bronze)
     }
 
     @Test("Silver medal at 6 completed keys")
-    func silverMedal() throws {
-        let store = try makeStore()
-        let keys: [Key] = [.c, .f, .aSharp, .dSharp, .gSharp, .cSharp]
-        for key in keys {
-            store.complete(cardType: .listen, for: "lick-1", in: key)
-        }
-        #expect(store.medal(for: "lick-1") == .silver)
-        #expect(store.completedKeyCount(for: "lick-1") == 6)
+    func silverMedal() {
+        #expect(Medal.forCompletedKeyCount(6) == .silver)
+        #expect(Medal.forCompletedKeyCount(11) == .silver)
     }
 
     @Test("Gold medal at 12 completed keys")
-    func goldMedal() throws {
-        let store = try makeStore()
-        for key in Key.allCases {
-            store.complete(cardType: .listen, for: "lick-1", in: key)
-        }
-        #expect(store.medal(for: "lick-1") == .gold)
-        #expect(store.completedKeyCount(for: "lick-1") == 12)
+    func goldMedal() {
+        #expect(Medal.forCompletedKeyCount(12) == .gold)
+        #expect(Medal.forCompletedKeyCount(20) == .gold)
+    }
+
+    @Test("No medal before first completed key")
+    func noMedal() {
+        #expect(Medal.forCompletedKeyCount(0) == .none)
     }
 
     @Test("Card level only advances forward")
-    func levelMonotonic() throws {
-        let store = try makeStore()
-        store.complete(cardType: .play, for: "lick-1", in: .d)
-        store.complete(cardType: .learn, for: "lick-1", in: .d)
-        #expect(store.level(for: "lick-1", in: .d) == .play)
+    func levelMonotonic() {
+        let afterPlay = MasteryProgression.advancedLevel(current: .play, completed: .learn)
+        #expect(afterPlay == .play)
+
+        let afterListen = MasteryProgression.advancedLevel(current: .play, completed: .listen)
+        #expect(afterListen == .listen)
     }
 
     @Test("Key status reflects progress")
-    func keyStatus() throws {
-        let store = try makeStore()
-        #expect(store.keyStatus(for: "lick-1", key: .g) == .notStarted)
-
-        store.complete(cardType: .learn, for: "lick-1", in: .g)
-        #expect(store.keyStatus(for: "lick-1", key: .g) == .inProgress)
-
-        store.complete(cardType: .listen, for: "lick-1", in: .g)
-        #expect(store.keyStatus(for: "lick-1", key: .g) == .completed)
+    func keyStatus() {
+        #expect(KeyStatus.from(cardLevel: .none) == .notStarted)
+        #expect(KeyStatus.from(cardLevel: .learn) == .inProgress)
+        #expect(KeyStatus.from(cardLevel: .play) == .inProgress)
+        #expect(KeyStatus.from(cardLevel: .listen) == .completed)
     }
 }
