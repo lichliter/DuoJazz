@@ -9,7 +9,7 @@ struct InstrumentCard: View {
     let instrument: Instrument
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: AppSpacing.sm) {
             Image(systemName: "guitars")
                 .font(.title2)
                 .foregroundStyle(Color(hex: 0x8B5CF6))
@@ -32,10 +32,10 @@ struct InstrumentCard: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
-        .padding(18)
+        .padding(AppSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(hex: 0x1A1030))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.lg))
         .accessibilityElement(children: .combine)
         .accessibilityHint("Double tap to change instrument")
     }

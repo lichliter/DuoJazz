@@ -23,10 +23,10 @@ struct LickDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Module link + title
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
                 if let collection = parentCollection {
                     NavigationLink(destination: LessonDetailView(lesson: collection)) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: AppSpacing.xs) {
                             Image(systemName: collection.iconName)
                                 .font(.subheadline)
                             Text(collection.name)
@@ -35,8 +35,8 @@ struct LickDetailView: View {
                                 .font(.caption2)
                         }
                         .foregroundStyle(Color(hex: 0x22C55E))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
+                        .padding(.horizontal, AppSpacing.sm)
+                        .padding(.vertical, AppSpacing.xs)
                         .background(Color(hex: 0x22C55E).opacity(0.1))
                         .clipShape(Capsule())
                     }
@@ -47,17 +47,17 @@ struct LickDetailView: View {
                     .foregroundStyle(.white)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.top, AppSpacing.xs)
 
             // Tags
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 ForEach(lick.tags, id: \.self) { tag in
                     Text(tag.displayName)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color(hex: 0x8B5CF6))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, AppSpacing.xs)
+                        .padding(.vertical, AppSpacing.xs)
                         .background(Color(hex: 0x8B5CF6).opacity(0.12))
                         .clipShape(Capsule())
                 }
@@ -66,8 +66,8 @@ struct LickDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.top, AppSpacing.sm)
 
             // Notation
             ABCNotationView(
@@ -77,13 +77,13 @@ struct LickDetailView: View {
                 octaveOffset: octaveOffset
             )
             .frame(maxHeight: 340)
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.top, AppSpacing.xs)
 
             // Controls row
-            HStack(spacing: 20) {
+            HStack(spacing: AppSpacing.lg) {
                 // Key
-                HStack(spacing: 6) {
+                HStack(spacing: AppSpacing.xs) {
                     Text("Key")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -99,8 +99,8 @@ struct LickDetailView: View {
                 // Octave
                 OctaveButtons(offset: $octaveOffset)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 12)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.sm)
 
             Spacer()
 
@@ -113,7 +113,7 @@ struct LickDetailView: View {
                 octaveOffset: octaveOffset,
                 concertMidiOffset: instrument.concertMidiOffset
             )
-            .padding(.bottom, 32)
+            .padding(.bottom, AppSpacing.lg)
         }
         .background(Color(hex: 0x0F0A1E))
         .toolbarTitleDisplayMode(.inline)

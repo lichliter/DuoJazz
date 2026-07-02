@@ -34,21 +34,21 @@ struct InstrumentPickerView: View {
                                         .foregroundStyle(Color(hex: 0x8B5CF6))
                                 }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 16)
+                            .padding(.horizontal, AppSpacing.lg)
+                            .padding(.vertical, AppSpacing.md)
                         }
 
                         if instrument != Instrument.allPresets.last {
                             Divider()
                                 .overlay(Color(hex: 0x2D2060).opacity(0.4))
-                                .padding(.leading, 20)
+                                .padding(.leading, AppSpacing.lg)
                         }
                     }
                 }
                 .background(Color(hex: 0x1A1030))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.top, AppSpacing.xs)
             }
             .background(Color(hex: 0x0F0A1E))
             .navigationTitle("Choose Instrument")

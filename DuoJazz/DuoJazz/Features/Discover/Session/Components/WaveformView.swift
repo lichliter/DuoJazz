@@ -10,7 +10,7 @@ struct WaveformView: View {
     let detectedNote: String
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: AppSpacing.xs) {
             // Waveform bars
             HStack(spacing: 2) {
                 ForEach(Array(amplitudes.enumerated()), id: \.offset) { _, amp in
@@ -28,10 +28,10 @@ struct WaveformView: View {
                     .foregroundStyle(Color(hex: 0x22C55E))
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, AppSpacing.lg)
+        .padding(.vertical, AppSpacing.sm)
         .background(Color(hex: 0x0C0820))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
     }
 
     private func barColor(for amplitude: Float) -> Color {

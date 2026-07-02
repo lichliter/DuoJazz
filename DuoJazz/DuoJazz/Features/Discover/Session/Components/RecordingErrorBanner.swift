@@ -23,7 +23,7 @@ struct RecordingErrorBanner: View {
 
     var body: some View {
         if let message = errorMessage {
-            HStack(spacing: 10) {
+            HStack(spacing: AppSpacing.xs) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(Color(hex: 0xEF4444))
                 Text(message)
@@ -42,10 +42,10 @@ struct RecordingErrorBanner: View {
                     .foregroundStyle(Color(hex: 0x8B5CF6))
                 }
             }
-            .padding(12)
+            .padding(AppSpacing.sm)
             .background(Color(hex: 0xEF4444).opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .padding(.horizontal, 24)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
+            .padding(.horizontal, AppSpacing.lg)
         }
     }
 }
