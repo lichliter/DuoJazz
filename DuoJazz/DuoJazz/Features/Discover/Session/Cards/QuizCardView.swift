@@ -26,7 +26,7 @@ struct QuizCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: AppSpacing.lg) {
             CardBadge.quiz
 
             Text(lick.name)
@@ -36,28 +36,28 @@ struct QuizCardView: View {
             Text("Key of \(key.displayName) • From memory")
                 .foregroundStyle(.secondary)
 
-            Spacer(minLength: 24)
+            Spacer(minLength: AppSpacing.lg)
 
             Text("🎯")
-                .font(.system(size: 80))
+                .font(AppTypography.quizNote)
 
-            Spacer(minLength: 24)
+            Spacer(minLength: AppSpacing.lg)
 
             Button {
                 if recording.isRecording { recording.pitchDetector.pause() }
                 player.play(lick: lick, in: key.key, clef: instrument.defaultClef, octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset)
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: AppSpacing.xs) {
                     Image(systemName: "speaker.wave.2")
                     Text("Hear reference")
                 }
                 .foregroundStyle(Color(hex: 0xEF4444))
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.vertical, AppSpacing.sm)
                 .background(Color(hex: 0xEF4444).opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: AppRadius.md)
                         .stroke(Color(hex: 0xEF4444).opacity(0.3), lineWidth: 1)
                 )
             }
@@ -69,7 +69,7 @@ struct QuizCardView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, 24)
+        .padding(.top, AppSpacing.lg)
         .onAppear {
             recording.onComplete = onNext
             let store = LickPreferenceStore(context: modelContext)
@@ -96,7 +96,7 @@ struct QuizCardView: View {
         if case .complete(let acc) = recording.state, acc >= 1.0 {
             // Auto-advancing
         } else {
-            HStack(spacing: 8) {
+            HStack(spacing: AppSpacing.xs) {
                 AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
                     Task { await recording.startRecording() }
                 }
@@ -112,8 +112,8 @@ struct QuizCardView: View {
                     }
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.bottom, AppSpacing.xl)
         }
     }
 }

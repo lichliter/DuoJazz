@@ -9,7 +9,7 @@ struct SearchBar: View {
     @Binding var text: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: AppSpacing.xs) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
@@ -24,8 +24,8 @@ struct SearchBar: View {
                 }
             }
         }
-        .padding(14)
+        .padding(AppSpacing.sm)
         .background(Color(hex: 0x1A1030))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
     }
 }

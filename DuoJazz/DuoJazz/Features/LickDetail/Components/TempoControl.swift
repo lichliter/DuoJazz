@@ -16,7 +16,7 @@ struct TempoControl: View {
 
             Spacer()
 
-            HStack(spacing: 16) {
+            HStack(spacing: AppSpacing.md) {
                 Button {
                     if tempo > 40 { tempo -= 5 }
                 } label: {
@@ -42,7 +42,7 @@ struct TempoControl: View {
         }
         .padding()
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
     }
 }
 
@@ -51,7 +51,7 @@ struct TempoButtons: View {
     @Binding var tempo: Int
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: AppSpacing.xs) {
             Button { if tempo > 40 { tempo -= 5 } } label: {
                 Image(systemName: "minus")
                     .font(.caption.bold())

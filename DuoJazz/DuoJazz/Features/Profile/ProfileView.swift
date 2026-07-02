@@ -38,7 +38,7 @@ struct ProfileView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 28) {
+            VStack(spacing: AppSpacing.lg) {
                 if let vm = viewModel {
                     InstrumentCard(instrument: vm.selectedInstrument)
                         .onTapGesture { showingInstrumentPicker = true }
@@ -46,8 +46,8 @@ struct ProfileView: View {
 
                 MedalSummaryCard(summary: lickMedalSummary)
             }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.vertical, AppSpacing.md)
         }
         .background(Color(hex: 0x0F0A1E))
         .navigationTitle("Profile")

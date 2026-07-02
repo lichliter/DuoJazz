@@ -10,7 +10,7 @@ struct LicktionaryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: AppSpacing.lg) {
                 SearchBar(text: $viewModel.searchQuery)
 
                 TagFilterRow(
@@ -29,8 +29,8 @@ struct LicktionaryView: View {
 
                 LickGrid(licks: viewModel.searchResults)
             }
-            .padding(.horizontal, 36)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.vertical, AppSpacing.md)
         }
         .background(Color(hex: 0x0F0A1E))
         .navigationTitle("Licktionary")
