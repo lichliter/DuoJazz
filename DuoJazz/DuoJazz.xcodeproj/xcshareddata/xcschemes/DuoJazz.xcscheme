@@ -29,7 +29,7 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B1T2E3S4T5F6A7B8C9D0E003"
+               BlueprintIdentifier = "B1B2C3D4E5F60101000A0001"
                BuildableName = "DuoJazzTests.xctest"
                BlueprintName = "DuoJazzTests"
                ReferencedContainer = "container:DuoJazz.xcodeproj">
@@ -46,10 +46,10 @@
       <Testables>
          <TestableReference
             skipped = "NO"
-            parallelizable = "YES">
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B1T2E3S4T5F6A7B8C9D0E003"
+               BlueprintIdentifier = "B1B2C3D4E5F60101000A0001"
                BuildableName = "DuoJazzTests.xctest"
                BlueprintName = "DuoJazzTests"
                ReferencedContainer = "container:DuoJazz.xcodeproj">

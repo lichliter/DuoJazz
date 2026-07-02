@@ -6,6 +6,7 @@
 import Testing
 @testable import DuoJazz
 
+@MainActor
 @Suite("Music Model")
 struct MusicModelTests {
 

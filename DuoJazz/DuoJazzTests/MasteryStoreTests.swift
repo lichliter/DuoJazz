@@ -8,7 +8,7 @@ import Testing
 @testable import DuoJazz
 
 @MainActor
-@Suite("MasteryStore")
+@Suite("MasteryStore", .serialized)
 struct MasteryStoreTests {
 
     private func makeStore() throws -> MasteryStore {
