@@ -9,6 +9,7 @@ struct SessionCompleteView: View {
     let lickName: String
     let keyName: String
     let nextKeyName: String?
+    let streakDidIncrement: Bool
     let onDone: () -> Void
     let onContinue: (() -> Void)?
     @State private var appeared = false
@@ -33,6 +34,12 @@ struct SessionCompleteView: View {
             Text("\(lickName) — Key of \(keyName)")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.8))
+
+            if streakDidIncrement {
+                Label("Streak saved!", systemImage: "flame.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color(hex: 0xF59E0B))
+            }
 
             Text("Great work. Keep practicing to build mastery.")
                 .font(.subheadline)
