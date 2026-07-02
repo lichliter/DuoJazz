@@ -48,9 +48,7 @@ class PitchDetector {
         engine.output = silence
 
         let tracker = PitchTap(input, handler: { [weak self] pitch, amp in
-            Task { @MainActor in
-                self?.handlePitch(pitch: pitch, amplitude: amp)
-            }
+            self?.handlePitch(pitch: pitch, amplitude: amp)
         })
 
         self.engine = engine
@@ -84,9 +82,16 @@ class PitchDetector {
         print("[PitchDetector] Stopped")
     }
 
-    private func handlePitch(pitch: [Float], amplitude: [Float]) {
+    /// Called from the audio thread — hops to MainActor only for state updates.
+    nonisolated private func handlePitch(pitch: [Float], amplitude: [Float]) {
         guard let freq = pitch.first, let amp = amplitude.first else { return }
 
+        Task { @MainActor [weak self] in
+            self?.processPitch(freq: freq, amp: amp)
+        }
+    }
+
+    private func processPitch(freq: Float, amp: Float) {
         // Update amplitude for waveform (circular buffer, O(1))
         self.amplitude = amp
         amplitudeHistory[historyWriteIndex] = amp

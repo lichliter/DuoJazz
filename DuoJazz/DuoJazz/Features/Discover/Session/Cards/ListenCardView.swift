@@ -46,27 +46,9 @@ struct ListenCardView: View {
             .frame(maxHeight: 200)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
 
-            Button {
-                if recording.isRecording { recording.pitchDetector.pause() }
-                player.play(lick: lick, in: key.key, clef: instrument.defaultClef, octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset)
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: "speaker.wave.2")
-                    Text("Hear reference")
-                }
-                .foregroundStyle(Color(hex: 0xF59E0B))
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.sm)
-                .background(Color(hex: 0xF59E0B).opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.md)
-                        .stroke(Color(hex: 0xF59E0B).opacity(0.3), lineWidth: 1)
-                )
-            }
+            HearReferenceButton(style: .listen) { playReference() }
 
             RecordingProgress(recording: recording)
-
             RecordingErrorBanner(state: recording.state)
 
             Spacer()
@@ -75,53 +57,32 @@ struct ListenCardView: View {
         .padding(.top, AppSpacing.lg)
         .onAppear {
             recording.onComplete = onNext
-            let store = LickPreferenceStore(context: modelContext)
-            if let saved = store.octaveOffset(for: lick.id) {
-                octaveOffset = saved
-            } else {
-                octaveOffset = instrument.recommendedOctaveOffset(for: lick, in: key.key)
-            }
+            octaveOffset = LickCardPreferences.octaveOffset(for: lick, in: key.key, instrument: instrument, context: modelContext)
             recording.octaveOffset = octaveOffset
             recording.writtenKey = key.key
             recording.concertMidiOffset = instrument.concertMidiOffset
-
             recording.autoRecord = autoRecord
-            if recording.autoRecord {
-                // Play reference first so user knows what to play, then start recording
-                player.play(lick: lick, in: key.key, clef: instrument.defaultClef, octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset)
-            }
+            if recording.autoRecord { playReference() }
         }
         .onChange(of: player.isPlaying) {
             if !player.isPlaying {
                 if recording.isRecording {
                     recording.pitchDetector.resume()
                 } else if autoRecord {
-                    // Reference finished playing — start recording
                     Task { await recording.startRecording() }
                 }
             }
         }
-        if case .complete(let acc) = recording.state, acc >= 1.0 {
-            // Auto-advancing
-        } else {
-            HStack(spacing: AppSpacing.xs) {
-                AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
-                    Task { await recording.startRecording() }
-                }
+        CardRecordingControls(recording: recording, autoRecord: $autoRecord) {
+            await recording.startRecording()
+        }
+    }
 
-                RecordButton(state: recording.state) {
-                    switch recording.state {
-                    case .idle, .failed:
-                        Task { await recording.startRecording() }
-                    case .recording:
-                        break
-                    case .complete:
-                        recording.reset()
-                    }
-                }
-            }
-            .padding(.horizontal, AppSpacing.xl)
-            .padding(.bottom, AppSpacing.xl)
-        }
+    private func playReference() {
+        if recording.isRecording { recording.pitchDetector.pause() }
+        player.play(
+            lick: lick, in: key.key, clef: instrument.defaultClef,
+            octaveOffset: octaveOffset, concertMidiOffset: instrument.concertMidiOffset
+        )
     }
 }

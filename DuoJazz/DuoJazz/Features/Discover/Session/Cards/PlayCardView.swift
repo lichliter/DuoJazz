@@ -36,7 +36,6 @@ struct PlayCardView: View {
             HStack(spacing: AppSpacing.md) {
                 Text("Key of \(key.displayName)")
                     .foregroundStyle(.secondary)
-
                 OctaveButtons(offset: $octaveOffset)
             }
 
@@ -50,7 +49,6 @@ struct PlayCardView: View {
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
 
             RecordingProgress(recording: recording)
-
             RecordingErrorBanner(state: recording.state)
 
             Spacer()
@@ -64,29 +62,12 @@ struct PlayCardView: View {
         .onChange(of: octaveOffset) {
             recording.octaveOffset = octaveOffset
             recording.rebuildMatcher()
-            savePreferences()
-        }
-        if case .complete(let acc) = recording.state, acc >= 1.0 {
-            // Auto-advancing
-        } else {
-            HStack(spacing: AppSpacing.xs) {
-                AutoRecordToggle(recording: recording, autoRecord: $autoRecord) {
-                    Task { await recording.startRecording() }
-                }
-
-                RecordButton(state: recording.state) {
-                    switch recording.state {
-                    case .idle, .failed:
-                        Task { await recording.startRecording() }
-                    case .recording:
-                        break
-                    case .complete:
-                        recording.reset()
-                    }
-                }
+            if hasLoadedPreference {
+                LickCardPreferences.saveOctaveOffset(octaveOffset, for: lick.id, context: modelContext)
             }
-            .padding(.horizontal, AppSpacing.xl)
-            .padding(.bottom, AppSpacing.xl)
+        }
+        CardRecordingControls(recording: recording, autoRecord: $autoRecord) {
+            await recording.startRecording()
         }
     }
 
@@ -95,23 +76,11 @@ struct PlayCardView: View {
         hasLoadedPreference = true
         recording.writtenKey = key.key
         recording.concertMidiOffset = instrument.concertMidiOffset
-        let store = LickPreferenceStore(context: modelContext)
-        if let saved = store.octaveOffset(for: lick.id) {
-            octaveOffset = saved
-        } else {
-            octaveOffset = instrument.recommendedOctaveOffset(for: lick, in: key.key)
-        }
+        octaveOffset = LickCardPreferences.octaveOffset(for: lick, in: key.key, instrument: instrument, context: modelContext)
         recording.octaveOffset = octaveOffset
-
         recording.autoRecord = autoRecord
         if recording.autoRecord {
             Task { await recording.startRecording() }
         }
-    }
-
-    private func savePreferences() {
-        guard hasLoadedPreference else { return }
-        let store = LickPreferenceStore(context: modelContext)
-        store.setOctaveOffset(octaveOffset, for: lick.id)
     }
 }
