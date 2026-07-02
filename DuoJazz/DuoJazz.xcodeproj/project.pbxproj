@@ -502,7 +502,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8Y6TMWQZ38;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = DuoJazzWidget/Info.plist;
+				INFOPLIST_FILE = DuoJazzWidgetExtension-Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -528,7 +528,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8Y6TMWQZ38;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = DuoJazzWidget/Info.plist;
+				INFOPLIST_FILE = DuoJazzWidgetExtension-Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
