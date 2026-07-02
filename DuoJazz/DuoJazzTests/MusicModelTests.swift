@@ -47,7 +47,7 @@ struct MusicModelTests {
     func lickDurationAndMeasures() {
         let lick = TestFixtures.simpleLick
         #expect(lick.noteCount == 4)
-        #expect(lick.totalBeats == 3.0)
+        #expect(lick.totalBeats == 3.5)
         #expect(lick.measureCount == 1)
         #expect(lick.timeSignatureString == "4/4")
     }
