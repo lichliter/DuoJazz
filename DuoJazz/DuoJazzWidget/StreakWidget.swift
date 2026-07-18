@@ -94,6 +94,9 @@ struct StreakWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: StreakProvider()) { entry in
             StreakWidgetEntryView(streak: entry.streak)
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
         }
         .configurationDisplayName("Practice Streak")
         .description("See your daily practice streak on the Lock Screen.")
