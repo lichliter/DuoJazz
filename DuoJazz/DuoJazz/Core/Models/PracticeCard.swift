@@ -35,13 +35,21 @@ enum PracticeCard: Sendable, Identifiable {
         }
     }
 
-    /// Generate the standard 4-card session for a lick: Learn → Play → Listen → Quiz
-    static func session(for lickId: String) -> [PracticeCard] {
-        [
-            .learn(lickId: lickId),
-            .play(lickId: lickId),
-            .listen(lickId: lickId),
-            .quiz(lickId: lickId),
-        ]
+    /// Generate a mini-session for a lick.
+    static func session(for lickId: String, length: SessionLength = .full) -> [PracticeCard] {
+        switch length {
+        case .full:
+            [
+                .learn(lickId: lickId),
+                .play(lickId: lickId),
+                .listen(lickId: lickId),
+                .quiz(lickId: lickId),
+            ]
+        case .recallOnly:
+            [
+                .listen(lickId: lickId),
+                .quiz(lickId: lickId),
+            ]
+        }
     }
 }
