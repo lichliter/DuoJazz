@@ -10,7 +10,7 @@ struct LessonDetailView: View {
     let lesson: Lesson
     @Environment(\.modelContext) private var modelContext
     @State private var selectedKey: KeyOption = .default
-    @State private var selectedMode: PracticeMode = .lesson
+    @State private var settings: PracticeSettings = .default
     @State private var sessionStartIndex: SessionStartIndex?
     @State private var hasLoadedPreference = false
     @Query private var masteries: [LickMastery]
@@ -44,7 +44,14 @@ struct LessonDetailView: View {
                     masteryMap: masteryMap
                 )
 
-                ModePickerView(selectedMode: $selectedMode)
+                LoopModePicker(loopEnabled: $settings.loopEnabled)
+
+                if settings.loopEnabled {
+                    LoopIntervalPicker(interval: $settings.interval)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                SessionLengthPicker(sessionLength: $settings.sessionLength)
 
                 VStack(spacing: AppSpacing.sm) {
                     ForEach(Array(licks.enumerated()), id: \.element.id) { index, lick in
@@ -59,12 +66,13 @@ struct LessonDetailView: View {
             }
             .padding(.horizontal, AppSpacing.xl)
             .padding(.vertical, AppSpacing.md)
+            .animation(.easeInOut(duration: 0.2), value: settings.loopEnabled)
         }
         .background(Color(hex: 0x0F0A1E))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { loadPreference() }
-        .onChange(of: selectedMode) { _, new in
-            LessonPreferenceStore(context: modelContext).setMode(new, for: lesson.id)
+        .onChange(of: settings) { _, new in
+            LessonPreferenceStore(context: modelContext).setSettings(new, for: lesson.id)
         }
         .onChange(of: selectedKey) { _, new in
             LessonPreferenceStore(context: modelContext).setKey(new, for: lesson.id)
@@ -74,7 +82,7 @@ struct LessonDetailView: View {
                 lesson: lesson,
                 startingLickIndex: wrapper.index,
                 key: selectedKey,
-                mode: selectedMode,
+                settings: settings,
                 onKeyChanged: { key in selectedKey = key }
             )
         }
@@ -84,7 +92,7 @@ struct LessonDetailView: View {
         guard !hasLoadedPreference else { return }
         hasLoadedPreference = true
         let pref = LessonPreferenceStore(context: modelContext).preference(for: lesson.id)
-        selectedMode = pref.mode
+        settings = pref.settings
         selectedKey = pref.key
     }
 }

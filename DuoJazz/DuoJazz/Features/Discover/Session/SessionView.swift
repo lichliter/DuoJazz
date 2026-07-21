@@ -17,14 +17,14 @@ struct SessionView: View {
         lesson: Lesson,
         startingLickIndex: Int,
         key: KeyOption,
-        mode: PracticeMode = .lesson,
+        settings: PracticeSettings = .default,
         onKeyChanged: ((KeyOption) -> Void)? = nil
     ) {
         _viewModel = State(initialValue: SessionViewModel(
             lesson: lesson,
             startingLickIndex: startingLickIndex,
             key: key,
-            mode: mode
+            settings: settings
         ))
         self.onKeyChanged = onKeyChanged
     }
@@ -43,6 +43,7 @@ struct SessionView: View {
                     lickName: viewModel.lickName,
                     keyName: viewModel.currentKey.displayName,
                     nextKeyName: viewModel.nextLabel,
+                    lapCount: viewModel.lapCount,
                     streakDidIncrement: viewModel.streakDidIncrement,
                     onDone: { dismiss() },
                     onContinue: viewModel.hasNext ? {
