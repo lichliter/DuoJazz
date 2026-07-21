@@ -10,6 +10,16 @@ import Testing
 @Suite("PracticeCard")
 struct PracticeCardTests {
 
+    @Test("Recall-only session has Listen and Quiz")
+    func recallOnlySession() {
+        let cards = PracticeCard.session(for: "short-ii-v-i", length: .recallOnly)
+        #expect(cards.count == 2)
+        guard case .listen = cards[0], case .quiz = cards[1] else {
+            Issue.record("Recall-only should be Listen then Quiz")
+            return
+        }
+    }
+
     @Test("Session follows Learn → Play → Listen → Quiz order")
     func sessionCardSequence() {
         let cards = PracticeCard.session(for: "short-ii-v-i")

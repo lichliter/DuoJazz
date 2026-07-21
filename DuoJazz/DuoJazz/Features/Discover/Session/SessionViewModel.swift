@@ -10,7 +10,7 @@ import SwiftData
 class SessionViewModel {
     let lesson: Lesson
     var currentLickIndex: Int
-    let mode: PracticeMode
+    let settings: PracticeSettings
     let startingKey: KeyOption
     var currentKey: KeyOption
     var currentCardIndex = 0
@@ -18,18 +18,26 @@ class SessionViewModel {
     var autoRecord = false
     private(set) var streakDidIncrement = false
     private(set) var currentStreak = 0
+    private(set) var lapCount = 1
     private(set) var currentCards: [PracticeCard]
+    private var randomRemainingKeys: [KeyOption]
 
     private let catalog = LickCatalog.shared
     var modelContext: ModelContext?
 
-    init(lesson: Lesson, startingLickIndex: Int, key: KeyOption, mode: PracticeMode = .lesson) {
+    init(lesson: Lesson, startingLickIndex: Int, key: KeyOption, settings: PracticeSettings = .default) {
         self.lesson = lesson
         self.currentLickIndex = startingLickIndex
-        self.mode = mode
+        self.settings = settings
         self.startingKey = key
         self.currentKey = key
-        self.currentCards = PracticeCard.session(for: lesson.lickIds[startingLickIndex])
+        self.randomRemainingKeys = settings.loopEnabled && settings.interval == .random
+            ? LoopInterval.shuffledKeys(excluding: key)
+            : []
+        self.currentCards = PracticeCard.session(
+            for: lesson.lickIds[startingLickIndex],
+            length: settings.sessionLength
+        )
     }
 
     var currentLickId: String {
@@ -58,22 +66,23 @@ class SessionViewModel {
     }
 
     var progressText: String {
-        "\(currentCardIndex + 1)/\(cardCount)"
+        if settings.loopEnabled && lapCount > 1 {
+            return "\(currentCardIndex + 1)/\(cardCount) · R\(lapCount)"
+        }
+        return "\(currentCardIndex + 1)/\(cardCount)"
     }
 
     var hasNext: Bool {
-        if mode.iteratesLicks {
-            return currentLickIndex + 1 < lesson.lickIds.count
-        }
-        return mode.nextKey(after: currentKey, startingKey: startingKey) != nil
+        if settings.loopEnabled { return true }
+        return currentLickIndex + 1 < lesson.lickIds.count
     }
 
     var nextLabel: String? {
-        if mode.iteratesLicks {
-            guard currentLickIndex + 1 < lesson.lickIds.count else { return nil }
-            return catalog.lick(withId: lesson.lickIds[currentLickIndex + 1])?.name
+        if settings.loopEnabled {
+            return previewNextKey()?.displayName
         }
-        return mode.nextKey(after: currentKey, startingKey: startingKey)?.displayName
+        guard currentLickIndex + 1 < lesson.lickIds.count else { return nil }
+        return catalog.lick(withId: lesson.lickIds[currentLickIndex + 1])?.name
     }
 
     func nextCard() {
@@ -96,16 +105,56 @@ class SessionViewModel {
         currentStreak = result.streak
     }
 
-    /// Advance to the next session (next lick in Lesson mode, next key otherwise)
+    /// Advance to the next mini-session (next lick or next key).
     func advanceNext() {
-        if mode.iteratesLicks {
+        if settings.loopEnabled {
+            advanceKeyLoop()
+        } else {
             guard currentLickIndex + 1 < lesson.lickIds.count else { return }
             currentLickIndex += 1
-            currentCards = PracticeCard.session(for: currentLickId)
-        } else {
-            guard let next = mode.nextKey(after: currentKey, startingKey: startingKey) else { return }
-            currentKey = next
+            regenerateCards()
         }
+        resetSessionState()
+    }
+
+    private func advanceKeyLoop() {
+        if let next = nextKeyInLoop() {
+            currentKey = next
+        } else {
+            lapCount += 1
+            currentKey = startingKey
+            if settings.interval == .random {
+                randomRemainingKeys = LoopInterval.shuffledKeys(excluding: startingKey)
+            }
+        }
+        regenerateCards()
+    }
+
+    private func nextKeyInLoop() -> KeyOption? {
+        switch settings.interval {
+        case .random:
+            guard let next = randomRemainingKeys.first else { return nil }
+            randomRemainingKeys.removeFirst()
+            return next
+        case .chromatic, .fourths, .fifths:
+            return settings.interval.nextKey(after: currentKey, startingKey: startingKey)
+        }
+    }
+
+    private func previewNextKey() -> KeyOption? {
+        switch settings.interval {
+        case .random:
+            return randomRemainingKeys.first ?? startingKey
+        case .chromatic, .fourths, .fifths:
+            return settings.interval.nextKey(after: currentKey, startingKey: startingKey) ?? startingKey
+        }
+    }
+
+    private func regenerateCards() {
+        currentCards = PracticeCard.session(for: currentLickId, length: settings.sessionLength)
+    }
+
+    private func resetSessionState() {
         currentCardIndex = 0
         isSessionComplete = false
         streakDidIncrement = false
