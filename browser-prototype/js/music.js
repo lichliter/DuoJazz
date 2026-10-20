@@ -1,32 +1,51 @@
 /**
- * Interval-based music helpers for the DuoJazz integration prototype.
- * Mirrors DuoJazz lick `short-ii-v-i` (BuiltInLicks.shortIIVI) and
- * ChordProgression.shortIIVI without importing native code.
+ * Cry Me a River minor cell over the opening eight bars of Autumn Leaves
+ * (concert G minor). Not DuoJazz `iivi-cry-me-enclosure` and not a loop of
+ * repeated ii–V–I cells.
  */
 
-export const PHRASE_ID = "short-ii-v-i";
-export const PHRASE_NAME = "Short ii–V–I";
+export const PHRASE_ID = "cry-me-a-river-minor-cell";
+export const PHRASE_NAME = "Cry Me a River cell";
+export const PHRASE_SOURCE = {
+  shape: "9–1–5–♭3–2–1 from a minor tonic",
+  rhythm: "eighth, eighth, quarter, eighth, eighth, quarter (one bar)",
+  contour: "ninth above the tonic octave, down to 1, leap to 5, scale down ♭3–2–1",
+  reference: "Common jazz-vocabulary minor cell (C minor: D–C–G–Eb–D–C). Concert G minor sounds A4–G4–D4–Bb3–A3–G3.",
+  notUsed: "DuoJazz BuiltInLicks.iiviCryMeEnclosure (id iivi-cry-me-enclosure) is a major ii–V–I double-enclosure (5–3–9–6–7…), not this cell",
+};
 
-/** Eighth-default elements from BuiltInLicks.shortIIVI */
+export const FORM_ID = "autumn-leaves-opening-8";
+export const FORM_TITLE = "Autumn Leaves · opening 8 bars";
+export const FORM_SOURCE = {
+  tune: "Autumn Leaves (Kosma / Mercer)",
+  variant: "Concert G minor, Verse 1, one chord per bar",
+  chart: "https://tabs.ultimate-guitar.com/tab/misc-traditional/autumn-leaves-chords-4419731",
+  author: "jbpicon, last update Aug 21 2025, key Gm, capo none",
+  excerpt: "| Cm7 | F7 | B♭maj7 | E♭maj7 | Am7♭5 | D7 | Gm6 | Gm6 |",
+  simplification: "No head melody, no pickup, no later-verse turnaround. Bars 7–8 use Gm6 as on that chart (not Gm7 / Gmin(maj7)). This is an excerpt for placing a lick, not a substitute for singing the tune.",
+};
+
+/** 9–1–5–♭3–2–1 from the cell’s minor tonic. Interval 14 is the ninth above the tonic octave. */
 export const PHRASE_ELEMENTS = [
-  { type: "note", interval: 2, beats: 0.5 },
-  { type: "note", interval: 4, beats: 0.5 },
-  { type: "note", interval: 5, beats: 0.5 },
-  { type: "note", interval: 7, beats: 0.5 },
-  { type: "note", interval: 9, beats: 0.5 },
+  { type: "note", interval: 14, beats: 0.5 },
   { type: "note", interval: 12, beats: 0.5 },
-  { type: "note", interval: 11, beats: 0.5 },
-  { type: "note", interval: 9, beats: 0.5 },
-  { type: "note", interval: 7, beats: 2 },
+  { type: "note", interval: 7, beats: 1 },
+  { type: "note", interval: 3, beats: 0.5 },
+  { type: "note", interval: 2, beats: 0.5 },
+  { type: "note", interval: 0, beats: 1 },
 ];
+
+/** Drop one octave from MIDI 60+pc so G minor sounds A4–G4–D4–Bb3–A3–G3. */
+export const PHRASE_OCTAVE = -1;
 
 export const PHRASE_BEATS = PHRASE_ELEMENTS.reduce((sum, el) => sum + el.beats, 0);
 export const CELL_BEATS = 8;
 export const BARS_PER_CHORUS = 8;
 export const BEATS_PER_BAR = 4;
 export const CHORUS_BEATS = BARS_PER_CHORUS * BEATS_PER_BAR;
-export const PHRASE_START_BEAT = CELL_BEATS;
 export const COUNT_IN_BEATS = 4;
+export const DEFAULT_KEY_ID = "G";
+export const DEFAULT_APPLICATION_ID = "minor-home";
 
 export const KEYS = [
   { id: "C", pc: 0, name: "C", usesFlats: false, abc: "C" },
@@ -45,47 +64,157 @@ export const KEYS = [
   { id: "C#", pc: 1, name: "C♯", usesFlats: false, abc: "C#" },
 ];
 
-export const PRIMARY_KEY_IDS = ["C", "F", "Bb", "Eb", "Ab", "G", "D", "A"];
+export const PRIMARY_KEY_IDS = ["G", "C", "D", "F", "Bb", "A", "Eb", "E"];
 
 const SHARP = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 const FLAT = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
 const DEGREE_FROM_I = ["1", "♭2", "2", "♭3", "3", "4", "♯4", "5", "♭6", "6", "♭7", "7"];
 
 const QUALITY_ASCII = {
-  minor7: "-7",
+  minor7: "m7",
   dominant7: "7",
   major7: "maj7",
+  minor7b5: "m7♭5",
+  minor6: "m6",
 };
 
 const QUALITY_ABC = {
   minor7: "m7",
   dominant7: "7",
   major7: "maj7",
+  minor7b5: "m7b5",
+  minor6: "m6",
 };
 
 const QUALITY_INTERVALS = {
   minor7: [0, 3, 7, 10],
   dominant7: [0, 4, 7, 10],
   major7: [0, 4, 7, 11],
+  minor7b5: [0, 3, 6, 10],
+  minor6: [0, 3, 7, 9],
 };
 
 const GUIDE_INTERVALS = {
   minor7: [3, 10],
   dominant7: [4, 10],
   major7: [4, 11],
+  minor7b5: [3, 10],
+  minor6: [3, 9],
 };
 
-/** Two-bar short ii–V–I: beats 0–2 ii-7, 2–4 V7, 4–8 Imaj7 */
-export const CELL_CHORDS = [
-  { degree: 2, quality: "minor7", startBeat: 0, durationBeats: 2, functionLabel: "ii-7" },
-  { degree: 5, quality: "dominant7", startBeat: 2, durationBeats: 2, functionLabel: "V7" },
-  { degree: 1, quality: "major7", startBeat: 4, durationBeats: 4, functionLabel: "Imaj7" },
+/** One chord per bar, intervals from the excerpt’s minor tonic (G on the source chart). */
+export const FORM_BARS = [
+  { bar: 1, intervalFromTonic: 5, quality: "minor7", functionLabel: "iv-7" },
+  { bar: 2, intervalFromTonic: 10, quality: "dominant7", functionLabel: "♭VII7" },
+  { bar: 3, intervalFromTonic: 3, quality: "major7", functionLabel: "♭IIImaj7" },
+  { bar: 4, intervalFromTonic: 8, quality: "major7", functionLabel: "♭VImaj7" },
+  { bar: 5, intervalFromTonic: 2, quality: "minor7b5", functionLabel: "iiø7" },
+  { bar: 6, intervalFromTonic: 7, quality: "dominant7", functionLabel: "V7" },
+  { bar: 7, intervalFromTonic: 0, quality: "minor6", functionLabel: "i6" },
+  { bar: 8, intervalFromTonic: 0, quality: "minor6", functionLabel: "i6" },
 ];
 
-const DEGREE_SEMITONES = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11 };
+/**
+ * Same recognizable cell, two harmonic jobs on this excerpt.
+ * cellTonicInterval is measured from the tune tonic (G): 0 = G minor, -4 = E♭ minor.
+ */
+export const APPLICATIONS = [
+  {
+    id: "minor-home",
+    label: "Minor home",
+    blurb: "G-minor shape on the Gm arrival (bar 7). Settled minor sound, then keep going.",
+    cellName: "G minor",
+    cellTonicInterval: 0,
+    phraseStartBar: 7,
+    phraseFunctionLabel: "i6 · Cry Me a River cell",
+    entranceQuestion: "Did you find the G-minor door on bar 7?",
+    afterQuestion: "Did you keep playing on the second Gm6 bar?",
+    leadIn: [
+      { beat: 0, interval: 5, beats: 1 },
+      { beat: 1, interval: 8, beats: 1 },
+      { beat: 2, interval: 12, beats: 1 },
+      { beat: 3, interval: 8, beats: 1 },
+      { beat: 4, interval: -2, beats: 1 },
+      { beat: 5, interval: 2, beats: 1 },
+      { beat: 6, interval: 5, beats: 1 },
+      { beat: 7, interval: 2, beats: 1 },
+      { beat: 8, interval: 3, beats: 1 },
+      { beat: 9, interval: 7, beats: 1 },
+      { beat: 10, interval: 10, beats: 1 },
+      { beat: 11, interval: 7, beats: 1 },
+      { beat: 12, interval: 8, beats: 1 },
+      { beat: 13, interval: 7, beats: 0.5 },
+      { beat: 13.5, interval: 5, beats: 0.5 },
+      { beat: 14, interval: 3, beats: 1 },
+      { beat: 15, interval: 0, beats: 1 },
+      { beat: 16, interval: 2, beats: 1 },
+      { beat: 17, interval: 5, beats: 1 },
+      { beat: 18, interval: 8, beats: 1 },
+      { beat: 19, interval: 7, beats: 1 },
+      { beat: 20, interval: 7, beats: 1 },
+      { beat: 21, interval: 10, beats: 1 },
+      { beat: 22, interval: 12, beats: 2 },
+    ],
+    resolve: [
+      { beat: 28, interval: 3, beats: 1 },
+      { beat: 29, interval: 2, beats: 0.5 },
+      { beat: 29.5, interval: 0, beats: 0.5 },
+      { beat: 30, interval: 7, beats: 1 },
+      { beat: 31, interval: 0, beats: 1 },
+    ],
+  },
+  {
+    id: "altered-dominant",
+    label: "Altered dominant",
+    blurb: "E♭-minor shape over D7 (bar 6), then a written resolution into Gm. Not the G-minor notes pasted on the dominant.",
+    cellName: "E♭ minor",
+    cellTonicInterval: -4,
+    phraseStartBar: 6,
+    phraseFunctionLabel: "V7 · E♭-minor cell (half-step above D)",
+    entranceQuestion: "Did you enter on D7 (bar 6) with the E♭-minor shape?",
+    afterQuestion: "Did you resolve into Gm and keep playing?",
+    leadIn: [
+      { beat: 0, interval: 0, beats: 1 },
+      { beat: 1, interval: 3, beats: 1 },
+      { beat: 2, interval: 5, beats: 1 },
+      { beat: 3, interval: 8, beats: 1 },
+      { beat: 4, interval: 10, beats: 1 },
+      { beat: 5, interval: 8, beats: 1 },
+      { beat: 6, interval: 7, beats: 1 },
+      { beat: 7, interval: 5, beats: 1 },
+      { beat: 8, interval: 3, beats: 1 },
+      { beat: 9, interval: 7, beats: 1 },
+      { beat: 10, interval: 10, beats: 1 },
+      { beat: 11, interval: 7, beats: 1 },
+      { beat: 12, interval: 8, beats: 1 },
+      { beat: 13, interval: 12, beats: 1 },
+      { beat: 14, interval: 10, beats: 1 },
+      { beat: 15, interval: 8, beats: 1 },
+      { beat: 16, interval: 0, beats: 1 },
+      { beat: 17, interval: 2, beats: 1 },
+      { beat: 18, interval: 3, beats: 1 },
+      { beat: 19, interval: 5, beats: 1 },
+    ],
+    resolve: [
+      { beat: 24, interval: -5, beats: 1 },
+      { beat: 25, interval: 0, beats: 1 },
+      { beat: 26, interval: 3, beats: 1 },
+      { beat: 27, interval: 2, beats: 0.5 },
+      { beat: 27.5, interval: 0, beats: 0.5 },
+      { beat: 28, interval: 3, beats: 1 },
+      { beat: 29, interval: 0, beats: 1 },
+      { beat: 30, interval: 7, beats: 1 },
+      { beat: 31, interval: 0, beats: 1 },
+    ],
+  },
+];
 
 export function getKey(id) {
-  return KEYS.find((key) => key.id === id) ?? KEYS[0];
+  return KEYS.find((key) => key.id === id) ?? KEYS.find((key) => key.id === DEFAULT_KEY_ID) ?? KEYS[0];
+}
+
+export function applicationById(id) {
+  return APPLICATIONS.find((item) => item.id === id) ?? APPLICATIONS[0];
 }
 
 export function wrapPc(pc) {
@@ -96,6 +225,20 @@ export function pitchName(pc, usesFlats) {
   return (usesFlats ? FLAT : SHARP)[wrapPc(pc)];
 }
 
+export function minorSpelling(key) {
+  const relativeMajorPc = wrapPc(key.pc + 3);
+  const relative = KEYS.find((item) => item.pc === relativeMajorPc && item.usesFlats)
+    ?? KEYS.find((item) => item.pc === relativeMajorPc)
+    ?? key;
+  return {
+    ...key,
+    usesFlats: relative.usesFlats,
+    abc: `${key.abc}min`,
+    name: `${key.name} minor`,
+    shortName: `${key.name}m`,
+  };
+}
+
 export function writtenKeyFromConcert(concertKey) {
   const writtenPc = wrapPc(concertKey.pc + 2);
   const match = KEYS.find((key) => key.pc === writtenPc && key.usesFlats === concertKey.usesFlats);
@@ -103,15 +246,16 @@ export function writtenKeyFromConcert(concertKey) {
 }
 
 export function displayKey(concertKey, displayMode) {
-  return displayMode === "bb-written" ? writtenKeyFromConcert(concertKey) : concertKey;
+  const raw = displayMode === "bb-written" ? writtenKeyFromConcert(concertKey) : concertKey;
+  return minorSpelling(raw);
 }
 
-export function chordRootPc(concertTonicPc, degree) {
-  return wrapPc(concertTonicPc + DEGREE_SEMITONES[degree]);
+export function chordRootPc(concertTonicPc, intervalFromTonic) {
+  return wrapPc(concertTonicPc + intervalFromTonic);
 }
 
-export function chordDisplayName(concertTonic, degree, quality, displayMode) {
-  const concertRoot = chordRootPc(concertTonic.pc, degree);
+export function chordDisplayName(concertTonic, intervalFromTonic, quality, displayMode) {
+  const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
   const shownKey = displayKey(concertTonic, displayMode);
   return `${pitchName(shownPc, shownKey.usesFlats)}${QUALITY_ASCII[quality]}`;
@@ -121,7 +265,7 @@ export function phraseDurationBeats() {
   return PHRASE_BEATS;
 }
 
-export function midiForInterval(concertTonicPc, interval, octaveOffset = 0) {
+export function midiForInterval(concertTonicPc, interval, octaveOffset = PHRASE_OCTAVE) {
   return 60 + concertTonicPc + interval + octaveOffset * 12;
 }
 
@@ -144,65 +288,92 @@ export function rhythmLabel(beats) {
 }
 
 export function degreeInI(interval) {
+  if (interval === 14) return "9";
   const normalized = wrapPc(interval);
   const octave = interval >= 12 ? " (8ve)" : interval < 0 ? " (below)" : "";
   return `${DEGREE_FROM_I[normalized]}${octave}`;
 }
 
-export function phraseNotes(concertKey, displayMode) {
+export function phraseStartBeat(applicationId) {
+  const app = applicationById(applicationId);
+  return (app.phraseStartBar - 1) * BEATS_PER_BAR;
+}
+
+export function phraseEvents(applicationId) {
+  const app = applicationById(applicationId);
+  const start = phraseStartBeat(applicationId);
+  let beat = start;
+  return PHRASE_ELEMENTS.filter((el) => el.type === "note").map((el) => {
+    const event = {
+      beat,
+      interval: el.interval + app.cellTonicInterval,
+      beats: el.beats,
+      role: "phrase",
+      cellInterval: el.interval,
+    };
+    beat += el.beats;
+    return event;
+  });
+}
+
+export function modelSolo(applicationId) {
+  const app = applicationById(applicationId);
+  const lead = app.leadIn.map((note) => ({ ...note, role: "lead" }));
+  const resolve = app.resolve.map((note) => ({ ...note, role: "resolve" }));
+  return [...lead, ...phraseEvents(applicationId), ...resolve].sort((a, b) => a.beat - b.beat);
+}
+
+export function phraseNotes(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
   const shownKey = displayKey(concertKey, displayMode);
-  let beat = 0;
-  return PHRASE_ELEMENTS.filter((el) => el.type === "note").map((el, index) => {
-    const concertMidi = midiForInterval(concertKey.pc, el.interval);
+  const concertSpell = minorSpelling(concertKey);
+  return phraseEvents(applicationId).map((event, index) => {
+    const concertMidi = midiForInterval(concertKey.pc, event.interval);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     const spelled = spellMidi(shownMidi, shownKey.usesFlats);
-    const concertSpelled = spellMidi(concertMidi, concertKey.usesFlats);
-    const row = {
+    const concertSpelled = spellMidi(concertMidi, concertSpell.usesFlats);
+    return {
       index,
-      startBeat: beat,
-      beats: el.beats,
-      interval: el.interval,
+      startBeat: event.beat,
+      beats: event.beats,
+      interval: event.interval,
+      cellInterval: event.cellInterval,
       concertMidi,
       shownMidi,
       shownName: `${spelled.name}${spelled.octave}`,
       concertName: `${concertSpelled.name}${concertSpelled.octave}`,
-      degree: degreeInI(el.interval),
-      rhythm: rhythmLabel(el.beats),
+      degree: degreeInI(event.cellInterval),
+      rhythm: rhythmLabel(event.beats),
+      role: event.role,
     };
-    beat += el.beats;
-    return row;
   });
 }
 
-export function chorusChords(concertKey, displayMode) {
-  const chords = [];
-  for (let cell = 0; cell < BARS_PER_CHORUS / 2; cell += 1) {
-    const cellStart = cell * CELL_BEATS;
-    for (const chord of CELL_CHORDS) {
-      chords.push({
-        ...chord,
-        startBeat: cellStart + chord.startBeat,
-        name: chordDisplayName(concertKey, chord.degree, chord.quality, displayMode),
-        concertRootPc: chordRootPc(concertKey.pc, chord.degree),
-        functionLabel: chord.functionLabel,
-        role: cell === 1 ? "phrase" : cell === 0 ? "setup" : "continue",
-      });
-    }
-  }
-  return chords;
+function materializeChord(concertKey, displayMode, spec, startBeat) {
+  return {
+    ...spec,
+    startBeat,
+    durationBeats: BEATS_PER_BAR,
+    name: chordDisplayName(concertKey, spec.intervalFromTonic, spec.quality, displayMode),
+    concertRootPc: chordRootPc(concertKey.pc, spec.intervalFromTonic),
+  };
 }
 
-export function barRoles() {
-  return [
-    { bar: 1, role: "setup", label: "Improvise into it" },
-    { bar: 2, role: "setup", label: "Prepare the door" },
-    { bar: 3, role: "phrase", label: "Entrance — phrase" },
-    { bar: 4, role: "phrase", label: "Resolve on I" },
-    { bar: 5, role: "continue", label: "Keep going" },
-    { bar: 6, role: "continue", label: "Keep going" },
-    { bar: 7, role: "continue", label: "Keep going" },
-    { bar: 8, role: "continue", label: "Keep going" },
-  ];
+export function chorusChords(concertKey, displayMode) {
+  return FORM_BARS.map((spec) => materializeChord(concertKey, displayMode, spec, (spec.bar - 1) * BEATS_PER_BAR));
+}
+
+export function learnChords(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+  const app = applicationById(applicationId);
+  const tonic = {
+    bar: 1,
+    intervalFromTonic: app.cellTonicInterval,
+    quality: "minor6",
+    functionLabel: "cell i6",
+  };
+  return [materializeChord(concertKey, displayMode, tonic, 0)].map((chord) => ({
+    ...chord,
+    durationBeats: CELL_BEATS,
+  }));
 }
 
 export function chordAtBeat(chords, beat) {
@@ -222,9 +393,10 @@ export function guideToneMidi(rootPc, quality, register = 60) {
 }
 
 export function walkingBassMidi(rootPc, quality, beatInChord, nextRootPc) {
+  const qualityIntervals = QUALITY_INTERVALS[quality] ?? QUALITY_INTERVALS.minor7;
   const root = 36 + wrapPc(rootPc);
-  const fifth = root + 7;
-  const third = root + QUALITY_INTERVALS[quality][1];
+  const fifth = root + qualityIntervals[2];
+  const third = root + qualityIntervals[1];
   if (beatInChord === 0) return root;
   if (beatInChord === 1) return fifth;
   if (beatInChord === 2) return third;
@@ -233,24 +405,13 @@ export function walkingBassMidi(rootPc, quality, beatInChord, nextRootPc) {
   return below >= 28 ? below : target + 2;
 }
 
-export function variationElements(variationId) {
+export function variationElements(variationId, applicationId = DEFAULT_APPLICATION_ID) {
+  const app = applicationById(applicationId);
+  const shifted = PHRASE_ELEMENTS.map((el) => ({ ...el, interval: el.interval + app.cellTonicInterval }));
   if (variationId === "sequence-down") {
-    return PHRASE_ELEMENTS.map((el) => ({ ...el, interval: el.interval - 2 }));
+    return shifted.map((el) => ({ ...el, interval: el.interval - 2 }));
   }
-  if (variationId === "neighbor") {
-    return [
-      { type: "note", interval: 1, beats: 0.5 },
-      { type: "note", interval: 2, beats: 0.5 },
-      { type: "note", interval: 4, beats: 0.5 },
-      { type: "note", interval: 5, beats: 0.5 },
-      { type: "note", interval: 7, beats: 0.5 },
-      { type: "note", interval: 9, beats: 0.5 },
-      { type: "note", interval: 11, beats: 0.5 },
-      { type: "note", interval: 12, beats: 0.5 },
-      { type: "note", interval: 7, beats: 2 },
-    ];
-  }
-  return PHRASE_ELEMENTS;
+  return shifted;
 }
 
 export function swingRatio(tempo) {
@@ -296,55 +457,80 @@ function abcDuration(beats) {
   return String(Math.round(beats * 2));
 }
 
-function abcChordName(concertTonic, degree, quality, displayMode) {
-  const concertRoot = chordRootPc(concertTonic.pc, degree);
+function abcChordName(concertTonic, intervalFromTonic, quality, displayMode) {
+  const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
   const shownKey = displayKey(concertTonic, displayMode);
   const root = pitchName(shownPc, shownKey.usesFlats).replaceAll("♭", "b").replaceAll("♯", "#");
   return `${root}${QUALITY_ABC[quality]}`;
 }
 
-export function phraseABC(concertKey, displayMode, { withPickupRest = true } = {}) {
+function notesToAbc(notes, concertKey, displayMode) {
   const shownKey = displayKey(concertKey, displayMode);
-  const chords = CELL_CHORDS.map((chord) => ({
-    beat: chord.startBeat,
-    text: abcChordName(concertKey, chord.degree, chord.quality, displayMode),
-  }));
-
-  let abc = `X:1\nT:${PHRASE_NAME}\nM:4/4\nL:1/8\nK:${shownKey.abc} clef=treble\n`;
+  let abc = "";
   let beat = 0;
-  for (const el of PHRASE_ELEMENTS) {
-    const chord = chords.find((item) => Math.abs(item.beat - beat) < 1e-6);
-    if (chord) abc += `"${chord.text}"`;
-    const concertMidi = midiForInterval(concertKey.pc, el.interval);
+  for (const note of notes) {
+    while (beat + 1e-6 < note.beat) {
+      const gap = Math.min(0.5, note.beat - beat);
+      abc += `z${abcDuration(gap)}`;
+      beat += gap;
+      if (Math.abs(beat % 4) < 1e-6) abc += " | ";
+    }
+    const concertMidi = midiForInterval(concertKey.pc, note.interval);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
-    abc += abcNote(shownMidi, shownKey.usesFlats) + abcDuration(el.beats);
-    beat += el.beats;
-    if (Math.abs(beat - 4) < 1e-6) abc += " | ";
+    abc += abcNote(shownMidi, shownKey.usesFlats) + abcDuration(note.beats);
+    beat += note.beats;
+    if (Math.abs(beat % 4) < 1e-6) abc += " | ";
   }
-  if (withPickupRest && PHRASE_BEATS < CELL_BEATS) {
-    const remaining = CELL_BEATS - PHRASE_BEATS;
-    abc += remaining === 2 ? " z4" : ` z${abcDuration(remaining)}`;
+  return abc;
+}
+
+export function phraseABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+  const shownKey = displayKey(concertKey, displayMode);
+  const app = applicationById(applicationId);
+  const tonicName = abcChordName(concertKey, app.cellTonicInterval, "minor6", displayMode);
+  let abc = `X:1\nT:${PHRASE_NAME}\nM:4/4\nL:1/8\nK:${shownKey.abc} clef=treble\n"${tonicName}"`;
+  abc += notesToAbc(phraseEvents(applicationId).map((note) => ({ ...note, beat: note.beat - phraseStartBeat(applicationId) })), concertKey, displayMode);
+  abc += "z8 |]\n";
+  return abc;
+}
+
+export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+  const shownKey = displayKey(concertKey, displayMode);
+  const chords = chorusChords(concertKey, displayMode);
+  const notes = modelSolo(applicationId);
+  let abc = `X:1\nT:${applicationById(applicationId).label} · model chorus\nM:4/4\nL:1/8\nK:${shownKey.abc} clef=treble\n`;
+  let beat = 0;
+  let noteIndex = 0;
+  for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
+    const chord = chords[bar];
+    abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
+    const barEnd = (bar + 1) * BEATS_PER_BAR;
+    while (noteIndex < notes.length && notes[noteIndex].beat < barEnd - 1e-6) {
+      const note = notes[noteIndex];
+      if (note.beat > beat + 1e-6) {
+        abc += `z${abcDuration(note.beat - beat)}`;
+        beat = note.beat;
+      }
+      const concertMidi = midiForInterval(concertKey.pc, note.interval);
+      const shownMidi = concertMidiToWritten(concertMidi, displayMode);
+      abc += abcNote(shownMidi, shownKey.usesFlats) + abcDuration(note.beats);
+      beat += note.beats;
+      noteIndex += 1;
+    }
+    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : " | ";
+    beat = barEnd;
   }
-  abc += " |]\n";
   return abc;
 }
 
 export function chartABC(concertKey, displayMode) {
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
-  let abc = `X:1\nT:Eight-bar form\nM:4/4\nL:1/1\nK:${shownKey.abc} clef=treble\n`;
+  let abc = `X:1\nT:${FORM_TITLE}\nM:4/4\nL:1/1\nK:${shownKey.abc} clef=treble\n`;
   for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
-    const beat = bar * BEATS_PER_BAR;
-    const here = chords.filter((chord) => chord.startBeat >= beat && chord.startBeat < beat + BEATS_PER_BAR);
-    if (here.length === 0) {
-      const current = chordAtBeat(chords, beat);
-      if (current) abc += `"${abcChordName(concertKey, current.degree, current.quality, displayMode)}"`;
-    } else {
-      for (const chord of here) {
-        abc += `"${abcChordName(concertKey, chord.degree, chord.quality, displayMode)}"`;
-      }
-    }
+    const chord = chords[bar];
+    abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
     abc += "x";
     abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : " | ";
   }
@@ -361,33 +547,33 @@ export function scheduleChorus({
   variationId,
   stage,
   lengthBeats,
+  applicationId = DEFAULT_APPLICATION_ID,
+  modelScope = "phrase",
 }) {
   const events = [];
-  const chords = chorusChords(concertKey, displayMode);
+  const app = applicationById(applicationId);
   const length = lengthBeats ?? (stage === "learn" ? CELL_BEATS : CHORUS_BEATS);
-  const phraseStart = stage === "learn" ? 0 : PHRASE_START_BEAT;
-  const cuesOn = includeCue ?? stage !== "learn";
-  const elements = variationElements(variationId);
+  const form = chorusChords(concertKey, displayMode);
+  const learn = learnChords(concertKey, displayMode, applicationId);
+  const phraseStart = stage === "learn" ? 0 : phraseStartBeat(applicationId);
+  const cuesOn = includeCue ?? false;
 
   for (let beat = 0; beat < length; beat += 1) {
     if (includeClick) {
       events.push({ type: "click", beat, strong: beat % BEATS_PER_BAR === 0 });
     }
-    const chord = chordAtBeat(chords, stage === "learn" ? beat : beat);
-    const learnChord = chordAtBeat(chorusChords(concertKey, displayMode).slice(0, 3), beat);
-    const activeChord = stage === "learn" ? learnChord : chord;
-    if (activeChord && beat === activeChord.startBeat) {
-      events.push({
-        type: "chord",
-        beat,
-        midis: voicingMidi(activeChord.concertRootPc, activeChord.quality),
-        durationBeats: activeChord.durationBeats,
-        name: activeChord.name,
-      });
-    }
+    const activeChord = stage === "learn" ? chordAtBeat(learn, beat) : chordAtBeat(form, beat);
     if (activeChord) {
-      const next = chordAtBeat(stage === "learn" ? chorusChords(concertKey, displayMode).slice(0, 3) : chords, beat + 1)
-        ?? activeChord;
+      if (beat === activeChord.startBeat) {
+        events.push({
+          type: "chord",
+          beat,
+          midis: voicingMidi(activeChord.concertRootPc, activeChord.quality),
+          durationBeats: Math.min(activeChord.durationBeats, length - beat),
+          name: activeChord.name,
+        });
+      }
+      const next = chordAtBeat(stage === "learn" ? learn : form, beat + 1) ?? activeChord;
       const beatInChord = beat - activeChord.startBeat;
       events.push({
         type: "bass",
@@ -399,9 +585,8 @@ export function scheduleChorus({
   }
 
   if (includeGuides && stage !== "learn") {
-    for (const chord of chords) {
-      if (chord.startBeat >= length) break;
-      if (chord.role === "phrase") continue;
+    for (const chord of form) {
+      if (chord.bar === app.phraseStartBar) continue;
       events.push({
         type: "guide",
         beat: chord.startBeat,
@@ -417,22 +602,25 @@ export function scheduleChorus({
   }
 
   if (includeModel && variationId !== "skip") {
-    let local = 0;
-    for (const el of elements) {
-      if (el.type === "note" && phraseStart + local < length) {
+    const source = stage === "learn" || modelScope === "phrase"
+      ? phraseEvents(applicationId).map((note) => ({
+        ...note,
+        beat: stage === "learn" ? note.beat - phraseStartBeat(applicationId) : note.beat,
+      }))
+      : modelSolo(applicationId);
+    for (const note of source) {
+      if (note.beat < length && note.beat >= 0) {
         events.push({
           type: "melody",
-          beat: phraseStart + local,
-          midi: midiForInterval(concertKey.pc, el.interval),
-          durationBeats: el.beats,
-          index: elements.filter((item) => item.type === "note").indexOf(el),
+          beat: note.beat,
+          midi: midiForInterval(concertKey.pc, note.interval),
+          durationBeats: note.beats,
+          role: note.role,
         });
       }
-      local += el.beats;
     }
   }
 
   events.push({ type: "end", beat: length });
   return events.sort((a, b) => a.beat - b.beat || a.type.localeCompare(b.type));
 }
-

@@ -9,16 +9,27 @@ python3 -m http.server 4173 --bind 127.0.0.1
 node --test js/music.test.mjs js/lesson.test.mjs
 ```
 
+## Music
+
+Recognizable **Cry Me a River** minor cell (`9–1–5–♭3–2–1`, one bar) over the **opening eight bars of Autumn Leaves** in concert G minor:
+
+`| Cm7 | F7 | B♭maj7 | E♭maj7 | Am7♭5 | D7 | Gm6 | Gm6 |`
+
+Chart variant: Ultimate Guitar `autumn-leaves-chords-4419731` (jbpicon, key Gm, capo none, Verse 1). Tonic bars are Gm6 as on that chart. This is not the tune’s head, and it is not DuoJazz `iivi-cry-me-enclosure`.
+
+Two ways to use the same cell:
+
+1. **Minor home** — G-minor shape at the Gm arrival (bar 7).
+2. **Altered dominant** — E♭-minor shape over D7 (bar 6), then a composed resolution into Gm.
+
 ## Lesson
 
-One focus phrase: DuoJazz lick `short-ii-v-i` (Short ii–V–I).
+Default path (isolated cell practice is optional, not a gate):
 
-1. **Hear** — listen to the phrase. Listening is not mastery.
-2. **Echo** — play it back. The app is not listening.
-3. **Setup** — hear two bars of the eight-bar form.
-4. **Enter** — improvise, take a cued entrance on bars 3–4, resolve, keep going.
-5. **Solo** — same chorus with entrance labels, target styling, phrase notation, and default model playback removed.
-6. **Check-in** — optional self-assessment after playing. Recall stays separate from application.
+1. **Hear** — an original eight-bar model solo with a lead-in, the cell at its real location, and a continuation/resolution.
+2. **Try** — the same backing without the model; entrance cue and room before/after.
+3. **Yours** — chord chart only. Entrance labels, target styling, phrase notation, and default model playback are removed.
+4. **Check-in** — optional self-assessment after playing. Recall stays separate from application, and the two harmonic jobs do not share marks.
 
 Tempo stays in the transport. Key, B♭ written names, swing, metronome, and guide tones live in Settings.
 
