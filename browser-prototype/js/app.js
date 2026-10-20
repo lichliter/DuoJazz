@@ -46,6 +46,7 @@ const els = {
   back: document.getElementById("back"),
   replay: document.getElementById("replay"),
   next: document.getElementById("next"),
+  cellPractice: document.getElementById("cell-practice"),
   cellHear: document.getElementById("cell-hear"),
   cellEcho: document.getElementById("cell-echo"),
   cellBack: document.getElementById("cell-back"),
@@ -325,6 +326,7 @@ function renderPrimary() {
   els.next.hidden = state.step === "reflect";
   els.next.textContent = step.nextLabel || "Continue";
   els.replay.hidden = state.step === "reflect";
+  els.cellPractice.hidden = !view.allowCellLens;
   els.cellHear.hidden = !view.allowCellLens;
   els.cellEcho.hidden = !view.allowCellLens;
   els.cellBack.hidden = !view.allowCellLens || view.lens !== "cell";

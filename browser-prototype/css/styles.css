@@ -128,7 +128,11 @@ h1 {
 }
 
 .stage {
-  padding-bottom: 8.5rem;
+  padding-bottom: 16rem;
+}
+
+.secondary {
+  margin-bottom: 0.5rem;
 }
 
 .instruction {
@@ -145,7 +149,7 @@ h1 {
 
 .now-chord {
   font-family: Fraunces, Georgia, serif;
-  font-size: clamp(3rem, 12vw, 6.25rem);
+  font-size: clamp(2.6rem, 9vw, 4.8rem);
   line-height: 0.92;
   letter-spacing: -0.04em;
   margin: 0;
@@ -162,10 +166,10 @@ h1 {
   background: var(--paper);
   color: var(--paper-ink);
   border-radius: 14px;
-  padding: 0.75rem 0.5rem;
-  min-height: 168px;
+  padding: 0.5rem 0.45rem 0.35rem;
+  min-height: 112px;
   overflow-x: auto;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.7rem;
 }
 
 .abcjs-container svg {
@@ -241,10 +245,15 @@ h1 {
 .hero {
   width: 100%;
   min-height: 56px;
+  margin-top: 0.15rem;
   background: var(--accent);
   border-color: transparent;
   font-size: 1.15rem;
   font-weight: 650;
+}
+
+.cell-practice {
+  margin-top: 0.35rem;
 }
 
 .hero:disabled {
@@ -370,6 +379,10 @@ body[data-step="reflect"] #replay {
   display: none;
 }
 
+body[data-step="reflect"] .stage {
+  padding-bottom: 12rem;
+}
+
 body[data-lens="cell"] .chart {
   display: none;
 }
@@ -384,7 +397,7 @@ body[data-lens="cell"] .chart {
   }
 
   .stage {
-    padding-bottom: 14rem;
+    padding-bottom: 20rem;
   }
 }
 
