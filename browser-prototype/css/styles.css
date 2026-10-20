@@ -50,10 +50,31 @@ body {
 }
 
 .topbar,
+.ways,
 .steps,
 .stage {
   width: min(920px, calc(100% - 1.25rem));
   margin-inline: auto;
+}
+
+.ways {
+  margin-top: 0.65rem;
+}
+
+.ways-label {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ways .row {
+  margin-top: 0.35rem;
+}
+
+.ways .help {
+  margin: 0.35rem 0 0;
 }
 
 .topbar {
@@ -349,8 +370,7 @@ body[data-step="reflect"] #replay {
   display: none;
 }
 
-body[data-step="hear"] .chart,
-body[data-step="echo"] .chart {
+body[data-lens="cell"] .chart {
   display: none;
 }
 

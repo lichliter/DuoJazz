@@ -1,128 +1,228 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  APPLICATIONS,
+  FORM_SOURCE,
   PHRASE_BEATS,
   PHRASE_ELEMENTS,
-  PHRASE_START_BEAT,
+  PHRASE_SOURCE,
   CHORUS_BEATS,
+  DEFAULT_APPLICATION_ID,
   getKey,
   phraseDurationBeats,
   phraseNotes,
+  phraseStartBeat,
+  phraseEvents,
   writtenKeyFromConcert,
   chordDisplayName,
   midiForInterval,
   phraseABC,
+  modelABC,
+  modelSolo,
   scheduleChorus,
   swingRatio,
   beatsToSeconds,
   variationElements,
   chorusChords,
+  applicationById,
 } from "./music.js";
 
-test("short ii-V-I duration is six beats padded into a two-bar cell", () => {
-  assert.equal(phraseDurationBeats(), 6);
-  assert.equal(PHRASE_BEATS, 6);
-  const eighths = PHRASE_ELEMENTS.filter((el) => el.beats === 0.5);
-  const half = PHRASE_ELEMENTS.filter((el) => el.beats === 2);
-  assert.equal(eighths.length, 8);
-  assert.equal(half.length, 1);
+test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
+  assert.equal(phraseDurationBeats(), 4);
+  assert.equal(PHRASE_BEATS, 4);
+  assert.deepEqual(
+    PHRASE_ELEMENTS.map((el) => el.interval),
+    [14, 12, 7, 3, 2, 0],
+  );
+  assert.deepEqual(
+    PHRASE_ELEMENTS.map((el) => el.beats),
+    [0.5, 0.5, 1, 0.5, 0.5, 1],
+  );
+  assert.notDeepEqual(
+    PHRASE_ELEMENTS.map((el) => el.interval),
+    [5, 3, 9, 6, 7],
+  );
+  assert.match(PHRASE_SOURCE.notUsed, /iivi-cry-me-enclosure/);
 });
 
-test("concert C phrase pitches match BuiltInLicks.shortIIVI", () => {
-  const c = getKey("C");
-  const notes = phraseNotes(c, "concert");
+test("concert G minor cell pitches are A4 G4 D4 Bb3 A3 G3", () => {
+  const g = getKey("G");
+  const notes = phraseNotes(g, "concert", "minor-home");
   assert.deepEqual(
     notes.map((n) => n.concertMidi),
-    [62, 64, 65, 67, 69, 72, 71, 69, 67],
+    [69, 67, 62, 58, 57, 55],
   );
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["D4", "E4", "F4", "G4", "A4", "C5", "B4", "A4", "G4"],
+    ["A4", "G4", "D4", "B♭3", "A3", "G3"],
+  );
+  assert.deepEqual(
+    notes.map((n) => n.degree),
+    ["9", "1 (8ve)", "5", "♭3", "2", "1"],
+  );
+});
+
+test("altered-dominant cell is the E♭-minor shape a major third down, spelled with flats", () => {
+  const g = getKey("G");
+  const notes = phraseNotes(g, "concert", "altered-dominant");
+  assert.deepEqual(
+    notes.map((n) => n.concertMidi),
+    [65, 63, 58, 54, 53, 51],
+  );
+  assert.deepEqual(
+    notes.map((n) => n.shownName),
+    ["F4", "E♭4", "B♭3", "G♭3", "F3", "E♭3"],
+  );
+  assert.deepEqual(
+    notes.map((n) => n.degree),
+    ["9", "1 (8ve)", "5", "♭3", "2", "1"],
+  );
+  assert.notDeepEqual(
+    notes.map((n) => n.concertMidi),
+    phraseNotes(g, "concert", "minor-home").map((n) => n.concertMidi),
+  );
+});
+
+test("Autumn Leaves excerpt is eight distinct bars from the documented UG variant", () => {
+  assert.equal(CHORUS_BEATS, 32);
+  assert.match(FORM_SOURCE.excerpt, /Gm6 \| Gm6/);
+  assert.match(FORM_SOURCE.chart, /4419731/);
+  const chords = chorusChords(getKey("G"), "concert");
+  assert.equal(chords.length, 8);
+  assert.deepEqual(
+    chords.map((chord) => chord.name),
+    ["Cm7", "F7", "B♭maj7", "E♭maj7", "Am7♭5", "D7", "Gm6", "Gm6"],
+  );
+  assert.deepEqual(
+    chords.map((chord) => chord.startBeat),
+    [0, 4, 8, 12, 16, 20, 24, 28],
   );
 });
 
 test("B-flat written names are a major second above concert and audio MIDI stays concert", () => {
+  const g = getKey("G");
+  const written = writtenKeyFromConcert(g);
+  assert.equal(written.id, "A");
+  const notes = phraseNotes(g, "bb-written", "minor-home");
+  assert.equal(notes[0].concertMidi, 69);
+  assert.equal(notes[0].shownMidi, 71);
+  assert.equal(notes[0].shownName, "B4");
+  assert.equal(chordDisplayName(g, 5, "minor7", "concert"), "Cm7");
+  assert.equal(chordDisplayName(g, 5, "minor7", "bb-written"), "Dm7");
+  assert.equal(chordDisplayName(g, 7, "dominant7", "bb-written"), "E7");
+  assert.equal(chordDisplayName(g, 0, "minor6", "bb-written"), "Am6");
+});
+
+test("transposing the excerpt tonic moves the cell with the form", () => {
   const c = getKey("C");
-  const written = writtenKeyFromConcert(c);
-  assert.equal(written.id, "D");
-  const notes = phraseNotes(c, "bb-written");
-  assert.equal(notes[0].concertMidi, 62);
-  assert.equal(notes[0].shownMidi, 64);
-  assert.equal(notes[0].shownName, "E4");
-  assert.equal(chordDisplayName(c, 2, "minor7", "concert"), "D-7");
-  assert.equal(chordDisplayName(c, 2, "minor7", "bb-written"), "E-7");
-  assert.equal(chordDisplayName(c, 5, "dominant7", "bb-written"), "A7");
-  assert.equal(chordDisplayName(c, 1, "major7", "bb-written"), "Dmaj7");
+  const notes = phraseNotes(c, "concert", "minor-home");
+  assert.deepEqual(
+    notes.map((n) => n.shownName),
+    ["D4", "C4", "G3", "E♭3", "D3", "C3"],
+  );
+  assert.equal(midiForInterval(c.pc, 14), 62);
+  const chords = chorusChords(c, "concert");
+  assert.equal(chords[0].name, "Fm7");
+  assert.equal(chords[6].name, "Cm6");
 });
 
-test("transposing concert key moves MIDI by the tonic interval", () => {
-  const f = getKey("F");
-  assert.equal(midiForInterval(f.pc, 2), 67);
-  const notes = phraseNotes(f, "concert");
-  assert.equal(notes[0].shownName, "G4");
+test("phrase ABC for G minor includes the cell contour and a Gm6 label", () => {
+  const abc = phraseABC(getKey("G"), "concert", "minor-home");
+  assert.match(abc, /K:Gmin clef=treble/);
+  assert.match(abc, /"Gm6"/);
+  assert.match(abc, /AGD2_B,A,G,2/);
 });
 
-test("phrase ABC in C includes the native intervals and chord cells", () => {
-  const abc = phraseABC(getKey("C"), "concert");
-  assert.match(abc, /K:C clef=treble/);
-  assert.match(abc, /"Dm7"/);
-  assert.match(abc, /"G7"/);
-  assert.match(abc, /"Cmaj7"/);
-  assert.match(abc, /DEFG/);
-  assert.match(abc, /AcBA/);
-  assert.match(abc, /G4/);
+test("minor-home phrase starts at beat 24; altered-dominant at beat 20", () => {
+  assert.equal(DEFAULT_APPLICATION_ID, "minor-home");
+  assert.equal(phraseStartBeat("minor-home"), 24);
+  assert.equal(phraseStartBeat("altered-dominant"), 20);
+  assert.equal(applicationById("minor-home").phraseStartBar, 7);
+  assert.equal(applicationById("altered-dominant").phraseStartBar, 6);
 });
 
-test("eight-bar form places the phrase at beat 8, after a two-bar setup", () => {
-  assert.equal(PHRASE_START_BEAT, 8);
-  assert.equal(CHORUS_BEATS, 32);
-  const chords = chorusChords(getKey("C"), "concert");
-  assert.equal(chords.length, 12);
-  assert.equal(chords[3].role, "phrase");
-  assert.equal(chords[3].startBeat, 8);
-  assert.equal(chords[3].name, "D-7");
+test("each contextual model is a full eight-bar original solo with the cell at its real location", () => {
+  for (const app of APPLICATIONS) {
+    const solo = modelSolo(app.id);
+    assert.equal(solo[0].beat, 0);
+    const phrase = solo.filter((note) => note.role === "phrase");
+    assert.equal(phrase.length, 6);
+    assert.equal(phrase[0].beat, phraseStartBeat(app.id));
+    assert.ok(solo.some((note) => note.role === "lead" && note.beat < phrase[0].beat));
+    assert.ok(solo.some((note) => note.role === "resolve" && note.beat >= phraseStartBeat(app.id) + 4));
+    const last = solo[solo.length - 1];
+    assert.ok(last.beat + last.beats <= 32 + 1e-9);
+    assert.ok(last.beat + last.beats > 28);
+    const abc = modelABC(getKey("G"), "concert", app.id);
+    assert.match(abc, /Cm7/);
+    assert.match(abc, /Gm6/);
+  }
 });
 
-test("scheduleChorus never emits overlapping melody on skip variation", () => {
+test("altered-dominant resolution is not the G-minor cell pasted onto bar 7", () => {
+  const resolve = modelSolo("altered-dominant").filter((note) => note.role === "resolve");
+  assert.deepEqual(
+    resolve.slice(0, 6).map((note) => note.interval),
+    [-5, 0, 3, 2, 0, 3],
+  );
+  assert.notDeepEqual(
+    resolve.map((note) => note.interval).slice(0, 6),
+    phraseEvents("minor-home").map((note) => note.interval),
+  );
+});
+
+test("scheduleChorus contextual demo plays the model; skip variation emits no melody", () => {
   const skip = scheduleChorus({
-    concertKey: getKey("C"),
+    concertKey: getKey("G"),
     displayMode: "concert",
     includeModel: true,
     includeGuides: false,
     includeClick: false,
     variationId: "skip",
     stage: "place",
+    applicationId: "minor-home",
+    modelScope: "solo",
   });
   assert.equal(skip.filter((e) => e.type === "melody").length, 0);
-  const original = scheduleChorus({
-    concertKey: getKey("C"),
+
+  const demo = scheduleChorus({
+    concertKey: getKey("G"),
     displayMode: "concert",
     includeModel: true,
     includeGuides: false,
     includeClick: false,
     variationId: "original",
     stage: "place",
+    applicationId: "minor-home",
+    modelScope: "solo",
+    lengthBeats: 32,
   });
-  const melody = original.filter((e) => e.type === "melody");
-  assert.equal(melody.length, 9);
-  assert.equal(melody[0].beat, 8);
-  assert.equal(melody[0].midi, 62);
+  const melody = demo.filter((e) => e.type === "melody");
+  assert.ok(melody.length > 6);
+  const phrase = melody.filter((e) => e.role === "phrase");
+  assert.equal(phrase.length, 6);
+  assert.equal(phrase[0].beat, 24);
+  assert.equal(phrase[0].midi, 69);
+  assert.equal(demo.find((e) => e.type === "end").beat, 32);
 });
 
-test("learn stage is a two-bar loop starting the model immediately", () => {
+test("learn / isolated cell starts the model immediately on the cell tonic", () => {
   const events = scheduleChorus({
-    concertKey: getKey("C"),
+    concertKey: getKey("G"),
     displayMode: "concert",
     includeModel: true,
     includeGuides: true,
     includeClick: false,
     variationId: "original",
     stage: "learn",
+    applicationId: "altered-dominant",
   });
   const melody = events.filter((e) => e.type === "melody");
   assert.equal(melody[0].beat, 0);
+  assert.equal(melody[0].midi, 65);
   assert.equal(events.find((e) => e.type === "end").beat, 8);
   assert.equal(events.filter((e) => e.type === "guide").length, 0);
+  assert.equal(events.find((e) => e.type === "chord").name, "E♭m6");
 });
 
 test("swing mapping keeps quarter-note beats aligned", () => {
@@ -135,8 +235,8 @@ test("swing mapping keeps quarter-note beats aligned", () => {
   assert.ok(long > short);
 });
 
-test("sequence-down variation transposes the motif by a major second", () => {
-  const varied = variationElements("sequence-down");
-  assert.equal(varied[0].interval, 0);
-  assert.equal(varied[varied.length - 1].interval, 5);
+test("sequence-down variation transposes the local cell by a major second", () => {
+  const varied = variationElements("sequence-down", "minor-home");
+  assert.equal(varied[0].interval, 12);
+  assert.equal(varied[varied.length - 1].interval, -2);
 });

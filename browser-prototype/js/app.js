@@ -1,4 +1,14 @@
-import { KEYS, PRIMARY_KEY_IDS, phraseABC, getKey, displayKey } from "./music.js";
+import {
+  APPLICATIONS,
+  KEYS,
+  PRIMARY_KEY_IDS,
+  applicationById,
+  displayKey,
+  getKey,
+  minorSpelling,
+  modelABC,
+  phraseABC,
+} from "./music.js";
 import { Transport } from "./audio.js";
 import {
   STORAGE_KEY,
@@ -13,6 +23,7 @@ import {
   livePrompt,
   primaryAction,
   currentChord,
+  currentAssessment,
 } from "./lesson.js";
 
 const transport = new Transport();
@@ -23,6 +34,8 @@ const els = {
   heading: document.getElementById("heading"),
   instruction: document.getElementById("instruction"),
   steps: document.getElementById("steps"),
+  applications: document.getElementById("applications"),
+  applicationBlurb: document.getElementById("application-blurb"),
   music: document.getElementById("music-surface"),
   chord: document.getElementById("chord"),
   beat: document.getElementById("beat"),
@@ -33,9 +46,14 @@ const els = {
   back: document.getElementById("back"),
   replay: document.getElementById("replay"),
   next: document.getElementById("next"),
+  cellHear: document.getElementById("cell-hear"),
+  cellEcho: document.getElementById("cell-echo"),
+  cellBack: document.getElementById("cell-back"),
   coachWrap: document.getElementById("coach-wrap"),
   independentCoach: document.getElementById("independentCoach"),
   assess: document.getElementById("assess"),
+  entranceQ: document.getElementById("entrance-q"),
+  afterQ: document.getElementById("after-q"),
   pause: document.getElementById("pause"),
   restart: document.getElementById("restart"),
   tempo: document.getElementById("tempo"),
@@ -56,8 +74,9 @@ function loadState() {
   const fromHash = location.hash.replace("#", "");
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    const merged = saved ? { ...base, ...saved } : base;
+    const merged = saved ? { ...base, ...saved, assessments: { ...base.assessments, ...(saved.assessments ?? {}) } } : base;
     if (STEPS.some((step) => step.id === fromHash)) merged.step = fromHash;
+    if (!APPLICATIONS.some((app) => app.id === merged.applicationId)) merged.applicationId = base.applicationId;
     return merged;
   } catch {
     if (STEPS.some((step) => step.id === fromHash)) base.step = fromHash;
@@ -83,6 +102,10 @@ function halt() {
 function go(stepId) {
   if (!STEPS.some((step) => step.id === stepId)) return;
   state.step = stepId;
+  if (stepId !== "hear") {
+    state.lens = "context";
+    state.cellMode = "hear";
+  }
   persist();
   if (location.hash.replace("#", "") !== stepId) {
     history.replaceState(null, "", `#${stepId}`);
@@ -98,6 +121,26 @@ function start(resume = false) {
   });
 }
 
+function renderApplications() {
+  els.applications.replaceChildren(
+    ...APPLICATIONS.map((app) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = app.label;
+      btn.setAttribute("aria-pressed", String(app.id === state.applicationId));
+      btn.addEventListener("click", () => {
+        state.applicationId = app.id;
+        persist();
+        halt();
+        render();
+      });
+      return btn;
+    }),
+  );
+  els.applicationBlurb.textContent = applicationById(state.applicationId).blurb;
+}
+
 function renderKeys() {
   const shown = [
     ...KEYS.filter((key) => PRIMARY_KEY_IDS.includes(key.id)),
@@ -108,7 +151,7 @@ function renderKeys() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "key-btn";
-      btn.textContent = key.name;
+      btn.textContent = minorSpelling(key).shortName;
       btn.setAttribute("aria-pressed", String(key.id === state.concertKeyId));
       btn.addEventListener("click", () => {
         state.concertKeyId = key.id;
@@ -137,13 +180,16 @@ function renderSteps() {
 }
 
 function renderNotation() {
-  const view = presentation(state.step);
-  els.notation.hidden = !view.showPhraseNotation;
-  if (!view.showPhraseNotation) {
+  const view = presentation(state);
+  const show = view.showPhraseNotation || view.showModelNotation;
+  els.notation.hidden = !show;
+  if (!show) {
     els.notation.replaceChildren();
     return;
   }
-  const abc = phraseABC(concertKey(), state.displayMode);
+  const abc = view.showModelNotation
+    ? modelABC(concertKey(), state.displayMode, state.applicationId)
+    : phraseABC(concertKey(), state.displayMode, state.applicationId);
   els.notation.replaceChildren();
   if (window.ABCJS) {
     window.ABCJS.renderAbc(els.notation, abc, {
@@ -151,8 +197,8 @@ function renderNotation() {
       add_classes: true,
       paddingtop: 0,
       paddingbottom: 0,
-      staffwidth: 760,
-      scale: 1.15,
+      staffwidth: view.showModelNotation ? 820 : 760,
+      scale: view.showModelNotation ? 0.95 : 1.15,
     });
   } else {
     const pre = document.createElement("pre");
@@ -162,23 +208,25 @@ function renderNotation() {
 }
 
 function renderChart(snap = transport.snapshot()) {
-  const view = presentation(state.step);
+  const view = presentation(state);
+  const app = applicationById(state.applicationId);
   els.chart.hidden = !view.showFormChart;
   if (!view.showFormChart) {
     els.chart.replaceChildren();
     return;
   }
-  const bars = formBars(concertKey(), state.displayMode).slice(0, view.chartBarCount);
+  const bars = formBars(concertKey(), state.displayMode, state.applicationId);
   els.chart.classList.toggle("short", bars.length <= 2);
+  const nowBar = (snap.playing || snap.paused) && !snap.inCountIn ? snap.bar : 0;
+  const phraseNow = view.highlightPhraseLive && nowBar === app.phraseStartBar;
   els.chart.replaceChildren(
     ...bars.map((bar) => {
       const cell = document.createElement("article");
-      const caption = barCaption(bar.bar, view.showEntranceLabels);
+      const caption = barCaption(bar.bar, view.showEntranceLabels, state.applicationId);
       cell.className = "cell";
       if (view.showTargetStyling && bar.role === "phrase") cell.classList.add("entrance");
-      if ((snap.playing || snap.paused) && !snap.inCountIn && snap.bar === bar.bar) {
-        cell.classList.add("now");
-      }
+      if (phraseNow && bar.bar === app.phraseStartBar) cell.classList.add("entrance");
+      if (nowBar === bar.bar) cell.classList.add("now");
       cell.innerHTML = `<span class="n">Bar ${bar.bar}</span><strong>${bar.names.join(" ")}</strong>${
         caption ? `<span class="mark">${caption}</span>` : ""
       }`;
@@ -189,15 +237,19 @@ function renderChart(snap = transport.snapshot()) {
 
 function choiceRow(containerId, name, options) {
   const host = document.getElementById(containerId);
+  const marks = currentAssessment(state);
   host.replaceChildren(
     ...options.map(([value, label]) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "chip";
       btn.textContent = label;
-      btn.setAttribute("aria-pressed", String(state[name] === value));
+      btn.setAttribute("aria-pressed", String(marks[name] === value));
       btn.addEventListener("click", () => {
-        state[name] = value;
+        if (!state.assessments[state.applicationId]) {
+          state.assessments[state.applicationId] = currentAssessment(state);
+        }
+        state.assessments[state.applicationId][name] = value;
         persist();
         renderAssess();
       });
@@ -207,9 +259,12 @@ function choiceRow(containerId, name, options) {
 }
 
 function renderAssess() {
-  const view = presentation(state.step);
+  const view = presentation(state);
   els.assess.hidden = !view.showAssessment;
   if (!view.showAssessment) return;
+  const app = applicationById(state.applicationId);
+  els.entranceQ.textContent = app.entranceQuestion;
+  els.afterQ.textContent = app.afterQuestion;
   choiceRow("foundEntrance", "foundEntrance", [
     ["yes", "Yes"],
     ["somewhat", "Somewhat"],
@@ -230,45 +285,60 @@ function renderAssess() {
     ["somewhat", "Somewhat"],
     ["not-yet", "Not yet"],
   ]);
-  els.triedKeys.textContent = `Key coverage (optional, not a gate): ${state.triedKeys.join(", ")}`;
+  els.triedKeys.textContent = `Key coverage (optional, not a gate): ${state.triedKeys
+    .map((id) => minorSpelling(getKey(id)).shortName)
+    .join(", ")} · this check-in is for ${app.label} only`;
 }
 
 function renderNow(snap = transport.snapshot()) {
-  const view = presentation(state.step);
+  const view = presentation(state);
+  const app = applicationById(state.applicationId);
   els.music.hidden = !view.showMusic;
   const beats = snap.beats ?? 0;
-  const chord = currentChord(concertKey(), state.displayMode, state.step, beats);
+  const chord = currentChord(concertKey(), state.displayMode, state, beats);
   els.chord.textContent = chord?.name ?? "—";
-  els.functionLabel.textContent = chord ? chord.functionLabel : "";
+  const phraseNow = (snap.playing || snap.paused) && !snap.inCountIn && snap.bar === app.phraseStartBar && view.lens === "context";
+  els.functionLabel.textContent = phraseNow ? app.phraseFunctionLabel : (chord ? chord.functionLabel : "");
   if (snap.inCountIn) {
     els.beat.textContent = "Count-in";
   } else if (snap.playing || snap.paused) {
-    els.beat.textContent = `Bar ${snap.bar} · Beat ${snap.beatInBar}`;
+    els.beat.textContent = view.lens === "cell"
+      ? `Cell · Beat ${snap.beatInBar}`
+      : `Bar ${snap.bar} · Beat ${snap.beatInBar}`;
+  } else if (view.lens === "cell") {
+    els.beat.textContent = "Cry Me a River cell";
   } else {
-    els.beat.textContent = view.showFormChart ? "Bar 1 · Beat 1" : "Two-bar phrase";
+    els.beat.textContent = "Bar 1 · Beat 1";
   }
 }
 
 function renderPrimary() {
-  const action = primaryAction(state.step, playback);
+  const action = primaryAction(state, playback);
   els.primary.hidden = !action;
   if (action) {
     els.primary.dataset.action = action.id;
     els.primary.textContent = action.label;
   }
   const step = getStep(state.step);
-  els.back.hidden = state.step === "hear";
+  const view = presentation(state);
+  els.back.hidden = state.step === "hear" && view.lens === "context";
   els.next.hidden = state.step === "reflect";
   els.next.textContent = step.nextLabel || "Continue";
   els.replay.hidden = state.step === "reflect";
+  els.cellHear.hidden = !view.allowCellLens;
+  els.cellEcho.hidden = !view.allowCellLens;
+  els.cellBack.hidden = !view.allowCellLens || view.lens !== "cell";
 }
 
 function renderCopy(snap = transport.snapshot()) {
   const step = getStep(state.step);
-  const view = presentation(state.step);
+  const view = presentation(state);
   document.body.dataset.step = state.step;
-  els.heading.textContent = step.heading;
-  els.instruction.textContent = livePrompt(state.step, snap);
+  document.body.dataset.lens = view.lens;
+  els.heading.textContent = view.lens === "cell"
+    ? (state.cellMode === "echo" ? "Echo the cell" : "Hear the cell")
+    : step.heading;
+  els.instruction.textContent = livePrompt(state, snap);
   els.independentCoach.checked = state.independentCoach;
   els.coachWrap.hidden = !view.allowIndependentCoach;
   els.swing.checked = state.swing;
@@ -277,22 +347,24 @@ function renderCopy(snap = transport.snapshot()) {
   els.tempo.value = String(state.tempo);
   els.tempoReadout.textContent = String(state.tempo);
   const written = displayKey(concertKey(), state.displayMode);
+  const concert = minorSpelling(concertKey());
   els.displayBanner.textContent =
     state.displayMode === "bb-written"
-      ? `Showing B♭ written names in ${written.name}. Audio is concert ${concertKey().name}.`
-      : `Showing concert pitch in ${concertKey().name}.`;
+      ? `Showing B♭ written names in ${written.name}. Audio is concert ${concert.name}.`
+      : `Showing concert pitch in ${concert.name}.`;
   document.querySelectorAll("[name=displayMode]").forEach((input) => {
     input.checked = input.value === state.displayMode;
   });
 }
 
 function renderMeter(snap = transport.snapshot()) {
+  const concert = minorSpelling(concertKey());
   if (snap.inCountIn) {
     els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
     return;
   }
   if (snap.playing) {
-    els.meter.textContent = `Playing · bar ${snap.bar} beat ${snap.beatInBar} · concert ${concertKey().name}`;
+    els.meter.textContent = `Playing · bar ${snap.bar} beat ${snap.beatInBar} · concert ${concert.name}`;
     return;
   }
   if (snap.paused) {
@@ -303,6 +375,7 @@ function renderMeter(snap = transport.snapshot()) {
 }
 
 function render(snap = transport.snapshot()) {
+  renderApplications();
   renderKeys();
   renderSteps();
   renderCopy(snap);
@@ -315,12 +388,21 @@ function render(snap = transport.snapshot()) {
 }
 
 function runPrimary() {
-  const action = primaryAction(state.step, playback);
+  const action = primaryAction(state, playback);
   if (!action) return;
   if (action.id === "pause") transport.pause();
   else if (action.id === "resume") start(true);
   else if (action.id === "next") go(adjacentStep(state.step, 1));
   else start(false);
+}
+
+function openCell(mode) {
+  state.lens = "cell";
+  state.cellMode = mode;
+  persist();
+  halt();
+  render();
+  start(false);
 }
 
 transport.onUpdate = (snap) => {
@@ -343,11 +425,30 @@ transport.onEnded = () => {
 };
 
 els.primary.addEventListener("click", runPrimary);
-els.back.addEventListener("click", () => go(adjacentStep(state.step, -1)));
+els.back.addEventListener("click", () => {
+  if (presentation(state).lens === "cell") {
+    state.lens = "context";
+    state.cellMode = "hear";
+    persist();
+    halt();
+    render();
+    return;
+  }
+  go(adjacentStep(state.step, -1));
+});
 els.next.addEventListener("click", () => go(adjacentStep(state.step, 1)));
 els.replay.addEventListener("click", () => {
   halt();
   start(false);
+});
+els.cellHear.addEventListener("click", () => openCell("hear"));
+els.cellEcho.addEventListener("click", () => openCell("echo"));
+els.cellBack.addEventListener("click", () => {
+  state.lens = "context";
+  state.cellMode = "hear";
+  persist();
+  halt();
+  render();
 });
 els.pause.addEventListener("click", () => {
   if (transport.playing) transport.pause();
