@@ -91,6 +91,7 @@ export function presentation(stepId) {
     stepId,
     showPhraseNotation: stepId === "hear" || stepId === "echo" || guided,
     showFormChart: setup || guided || independent,
+    chartBarCount: setup ? 2 : BARS_PER_CHORUS,
     showEntranceLabels: guided,
     showTargetStyling: guided,
     showAssessment: reflect,

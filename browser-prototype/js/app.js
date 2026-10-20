@@ -168,7 +168,8 @@ function renderChart(snap = transport.snapshot()) {
     els.chart.replaceChildren();
     return;
   }
-  const bars = formBars(concertKey(), state.displayMode);
+  const bars = formBars(concertKey(), state.displayMode).slice(0, view.chartBarCount);
+  els.chart.classList.toggle("short", bars.length <= 2);
   els.chart.replaceChildren(
     ...bars.map((bar) => {
       const cell = document.createElement("article");
