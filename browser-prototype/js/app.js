@@ -1,55 +1,66 @@
-import {
-  PRIMARY_KEY_IDS,
-  KEYS,
-  STORAGE_KEY,
-  defaultState,
-  getKey,
-  displayKey,
-  phraseNotes,
-  phraseABC,
-  chartABC,
-  chorusChords,
-  barRoles,
-} from "./music.js";
+import { KEYS, PRIMARY_KEY_IDS, phraseABC, getKey, displayKey } from "./music.js";
 import { Transport } from "./audio.js";
+import {
+  STORAGE_KEY,
+  STEPS,
+  getStep,
+  adjacentStep,
+  presentation,
+  defaultState,
+  audioConfigFor,
+  formBars,
+  barCaption,
+  livePrompt,
+  primaryAction,
+  currentChord,
+} from "./lesson.js";
 
 const transport = new Transport();
 const state = loadState();
+const playback = { playing: false, paused: false, ended: false };
 
 const els = {
-  stageBtns: [...document.querySelectorAll(".stage-btn")],
-  stageTitle: document.getElementById("stage-title"),
-  stageCopy: document.getElementById("stage-copy"),
+  heading: document.getElementById("heading"),
+  instruction: document.getElementById("instruction"),
+  steps: document.getElementById("steps"),
+  music: document.getElementById("music-surface"),
+  chord: document.getElementById("chord"),
+  beat: document.getElementById("beat"),
+  functionLabel: document.getElementById("function-label"),
   notation: document.getElementById("notation"),
-  barsWrap: document.getElementById("bars-wrap"),
-  bars: document.getElementById("bars"),
-  noteWrap: document.getElementById("note-wrap"),
-  assessWrap: document.getElementById("assess-wrap"),
-  keys: document.getElementById("keys"),
-  tempo: document.getElementById("tempo"),
-  tempoReadout: document.getElementById("tempo-readout"),
-  modelPhrase: document.getElementById("modelPhrase"),
-  guideTones: document.getElementById("guideTones"),
-  swing: document.getElementById("swing"),
-  looping: document.getElementById("looping"),
-  metronome: document.getElementById("metronome"),
-  yoursControls: document.getElementById("yours-controls"),
-  notationOpacity: document.getElementById("notationOpacity"),
-  cueOpacity: document.getElementById("cueOpacity"),
-  displayBanner: document.getElementById("display-banner"),
-  nowPlaying: document.getElementById("now-playing"),
-  meter: document.getElementById("meter"),
-  play: document.getElementById("play"),
+  chart: document.getElementById("chart"),
+  primary: document.getElementById("primary"),
+  back: document.getElementById("back"),
+  replay: document.getElementById("replay"),
+  next: document.getElementById("next"),
+  coachWrap: document.getElementById("coach-wrap"),
+  independentCoach: document.getElementById("independentCoach"),
+  assess: document.getElementById("assess"),
   pause: document.getElementById("pause"),
   restart: document.getElementById("restart"),
+  tempo: document.getElementById("tempo"),
+  tempoReadout: document.getElementById("tempo-readout"),
+  meter: document.getElementById("meter"),
+  settingsBtn: document.getElementById("settings-btn"),
+  settings: document.getElementById("settings"),
+  keys: document.getElementById("keys"),
+  swing: document.getElementById("swing"),
+  guideTones: document.getElementById("guideTones"),
+  metronome: document.getElementById("metronome"),
+  displayBanner: document.getElementById("display-banner"),
+  triedKeys: document.getElementById("tried-keys"),
 };
 
 function loadState() {
   const base = defaultState();
+  const fromHash = location.hash.replace("#", "");
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    return saved ? { ...base, ...saved } : base;
+    const merged = saved ? { ...base, ...saved } : base;
+    if (STEPS.some((step) => step.id === fromHash)) merged.step = fromHash;
+    return merged;
   } catch {
+    if (STEPS.some((step) => step.id === fromHash)) base.step = fromHash;
     return base;
   }
 }
@@ -62,32 +73,36 @@ function concertKey() {
   return getKey(state.concertKeyId);
 }
 
-function audioConfig() {
-  return {
-    concertKey: concertKey(),
-    displayMode: state.displayMode,
-    includeModel: state.stage === "learn" ? true : state.modelPhrase,
-    includeGuides: state.guideTones,
-    includeClick: state.metronome,
-    variationId: state.stage === "yours" ? state.variationId : "original",
-    stage: state.stage === "yours" ? "place" : state.stage,
-    tempo: state.tempo,
-    swing: state.swing,
-    looping: state.looping,
-    cueGain: state.stage === "yours" ? state.cueOpacity : 1,
-  };
+function halt() {
+  transport.stop();
+  playback.playing = false;
+  playback.paused = false;
+  playback.ended = false;
 }
 
-function stopForSettings() {
-  if (transport.playing || transport.paused) {
-    transport.stop();
-    els.meter.textContent = "Settings applied · press Start";
+function go(stepId) {
+  if (!STEPS.some((step) => step.id === stepId)) return;
+  state.step = stepId;
+  persist();
+  if (location.hash.replace("#", "") !== stepId) {
+    history.replaceState(null, "", `#${stepId}`);
   }
+  halt();
+  render();
+}
+
+function start(resume = false) {
+  els.primary.disabled = true;
+  transport.start(audioConfigFor(state), { resume }).finally(() => {
+    els.primary.disabled = false;
+  });
 }
 
 function renderKeys() {
-  const more = KEYS.filter((key) => !PRIMARY_KEY_IDS.includes(key.id));
-  const shown = [...KEYS.filter((key) => PRIMARY_KEY_IDS.includes(key.id)), ...more];
+  const shown = [
+    ...KEYS.filter((key) => PRIMARY_KEY_IDS.includes(key.id)),
+    ...KEYS.filter((key) => !PRIMARY_KEY_IDS.includes(key.id)),
+  ];
   els.keys.replaceChildren(
     ...shown.map((key) => {
       const btn = document.createElement("button");
@@ -99,7 +114,7 @@ function renderKeys() {
         state.concertKeyId = key.id;
         if (!state.triedKeys.includes(key.id)) state.triedKeys.push(key.id);
         persist();
-        stopForSettings();
+        halt();
         render();
       });
       return btn;
@@ -107,50 +122,28 @@ function renderKeys() {
   );
 }
 
-function renderStages() {
-  els.stageBtns.forEach((btn) => {
-    const active = btn.dataset.stage === state.stage;
-    btn.setAttribute("aria-current", active ? "step" : "false");
-  });
-}
-
-function renderCopy() {
-  const written = displayKey(concertKey(), state.displayMode);
-  if (state.stage === "learn") {
-    els.stageTitle.textContent = "Learn the phrase";
-    els.stageCopy.textContent = `Short ii–V–I in concert ${concertKey().name}. Eight eighths through ii and V, then a half note on the 5th of I. Tempo and key are yours; twelve keys are optional, not a gate.`;
-  } else if (state.stage === "place") {
-    els.stageTitle.textContent = "Place it in eight bars";
-    els.stageCopy.textContent = "Bars 1–2: improvise. A cue marks the door into bars 3–4, where the phrase sits on the short ii–V–I. Bars 5–8: resolve and keep playing. Chord changes stay visible.";
-  } else {
-    els.stageTitle.textContent = "Make it yours";
-    els.stageCopy.textContent = "Fade the notation and the entrance scaffolding if you want. The changes stay. Quoting the lick is a choice, not a requirement.";
-  }
-  els.displayBanner.textContent =
-    state.displayMode === "bb-written"
-      ? `Showing B♭ written names in ${written.name}. Audio is concert ${concertKey().name} — a B♭ instrument reads a major second higher than concert.`
-      : `Showing concert pitch in ${concertKey().name}. Switch to B♭ written to see trumpet or tenor sax names.`;
-  els.yoursControls.hidden = state.stage !== "yours";
-  els.modelPhrase.checked = state.modelPhrase;
-  els.guideTones.checked = state.guideTones;
-  els.swing.checked = state.swing;
-  els.looping.checked = state.looping;
-  els.metronome.checked = state.metronome;
-  els.tempo.value = String(state.tempo);
-  els.tempoReadout.textContent = String(state.tempo);
-  els.notationOpacity.value = String(Math.round(state.notationOpacity * 100));
-  els.cueOpacity.value = String(Math.round(state.cueOpacity * 100));
-  document.querySelectorAll("[name=displayMode]").forEach((input) => {
-    input.checked = input.value === state.displayMode;
-  });
-  document.querySelectorAll("[data-variation]").forEach((btn) => {
-    btn.setAttribute("aria-pressed", String(btn.dataset.variation === state.variationId));
-  });
+function renderSteps() {
+  els.steps.replaceChildren(
+    ...STEPS.filter((step) => step.id !== "reflect").map((step) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "step-dot";
+      btn.textContent = step.label;
+      btn.setAttribute("aria-current", step.id === state.step ? "step" : "false");
+      btn.addEventListener("click", () => go(step.id));
+      return btn;
+    }),
+  );
 }
 
 function renderNotation() {
-  const abc = state.stage === "learn" ? phraseABC(concertKey(), state.displayMode) : chartABC(concertKey(), state.displayMode);
-  els.notation.style.opacity = state.stage === "yours" ? String(state.notationOpacity) : "1";
+  const view = presentation(state.step);
+  els.notation.hidden = !view.showPhraseNotation;
+  if (!view.showPhraseNotation) {
+    els.notation.replaceChildren();
+    return;
+  }
+  const abc = phraseABC(concertKey(), state.displayMode);
   els.notation.replaceChildren();
   if (window.ABCJS) {
     window.ABCJS.renderAbc(els.notation, abc, {
@@ -158,7 +151,8 @@ function renderNotation() {
       add_classes: true,
       paddingtop: 0,
       paddingbottom: 0,
-      staffwidth: 720,
+      staffwidth: 760,
+      scale: 1.15,
     });
   } else {
     const pre = document.createElement("pre");
@@ -167,238 +161,257 @@ function renderNotation() {
   }
 }
 
-function renderBars() {
-  const show = state.stage !== "learn";
-  if (els.barsWrap) els.barsWrap.hidden = !show;
-  els.bars.hidden = !show;
-  if (!show) {
-    els.bars.replaceChildren();
+function renderChart(snap = transport.snapshot()) {
+  const view = presentation(state.step);
+  els.chart.hidden = !view.showFormChart;
+  if (!view.showFormChart) {
+    els.chart.replaceChildren();
     return;
   }
-  const chords = chorusChords(concertKey(), state.displayMode);
-  const snap = transport.snapshot();
-  els.bars.replaceChildren(
-    ...barRoles().map((bar) => {
-      const box = document.createElement("article");
-      box.className = `bar ${bar.role}`;
-      if (snap.playing && snap.bar === bar.bar) box.classList.add("now");
-      const cellChords = chords.filter((chord) => {
-        const chordBar = Math.floor(chord.startBeat / 4) + 1;
-        return chordBar === bar.bar;
-      });
-      box.innerHTML = `<span class="n">Bar ${bar.bar}</span><strong>${bar.label}</strong><div class="chords">${cellChords.map((c) => c.name).join(" · ")}</div>`;
-      if (state.stage === "yours") box.style.opacity = bar.role === "phrase" ? String(0.55 + state.cueOpacity * 0.45) : "1";
-      return box;
+  const bars = formBars(concertKey(), state.displayMode);
+  els.chart.replaceChildren(
+    ...bars.map((bar) => {
+      const cell = document.createElement("article");
+      const caption = barCaption(bar.bar, view.showEntranceLabels);
+      cell.className = "cell";
+      if (view.showTargetStyling && bar.role === "phrase") cell.classList.add("entrance");
+      if ((snap.playing || snap.paused) && !snap.inCountIn && snap.bar === bar.bar) {
+        cell.classList.add("now");
+      }
+      cell.innerHTML = `<span class="n">Bar ${bar.bar}</span><strong>${bar.names.join(" ")}</strong>${
+        caption ? `<span class="mark">${caption}</span>` : ""
+      }`;
+      return cell;
     }),
   );
 }
 
-function renderNotes() {
-  if (state.stage !== "learn") {
-    els.noteWrap.replaceChildren();
-    return;
-  }
-  const notes = phraseNotes(concertKey(), state.displayMode);
-  const table = document.createElement("table");
-  table.className = "note-table";
-  table.innerHTML = `
-    <caption>Exact pitches and rhythm (from DuoJazz lick short-ii-v-i)</caption>
-    <thead>
-      <tr>
-        <th>Beat</th><th>Rhythm</th><th>Degree in I</th>
-        <th>${state.displayMode === "bb-written" ? "Written" : "Concert"}</th>
-        ${state.displayMode === "bb-written" ? "<th>Concert (sounds)</th>" : ""}
-      </tr>
-    </thead>
-    <tbody>
-      ${notes
-        .map(
-          (note) => `<tr data-note="${note.index}">
-            <td>${note.startBeat + 1}</td>
-            <td>${note.rhythm}</td>
-            <td>${note.degree}</td>
-            <td>${note.shownName}</td>
-            ${state.displayMode === "bb-written" ? `<td>${note.concertName}</td>` : ""}
-          </tr>`,
-        )
-        .join("")}
-    </tbody>`;
-  els.noteWrap.replaceChildren(table);
+function choiceRow(containerId, name, options) {
+  const host = document.getElementById(containerId);
+  host.replaceChildren(
+    ...options.map(([value, label]) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = label;
+      btn.setAttribute("aria-pressed", String(state[name] === value));
+      btn.addEventListener("click", () => {
+        state[name] = value;
+        persist();
+        renderAssess();
+      });
+      return btn;
+    }),
+  );
 }
 
 function renderAssess() {
-  if (state.stage !== "yours") {
-    els.assessWrap.replaceChildren();
+  const view = presentation(state.step);
+  els.assess.hidden = !view.showAssessment;
+  if (!view.showAssessment) return;
+  choiceRow("foundEntrance", "foundEntrance", [
+    ["yes", "Yes"],
+    ["somewhat", "Somewhat"],
+    ["not-yet", "Not yet"],
+  ]);
+  choiceRow("keptPlaying", "keptPlaying", [
+    ["yes", "Yes"],
+    ["somewhat", "Somewhat"],
+    ["not-yet", "Not yet"],
+  ]);
+  choiceRow("quoteChoice", "quoteChoice", [
+    ["quote", "Quoted it"],
+    ["vary", "Varied it"],
+    ["skip", "Skipped it"],
+  ]);
+  choiceRow("recall", "recall", [
+    ["yes", "Yes"],
+    ["somewhat", "Somewhat"],
+    ["not-yet", "Not yet"],
+  ]);
+  els.triedKeys.textContent = `Key coverage (optional, not a gate): ${state.triedKeys.join(", ")}`;
+}
+
+function renderNow(snap = transport.snapshot()) {
+  const view = presentation(state.step);
+  els.music.hidden = !view.showMusic;
+  const beats = snap.beats ?? 0;
+  const chord = currentChord(concertKey(), state.displayMode, state.step, beats);
+  els.chord.textContent = chord?.name ?? "—";
+  els.functionLabel.textContent = chord ? chord.functionLabel : "";
+  if (snap.inCountIn) {
+    els.beat.textContent = "Count-in";
+  } else if (snap.playing || snap.paused) {
+    els.beat.textContent = `Bar ${snap.bar} · Beat ${snap.beatInBar}`;
+  } else {
+    els.beat.textContent = view.showFormChart ? "Bar 1 · Beat 1" : "Two-bar phrase";
+  }
+}
+
+function renderPrimary() {
+  const action = primaryAction(state.step, playback);
+  els.primary.hidden = !action;
+  if (action) {
+    els.primary.dataset.action = action.id;
+    els.primary.textContent = action.label;
+  }
+  const step = getStep(state.step);
+  els.back.hidden = state.step === "hear";
+  els.next.hidden = state.step === "reflect";
+  els.next.textContent = step.nextLabel || "Continue";
+  els.replay.hidden = state.step === "reflect";
+}
+
+function renderCopy(snap = transport.snapshot()) {
+  const step = getStep(state.step);
+  const view = presentation(state.step);
+  document.body.dataset.step = state.step;
+  els.heading.textContent = step.heading;
+  els.instruction.textContent = livePrompt(state.step, snap);
+  els.independentCoach.checked = state.independentCoach;
+  els.coachWrap.hidden = !view.allowIndependentCoach;
+  els.swing.checked = state.swing;
+  els.guideTones.checked = state.guideTones;
+  els.metronome.checked = state.metronome;
+  els.tempo.value = String(state.tempo);
+  els.tempoReadout.textContent = String(state.tempo);
+  const written = displayKey(concertKey(), state.displayMode);
+  els.displayBanner.textContent =
+    state.displayMode === "bb-written"
+      ? `Showing B♭ written names in ${written.name}. Audio is concert ${concertKey().name}.`
+      : `Showing concert pitch in ${concertKey().name}.`;
+  document.querySelectorAll("[name=displayMode]").forEach((input) => {
+    input.checked = input.value === state.displayMode;
+  });
+}
+
+function renderMeter(snap = transport.snapshot()) {
+  if (snap.inCountIn) {
+    els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
     return;
   }
-  const wrap = document.createElement("form");
-  wrap.className = "assess";
-  wrap.innerHTML = `
-    <fieldset>
-      <legend>Honest self-assessment</legend>
-      <p class="help">You mark this. The app does not listen and does not score musicality.</p>
-      <p><strong>Recall</strong> (not the same as using it)</p>
-      ${radioRow("recall", "I can hear this phrase without staring at the page", state.recall)}
-      <p><strong>Application</strong> (this session)</p>
-      ${radioRow("applicationEnter", "I entered around bar 3", state.applicationEnter)}
-      ${radioRow("applicationResolve", "I resolved toward I and kept playing", state.applicationResolve)}
-      ${radioRow("applicationChoice", "I chose to quote, vary, or skip — on purpose", state.applicationChoice)}
-      <p><strong>Key coverage</strong> (optional, not a gate): tried ${state.triedKeys.join(", ")}</p>
-    </fieldset>`;
-  wrap.addEventListener("change", (event) => {
-    const input = event.target;
-    if (input instanceof HTMLInputElement && input.name) {
-      state[input.name] = input.value;
-      persist();
-    }
-  });
-  els.assessWrap.replaceChildren(wrap);
-}
-
-function radioRow(name, label, value) {
-  return `<p>${label}<br>
-    <label><input type="radio" name="${name}" value="yes" ${value === "yes" ? "checked" : ""}> Yes</label>
-    <label><input type="radio" name="${name}" value="somewhat" ${value === "somewhat" ? "checked" : ""}> Somewhat</label>
-    <label><input type="radio" name="${name}" value="not-yet" ${value === "not-yet" ? "checked" : ""}> Not yet</label>
-  </p>`;
-}
-
-function highlightNotes(beats) {
-  const local = state.stage === "learn" ? beats : beats - 8;
-  const notes = phraseNotes(concertKey(), state.displayMode);
-  document.querySelectorAll("[data-note]").forEach((row) => {
-    const note = notes[Number(row.getAttribute("data-note"))];
-    const on = local >= note.startBeat && local < note.startBeat + note.beats;
-    row.classList.toggle("active", on);
-  });
-}
-
-function render() {
-  renderKeys();
-  renderStages();
-  renderCopy();
-  renderNotation();
-  renderBars();
-  renderNotes();
-  renderAssess();
-}
-
-async function start(resume = false) {
-  els.play.disabled = true;
-  try {
-    await transport.start(audioConfig(), { resume });
-  } finally {
-    els.play.disabled = false;
+  if (snap.playing) {
+    els.meter.textContent = `Playing · bar ${snap.bar} beat ${snap.beatInBar} · concert ${concertKey().name}`;
+    return;
   }
+  if (snap.paused) {
+    els.meter.textContent = `Paused · bar ${snap.bar} beat ${snap.beatInBar}`;
+    return;
+  }
+  els.meter.textContent = playback.ended ? "Ready to continue" : "Stopped · 1-bar count-in on Start";
+}
+
+function render(snap = transport.snapshot()) {
+  renderKeys();
+  renderSteps();
+  renderCopy(snap);
+  renderNow(snap);
+  renderNotation();
+  renderChart(snap);
+  renderAssess();
+  renderPrimary();
+  renderMeter(snap);
+}
+
+function runPrimary() {
+  const action = primaryAction(state.step, playback);
+  if (!action) return;
+  if (action.id === "pause") transport.pause();
+  else if (action.id === "resume") start(true);
+  else if (action.id === "next") go(adjacentStep(state.step, 1));
+  else start(false);
 }
 
 transport.onUpdate = (snap) => {
-  if (!snap.playing && !snap.paused) {
-    els.meter.textContent = "Stopped · 1-bar count-in on Start";
-    els.nowPlaying.textContent = "";
-    renderBars();
-    return;
-  }
-  if (snap.inCountIn || snap.beats < 0) {
-    const remaining = Math.max(1, Math.ceil(-snap.beats));
-    els.meter.textContent = `Count-in · ${remaining}`;
-    els.nowPlaying.textContent = "Count-in";
-    return;
-  }
-  const bar = Math.max(1, snap.bar);
-  const beat = Math.max(1, snap.beatInBar);
-  els.meter.textContent = `${snap.paused ? "Paused" : "Playing"} · bar ${bar} beat ${beat} · concert ${concertKey().name}`;
-  const chords = chorusChords(concertKey(), state.displayMode);
-  const beatIndex = Math.max(0, snap.beats);
-  const chord = [...chords].reverse().find((item) => beatIndex >= item.startBeat);
-  els.nowPlaying.textContent = chord ? `${chord.functionLabel} · ${chord.name}` : "";
-  highlightNotes(beatIndex);
-  renderBars();
+  playback.playing = snap.playing;
+  playback.paused = snap.paused;
+  playback.ended = Boolean(snap.ended);
+  renderNow(snap);
+  renderChart(snap);
+  renderCopy(snap);
+  renderPrimary();
+  renderMeter(snap);
 };
 
-els.stageBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    state.stage = btn.dataset.stage;
-    if (state.stage === "learn") state.modelPhrase = true;
-    if (state.stage === "yours" && !state.variationId) state.variationId = "skip";
-    persist();
-    stopForSettings();
-    render();
-  });
-});
+transport.onEnded = () => {
+  playback.playing = false;
+  playback.paused = false;
+  playback.ended = true;
+  renderPrimary();
+  renderMeter(transport.snapshot());
+};
 
+els.primary.addEventListener("click", runPrimary);
+els.back.addEventListener("click", () => go(adjacentStep(state.step, -1)));
+els.next.addEventListener("click", () => go(adjacentStep(state.step, 1)));
+els.replay.addEventListener("click", () => {
+  halt();
+  start(false);
+});
+els.pause.addEventListener("click", () => {
+  if (transport.playing) transport.pause();
+});
+els.restart.addEventListener("click", () => {
+  halt();
+  if (state.step !== "reflect") start(false);
+});
 els.tempo.addEventListener("input", () => {
   state.tempo = Number(els.tempo.value);
   els.tempoReadout.textContent = String(state.tempo);
 });
 els.tempo.addEventListener("change", () => {
   persist();
-  stopForSettings();
+  halt();
+  render();
+});
+els.settingsBtn.addEventListener("click", () => els.settings.showModal());
+els.independentCoach.addEventListener("change", () => {
+  state.independentCoach = els.independentCoach.checked;
+  persist();
+  halt();
+  render();
 });
 
 document.querySelectorAll("[name=displayMode]").forEach((input) => {
   input.addEventListener("change", () => {
     state.displayMode = input.value;
     persist();
-    stopForSettings();
+    halt();
     render();
   });
 });
 
 for (const [id, key] of [
-  ["modelPhrase", "modelPhrase"],
-  ["guideTones", "guideTones"],
   ["swing", "swing"],
-  ["looping", "looping"],
+  ["guideTones", "guideTones"],
   ["metronome", "metronome"],
 ]) {
   els[id].addEventListener("change", () => {
     state[key] = els[id].checked;
     persist();
-    stopForSettings();
+    halt();
   });
 }
-
-els.notationOpacity.addEventListener("input", () => {
-  state.notationOpacity = Number(els.notationOpacity.value) / 100;
-  els.notation.style.opacity = String(state.notationOpacity);
-});
-els.notationOpacity.addEventListener("change", persist);
-els.cueOpacity.addEventListener("input", () => {
-  state.cueOpacity = Number(els.cueOpacity.value) / 100;
-  renderBars();
-});
-els.cueOpacity.addEventListener("change", persist);
-
-document.querySelectorAll("[data-variation]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    state.variationId = btn.dataset.variation;
-    persist();
-    stopForSettings();
-    render();
-  });
-});
-
-els.play.addEventListener("click", () => start(transport.paused));
-els.pause.addEventListener("click", () => transport.pause());
-els.restart.addEventListener("click", () => {
-  transport.stop();
-  start(false);
-});
 
 document.addEventListener("keydown", (event) => {
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
   if (event.code === "Space") {
     event.preventDefault();
-    if (transport.playing) transport.pause();
-    else start(transport.paused);
+    runPrimary();
   }
+  if (event.key === "ArrowRight") go(adjacentStep(state.step, 1));
+  if (event.key === "ArrowLeft") go(adjacentStep(state.step, -1));
   if (event.key === "r" || event.key === "R") {
     event.preventDefault();
-    transport.stop();
-    start(false);
+    halt();
+    if (state.step !== "reflect") start(false);
   }
+});
+
+window.addEventListener("hashchange", () => {
+  const id = location.hash.replace("#", "");
+  if (STEPS.some((step) => step.id === id) && id !== state.step) go(id);
 });
 
 window.addEventListener("load", render);

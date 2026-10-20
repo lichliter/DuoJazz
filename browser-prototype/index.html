@@ -3,119 +3,105 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DuoJazz · Integration prototype</title>
-  <meta name="description" content="Browser prototype for placing one jazz phrase into a progression. Not the native DuoJazz iPad app.">
+  <title>DuoJazz · One phrase in a solo</title>
+  <meta name="description" content="Guided browser prototype: hear, echo, and place one jazz phrase. Not the native DuoJazz iPad app.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=2">
+  <link rel="stylesheet" href="./css/styles.css?v=3">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=2"></script>
+  <script type="module" src="./js/app.js?v=3"></script>
 </head>
-<body>
+<body data-step="hear">
   <a class="skip-link" href="#main">Skip to main content</a>
-  <div class="app">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">DuoJazz · browser experiment</p>
-        <h1>Know it in a key. Place it in a solo.</h1>
-        <p class="lede">One major ii–V–I phrase, heard and used — not a pile of new licks, and not a twelve-key gate before you get to play.</p>
-      </div>
-    </header>
 
-    <p class="honest" role="note">
-      This prototype does <strong>not</strong> grade pitch, timing, or musicality. Playback is a browser synth.
-      Recall and key coverage stay separate from application. The native iPad app is unchanged.
-    </p>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">DuoJazz · one phrase</p>
+      <h1 id="heading">Hear the phrase</h1>
+    </div>
+    <button type="button" class="ghost" id="settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+  </header>
 
-    <nav class="stages" aria-label="Practice stages">
-      <button class="stage-btn" data-stage="learn" aria-current="step">
-        1 · Learn
-        <small>Hear the phrase. Inspect the notes.</small>
-      </button>
-      <button class="stage-btn" data-stage="place">
-        2 · Place
-        <small>Improvise in, enter, resolve, continue.</small>
-      </button>
-      <button class="stage-btn" data-stage="yours">
-        3 · Make it yours
-        <small>Fade the page. Keep the changes. Choose.</small>
-      </button>
-    </nav>
+  <nav class="steps" aria-label="Lesson steps" id="steps"></nav>
 
-    <main id="main" class="layout">
-      <section class="card" aria-labelledby="stage-title">
-        <h2 id="stage-title">Learn the phrase</h2>
-        <p id="stage-copy" class="help"></p>
-        <p class="live" id="now-playing" aria-live="polite"></p>
-        <div id="notation" class="paper" aria-label="Phrase notation"></div>
-        <div id="bars-wrap" hidden>
-          <div id="bars" class="bars"></div>
-        </div>
-        <div id="note-wrap"></div>
-        <div id="assess-wrap"></div>
-      </section>
+  <main id="main" class="stage">
+    <p class="instruction" id="instruction" aria-live="polite"></p>
 
-      <aside class="card" aria-labelledby="settings-title">
-        <h2 id="settings-title">Session</h2>
-        <p class="help">Concert key is the sounding key (what the band plays). B♭ written shows trumpet/tenor names; audio still sounds concert.</p>
+    <section class="now" id="music-surface" aria-label="Current harmony">
+      <p class="now-chord" id="chord">—</p>
+      <p class="now-beat" id="beat">Bar · Beat</p>
+      <p class="now-hint" id="function-label"></p>
+    </section>
 
-        <div class="field">
-          <span id="key-label">Concert key</span>
-          <div class="row" id="keys" role="group" aria-labelledby="key-label"></div>
-        </div>
+    <div id="notation" class="paper" aria-label="Phrase notation"></div>
+    <div id="chart" class="chart" hidden></div>
 
-        <label>
-          Tempo <span id="tempo-readout">96</span> BPM
-          <input id="tempo" type="range" min="60" max="160" step="1" value="96">
-        </label>
+    <button type="button" class="hero" id="primary">Hear the phrase</button>
+    <div class="secondary">
+      <button type="button" class="ghost" id="back" hidden>Back</button>
+      <button type="button" class="ghost" id="replay">Replay this step</button>
+      <button type="button" class="ghost" id="next">Continue</button>
+    </div>
 
-        <fieldset>
-          <legend>Note labels</legend>
-          <label><input type="radio" name="displayMode" value="concert" checked> Concert pitch</label>
-          <label><input type="radio" name="displayMode" value="bb-written"> B♭ written (sounds a major 2nd lower than written)</label>
-        </fieldset>
+    <label class="coach" id="coach-wrap" hidden>
+      <input type="checkbox" id="independentCoach">
+      Hear the model this chorus (optional)
+    </label>
 
-        <label><input type="checkbox" id="modelPhrase" checked> Hear the model phrase</label>
-        <label><input type="checkbox" id="guideTones" checked> Guide tones in setup / continue bars (3rds &amp; 7ths)</label>
-        <label><input type="checkbox" id="swing" checked> Swing eighths</label>
-        <label><input type="checkbox" id="looping" checked> Loop accompaniment</label>
-        <label><input type="checkbox" id="metronome"> Click during the chorus</label>
-
-        <div id="yours-controls" hidden>
-          <label>Notation opacity <input id="notationOpacity" type="range" min="0" max="100" value="100"></label>
-          <label>Entrance cue <input id="cueOpacity" type="range" min="0" max="100" value="100"></label>
-          <div class="field">
-            <span id="var-label">This chorus</span>
-            <div class="row" role="group" aria-labelledby="var-label">
-              <button type="button" class="chip" data-variation="original">Quote it</button>
-              <button type="button" class="chip" data-variation="neighbor">Neighbor start</button>
-              <button type="button" class="chip" data-variation="sequence-down">Sequence down</button>
-              <button type="button" class="chip" data-variation="skip" aria-pressed="true">Skip the quote</button>
-            </div>
-          </div>
-        </div>
-
-        <p class="help" id="display-banner"></p>
-        <details class="limits">
-          <summary>What this experiment is not</summary>
-          <p>No accounts, microphone, backend, pitch tracking, or native widgets. Browser checks here do not establish Safari, device-audio, or iPad app behavior.</p>
-        </details>
-      </aside>
-    </main>
-  </div>
+    <form class="assess" id="assess" hidden>
+      <fieldset>
+        <legend>After playing</legend>
+        <p class="help">The app did not hear you. These marks are yours.</p>
+        <p><strong>Application</strong></p>
+        <p>Did you find the entrance (around bar 3)?</p>
+        <div class="row" id="foundEntrance"></div>
+        <p>Did you keep playing afterward?</p>
+        <div class="row" id="keptPlaying"></div>
+        <p>This chorus I…</p>
+        <div class="row" id="quoteChoice"></div>
+        <p><strong>Recall</strong> (not the same as using it)</p>
+        <p>Can you hear the phrase without looking?</p>
+        <div class="row" id="recall"></div>
+        <p class="help" id="tried-keys"></p>
+      </fieldset>
+    </form>
+  </main>
 
   <div class="transport" role="region" aria-label="Transport">
     <div class="row">
-      <button class="primary" id="play" type="button">Start</button>
-      <button class="ghost" id="pause" type="button">Pause</button>
-      <button class="ghost" id="restart" type="button">Restart</button>
+      <button type="button" class="ghost" id="pause">Pause</button>
+      <button type="button" class="ghost" id="restart">Restart</button>
     </div>
-    <div>
-      <div class="meter" id="meter">Stopped · 1-bar count-in on Start</div>
-      <p class="help" style="margin:0">Space plays or pauses. R restarts and silences leftover audio.</p>
-    </div>
-    <div class="help">Phrase: Short ii–V–I · DuoJazz <code>short-ii-v-i</code></div>
+    <label class="tempo">
+      Tempo <span id="tempo-readout">96</span>
+      <input id="tempo" type="range" min="60" max="160" step="1" value="96">
+    </label>
+    <p class="meter" id="meter">Stopped</p>
   </div>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings-form">
+      <h2>Settings</h2>
+      <div class="field">
+        <span id="key-label">Concert key</span>
+        <div class="row" id="keys" role="group" aria-labelledby="key-label"></div>
+      </div>
+      <fieldset>
+        <legend>Note labels</legend>
+        <label><input type="radio" name="displayMode" value="concert" checked> Concert pitch</label>
+        <label><input type="radio" name="displayMode" value="bb-written"> B♭ written (audio stays concert)</label>
+      </fieldset>
+      <label><input type="checkbox" id="swing" checked> Swing eighths</label>
+      <label><input type="checkbox" id="guideTones" checked> Guide tones on setup / guided entrance</label>
+      <label><input type="checkbox" id="metronome"> Click during the music</label>
+      <p class="help" id="display-banner"></p>
+      <details>
+        <summary>About this experiment</summary>
+        <p>Browser synth only. No microphone, accounts, or pitch grading. This does not verify the native iPad app, Safari, or device audio. Space plays or pauses. Left/Right move steps. R restarts and silences leftover audio.</p>
+      </details>
+      <button type="submit" class="primary-lite" value="close">Close</button>
+    </form>
+  </dialog>
 </body>
 </html>

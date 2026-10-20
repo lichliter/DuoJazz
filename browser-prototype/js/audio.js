@@ -25,8 +25,10 @@ export class Transport {
     this.tempo = 96;
     this.swing = true;
     this.onUpdate = () => {};
+    this.onEnded = () => {};
     this.lastConfig = null;
     this.cueGain = 1;
+    this.ended = false;
   }
 
   async ensure() {
@@ -65,13 +67,14 @@ export class Transport {
     this.raf = 0;
   }
 
-  stop() {
+  stop({ fromEnd = false } = {}) {
     this.epoch += 1;
     this.stopAllNodes();
     this.playing = false;
     this.paused = false;
     this.pausedBeats = 0;
     this.performanceBeats = 0;
+    if (!fromEnd) this.ended = false;
     this.onUpdate(this.snapshot());
   }
 
@@ -88,20 +91,22 @@ export class Transport {
   currentBeats() {
     if (!this.playing || !this.ctx) return this.paused ? this.pausedBeats : 0;
     const elapsed = this.ctx.currentTime - this.startedAt;
-    const beatDur = 60 / this.tempo;
-    return Math.max(0, elapsed / beatDur);
+    return elapsed / (60 / this.tempo);
   }
 
   snapshot() {
-    const beats = this.currentBeats();
-    const inCountIn = this.playing && beats < 0;
+    const beats = this.playing ? this.currentBeats() : this.pausedBeats;
+    const inCountIn = (this.playing || this.paused) && beats < 0;
+    const formBeats = Math.max(0, beats);
+    const bars = Math.max(1, this.chorusLengthBeats / 4);
     return {
       playing: this.playing,
       paused: this.paused,
-      beats: this.playing ? beats : this.pausedBeats,
+      ended: this.ended,
+      beats,
       inCountIn,
-      bar: this.playing && beats >= 0 ? Math.floor(beats / 4) % (this.chorusLengthBeats / 4) + 1 : 0,
-      beatInBar: this.playing && beats >= 0 ? Math.floor(beats % 4) + 1 : 0,
+      bar: inCountIn ? 0 : Math.floor(formBeats / 4) % bars + 1,
+      beatInBar: inCountIn ? 0 : Math.floor(formBeats % 4) + 1,
     };
   }
 
@@ -222,7 +227,9 @@ export class Transport {
         this.startedAt = this.ctx.currentTime;
         this.armChorus(this.lastConfig, { countIn: false, fromBeat: 0 });
       } else {
-        this.stop();
+        this.ended = true;
+        this.stop({ fromEnd: true });
+        this.onEnded();
         return;
       }
     }
@@ -234,11 +241,13 @@ export class Transport {
     const origin = this.startedAt;
     if (countIn) this.scheduleCountIn(origin);
     for (const event of events) this.scheduleEvent(event, origin);
-    this.chorusLengthBeats = config.stage === "learn" ? 8 : 32;
+    this.chorusLengthBeats = config.lengthBeats ?? (config.stage === "learn" ? 8 : 32);
   }
 
   async start(config, { resume = false } = {}) {
+    const generation = this.epoch;
     await this.ensure();
+    if (this.epoch !== generation) return;
     this.stopAllNodes();
     this.epoch += 1;
     const epoch = this.epoch;
@@ -249,6 +258,7 @@ export class Transport {
     this.cueGain = config.cueGain ?? 1;
     this.playing = true;
     this.paused = false;
+    this.ended = false;
     const fromBeat = resume ? this.pausedBeats : 0;
     const countIn = !resume;
     const countInSeconds = countIn ? beatsToSeconds(COUNT_IN_BEATS, this.tempo, false) : 0;
