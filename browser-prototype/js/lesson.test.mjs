@@ -60,6 +60,9 @@ test("hear plays the model immediately; echo does not coach with melody", () => 
 });
 
 test("setup is two bars of the form without phrase, cues, or model", () => {
+  const view = presentation("setup");
+  assert.equal(view.chartBarCount, 2);
+  assert.equal(view.showPhraseNotation, false);
   const config = audioConfigFor({ ...defaultState(), step: "setup" });
   assert.equal(config.lengthBeats, 8);
   assert.equal(config.stage, "place");
