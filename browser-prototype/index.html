@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>DuoJazz browser prototype — Short ii–V–I</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="banner" role="status">
+      Browser prototype · Web Audio synthesis · not a native iPad or microphone-graded verification
+    </div>
+    <header class="hero">
+      <div>
+        <h1>Make one phrase usable</h1>
+        <p>
+          Learn a major ii–V–I line, place it in an eight-bar form with room to improvise,
+          then fade the scaffolding until the phrase is yours.
+        </p>
+      </div>
+    </header>
+
+    <nav class="stages" aria-label="Practice stages">
+      <button class="stage-btn" data-stage="learn" aria-current="true">
+        1. Learn
+        <small>Hear and see the phrase in a key</small>
+      </button>
+      <button class="stage-btn" data-stage="place">
+        2. Place
+        <small>Improvise before it, continue after it</small>
+      </button>
+      <button class="stage-btn" data-stage="yours">
+        3. Make it yours
+        <small>Fade cues, try a variation</small>
+      </button>
+    </nav>
+
+    <div class="layout">
+      <section class="panel" aria-label="Phrase and form">
+        <div id="notation" class="notation" aria-label="Phrase notation"></div>
+        <p class="cue" id="cue" aria-live="polite"></p>
+        <div class="form" id="form" aria-label="Eight-bar progression"></div>
+        <div class="transport">
+          <button class="primary" id="play" type="button">Play</button>
+          <button id="pause" type="button">Pause</button>
+          <button id="stop" type="button">Stop</button>
+          <span id="clock" class="note">Stopped</span>
+        </div>
+        <p class="note" id="stage-copy"></p>
+      </section>
+
+      <aside class="panel controls">
+        <label class="field">Key
+          <div class="keys" id="keys"></div>
+        </label>
+        <label class="field">Tempo
+          <input id="tempo" type="range" min="60" max="160" step="4" value="96" />
+          <span id="tempo-readout">96 bpm</span>
+        </label>
+        <label class="field">Phrase variation
+          <select id="variation"></select>
+        </label>
+        <label class="toggle">
+          <span>Model phrase (optional)</span>
+          <input id="model" type="checkbox" checked />
+        </label>
+        <label class="toggle" id="fade-row">
+          <span>Fade notation</span>
+          <input id="fade" type="checkbox" />
+        </label>
+        <label class="toggle" id="cue-row">
+          <span>Entrance cue</span>
+          <input id="show-cue" type="checkbox" checked />
+        </label>
+        <p class="note">Space plays or pauses. S stops. Count-in is one bar. Stop always cancels scheduled audio.</p>
+      </aside>
+    </div>
+
+    <section class="panel assess" style="margin-top: 24px" aria-label="Honest self-assessment">
+      <h2 style="margin:0 0 8px;font-size:18px">Self-assessment</h2>
+      <p class="note">You rate yourself. This prototype does not listen, transcribe, or grade pitch or musicality.</p>
+      <dl>
+        <dt>Recall in this key — can you hear the line without the model?</dt>
+        <dd class="rate" id="recall"></dd>
+        <dt>Application — did you place it in the form, not only isolate it?</dt>
+        <dd class="rate" id="application"></dd>
+      </dl>
+      <p class="legend">
+        <span><i class="swatch" style="background:#22c55e"></i>key practiced (recall logged)</span>
+        <span><i class="swatch" style="background:#f59e0b"></i>applied in the form</span>
+      </p>
+      <p class="note" id="coverage"></p>
+    </section>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
