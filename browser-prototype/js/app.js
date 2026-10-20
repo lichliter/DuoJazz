@@ -169,7 +169,10 @@ function renderNotation() {
 function renderBars() {
   const show = state.stage !== "learn";
   els.bars.hidden = !show;
-  if (!show) return;
+  if (!show) {
+    els.bars.replaceChildren();
+    return;
+  }
   const chords = chorusChords(concertKey(), state.displayMode);
   const snap = transport.snapshot();
   els.bars.replaceChildren(

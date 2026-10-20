@@ -189,6 +189,10 @@ h1 {
   background: rgba(139, 92, 246, 0.18);
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .bars {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -219,6 +223,14 @@ h1 {
   gap: 0.35rem;
   margin-bottom: 0.85rem;
   font-size: 0.92rem;
+}
+
+aside.card > label {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
 }
 
 .row {
