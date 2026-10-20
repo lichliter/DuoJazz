@@ -21,6 +21,7 @@ const els = {
   stageTitle: document.getElementById("stage-title"),
   stageCopy: document.getElementById("stage-copy"),
   notation: document.getElementById("notation"),
+  barsWrap: document.getElementById("bars-wrap"),
   bars: document.getElementById("bars"),
   noteWrap: document.getElementById("note-wrap"),
   assessWrap: document.getElementById("assess-wrap"),
@@ -168,6 +169,7 @@ function renderNotation() {
 
 function renderBars() {
   const show = state.stage !== "learn";
+  if (els.barsWrap) els.barsWrap.hidden = !show;
   els.bars.hidden = !show;
   if (!show) {
     els.bars.replaceChildren();
