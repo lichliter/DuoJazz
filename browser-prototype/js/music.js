@@ -357,13 +357,16 @@ export function scheduleChorus({
   includeModel,
   includeGuides,
   includeClick,
+  includeCue,
   variationId,
   stage,
+  lengthBeats,
 }) {
   const events = [];
   const chords = chorusChords(concertKey, displayMode);
-  const length = stage === "learn" ? CELL_BEATS : CHORUS_BEATS;
+  const length = lengthBeats ?? (stage === "learn" ? CELL_BEATS : CHORUS_BEATS);
   const phraseStart = stage === "learn" ? 0 : PHRASE_START_BEAT;
+  const cuesOn = includeCue ?? stage !== "learn";
   const elements = variationElements(variationId);
 
   for (let beat = 0; beat < length; beat += 1) {
@@ -408,7 +411,7 @@ export function scheduleChorus({
     }
   }
 
-  if (stage !== "learn") {
+  if (cuesOn && phraseStart > 0 && phraseStart < length) {
     events.push({ type: "cue", beat: phraseStart - 1, kind: "warning" });
     events.push({ type: "cue", beat: phraseStart, kind: "downbeat" });
   }
@@ -416,7 +419,7 @@ export function scheduleChorus({
   if (includeModel && variationId !== "skip") {
     let local = 0;
     for (const el of elements) {
-      if (el.type === "note") {
+      if (el.type === "note" && phraseStart + local < length) {
         events.push({
           type: "melody",
           beat: phraseStart + local,
@@ -433,26 +436,3 @@ export function scheduleChorus({
   return events.sort((a, b) => a.beat - b.beat || a.type.localeCompare(b.type));
 }
 
-export const STORAGE_KEY = "duojazz-integration-prototype-v1";
-
-export function defaultState() {
-  return {
-    stage: "learn",
-    concertKeyId: "C",
-    displayMode: "concert",
-    tempo: 96,
-    swing: true,
-    looping: true,
-    modelPhrase: true,
-    guideTones: true,
-    metronome: false,
-    notationOpacity: 1,
-    cueOpacity: 1,
-    variationId: "skip",
-    triedKeys: ["C"],
-    recall: "",
-    applicationEnter: "",
-    applicationResolve: "",
-    applicationChoice: "",
-  };
-}
