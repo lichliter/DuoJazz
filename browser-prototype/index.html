@@ -8,13 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=26">
+  <link rel="stylesheet" href="./css/styles.css?v=27">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=26"></script>
+  <script type="module" src="./js/app.js?v=27"></script>
 </head>
 <body data-goal="integrate" data-support="listen">
   <a class="skip-link" href="#main">Skip to main content</a>
 
+  <div class="app-shell">
   <header class="masthead">
     <div class="brand">
       <p class="logo">duojazz</p>
@@ -81,6 +82,7 @@
         <div class="row" id="recall"></div>
       </div>
     </aside>
+    <div class="transport-spacer" aria-hidden="true"></div>
   </main>
 
   <footer class="transport" role="region" aria-label="Transport">
@@ -102,6 +104,7 @@
       <button type="button" class="text-link" id="settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
     </div>
   </footer>
+  </div>
 
   <dialog id="settings">
     <form method="dialog" class="settings-form">

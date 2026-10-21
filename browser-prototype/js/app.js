@@ -784,6 +784,28 @@ window.addEventListener("hashchange", () => {
   }
 });
 
-window.addEventListener("resize", () => renderNotation());
-window.addEventListener("load", render);
+function syncTransportSpace() {
+  const footer = document.querySelector(".transport");
+  if (!footer) return;
+  const height = Math.ceil(footer.getBoundingClientRect().height);
+  document.documentElement.style.setProperty("--transport-h", `${Math.max(height, 48)}px`);
+}
+
+function bindTransportSpace() {
+  const footer = document.querySelector(".transport");
+  syncTransportSpace();
+  if (footer && typeof ResizeObserver === "function") {
+    new ResizeObserver(() => syncTransportSpace()).observe(footer);
+  }
+  window.addEventListener("resize", () => {
+    syncTransportSpace();
+    renderNotation();
+  });
+}
+
+bindTransportSpace();
+window.addEventListener("load", () => {
+  syncTransportSpace();
+  render();
+});
 render();

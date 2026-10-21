@@ -10,6 +10,7 @@
   --line: #4a372e;
   --tap: 44px;
   --radius: 6px;
+  --transport-h: 5.5rem;
   color-scheme: dark;
 }
 
@@ -32,10 +33,13 @@ body {
   line-height: 1.4;
 }
 
-body {
+.app-shell {
+  height: 100%;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .skip-link {
@@ -59,7 +63,6 @@ body {
 }
 
 .masthead {
-  flex: 0 0 auto;
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -126,12 +129,18 @@ body {
 }
 
 .workspace {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-height: 0;
-  overflow: auto;
   overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0.85rem 0 1.25rem;
+  padding: 0.85rem 0 0.75rem;
+}
+
+.transport-spacer {
+  height: var(--transport-h);
+  min-height: var(--transport-h);
+  pointer-events: none;
 }
 
 .kicker,
@@ -228,7 +237,7 @@ h1 {
 }
 
 .cue-line {
-  margin: 0.55rem 0 0;
+  margin: 0.55rem 0 1rem;
   min-height: 1.4em;
 }
 
@@ -282,6 +291,7 @@ h1 {
 .paper-wrap {
   position: relative;
   padding: 0 0.35rem 0.2rem;
+  overflow: hidden;
 }
 
 .paper {
@@ -556,6 +566,20 @@ input[type="checkbox"] {
 
   .meter {
     font-size: 0.88rem;
+  }
+}
+
+@media (max-height: 740px) {
+  h1 {
+    font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+  }
+
+  .title-row {
+    margin-bottom: 0.3rem;
+  }
+
+  .workspace {
+    padding-top: 0.4rem;
   }
 }
 
