@@ -20,7 +20,7 @@ import {
   phraseStartBeat,
 } from "./music.js";
 
-export const STORAGE_KEY = "duojazz-integration-prototype-v4";
+export const STORAGE_KEY = "duojazz-integration-prototype-v5";
 
 export const STEPS = [
   {
@@ -126,6 +126,7 @@ export function defaultState() {
     applicationId: DEFAULT_APPLICATION_ID,
     concertKeyId: DEFAULT_KEY_ID,
     displayMode: "concert",
+    clef: "bass",
     tempo: 96,
     swing: true,
     metronome: false,

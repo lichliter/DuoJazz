@@ -18,6 +18,8 @@ import {
   midiForInterval,
   phraseABC,
   modelABC,
+  DEFAULT_CLEF,
+  PHRASE_OCTAVE,
   modelSolo,
   scheduleChorus,
   swingRatio,
@@ -45,16 +47,17 @@ test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo e
   assert.match(PHRASE_SOURCE.notUsed, /iivi-cry-me-enclosure/);
 });
 
-test("concert G minor cell pitches are A4 G4 D4 Bb3 A3 G3", () => {
+test("concert G minor cell pitches are trombone-register A3 G3 D3 Bb2 A2 G2", () => {
+  assert.equal(PHRASE_OCTAVE, -2);
   const g = getKey("G");
   const notes = phraseNotes(g, "concert", "minor-home");
   assert.deepEqual(
     notes.map((n) => n.concertMidi),
-    [69, 67, 62, 58, 57, 55],
+    [57, 55, 50, 46, 45, 43],
   );
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["A4", "G4", "D4", "B♭3", "A3", "G3"],
+    ["A3", "G3", "D3", "B♭2", "A2", "G2"],
   );
   assert.deepEqual(
     notes.map((n) => n.degree),
@@ -67,11 +70,11 @@ test("altered-dominant cell is the E♭-minor shape a major third down, spelled 
   const notes = phraseNotes(g, "concert", "altered-dominant");
   assert.deepEqual(
     notes.map((n) => n.concertMidi),
-    [65, 63, 58, 54, 53, 51],
+    [53, 51, 46, 42, 41, 39],
   );
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["F4", "E♭4", "B♭3", "G♭3", "F3", "E♭3"],
+    ["F3", "E♭3", "B♭2", "G♭2", "F2", "E♭2"],
   );
   assert.deepEqual(
     notes.map((n) => n.degree),
@@ -104,9 +107,9 @@ test("B-flat written names are a major second above concert and audio MIDI stays
   const written = writtenKeyFromConcert(g);
   assert.equal(written.id, "A");
   const notes = phraseNotes(g, "bb-written", "minor-home");
-  assert.equal(notes[0].concertMidi, 69);
-  assert.equal(notes[0].shownMidi, 71);
-  assert.equal(notes[0].shownName, "B4");
+  assert.equal(notes[0].concertMidi, 57);
+  assert.equal(notes[0].shownMidi, 59);
+  assert.equal(notes[0].shownName, "B3");
   assert.equal(chordDisplayName(g, 5, "minor7", "concert"), "Cm7");
   assert.equal(chordDisplayName(g, 5, "minor7", "bb-written"), "Dm7");
   assert.equal(chordDisplayName(g, 7, "dominant7", "bb-written"), "E7");
@@ -118,19 +121,45 @@ test("transposing the excerpt tonic moves the cell with the form", () => {
   const notes = phraseNotes(c, "concert", "minor-home");
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["D4", "C4", "G3", "E♭3", "D3", "C3"],
+    ["D3", "C3", "G2", "E♭2", "D2", "C2"],
   );
-  assert.equal(midiForInterval(c.pc, 14), 62);
+  assert.equal(midiForInterval(c.pc, 14), 50);
   const chords = chorusChords(c, "concert");
   assert.equal(chords[0].name, "Fm7");
   assert.equal(chords[6].name, "Cm6");
 });
 
-test("phrase ABC for G minor includes the cell contour and a Gm6 label", () => {
+test("phrase ABC defaults to bass clef with beat-grouped eighth beams", () => {
+  assert.equal(DEFAULT_CLEF, "bass");
   const abc = phraseABC(getKey("G"), "concert", "minor-home");
-  assert.match(abc, /K:Gmin clef=treble/);
+  assert.match(abc, /K:Gmin clef=bass/);
   assert.match(abc, /"Gm6"/);
-  assert.match(abc, /AGD2_B,A,G,2/);
+  assert.match(abc, /A,G, D,2 _B,,A,, G,,2/);
+  const treble = phraseABC(getKey("G"), "concert", "minor-home", "treble");
+  assert.match(treble, /clef=treble/);
+  assert.match(treble, /A,G, D,2 _B,,A,, G,,2/);
+});
+
+test("clef selection does not change concert MIDI or B-flat written transposition", () => {
+  const g = getKey("G");
+  const concert = phraseNotes(g, "concert", "minor-home").map((n) => n.concertMidi);
+  const written = phraseNotes(g, "bb-written", "minor-home");
+  assert.deepEqual(written.map((n) => n.concertMidi), concert);
+  assert.equal(written[0].shownMidi, concert[0] + 2);
+  const bassEvents = scheduleChorus({
+    concertKey: g,
+    displayMode: "concert",
+    includeModel: true,
+    includeGuides: false,
+    includeClick: false,
+    variationId: "original",
+    stage: "learn",
+    applicationId: "minor-home",
+  });
+  assert.deepEqual(
+    bassEvents.filter((e) => e.type === "melody").map((e) => e.midi),
+    concert,
+  );
 });
 
 test("minor-home phrase starts at beat 24; altered-dominant at beat 20", () => {
@@ -163,7 +192,7 @@ test("altered-dominant resolution is not the G-minor cell pasted onto bar 7", ()
   const resolve = modelSolo("altered-dominant").filter((note) => note.role === "resolve");
   assert.deepEqual(
     resolve.slice(0, 6).map((note) => note.interval),
-    [-5, 0, 3, 2, 0, 3],
+    [7, 0, 3, 2, 0, 3],
   );
   assert.notDeepEqual(
     resolve.map((note) => note.interval).slice(0, 6),
@@ -202,7 +231,7 @@ test("scheduleChorus contextual demo plays the model; skip variation emits no me
   const phrase = melody.filter((e) => e.role === "phrase");
   assert.equal(phrase.length, 6);
   assert.equal(phrase[0].beat, 24);
-  assert.equal(phrase[0].midi, 69);
+  assert.equal(phrase[0].midi, 57);
   assert.equal(demo.find((e) => e.type === "end").beat, 32);
 });
 
@@ -219,7 +248,7 @@ test("learn / isolated cell starts the model immediately on the cell tonic", () 
   });
   const melody = events.filter((e) => e.type === "melody");
   assert.equal(melody[0].beat, 0);
-  assert.equal(melody[0].midi, 65);
+  assert.equal(melody[0].midi, 53);
   assert.equal(events.find((e) => e.type === "end").beat, 8);
   assert.equal(events.filter((e) => e.type === "guide").length, 0);
   assert.equal(events.find((e) => e.type === "chord").name, "E♭m6");

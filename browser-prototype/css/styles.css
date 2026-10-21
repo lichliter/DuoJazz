@@ -167,7 +167,7 @@ h1 {
   color: var(--paper-ink);
   border-radius: 14px;
   padding: 0.5rem 0.45rem 0.35rem;
-  min-height: 112px;
+  min-height: 200px;
   overflow-x: auto;
   margin-bottom: 0.7rem;
 }

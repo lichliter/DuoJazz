@@ -10,7 +10,7 @@ export const PHRASE_SOURCE = {
   shape: "9–1–5–♭3–2–1 from a minor tonic",
   rhythm: "eighth, eighth, quarter, eighth, eighth, quarter (one bar)",
   contour: "ninth above the tonic octave, down to 1, leap to 5, scale down ♭3–2–1",
-  reference: "Common jazz-vocabulary minor cell (C minor: D–C–G–Eb–D–C). Concert G minor sounds A4–G4–D4–Bb3–A3–G3.",
+  reference: "Common jazz-vocabulary minor cell (C minor: D–C–G–Eb–D–C). Concert G minor in trombone register sounds A3–G3–D3–Bb2–A2–G2.",
   notUsed: "DuoJazz BuiltInLicks.iiviCryMeEnclosure (id iivi-cry-me-enclosure) is a major ii–V–I double-enclosure (5–3–9–6–7…), not this cell",
 };
 
@@ -35,8 +35,12 @@ export const PHRASE_ELEMENTS = [
   { type: "note", interval: 0, beats: 1 },
 ];
 
-/** Drop one octave from MIDI 60+pc so G minor sounds A4–G4–D4–Bb3–A3–G3. */
-export const PHRASE_OCTAVE = -1;
+/**
+ * Two octaves below MIDI 60+pc so concert G minor sits in a trombone
+ * bass-clef register: A3–G3–D3–Bb2–A2–G2. Same offset for notation and model audio.
+ */
+export const PHRASE_OCTAVE = -2;
+export const DEFAULT_CLEF = "bass";
 
 export const PHRASE_BEATS = PHRASE_ELEMENTS.reduce((sum, el) => sum + el.beats, 0);
 export const CELL_BEATS = 8;
@@ -196,7 +200,7 @@ export const APPLICATIONS = [
       { beat: 19, interval: 5, beats: 1 },
     ],
     resolve: [
-      { beat: 24, interval: -5, beats: 1 },
+      { beat: 24, interval: 7, beats: 1 },
       { beat: 25, interval: 0, beats: 1 },
       { beat: 26, interval: 3, beats: 1 },
       { beat: 27, interval: 2, beats: 0.5 },
@@ -465,6 +469,16 @@ function abcChordName(concertTonic, intervalFromTonic, quality, displayMode) {
   return `${root}${QUALITY_ABC[quality]}`;
 }
 
+function atBeatBoundary(beat) {
+  return Math.abs(beat - Math.round(beat)) < 1e-6;
+}
+
+function afterNoteSpacing(beat) {
+  if (Math.abs(beat % 4) < 1e-6) return " | ";
+  if (atBeatBoundary(beat)) return " ";
+  return "";
+}
+
 function notesToAbc(notes, concertKey, displayMode) {
   const shownKey = displayKey(concertKey, displayMode);
   let abc = "";
@@ -474,32 +488,40 @@ function notesToAbc(notes, concertKey, displayMode) {
       const gap = Math.min(0.5, note.beat - beat);
       abc += `z${abcDuration(gap)}`;
       beat += gap;
-      if (Math.abs(beat % 4) < 1e-6) abc += " | ";
+      abc += afterNoteSpacing(beat);
     }
     const concertMidi = midiForInterval(concertKey.pc, note.interval);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     abc += abcNote(shownMidi, shownKey.usesFlats) + abcDuration(note.beats);
     beat += note.beats;
-    if (Math.abs(beat % 4) < 1e-6) abc += " | ";
+    abc += afterNoteSpacing(beat);
   }
   return abc;
 }
 
-export function phraseABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+export function abcClef(clef = DEFAULT_CLEF) {
+  return clef === "bass" ? "bass" : "treble";
+}
+
+function abcKeyLine(shownKey, clef = DEFAULT_CLEF) {
+  return `K:${shownKey.abc} clef=${abcClef(clef)}`;
+}
+
+export function phraseABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF) {
   const shownKey = displayKey(concertKey, displayMode);
   const app = applicationById(applicationId);
   const tonicName = abcChordName(concertKey, app.cellTonicInterval, "minor6", displayMode);
-  let abc = `X:1\nT:${PHRASE_NAME}\nM:4/4\nL:1/8\nK:${shownKey.abc} clef=treble\n"${tonicName}"`;
+  let abc = `X:1\nT:${PHRASE_NAME}\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n"${tonicName}"`;
   abc += notesToAbc(phraseEvents(applicationId).map((note) => ({ ...note, beat: note.beat - phraseStartBeat(applicationId) })), concertKey, displayMode);
   abc += "z8 |]\n";
   return abc;
 }
 
-export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF) {
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
   const notes = modelSolo(applicationId);
-  let abc = `X:1\nT:${applicationById(applicationId).label} · model chorus\nM:4/4\nL:1/8\nK:${shownKey.abc} clef=treble\n`;
+  let abc = `X:1\nT:${applicationById(applicationId).label} · model chorus\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n`;
   let beat = 0;
   let noteIndex = 0;
   for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
@@ -511,23 +533,25 @@ export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
       if (note.beat > beat + 1e-6) {
         abc += `z${abcDuration(note.beat - beat)}`;
         beat = note.beat;
+        if (atBeatBoundary(beat) && Math.abs(beat % 4) > 1e-6) abc += " ";
       }
       const concertMidi = midiForInterval(concertKey.pc, note.interval);
       const shownMidi = concertMidiToWritten(concertMidi, displayMode);
       abc += abcNote(shownMidi, shownKey.usesFlats) + abcDuration(note.beats);
       beat += note.beats;
+      if (atBeatBoundary(beat) && Math.abs(beat % 4) > 1e-6) abc += " ";
       noteIndex += 1;
     }
-    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : " | ";
+    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : bar % 4 === 3 ? " |\n" : " | ";
     beat = barEnd;
   }
   return abc;
 }
 
-export function chartABC(concertKey, displayMode) {
+export function chartABC(concertKey, displayMode, clef = DEFAULT_CLEF) {
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
-  let abc = `X:1\nT:${FORM_TITLE}\nM:4/4\nL:1/1\nK:${shownKey.abc} clef=treble\n`;
+  let abc = `X:1\nT:${FORM_TITLE}\nM:4/4\nL:1/1\n${abcKeyLine(shownKey, clef)}\n`;
   for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
     const chord = chords[bar];
     abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;

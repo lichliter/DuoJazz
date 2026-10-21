@@ -131,6 +131,15 @@ test("try live prompt changes at the door for each application", () => {
   assert.match(livePrompt("independent", { playing: true, bar: 7, beatInBar: 1 }), /Quote, vary, or skip/);
 });
 
+test("default notation view is concert bass clef, separate from B-flat transposition", () => {
+  const state = defaultState();
+  assert.equal(state.clef, "bass");
+  assert.equal(state.displayMode, "concert");
+  const config = audioConfigFor(state);
+  assert.equal(config.displayMode, "concert");
+  assert.equal(config.concertKey.id, "G");
+});
+
 test("lesson order is hear → try → independent → reflect", () => {
   assert.equal(adjacentStep("hear", 1), "try");
   assert.equal(adjacentStep("try", 1), "independent");
