@@ -78,6 +78,7 @@ function loadState() {
     const merged = saved ? { ...base, ...saved, assessments: { ...base.assessments, ...(saved.assessments ?? {}) } } : base;
     if (STEPS.some((step) => step.id === fromHash)) merged.step = fromHash;
     if (!APPLICATIONS.some((app) => app.id === merged.applicationId)) merged.applicationId = base.applicationId;
+    merged.clef = merged.clef === "treble" ? "treble" : "bass";
     return merged;
   } catch {
     if (STEPS.some((step) => step.id === fromHash)) base.step = fromHash;
@@ -189,17 +190,19 @@ function renderNotation() {
     return;
   }
   const abc = view.showModelNotation
-    ? modelABC(concertKey(), state.displayMode, state.applicationId)
-    : phraseABC(concertKey(), state.displayMode, state.applicationId);
+    ? modelABC(concertKey(), state.displayMode, state.applicationId, state.clef)
+    : phraseABC(concertKey(), state.displayMode, state.applicationId, state.clef);
   els.notation.replaceChildren();
   if (window.ABCJS) {
     window.ABCJS.renderAbc(els.notation, abc, {
-      responsive: "resize",
       add_classes: true,
-      paddingtop: 0,
-      paddingbottom: 0,
-      staffwidth: view.showModelNotation ? 820 : 760,
-      scale: view.showModelNotation ? 0.95 : 1.15,
+      paddingtop: 4,
+      paddingbottom: 8,
+      staffwidth: 760,
+      scale: view.showModelNotation ? 1.05 : 1.28,
+      wrap: view.showModelNotation
+        ? { minSpacing: 1.6, maxSpacing: 2.8, preferredMeasuresPerLine: 4, staffwidth: 760 }
+        : undefined,
     });
   } else {
     const pre = document.createElement("pre");
@@ -350,12 +353,16 @@ function renderCopy(snap = transport.snapshot()) {
   els.tempoReadout.textContent = String(state.tempo);
   const written = displayKey(concertKey(), state.displayMode);
   const concert = minorSpelling(concertKey());
+  const clefLabel = state.clef === "bass" ? "bass clef" : "treble clef";
   els.displayBanner.textContent =
     state.displayMode === "bb-written"
-      ? `Showing B♭ written names in ${written.name}. Audio is concert ${concert.name}.`
-      : `Showing concert pitch in ${concert.name}.`;
+      ? `${clefLabel}, B♭ written names in ${written.name}. Audio is concert ${concert.name}; clef does not transpose.`
+      : `Concert ${clefLabel} in ${concert.name}. Audio matches this octave; clef does not transpose.`;
   document.querySelectorAll("[name=displayMode]").forEach((input) => {
     input.checked = input.value === state.displayMode;
+  });
+  document.querySelectorAll("[name=clef]").forEach((input) => {
+    input.checked = input.value === state.clef;
   });
 }
 
@@ -481,6 +488,14 @@ document.querySelectorAll("[name=displayMode]").forEach((input) => {
     state.displayMode = input.value;
     persist();
     halt();
+    render();
+  });
+});
+
+document.querySelectorAll("[name=clef]").forEach((input) => {
+  input.addEventListener("change", () => {
+    state.clef = input.value === "treble" ? "treble" : "bass";
+    persist();
     render();
   });
 });
