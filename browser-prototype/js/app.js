@@ -11,6 +11,7 @@ import {
   phraseABC,
   applicationContext,
   supportBlurb,
+  jazzChordRootParts,
 } from "./music.js";
 import { Transport } from "./audio.js";
 import {
@@ -30,12 +31,16 @@ import {
   assessmentKey,
   chartCopy,
   afterRoundActions,
+  notationLayout,
+  nextEngravingWidth,
+  nextStaffsep,
 } from "./lesson.js";
 
 const transport = new Transport();
 const state = loadState();
 const playback = { playing: false, paused: false, ended: false };
 let lastTune = null;
+let lastNotationLayout = null;
 
 const els = {
   heading: document.getElementById("heading"),
@@ -371,11 +376,118 @@ function hideNoteGlyphs(el, keepContainer) {
   el.setAttribute("opacity", "0");
 }
 
+function svgCssToUser(svg, cssPx) {
+  const ctm = svg?.getScreenCTM?.();
+  const k = ctm && Math.abs(ctm.d) > 0.05 ? Math.abs(ctm.d) : 1;
+  return cssPx / k;
+}
+
 function restyleAnnotations() {
+  const svg = els.notation.querySelector("svg");
+  const annUser = svgCssToUser(svg, lastNotationLayout?.annotationPx ?? 15);
+  const chordUser = svgCssToUser(svg, lastNotationLayout?.fitToPaper ? 20 : 15);
   for (const el of els.notation.querySelectorAll(".abcjs-annotation")) {
-    el.style.fontSize = "15px";
+    el.style.fontSize = `${annUser}px`;
     el.style.fontWeight = "700";
     el.style.opacity = "1";
+    el.style.fontFamily = '"Source Sans 3", sans-serif';
+  }
+  for (const el of els.notation.querySelectorAll(".abcjs-chord")) {
+    el.style.fontSize = `${chordUser}px`;
+    el.style.fontWeight = "700";
+    el.style.fontFamily = '"Noto Sans", "Source Sans 3", sans-serif';
+  }
+  tightenChordSymbols();
+  clearCueCollisions();
+}
+
+function nodeBox(node) {
+  if (!node) return null;
+  if (node.nodeType === Node.ELEMENT_NODE) return node.getBoundingClientRect();
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return range.getBoundingClientRect();
+}
+
+function shiftDx(el, deltaEm) {
+  const current = Number.parseFloat(el.getAttribute("dx") || "0");
+  el.setAttribute("dx", `${current + deltaEm}em`);
+}
+
+function closeGap(rightEl, leftNode, fontPx, maxGap = 0.5) {
+  if (!rightEl || !leftNode || !fontPx) return;
+  for (let i = 0; i < 10; i += 1) {
+    const leftBox = nodeBox(leftNode);
+    const rightBox = rightEl.getBoundingClientRect();
+    if (!leftBox || !rightBox.width) break;
+    const gap = rightBox.left - leftBox.right;
+    if (gap <= maxGap) break;
+    shiftDx(rightEl, -gap / fontPx);
+  }
+}
+
+function tightenChordSymbols() {
+  const svgNS = "http://www.w3.org/2000/svg";
+  for (const chord of els.notation.querySelectorAll(".abcjs-chord")) {
+    const lines = [...chord.children].filter((el) => el.tagName?.toLowerCase() === "tspan");
+    for (const line of lines) {
+      const qualities = [...line.children].filter((el) => (
+        el.tagName?.toLowerCase() === "tspan"
+        && !el.classList.contains("abcjs-chord-root")
+        && !el.classList.contains("abcjs-chord-accidental")
+      ));
+      let root = line.querySelector(".abcjs-chord-root");
+      const textNode = [...line.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (!root && textNode) {
+        let raw = textNode.textContent.trim();
+        for (const quality of qualities) {
+          const stolen = (quality.textContent ?? "").match(/^([♭♯b#])(.*)$/u);
+          if (stolen) {
+            raw += stolen[1] === "b" ? "♭" : stolen[1] === "#" ? "♯" : stolen[1];
+            quality.textContent = stolen[2];
+          }
+        }
+        const parts = jazzChordRootParts(raw);
+        root = document.createElementNS(svgNS, "tspan");
+        root.classList.add("abcjs-chord-root");
+        root.textContent = parts ? `${parts.letter}${parts.accidental}` : raw;
+        root.style.letterSpacing = parts ? "-0.12em" : "0";
+        textNode.replaceWith(root);
+      }
+      for (const quality of qualities) {
+        quality.setAttribute("dx", "0.02em");
+      }
+      const quality = qualities.find((el) => el.isConnected);
+      const fontPx = Number.parseFloat(window.getComputedStyle(chord).fontSize) || 16;
+      if (quality) closeGap(quality, root ?? textNode, fontPx, 0.2);
+    }
+  }
+}
+
+function boxesOverlap(a, b, pad = 0) {
+  return a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad;
+}
+
+function clearCueCollisions() {
+  const notes = [...els.notation.querySelectorAll(".abcjs-notehead, .abcjs-stem, .abcjs-beam, .abcjs-flag")];
+  const blockers = [...els.notation.querySelectorAll(".abcjs-chord, .abcjs-staff")];
+  for (const cue of els.notation.querySelectorAll(".abcjs-annotation")) {
+    cue.style.transform = "";
+    let shift = 0;
+    for (let i = 0; i < 16; i += 1) {
+      const cueBox = cue.getBoundingClientRect();
+      const hitsNote = notes.some((node) => boxesOverlap(cueBox, node.getBoundingClientRect(), 5));
+      if (!hitsNote) break;
+      const next = shift + 6;
+      cue.style.transform = `translateY(${next}px)`;
+      const moved = cue.getBoundingClientRect();
+      const hitsNextSystem = blockers.some((node) => boxesOverlap(moved, node.getBoundingClientRect(), 3));
+      if (hitsNextSystem) {
+        cue.style.transform = shift ? `translateY(${shift}px)` : "";
+        break;
+      }
+      shift = next;
+    }
   }
 }
 
@@ -395,7 +507,7 @@ function applyRhythmSlashes() {
     slash.setAttribute("x2", String(box.x + box.width + 5));
     slash.setAttribute("y2", String(box.y - 3));
     slash.setAttribute("stroke", "#2b211a");
-    slash.setAttribute("stroke-width", "1.85");
+    slash.setAttribute("stroke-width", String(lastNotationLayout?.slashStroke ?? 1.85));
     slash.setAttribute("stroke-linecap", "round");
     slash.setAttribute("opacity", "1");
     note.append(slash);
@@ -404,10 +516,7 @@ function applyRhythmSlashes() {
     el.style.opacity = "1";
     el.removeAttribute("opacity");
   }
-  for (const el of els.notation.querySelectorAll(".abcjs-annotation")) {
-    el.style.fontSize = "15px";
-    el.style.fontWeight = "700";
-  }
+  restyleAnnotations();
 }
 
 function ensurePlayhead(svg) {
@@ -442,7 +551,7 @@ function updatePlayhead(snap = transport.snapshot()) {
     return;
   }
   const view = presentation(state);
-  const barsOnStaff = view.audioStage === "learn" ? 2 : 4;
+  const barsOnStaff = view.audioStage === "learn" ? 2 : (lastNotationLayout?.barsPerLine ?? 4);
   const barIndex = Math.max(0, (snap.bar ?? 1) - 1);
   const system = Math.min(staffs.length - 1, Math.floor(barIndex / barsOnStaff));
   const barInSystem = barIndex % barsOnStaff;
@@ -463,6 +572,74 @@ function updatePlayhead(snap = transport.snapshot()) {
   line.setAttribute("opacity", "1");
 }
 
+function abcRenderOptions(layout, staffwidth, scale) {
+  const width = Math.max(280, staffwidth);
+  const format = {
+    chordfont: layout.chordfont,
+    annotationfont: layout.annotationfont,
+  };
+  if (layout.staffsep) format.staffsep = layout.staffsep;
+  return {
+    add_classes: true,
+    paddingtop: layout.paddingtop,
+    paddingbottom: layout.paddingbottom,
+    staffwidth: width,
+    scale,
+    responsive: "resize",
+    stretchlast: false,
+    jazzchords: true,
+    format,
+    wrap: layout.wrap ? { ...layout.wrap, staffwidth: width } : undefined,
+  };
+}
+
+function paperTargetHeight() {
+  const wrap = els.notation.parentElement;
+  if (!wrap) return 0;
+  return Math.floor(wrap.clientHeight);
+}
+
+function abcWithStaffsep(abc, staffsep) {
+  if (!staffsep || abc.includes("%%staffsep")) return abc;
+  return abc.replace(/^X:1\n/, `X:1\n%%staffsep ${staffsep}\n`);
+}
+
+function renderFittedAbc(abc, layout, width) {
+  let scale = layout.scale;
+  const fullWidth = Math.max(280, width - 24);
+  const minWidth = Math.max(400, Math.round(fullWidth * (layout.minEngravingRatio ?? 0.4)));
+  let staffwidth = Math.round(fullWidth * (layout.engravingRatio ?? 1));
+  staffwidth = Math.min(fullWidth, Math.max(minWidth, staffwidth));
+  let staffsep = layout.staffsep;
+  let rendered = null;
+  const fill = layout.fillRatio ?? 0.92;
+  const target = layout.fitToPaper ? Math.floor(paperTargetHeight() * fill) : 0;
+  for (let i = 0; i < 8; i += 1) {
+    els.notation.replaceChildren();
+    rendered = window.ABCJS.renderAbc(
+      els.notation,
+      abcWithStaffsep(abc, layout.fillAxis === "staffsep" ? staffsep : 0),
+      abcRenderOptions({ ...layout, staffsep }, staffwidth, scale),
+    )[0];
+    const svg = els.notation.querySelector("svg");
+    const height = svg ? svg.getBoundingClientRect().height : 0;
+    if (!layout.fitToPaper || !target) break;
+    if (layout.fillAxis === "staffsep") {
+      const nextSep = nextStaffsep(staffsep, height, target);
+      if (nextSep === staffsep) break;
+      staffsep = nextSep;
+    } else if (layout.fillAxis === "width") {
+      const nextWidth = nextEngravingWidth(staffwidth, height, target, width, minWidth);
+      if (nextWidth === staffwidth) break;
+      staffwidth = nextWidth;
+    } else {
+      break;
+    }
+  }
+  lastNotationLayout = { ...layout, scale, staffwidth, staffsep };
+  return rendered;
+}
+
 function renderNotation() {
   const view = presentation(state);
   const copy = chartCopy(state);
@@ -477,6 +654,15 @@ function renderNotation() {
     lastTune = null;
     return;
   }
+  const width = staffWidth();
+  const layout = notationLayout({
+    staffWidth: width,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    showPhraseNotation: view.showPhraseNotation,
+    showEntranceCues: view.showEntranceCues,
+  });
+  lastNotationLayout = layout;
   const abc = view.showModelNotation
     ? chorusStaffABC({
       concertKey: concertKey(),
@@ -486,6 +672,7 @@ function renderNotation() {
       melodyRegister: state.melodyRegister,
       mode: "model",
       showCues: view.showEntranceCues,
+      barsPerLine: layout.barsPerLine,
     })
     : view.showSlashNotation
       ? chorusStaffABC({
@@ -495,27 +682,12 @@ function renderNotation() {
         clef: state.clef,
         mode: "slash",
         showCues: view.showEntranceCues,
+        barsPerLine: layout.barsPerLine,
       })
       : phraseABC(concertKey(), state.displayMode, state.applicationId, state.clef, state.melodyRegister);
   els.notation.replaceChildren();
   if (window.ABCJS) {
-    const width = staffWidth();
-    const narrow = width < 520;
-    lastTune = window.ABCJS.renderAbc(els.notation, abc, {
-      add_classes: true,
-      paddingtop: view.showPhraseNotation ? 8 : 28,
-      paddingbottom: view.showEntranceCues ? 32 : 12,
-      staffwidth: width - 24,
-      scale: view.showPhraseNotation ? (narrow ? 1.18 : 1.35) : (narrow ? 0.94 : 1.08),
-      jazzchords: true,
-      format: {
-        chordfont: "Source Sans 3 15",
-        annotationfont: "Source Sans 3 13",
-      },
-      wrap: view.showPhraseNotation
-        ? undefined
-        : { minSpacing: 1.45, maxSpacing: 2.6, preferredMeasuresPerLine: 4, staffwidth: width - 24 },
-    })[0];
+    lastTune = renderFittedAbc(abc, layout, width);
     if (view.showSlashNotation) applyRhythmSlashes();
     restyleAnnotations();
     updatePlayhead();
