@@ -1,7 +1,7 @@
 /**
- * Guided lesson flow for the DuoJazz integration prototype.
- * Default path: hear the cell in an eight-bar model solo, try it with a cue,
- * then play without answers. Isolated cell practice is optional.
+ * Non-linear lesson-1 practice map for the DuoJazz browser prototype.
+ * Goals are learner outcomes, not a gated sequence. Listen / Play with help /
+ * Play freely are support levels inside integration, independent of application.
  */
 
 import {
@@ -14,117 +14,87 @@ import {
   DEFAULT_KEY_ID,
   DEFAULT_MELODY_REGISTER,
   applicationById,
-  normalizeMelodyRegister,
+  applicationContext,
   chorusChords,
   chordAtBeat,
   getKey,
   learnChords,
+  normalizeMelodyRegister,
   phraseStartBeat,
+  supportBlurb,
 } from "./music.js";
 
-export const STORAGE_KEY = "duojazz-integration-prototype-v5";
+export const STORAGE_KEY = "duojazz-integration-prototype-v6";
 
-export const STEPS = [
+export const GOALS = [
   {
-    id: "hear",
-    label: "Hear",
-    heading: "Hear it in context",
-    startLabel: "Hear the chorus",
-    nextLabel: "Try it with help",
-    instruction: "Listen to a simple original solo over the real eight bars. The Cry Me a River cell is highlighted when it arrives. Don’t play yet.",
+    id: "learn",
+    label: "Learn",
+    kicker: "Lesson 01 / Cry Me a River",
+    heading: "The phrase in this key.",
+    question: "What does this phrase sound and feel like here?",
   },
   {
-    id: "try",
-    label: "Try",
-    heading: "Try it with help",
-    startLabel: "Count off the chorus",
-    nextLabel: "Make it yours",
-    instruction: "Same backing, no model solo. Improvise, take the door when it comes, then keep going. The app is not listening.",
+    id: "integrate",
+    label: "Use in a solo",
+    kicker: "Lesson 01 / Cry Me a River",
+    heading: "One phrase. Two ways in.",
+    question: "Where and how can I use it without sounding pasted in?",
   },
   {
-    id: "independent",
-    label: "Yours",
-    heading: "Make it yours",
-    startLabel: "Play a chorus",
-    nextLabel: "Short check-in",
-    instruction: "Same eight bars. No written phrase, no entrance labels, no model line unless you ask.",
+    id: "keys",
+    label: "Explore keys",
+    kicker: "Lesson 01 / Cry Me a River",
+    heading: "Same idea, another door.",
+    question: "Can I hear and find this same idea elsewhere?",
   },
   {
-    id: "reflect",
-    label: "Check-in",
-    heading: "After playing",
-    startLabel: "",
-    nextLabel: "",
-    instruction: "Optional. You mark this. Listening or finishing a chorus is not demonstrated mastery. Marks for one way to use the lick do not prove the other.",
+    id: "check",
+    label: "Check yourself",
+    kicker: "Lesson 01 / Cry Me a River",
+    heading: "Your check, not the app’s.",
+    question: "Can I retrieve or use it without seeing the answer?",
   },
 ];
+
+export const SUPPORTS = [
+  { id: "listen", label: "Listen", playLabel: "Hear the eight bars" },
+  { id: "help", label: "Play with help", playLabel: "Count me in" },
+  { id: "free", label: "Play freely", playLabel: "Play a chorus" },
+];
+
+export const CHECK_KINDS = [
+  { id: "recall", label: "Recall the cell" },
+  { id: "application", label: "Use it in the form" },
+];
+
+const LEGACY_STEPS = {
+  hear: { goal: "integrate", support: "listen" },
+  try: { goal: "integrate", support: "help" },
+  independent: { goal: "integrate", support: "free" },
+  reflect: { goal: "check", support: "free" },
+};
 
 function emptyAssessment() {
   return { foundEntrance: "", keptPlaying: "", quoteChoice: "", recall: "" };
 }
 
-export function normalizeState(stateOrStep) {
-  if (typeof stateOrStep === "string") {
-    return { ...defaultState(), step: stateOrStep };
-  }
-  return { ...defaultState(), ...stateOrStep };
+export function goalById(id) {
+  return GOALS.find((goal) => goal.id === id) ?? GOALS[1];
 }
 
-export function stepIndex(id) {
-  return STEPS.findIndex((step) => step.id === id);
-}
-
-export function getStep(id) {
-  return STEPS.find((step) => step.id === id) ?? STEPS[0];
-}
-
-export function adjacentStep(id, delta) {
-  const index = stepIndex(id);
-  const next = STEPS[index + delta];
-  return next ? next.id : id;
-}
-
-export function presentation(stateOrStep) {
-  const state = normalizeState(stateOrStep);
-  const stepId = state.step;
-  const app = applicationById(state.applicationId);
-  const cellLens = stepId === "hear" && state.lens === "cell";
-  const hear = stepId === "hear";
-  const trying = stepId === "try";
-  const independent = stepId === "independent";
-  const reflect = stepId === "reflect";
-  return {
-    stepId,
-    applicationId: app.id,
-    application: app,
-    lens: cellLens ? "cell" : "context",
-    showPhraseNotation: cellLens || trying,
-    showModelNotation: hear && !cellLens,
-    showFormChart: !cellLens && !reflect,
-    chartStartBar: 1,
-    chartBarCount: BARS_PER_CHORUS,
-    showEntranceLabels: trying,
-    showTargetStyling: trying,
-    highlightPhraseLive: hear || trying,
-    showAssessment: reflect,
-    includeModel: (hear && !cellLens) || (cellLens && state.cellMode !== "echo"),
-    includeCue: trying,
-    includeGuides: trying,
-    audioStage: cellLens ? "learn" : "place",
-    lengthBeats: cellLens ? CELL_BEATS : CHORUS_BEATS,
-    modelScope: hear && !cellLens ? "solo" : "phrase",
-    looping: trying || independent,
-    showMusic: !reflect,
-    allowIndependentCoach: independent,
-    allowCellLens: hear,
-  };
+export function supportById(id) {
+  return SUPPORTS.find((item) => item.id === id) ?? SUPPORTS[0];
 }
 
 export function defaultState() {
   return {
-    step: "hear",
+    goal: "integrate",
+    support: "listen",
     lens: "context",
     cellMode: "hear",
+    checkKind: "recall",
+    revealed: false,
     applicationId: DEFAULT_APPLICATION_ID,
     concertKeyId: DEFAULT_KEY_ID,
     displayMode: "concert",
@@ -134,31 +104,119 @@ export function defaultState() {
     swing: true,
     metronome: false,
     guideTones: true,
-    independentCoach: false,
     triedKeys: [DEFAULT_KEY_ID],
-    assessments: Object.fromEntries(APPLICATIONS.map((app) => [app.id, emptyAssessment()])),
+    assessments: {},
   };
 }
 
-export function audioConfigFor(stateOrStep) {
-  const state = normalizeState(stateOrStep);
+export function normalizeState(stateOrGoal) {
+  if (typeof stateOrGoal === "string") {
+    const legacy = LEGACY_STEPS[stateOrGoal];
+    if (legacy) return { ...defaultState(), ...legacy };
+    return { ...defaultState(), goal: stateOrGoal };
+  }
+  const merged = { ...defaultState(), ...stateOrGoal };
+  if (LEGACY_STEPS[merged.step]) {
+    Object.assign(merged, LEGACY_STEPS[merged.step]);
+  }
+  merged.goal = GOALS.some((goal) => goal.id === merged.goal) ? merged.goal : "integrate";
+  merged.support = SUPPORTS.some((item) => item.id === merged.support) ? merged.support : "listen";
+  merged.checkKind = merged.checkKind === "application" ? "application" : "recall";
+  merged.lens = merged.lens === "cell" ? "cell" : "context";
+  merged.cellMode = merged.cellMode === "echo" ? "echo" : "hear";
+  merged.melodyRegister = normalizeMelodyRegister(merged.melodyRegister);
+  merged.revealed = Boolean(merged.revealed);
+  merged.assessments = merged.assessments ?? {};
+  return merged;
+}
+
+export function assessmentKey(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
+  const kind = state.goal === "check" ? state.checkKind : "application";
+  return `${state.applicationId}:${state.concertKeyId}:${kind}`;
+}
+
+export function currentAssessment(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
+  return state.assessments[assessmentKey(state)] ?? emptyAssessment();
+}
+
+export function presentation(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
+  const goal = goalById(state.goal);
+  const support = supportById(state.support);
+  const integrate = state.goal === "integrate";
+  const check = state.goal === "check";
+  const listen = integrate && support.id === "listen";
+  const help = integrate && support.id === "help";
+  const free = integrate && support.id === "free";
+  const checkRecall = check && state.checkKind === "recall";
+  const checkApply = check && state.checkKind === "application";
+  const showAnswer = check && state.revealed;
+  const isolated = state.goal === "learn" || state.goal === "keys" || checkRecall;
+  const hearCell = isolated && state.cellMode !== "echo" && (!check || showAnswer);
+
+  return {
+    goalId: goal.id,
+    goal,
+    supportId: support.id,
+    support,
+    applicationId: state.applicationId,
+    application: applicationById(state.applicationId),
+    lens: isolated ? "cell" : "context",
+    cellMode: state.cellMode,
+    checkKind: state.checkKind,
+    revealed: state.revealed,
+    showApplications: true,
+    showSupportModes: integrate,
+    showKeyPicker: state.goal === "keys" || check,
+    showCheckSetup: check,
+    showPhraseNotation: Boolean(
+      state.goal === "learn"
+      || state.goal === "keys"
+      || (checkRecall && showAnswer),
+    ),
+    showModelNotation: Boolean(listen),
+    showSlashNotation: Boolean(help || free || checkApply),
+    showEntranceCues: Boolean(listen || help || (checkApply && showAnswer)),
+    showTargetStyling: Boolean(help),
+    highlightPhraseLive: Boolean(listen || help),
+    includeModel: Boolean(listen || hearCell),
+    includeCue: Boolean(help),
+    includeGuides: Boolean(help),
+    audioStage: isolated ? "learn" : "place",
+    lengthBeats: isolated ? CELL_BEATS : CHORUS_BEATS,
+    modelScope: listen ? "solo" : "phrase",
+    looping: typeof state.looping === "boolean" ? state.looping : Boolean(help || free),
+    showMusic: true,
+    allowCellLens: integrate,
+    showOctave: true,
+    showAfterRound: !check,
+    hideAnswers: check && !showAnswer,
+    chartStartBar: 1,
+    chartBarCount: BARS_PER_CHORUS,
+  };
+}
+
+export function audioConfigFor(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
   const view = presentation(state);
-  const coach = view.allowIndependentCoach && state.independentCoach;
+  const includeModel = view.includeModel;
   return {
     concertKey: getKey(state.concertKeyId),
     displayMode: state.displayMode,
-    includeModel: view.includeModel || coach,
+    includeModel,
     includeGuides: view.includeGuides && state.guideTones,
     includeClick: state.metronome,
     includeCue: view.includeCue,
-    variationId: view.includeModel || coach ? "original" : "skip",
+    variationId: includeModel ? "original" : "skip",
     stage: view.audioStage,
     tempo: state.tempo,
     swing: state.swing,
     looping: view.looping,
     lengthBeats: view.lengthBeats,
     applicationId: view.applicationId,
-    modelScope: coach ? "phrase" : view.modelScope,
+    modelScope: view.modelScope,
     cueGain: view.includeCue ? 1 : 0,
     melodyRegister: normalizeMelodyRegister(state.melodyRegister),
   };
@@ -189,72 +247,124 @@ export function formBars(concertKey, displayMode, applicationId = DEFAULT_APPLIC
 export function barCaption(bar, showEntranceLabels, applicationId = DEFAULT_APPLICATION_ID) {
   if (!showEntranceLabels) return "";
   const app = applicationById(applicationId);
-  if (bar === app.phraseStartBar) return "Enter";
-  if (bar === app.phraseStartBar - 1) return "Ready";
-  if (bar === app.phraseStartBar + 1) return app.id === "altered-dominant" ? "Resolve" : "Keep going";
-  if (bar === app.phraseStartBar + 2) return "Keep going";
+  if (bar === app.phraseStartBar) return "HERE";
+  if (bar === app.phraseStartBar - 1) return "Get ready";
   return "";
 }
 
-export function livePrompt(stateOrStep, snap) {
-  const state = normalizeState(stateOrStep);
-  const step = getStep(state.step);
-  const app = applicationById(state.applicationId);
+export function chartCopy(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
   const view = presentation(state);
-  if (!snap.playing && !snap.paused) {
-    if (view.lens === "cell") {
-      return state.cellMode === "echo"
-        ? "Your turn on the cell. The synth is only a pad."
-        : "Just the cell, out of the form. Hearing it alone is optional.";
-    }
-    return step.instruction;
+  const ctx = applicationContext(getKey(state.concertKeyId), state.displayMode, state.applicationId);
+  const clef = state.clef === "bass" ? "bass clef" : "treble clef";
+  if (state.goal === "check" && state.checkKind === "recall") {
+    return {
+      title: state.revealed ? "Answer · the cell" : "Recall the cell",
+      meta: state.revealed ? ctx.cellName : "Hidden until you reveal",
+    };
   }
+  if (state.goal === "check") {
+    return {
+      title: state.revealed ? "Answer · the form" : "Use it in the form",
+      meta: `${ctx.tuneName} · 8 bars`,
+    };
+  }
+  if (state.goal === "keys") {
+    return { title: "Same cell · this key", meta: `${ctx.cellName} · ${clef}` };
+  }
+  if (state.goal === "learn") {
+    return {
+      title: state.cellMode === "echo" ? "Your turn on the cell" : "Cry Me a River cell",
+      meta: `${ctx.cellName} · ${clef}`,
+    };
+  }
+  if (view.supportId === "help") {
+    return { title: "Your turn over the changes", meta: `Autumn Leaves · ${ctx.tuneName} · 8 bars` };
+  }
+  if (view.supportId === "free") {
+    return { title: "Your chorus", meta: `Autumn Leaves · ${ctx.tuneName} · 8 bars` };
+  }
+  return { title: "Hear it in the changes", meta: `Autumn Leaves · ${ctx.tuneName} · 8 bars` };
+}
+
+export function instructionCopy(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
+  const view = presentation(state);
+  const ctx = applicationContext(getKey(state.concertKeyId), state.displayMode, state.applicationId);
+  if (state.goal === "learn") {
+    return state.cellMode === "echo"
+      ? "Your turn. The synth is only a pad."
+      : `Hear the cell in ${ctx.cellName}. Repeat, echo, or change octave.`;
+  }
+  if (state.goal === "keys") return ctx.keysBlurb;
+  if (state.goal === "check") {
+    return state.checkKind === "recall" ? ctx.checkRecallBlurb : ctx.checkApplyBlurb;
+  }
+  if (view.supportId === "free") return "No required order. Stay a while.";
+  if (view.supportId === "listen" || view.supportId === "help") {
+    return `Follow the cue on the staff. Get ready in bar ${ctx.readyBar}. Bring the phrase in bar ${ctx.enterBar}.`;
+  }
+  return ctx.listenBlurb;
+}
+
+export function livePrompt(stateOrGoal, snap = {}) {
+  const state = normalizeState(stateOrGoal);
+  const view = presentation(state);
+  const ctx = applicationContext(getKey(state.concertKeyId), state.displayMode, state.applicationId);
+  const idle = instructionCopy(state);
+  if (!snap.playing && !snap.paused) return idle;
   if (snap.inCountIn || (typeof snap.beats === "number" && snap.beats < 0)) {
-    const remaining = Math.max(1, Math.ceil(-snap.beats));
-    return `Count-in · ${remaining}`;
+    return `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
   }
-  if (view.lens === "cell") {
+  if (view.audioStage === "learn") {
     return state.cellMode === "echo" ? "Play the cell." : "Listen to the cell.";
   }
-  if (state.step === "hear") {
-    if (snap.bar === app.phraseStartBar) return `There it is — ${app.phraseFunctionLabel}.`;
-    if (snap.bar < app.phraseStartBar) return "Lead-in. The cell is coming.";
-    return app.id === "altered-dominant" ? "Resolution into the minor tonic." : "Continuation. Still your chorus later.";
+  if (view.supportId === "free" || (state.goal === "check" && !state.revealed)) {
+    return "Your chorus. Quote, vary, or skip.";
   }
-  if (state.step === "try") {
+  const app = applicationById(state.applicationId);
+  if (view.supportId === "listen" || view.showModelNotation) {
+    if (snap.bar === app.phraseStartBar) return `There it is — ${ctx.phraseFunctionLabel}.`;
+    if (snap.bar < app.phraseStartBar) return "Lead-in. The cell is coming.";
+    return app.id === "altered-dominant" ? ctx.resolvePrompt : "Continuation. Still your chorus later.";
+  }
+  if (view.supportId === "help") {
     const bar = snap.bar;
     const beat = snap.beatInBar;
     if (bar < app.phraseStartBar) {
       return bar === app.phraseStartBar - 1 && beat >= 4
         ? "Ready — phrase on the next downbeat."
-        : `Improvise. Entrance is bar ${app.phraseStartBar}.`;
+        : "Improvise. Watch the staff for the door.";
     }
     if (bar === app.phraseStartBar) return "Play the phrase.";
-    return app.id === "altered-dominant" ? "Resolve into G minor. Keep going." : "Keep going. Your own line.";
+    return app.id === "altered-dominant" ? ctx.resolvePrompt : "Keep going. Your own line.";
   }
-  if (state.step === "independent") return "Your chorus. Quote, vary, or skip.";
-  return step.instruction;
+  return idle;
 }
 
-export function primaryAction(stateOrStep, playback) {
-  const state = normalizeState(stateOrStep);
-  const step = getStep(state.step);
+export function leaksTargetBar(text) {
+  return /\bbar\s+\d+/i.test(text ?? "");
+}
+
+export function primaryAction(stateOrGoal, playback = {}) {
+  const state = normalizeState(stateOrGoal);
   const view = presentation(state);
-  if (state.step === "reflect") return null;
   if (playback.playing) return { id: "pause", label: "Pause" };
   if (playback.paused) return { id: "resume", label: "Resume" };
-  if (playback.ended) return { id: "next", label: step.nextLabel };
-  if (view.lens === "cell") {
+  if (view.audioStage === "learn") {
     return {
       id: "start",
-      label: state.cellMode === "echo" ? "Give me two bars" : "Hear the cell",
+      label: state.cellMode === "echo" ? "Count me in" : "Hear the cell",
     };
   }
-  return { id: "start", label: step.startLabel };
+  if (state.goal === "check") {
+    return { id: "start", label: "Count me in" };
+  }
+  return { id: "start", label: view.support.playLabel };
 }
 
-export function currentChord(concertKey, displayMode, stateOrStep, beats) {
-  const state = normalizeState(stateOrStep);
+export function currentChord(concertKey, displayMode, stateOrGoal, beats) {
+  const state = normalizeState(stateOrGoal);
   const view = presentation(state);
   const chords = view.audioStage === "learn"
     ? learnChords(concertKey, displayMode, view.applicationId)
@@ -263,9 +373,16 @@ export function currentChord(concertKey, displayMode, stateOrStep, beats) {
   return chordAtBeat(chords, beat) ?? chords[0];
 }
 
-export function currentAssessment(state) {
-  const normalized = normalizeState(state);
-  return normalized.assessments[normalized.applicationId] ?? emptyAssessment();
+export function afterRoundActions(stateOrGoal) {
+  const state = normalizeState(stateOrGoal);
+  const view = presentation(state);
+  const actions = [{ id: "repeat", label: "Repeat" }];
+  if (state.goal !== "learn") actions.push({ id: "learn", label: "Work on the phrase" });
+  actions.push({ id: "keys", label: "Change key" });
+  if (view.supportId === "help") actions.push({ id: "free", label: "Remove help" });
+  else if (view.supportId === "free") actions.push({ id: "help", label: "Add help" });
+  else if (view.supportId === "listen") actions.push({ id: "help", label: "Try it with help" });
+  return actions;
 }
 
-export { CELL_BEATS, CHORUS_BEATS, phraseStartBeat, APPLICATIONS };
+export { CELL_BEATS, CHORUS_BEATS, phraseStartBeat, APPLICATIONS, LEGACY_STEPS };

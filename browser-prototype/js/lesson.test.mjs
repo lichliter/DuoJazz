@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getKey, scheduleChorus } from "./music.js";
+import { getKey, scheduleChorus, applicationContext } from "./music.js";
 import {
   presentation,
   audioConfigFor,
@@ -8,40 +8,50 @@ import {
   barCaption,
   livePrompt,
   primaryAction,
-  formBars,
-  adjacentStep,
+  instructionCopy,
+  leaksTargetBar,
   currentAssessment,
+  assessmentKey,
+  afterRoundActions,
+  GOALS,
 } from "./lesson.js";
-import { DEFAULT_MELODY_REGISTER } from "./music.js";
 
-test("independent practice removes entrance labels, target styling, notation, cues, and default model", () => {
-  const view = presentation("independent");
-  assert.equal(view.showPhraseNotation, false);
+const helpState = { ...defaultState(), support: "help" };
+const freeState = { ...defaultState(), support: "free" };
+const learnState = { ...defaultState(), goal: "learn" };
+
+test("play freely removes model, prescribed cues, and target-bar copy", () => {
+  const view = presentation(freeState);
   assert.equal(view.showModelNotation, false);
-  assert.equal(view.showEntranceLabels, false);
-  assert.equal(view.showTargetStyling, false);
+  assert.equal(view.showSlashNotation, true);
+  assert.equal(view.showEntranceCues, false);
   assert.equal(view.includeModel, false);
   assert.equal(view.includeCue, false);
   assert.equal(view.includeGuides, false);
-  assert.equal(view.showFormChart, true);
-  assert.equal(barCaption(7, view.showEntranceLabels, "minor-home"), "");
-  const state = { ...defaultState(), step: "independent" };
-  const config = audioConfigFor(state);
+  assert.equal(barCaption(7, view.showEntranceCues, "minor-home"), "");
+  const config = audioConfigFor(freeState);
   assert.equal(config.includeModel, false);
   assert.equal(config.includeCue, false);
-  assert.equal(config.cueGain, 0);
   assert.equal(config.variationId, "skip");
   const events = scheduleChorus(config);
   assert.equal(events.filter((event) => event.type === "melody").length, 0);
   assert.equal(events.filter((event) => event.type === "cue").length, 0);
   assert.equal(events.find((event) => event.type === "end").beat, 32);
+  const copy = instructionCopy(freeState);
+  assert.equal(leaksTargetBar(copy), false);
+  assert.equal(leaksTargetBar(livePrompt(freeState, { playing: true, bar: 7, beatInBar: 1 })), false);
+  const fMinor = applicationContext(getKey("F"), "concert", "minor-home").freeBlurb;
+  assert.match(fMinor, /F minor/);
+  assert.equal(leaksTargetBar(fMinor), false);
 });
 
-test("hear-in-context plays an eight-bar model solo and highlights the real entrance", () => {
+test("listen plays an eight-bar model solo with visual cues and no audio door bells", () => {
   const view = presentation("hear");
+  assert.equal(view.goalId, "integrate");
+  assert.equal(view.supportId, "listen");
   assert.equal(view.showModelNotation, true);
-  assert.equal(view.showPhraseNotation, false);
-  assert.equal(view.showFormChart, true);
+  assert.equal(view.showSlashNotation, false);
+  assert.equal(view.showEntranceCues, true);
   assert.equal(view.includeModel, true);
   assert.equal(view.modelScope, "solo");
   assert.equal(view.includeCue, false);
@@ -53,17 +63,17 @@ test("hear-in-context plays an eight-bar model solo and highlights the real entr
   assert.equal(events.filter((event) => event.type === "cue").length, 0);
 });
 
-test("try-with-help keeps the cell notation, entrance labels, cues, and no default model", () => {
-  const view = presentation("try");
-  assert.equal(view.showPhraseNotation, true);
+test("play with help uses slash staff, entrance cues, and no default model", () => {
+  const view = presentation(helpState);
+  assert.equal(view.showSlashNotation, true);
   assert.equal(view.showModelNotation, false);
-  assert.equal(view.showEntranceLabels, true);
-  assert.equal(view.showTargetStyling, true);
+  assert.equal(view.showEntranceCues, true);
   assert.equal(view.includeModel, false);
   assert.equal(view.includeCue, true);
-  assert.equal(barCaption(7, true, "minor-home"), "Enter");
-  assert.equal(barCaption(6, true, "altered-dominant"), "Enter");
-  const events = scheduleChorus(audioConfigFor({ ...defaultState(), step: "try" }));
+  assert.equal(barCaption(7, true, "minor-home"), "HERE");
+  assert.equal(barCaption(6, true, "altered-dominant"), "HERE");
+  assert.equal(barCaption(5, true, "altered-dominant"), "Get ready");
+  const events = scheduleChorus(audioConfigFor(helpState));
   assert.equal(events.filter((event) => event.type === "melody").length, 0);
   const cues = events.filter((event) => event.type === "cue");
   assert.equal(cues.length, 2);
@@ -71,8 +81,8 @@ test("try-with-help keeps the cell notation, entrance labels, cues, and no defau
   assert.equal(cues[1].beat, 24);
 });
 
-test("altered-dominant try cues bar 6, not the G-minor downbeat", () => {
-  const config = audioConfigFor({ ...defaultState(), step: "try", applicationId: "altered-dominant" });
+test("altered-dominant help cues bar 6, not the G-minor downbeat", () => {
+  const config = audioConfigFor({ ...helpState, applicationId: "altered-dominant" });
   const events = scheduleChorus(config);
   const cues = events.filter((event) => event.type === "cue");
   assert.equal(cues[0].beat, 19);
@@ -80,56 +90,96 @@ test("altered-dominant try cues bar 6, not the G-minor downbeat", () => {
   assert.equal(config.lengthBeats, 32);
 });
 
-test("isolated cell lens is optional and does not replace the chorus demonstration", () => {
-  const view = presentation({ ...defaultState(), step: "hear", lens: "cell", cellMode: "hear" });
-  assert.equal(view.allowCellLens, true);
-  assert.equal(view.showFormChart, false);
-  assert.equal(view.showPhraseNotation, true);
+test("learn goal is isolated cell practice, not a gate before the chorus", () => {
+  const view = presentation(learnState);
+  assert.equal(view.goalId, "learn");
   assert.equal(view.audioStage, "learn");
+  assert.equal(view.showPhraseNotation, true);
+  assert.equal(view.showSlashNotation, false);
   assert.equal(view.lengthBeats, 8);
-  const echo = audioConfigFor({ ...defaultState(), step: "hear", lens: "cell", cellMode: "echo" });
+  const echo = audioConfigFor({ ...learnState, cellMode: "echo" });
   assert.equal(echo.includeModel, false);
   assert.equal(echo.stage, "learn");
 });
 
-test("independent coach opt-in is the only way the model returns on the yours chorus", () => {
-  const off = audioConfigFor({ ...defaultState(), step: "independent", independentCoach: false });
-  const on = audioConfigFor({ ...defaultState(), step: "independent", independentCoach: true });
-  assert.equal(off.includeModel, false);
-  assert.equal(on.includeModel, true);
-  assert.equal(on.modelScope, "phrase");
-  assert.equal(scheduleChorus(on).filter((event) => event.type === "melody").length, 6);
+test("explore keys keeps the cell in the chosen key without demanding twelve", () => {
+  const view = presentation({ ...defaultState(), goal: "keys", concertKeyId: "F" });
+  assert.equal(view.showKeyPicker, true);
+  assert.equal(view.audioStage, "learn");
+  assert.equal(view.showPhraseNotation, true);
+  const copy = instructionCopy({ ...defaultState(), goal: "keys", concertKeyId: "F" });
+  assert.match(copy, /F minor/);
+  assert.doesNotMatch(copy, /all twelve|must|unlock/i);
 });
 
-test("form bars stay ordinary chord names even when labels are stripped", () => {
-  const bars = formBars(getKey("G"), "concert", "minor-home");
-  assert.equal(bars.length, 8);
-  assert.deepEqual(bars[6].names, ["Gm6"]);
-  assert.equal(bars[6].role, "phrase");
-  assert.equal(barCaption(7, false, "minor-home"), "");
-  assert.equal(barCaption(7, true, "altered-dominant"), "Resolve");
+test("check yourself hides the answer until reveal and keeps recall separate from application", () => {
+  const hidden = presentation({ ...defaultState(), goal: "check", checkKind: "recall", revealed: false });
+  const shown = presentation({ ...defaultState(), goal: "check", checkKind: "recall", revealed: true });
+  assert.equal(hidden.hideAnswers, true);
+  assert.equal(hidden.showPhraseNotation, false);
+  assert.equal(shown.showPhraseNotation, true);
+  const applyHidden = presentation({ ...defaultState(), goal: "check", checkKind: "application", revealed: false });
+  assert.equal(applyHidden.showSlashNotation, true);
+  assert.equal(applyHidden.showEntranceCues, false);
+  const applyShown = presentation({ ...defaultState(), goal: "check", checkKind: "application", revealed: true });
+  assert.equal(applyShown.showEntranceCues, true);
+  const recallKey = assessmentKey({ ...defaultState(), goal: "check", checkKind: "recall", concertKeyId: "G" });
+  const applyKey = assessmentKey({ ...defaultState(), goal: "check", checkKind: "application", concertKeyId: "G" });
+  const fKey = assessmentKey({ ...defaultState(), goal: "check", checkKind: "recall", concertKeyId: "F" });
+  assert.notEqual(recallKey, applyKey);
+  assert.notEqual(recallKey, fKey);
 });
 
-test("primary action is one control: start, pause, resume, or continue", () => {
+test("primary action is the chart play control, not a linear continue", () => {
   assert.deepEqual(primaryAction("hear", { playing: false, paused: false, ended: false }), {
     id: "start",
-    label: "Hear the chorus",
+    label: "Hear the eight bars",
   });
   assert.equal(primaryAction("hear", { playing: true, paused: false, ended: false }).id, "pause");
   assert.equal(primaryAction("hear", { playing: false, paused: true, ended: false }).id, "resume");
-  assert.equal(primaryAction("try", { playing: false, paused: false, ended: true }).label, "Make it yours");
-  assert.equal(primaryAction("reflect", { playing: false, paused: false, ended: false }), null);
+  assert.equal(primaryAction(helpState, { playing: false, paused: false, ended: false }).label, "Count me in");
+  assert.equal(primaryAction(learnState, { playing: false, paused: false, ended: false }).label, "Hear the cell");
 });
 
-test("try live prompt changes at the door for each application", () => {
-  assert.match(livePrompt({ ...defaultState(), step: "try" }, { playing: true, bar: 4, beatInBar: 1 }), /Improvise/);
-  assert.match(livePrompt({ ...defaultState(), step: "try" }, { playing: true, bar: 6, beatInBar: 4 }), /Ready/);
-  assert.match(livePrompt({ ...defaultState(), step: "try" }, { playing: true, bar: 7, beatInBar: 1 }), /Play the phrase/);
-  assert.match(livePrompt({ ...defaultState(), step: "try" }, { playing: true, bar: 8, beatInBar: 1 }), /Keep going/);
-  const altered = { ...defaultState(), step: "try", applicationId: "altered-dominant" };
+test("help live prompt changes at the door for each application and current key", () => {
+  assert.match(livePrompt(helpState, { playing: true, bar: 4, beatInBar: 1 }), /Improvise/);
+  assert.match(livePrompt(helpState, { playing: true, bar: 6, beatInBar: 4 }), /Ready/);
+  assert.match(livePrompt(helpState, { playing: true, bar: 7, beatInBar: 1 }), /Play the phrase/);
+  assert.match(livePrompt(helpState, { playing: true, bar: 8, beatInBar: 1 }), /Keep going/);
+  const altered = { ...helpState, applicationId: "altered-dominant" };
   assert.match(livePrompt(altered, { playing: true, bar: 6, beatInBar: 1 }), /Play the phrase/);
-  assert.match(livePrompt(altered, { playing: true, bar: 7, beatInBar: 1 }), /Resolve/);
-  assert.match(livePrompt("independent", { playing: true, bar: 7, beatInBar: 1 }), /Quote, vary, or skip/);
+  assert.match(livePrompt(altered, { playing: true, bar: 7, beatInBar: 1 }), /G minor/);
+  const fAltered = { ...helpState, applicationId: "altered-dominant", concertKeyId: "F" };
+  assert.match(livePrompt(fAltered, { playing: true, bar: 7, beatInBar: 1 }), /F minor/);
+  assert.doesNotMatch(livePrompt(fAltered, { playing: true, bar: 7, beatInBar: 1 }), /G minor/);
+});
+
+test("application copy follows concert key for Gm, Fm, and a sharp-side key", () => {
+  const g = applicationContext(getKey("G"), "concert", "minor-home");
+  const gAlt = applicationContext(getKey("G"), "concert", "altered-dominant");
+  const f = applicationContext(getKey("F"), "concert", "minor-home");
+  const fAlt = applicationContext(getKey("F"), "concert", "altered-dominant");
+  const d = applicationContext(getKey("D"), "concert", "minor-home");
+  const dAlt = applicationContext(getKey("D"), "concert", "altered-dominant");
+  assert.equal(g.cellName, "G minor");
+  assert.equal(g.targetChord, "Gm6");
+  assert.equal(g.enterBar, 7);
+  assert.equal(gAlt.cellName, "E♭ minor");
+  assert.equal(gAlt.targetChord, "D7");
+  assert.equal(gAlt.enterBar, 6);
+  assert.equal(f.cellName, "F minor");
+  assert.equal(f.targetChord, "Fm6");
+  assert.match(f.listenBlurb, /F minor/);
+  assert.doesNotMatch(f.listenBlurb, /G minor|Gm\b/);
+  assert.equal(fAlt.cellName, "D♭ minor");
+  assert.equal(fAlt.targetChord, "C7");
+  assert.equal(d.cellName, "D minor");
+  assert.equal(d.targetChord, "Dm6");
+  assert.equal(dAlt.cellName, "B♭ minor");
+  assert.equal(dAlt.targetChord, "A7");
+  assert.match(applicationContext(getKey("F"), "concert", "minor-home").listenBlurb, /F minor/);
+  assert.doesNotMatch(applicationContext(getKey("F"), "concert", "minor-home").listenBlurb, /G-minor|Gm arrival/);
+  assert.match(instructionCopy({ ...defaultState(), concertKeyId: "F" }), /bar 7/);
 });
 
 test("default notation view is concert bass clef, separate from B-flat transposition", () => {
@@ -141,25 +191,25 @@ test("default notation view is concert bass clef, separate from B-flat transposi
   assert.equal(config.concertKey.id, "G");
 });
 
-test("lesson order is hear → try → independent → reflect", () => {
-  assert.equal(adjacentStep("hear", 1), "try");
-  assert.equal(adjacentStep("try", 1), "independent");
-  assert.equal(adjacentStep("independent", 1), "reflect");
-  assert.equal(adjacentStep("hear", -1), "hear");
+test("four goals are available without a required order", () => {
+  assert.deepEqual(GOALS.map((goal) => goal.id), ["learn", "integrate", "keys", "check"]);
+  const fromLearn = afterRoundActions(learnState).map((item) => item.id);
+  assert.ok(fromLearn.includes("keys"));
+  assert.ok(fromLearn.includes("repeat"));
 });
 
-test("self-check marks are stored per application", () => {
+test("self-check marks are stored per application, key, and check kind", () => {
   const state = defaultState();
-  state.assessments["minor-home"].foundEntrance = "yes";
-  state.applicationId = "altered-dominant";
-  assert.equal(currentAssessment(state).foundEntrance, "");
-  state.applicationId = "minor-home";
-  assert.equal(currentAssessment(state).foundEntrance, "yes");
+  const homeG = assessmentKey({ ...state, applicationId: "minor-home", concertKeyId: "G" });
+  state.assessments[homeG] = { ...currentAssessment(state), foundEntrance: "yes" };
+  assert.equal(currentAssessment({ ...state, applicationId: "altered-dominant" }).foundEntrance, "");
+  assert.equal(currentAssessment({ ...state, concertKeyId: "F" }).foundEntrance, "");
+  assert.equal(currentAssessment({ ...state, applicationId: "minor-home", concertKeyId: "G" }).foundEntrance, "yes");
 });
 
 test("melody register defaults to Original and rides on audio config", () => {
   const state = defaultState();
-  assert.equal(state.melodyRegister, DEFAULT_MELODY_REGISTER);
+  assert.equal(state.melodyRegister, 0);
   assert.equal(audioConfigFor(state).melodyRegister, 0);
   const up = audioConfigFor({ ...state, melodyRegister: 1 });
   assert.equal(up.melodyRegister, 1);
@@ -171,13 +221,12 @@ test("melody register defaults to Original and rides on audio config", () => {
   assert.equal(phrase[0].beat, 24);
 });
 
-test("independent mode stays without model at every melody register", () => {
+test("play freely stays without model at every melody register", () => {
   for (const melodyRegister of [-1, 0, 1]) {
-    const view = presentation({ ...defaultState(), step: "independent", melodyRegister });
-    assert.equal(view.showPhraseNotation, false);
+    const view = presentation({ ...freeState, melodyRegister });
     assert.equal(view.showModelNotation, false);
     assert.equal(view.includeModel, false);
-    const config = audioConfigFor({ ...defaultState(), step: "independent", melodyRegister });
+    const config = audioConfigFor({ ...freeState, melodyRegister });
     assert.equal(config.includeModel, false);
     assert.equal(config.variationId, "skip");
     assert.equal(config.melodyRegister, melodyRegister);
@@ -186,13 +235,13 @@ test("independent mode stays without model at every melody register", () => {
   }
 });
 
-test("echo cell keeps the pad only; guided try notation still uses the register", () => {
-  const echo = audioConfigFor({ ...defaultState(), step: "hear", lens: "cell", cellMode: "echo", melodyRegister: -1 });
+test("echo cell keeps the pad only; helped slash staff still uses the register", () => {
+  const echo = audioConfigFor({ ...learnState, cellMode: "echo", melodyRegister: -1 });
   assert.equal(echo.includeModel, false);
   assert.equal(echo.melodyRegister, -1);
   assert.equal(scheduleChorus(echo).filter((event) => event.type === "melody").length, 0);
-  const tryConfig = audioConfigFor({ ...defaultState(), step: "try", melodyRegister: 1 });
+  const tryConfig = audioConfigFor({ ...helpState, melodyRegister: 1 });
   assert.equal(tryConfig.includeModel, false);
   assert.equal(tryConfig.melodyRegister, 1);
-  assert.equal(presentation({ ...defaultState(), step: "try" }).showPhraseNotation, true);
+  assert.equal(presentation(helpState).showSlashNotation, true);
 });

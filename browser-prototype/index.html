@@ -4,105 +4,111 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DuoJazz · Cry Me a River in Autumn Leaves</title>
-  <meta name="description" content="Guided browser prototype: hear Cry Me a River in Autumn Leaves, then place it. Not the native DuoJazz iPad app.">
+  <meta name="description" content="Practice Cry Me a River in Autumn Leaves. Browser prototype, not the native DuoJazz iPad app.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=14">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/styles.css?v=25">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=14"></script>
+  <script type="module" src="./js/app.js?v=25"></script>
 </head>
-<body data-step="hear" data-lens="context">
+<body data-goal="integrate" data-support="listen">
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <header class="topbar">
-    <div>
-      <p class="eyebrow">DuoJazz · Cry Me a River in Autumn Leaves</p>
-      <h1 id="heading">Hear it in context</h1>
+  <header class="masthead">
+    <div class="brand">
+      <p class="logo">duojazz</p>
+      <nav class="goals" aria-label="Practice goals" id="goals"></nav>
     </div>
-    <button type="button" class="ghost" id="settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+    <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Concert · Bass clef</button>
   </header>
 
-  <section class="ways" aria-label="Ways to use it">
-    <p class="ways-label">Ways to use it</p>
-    <div class="row" id="applications" role="group"></div>
-    <p class="help" id="application-blurb"></p>
-  </section>
-
-  <nav class="steps" aria-label="Lesson steps" id="steps"></nav>
-
-  <main id="main" class="stage">
-    <p class="instruction" id="instruction" aria-live="polite"></p>
-
-    <button type="button" class="hero" id="primary">Hear the chorus</button>
-    <div class="secondary">
-      <button type="button" class="ghost" id="back" hidden>Back</button>
-      <button type="button" class="ghost" id="replay">Replay this step</button>
-      <button type="button" class="ghost" id="next">Continue</button>
-    </div>
-    <div class="secondary cell-practice" id="cell-practice">
-      <button type="button" class="ghost" id="cell-hear">Hear just the cell</button>
-      <button type="button" class="ghost" id="cell-echo">Echo the cell</button>
-      <button type="button" class="ghost" id="cell-back" hidden>Back to the chorus</button>
-    </div>
-
-    <section class="register" id="register-wrap" aria-label="Melody octave">
-      <p class="register-label" id="register-label">Melody octave</p>
-      <div class="row" id="register" role="group" aria-labelledby="register-label"></div>
-      <p class="help">Moves the model line and notation only. Backing, bass, chords, and click stay put.</p>
+  <main id="main" class="workspace">
+    <section class="hero-copy">
+      <p class="kicker" id="kicker">Lesson 01 / Cry Me a River</p>
+      <div class="title-row">
+        <h1 id="heading">One phrase. Two ways in.</h1>
+        <p class="tune" id="tune-meta">Autumn Leaves<br><span id="tune-detail">Opening eight bars · G minor</span></p>
+      </div>
     </section>
 
-    <section class="now" id="music-surface" aria-label="Current harmony">
-      <p class="now-chord" id="chord">—</p>
-      <p class="now-beat" id="beat">Bar · Beat</p>
-      <p class="now-hint" id="function-label"></p>
+    <section class="applications" aria-label="Harmonic applications">
+      <div class="app-tabs" id="applications" role="tablist"></div>
+      <p class="app-blurb" id="application-blurb"></p>
     </section>
 
-    <div id="chart" class="chart" hidden></div>
-    <div id="notation" class="paper" aria-label="Phrase notation"></div>
+    <section class="key-panel" id="key-panel" hidden>
+      <p class="panel-label" id="key-heading">Concert minor key</p>
+      <div class="row wrap" id="keys" role="group" aria-labelledby="key-heading"></div>
+    </section>
 
-    <label class="coach" id="coach-wrap" hidden>
-      <input type="checkbox" id="independentCoach">
-      Hear the model this chorus (optional)
-    </label>
+    <section class="check-panel" id="check-panel" hidden>
+      <p class="panel-label">What are you checking?</p>
+      <div class="row" id="check-kind" role="group"></div>
+      <p class="help" id="check-help">The app cannot hear you. Reveal when you want the answer.</p>
+    </section>
 
-    <form class="assess" id="assess" hidden>
-      <fieldset>
-        <legend>After playing</legend>
-        <p class="help">The app did not hear you. These marks are yours, and they belong to the selected way of using the lick.</p>
-        <p><strong>Application</strong></p>
+    <section class="chart-card" id="music-surface" aria-label="Music">
+      <div class="chart-head">
+        <p id="chart-title">Hear it in the changes</p>
+        <p id="chart-meta">Autumn Leaves · G minor · 8 bars</p>
+      </div>
+      <div class="paper-wrap">
+        <div id="notation" class="paper" aria-label="Staff notation"></div>
+        <p class="hidden-answer" id="hidden-answer" hidden>Answer hidden. Play first, then reveal.</p>
+      </div>
+      <div class="chart-foot">
+        <button type="button" class="play" id="primary">Hear the eight bars</button>
+        <div class="supports" id="supports" role="tablist" aria-label="Practice support"></div>
+        <button type="button" class="text-link" id="cell-link">Just the cell</button>
+      </div>
+    </section>
+
+    <p class="cue-line" id="instruction" aria-live="polite"></p>
+
+    <aside class="after" id="after-round" hidden>
+      <p class="panel-label">After this chorus</p>
+      <p class="help">Optional. The app did not hear you. No score, no gate.</p>
+      <div class="row wrap" id="after-actions"></div>
+      <div class="mini-assess" id="mini-assess" hidden>
         <p id="entrance-q">Did you find the entrance?</p>
         <div class="row" id="foundEntrance"></div>
         <p id="after-q">Did you keep playing afterward?</p>
         <div class="row" id="keptPlaying"></div>
         <p>This chorus I…</p>
         <div class="row" id="quoteChoice"></div>
-        <p><strong>Recall</strong> (not the same as using it)</p>
-        <p>Can you hear the cell without looking?</p>
+        <p id="recall-q">Can you hear the cell without looking?</p>
         <div class="row" id="recall"></div>
-        <p class="help" id="tried-keys"></p>
-      </fieldset>
-    </form>
+      </div>
+    </aside>
   </main>
 
-  <div class="transport" role="region" aria-label="Transport">
-    <div class="row">
-      <button type="button" class="ghost" id="pause">Pause</button>
-      <button type="button" class="ghost" id="restart">Restart</button>
+  <footer class="transport" role="region" aria-label="Transport">
+    <div class="tempo">
+      <span>Tempo</span>
+      <button type="button" class="stepper" id="tempo-down" aria-label="Slower">−</button>
+      <span id="tempo-readout">96</span>
+      <span class="unit">BPM</span>
+      <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
     </div>
-    <label class="tempo">
-      Tempo <span id="tempo-readout">96</span>
-      <input id="tempo" type="range" min="60" max="160" step="1" value="96">
-    </label>
-    <p class="meter" id="meter">Stopped</p>
-  </div>
+    <section class="register" aria-label="Melody octave">
+      <p class="register-label" id="register-label">Melody octave</p>
+      <div class="row" id="register" role="group" aria-labelledby="register-label"></div>
+    </section>
+    <p class="meter" id="meter">1-bar count-in · Swing on</p>
+    <div class="transport-links">
+      <button type="button" class="text-link" id="loop-btn" aria-pressed="false">Loop off</button>
+      <button type="button" class="text-link" id="restart">Replay</button>
+      <button type="button" class="text-link" id="settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+    </div>
+  </footer>
 
   <dialog id="settings">
     <form method="dialog" class="settings-form">
       <h2>Settings</h2>
       <div class="field">
         <span id="key-label">Concert minor key of the excerpt</span>
-        <div class="row" id="keys" role="group" aria-labelledby="key-label"></div>
+        <div class="row wrap" id="settings-keys" role="group" aria-labelledby="key-label"></div>
       </div>
       <fieldset>
         <legend>Clef</legend>
@@ -120,12 +126,12 @@
       <p class="help" id="display-banner"></p>
       <details>
         <summary>About this experiment</summary>
-        <p>Browser synth only. No microphone, accounts, or pitch grading. This does not verify the native iPad app, Safari, or device audio. Space plays or pauses. Left/Right move steps. R restarts and silences leftover audio.</p>
-        <p>Excerpt: Autumn Leaves opening eight bars in concert G minor, after the jbpicon Ultimate Guitar chart (key Gm, no capo, Verse 1, last update Aug 21 2025): Cm7 F7 B♭maj7 E♭maj7 Am7♭5 D7 Gm6 Gm6. Tonic bars use Gm6 as on that chart. This is a contiguous excerpt for placing a lick, not the tune’s head.</p>
-        <p>Phrase: Cry Me a River minor-tonic cell 9–1–5–♭3–2–1, one bar, eighth–eighth–quarter–eighth–eighth–quarter. Concert G minor in trombone register: A3 G3 D3 Bb2 A2 G2. Melody octave (−1 / Original / +1) sits next to the chorus notation and shifts that model line together with isolated-cell hearing. Clef and B♭ written names do not change the audio octave. Not DuoJazz <code>iivi-cry-me-enclosure</code>.</p>
-        <p>Two applications of that same cell: Minor home (G-minor shape on Gm, bar 7) and Altered dominant (E♭-minor shape over D7, bar 6, then a composed resolution into Gm). Isolated hear/echo of the naked cell is optional and is not required before the eight-bar demonstration.</p>
+        <p>Browser synth only. No microphone, accounts, or pitch grading. This does not verify the native iPad app, Safari, or device audio. Space plays or pauses. R restarts and silences leftover audio.</p>
+        <p>Excerpt: Autumn Leaves opening eight bars, after the jbpicon Ultimate Guitar chart (key Gm, no capo, Verse 1, last update Aug 21 2025): Cm7 F7 B♭maj7 E♭maj7 Am7♭5 D7 Gm6 Gm6. Tonic bars use Gm6 as on that chart.</p>
+        <p>Phrase: Cry Me a River minor-tonic cell 9–1–5–♭3–2–1, one bar. Melody octave (−1 / Original / +1) shifts the model line and displayed phrase together. Backing, bass, chords, and click stay put. Clef does not transpose. Not DuoJazz <code>iivi-cry-me-enclosure</code>.</p>
+        <p>Four goals, no unlocks: learn the cell, use it in the eight bars, try other keys, check yourself. Listen / Play with help / Play freely are support, not chapters. Two applications: minor home and altered dominant.</p>
       </details>
-      <button type="submit" class="primary-lite" value="close">Close</button>
+      <button type="submit" class="play compact" value="close">Close</button>
     </form>
   </dialog>
 </body>
