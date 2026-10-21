@@ -42,6 +42,7 @@ const els = {
   kicker: document.getElementById("kicker"),
   instruction: document.getElementById("instruction"),
   goals: document.getElementById("goals"),
+  applicationPanel: document.getElementById("application-panel"),
   applications: document.getElementById("applications"),
   applicationBlurb: document.getElementById("application-blurb"),
   music: document.getElementById("music-surface"),
@@ -176,7 +177,14 @@ function renderGoals() {
 }
 
 function renderApplications() {
+  const view = presentation(state);
   const current = ctx();
+  els.applicationPanel.hidden = !view.showApplications;
+  if (!view.showApplications) {
+    els.applications.replaceChildren();
+    els.applicationBlurb.textContent = "";
+    return;
+  }
   els.applications.replaceChildren(
     ...APPLICATIONS.map((app, index) => {
       const info = applicationContext(concertKey(), state.displayMode, app.id);
@@ -185,7 +193,10 @@ function renderApplications() {
       btn.className = "app-tab";
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-selected", String(app.id === state.applicationId));
-      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}</span>${app.label}<span class="sub">${info.placement}</span>`;
+      const placement = view.showApplicationPlacement
+        ? `<span class="sub">${info.placement}</span>`
+        : "";
+      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}</span>${app.label}${placement}`;
       btn.addEventListener("click", () => {
         state.applicationId = app.id;
         persist();
@@ -195,7 +206,12 @@ function renderApplications() {
       return btn;
     }),
   );
-  const view = presentation(state);
+  if (!view.showAnswerContext) {
+    els.applicationBlurb.hidden = true;
+    els.applicationBlurb.textContent = "";
+    return;
+  }
+  els.applicationBlurb.hidden = false;
   els.applicationBlurb.textContent = state.goal === "integrate"
     ? supportBlurb(concertKey(), state.displayMode, state.applicationId, view.supportId)
     : current.shapeOver;
@@ -484,12 +500,13 @@ function renderNotation() {
   els.notation.replaceChildren();
   if (window.ABCJS) {
     const width = staffWidth();
+    const narrow = width < 520;
     lastTune = window.ABCJS.renderAbc(els.notation, abc, {
       add_classes: true,
       paddingtop: view.showPhraseNotation ? 8 : 28,
       paddingbottom: view.showEntranceCues ? 32 : 12,
       staffwidth: width - 24,
-      scale: view.showPhraseNotation ? 1.35 : 1.08,
+      scale: view.showPhraseNotation ? (narrow ? 1.18 : 1.35) : (narrow ? 0.94 : 1.08),
       jazzchords: true,
       format: {
         chordfont: "Source Sans 3 15",
