@@ -153,6 +153,7 @@ export function presentation(stateOrGoal) {
   const checkRecall = check && state.checkKind === "recall";
   const checkApply = check && state.checkKind === "application";
   const showAnswer = check && state.revealed;
+  const hideAnswers = check && !showAnswer;
   const isolated = state.goal === "learn" || state.goal === "keys" || checkRecall;
   const hearCell = isolated && state.cellMode !== "echo" && (!check || showAnswer);
 
@@ -168,6 +169,8 @@ export function presentation(stateOrGoal) {
     checkKind: state.checkKind,
     revealed: state.revealed,
     showApplications: true,
+    showApplicationPlacement: !hideAnswers,
+    showAnswerContext: !hideAnswers,
     showSupportModes: integrate,
     showKeyPicker: state.goal === "keys" || check,
     showCheckSetup: check,
@@ -192,7 +195,7 @@ export function presentation(stateOrGoal) {
     allowCellLens: integrate,
     showOctave: true,
     showAfterRound: !check,
-    hideAnswers: check && !showAnswer,
+    hideAnswers,
     chartStartBar: 1,
     chartBarCount: BARS_PER_CHORUS,
   };
@@ -298,6 +301,11 @@ export function instructionCopy(stateOrGoal) {
   }
   if (state.goal === "keys") return ctx.keysBlurb;
   if (state.goal === "check") {
+    if (!state.revealed) {
+      return state.checkKind === "recall"
+        ? "Play the cell from memory. Reveal when you want the written answer."
+        : "Play a chorus from memory. The written door stays hidden until you reveal it.";
+    }
     return state.checkKind === "recall" ? ctx.checkRecallBlurb : ctx.checkApplyBlurb;
   }
   if (view.supportId === "free") return "No required order. Stay a while.";
@@ -351,14 +359,14 @@ export function primaryAction(stateOrGoal, playback = {}) {
   const view = presentation(state);
   if (playback.playing) return { id: "pause", label: "Pause" };
   if (playback.paused) return { id: "resume", label: "Resume" };
+  if (state.goal === "check") {
+    return { id: "start", label: "Count me in" };
+  }
   if (view.audioStage === "learn") {
     return {
       id: "start",
       label: state.cellMode === "echo" ? "Count me in" : "Hear the cell",
     };
-  }
-  if (state.goal === "check") {
-    return { id: "start", label: "Count me in" };
   }
   return { id: "start", label: view.support.playLabel };
 }

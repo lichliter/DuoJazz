@@ -13,6 +13,7 @@ import {
   currentAssessment,
   assessmentKey,
   afterRoundActions,
+  chartCopy,
   GOALS,
 } from "./lesson.js";
 
@@ -116,11 +117,16 @@ test("check yourself hides the answer until reveal and keeps recall separate fro
   const hidden = presentation({ ...defaultState(), goal: "check", checkKind: "recall", revealed: false });
   const shown = presentation({ ...defaultState(), goal: "check", checkKind: "recall", revealed: true });
   assert.equal(hidden.hideAnswers, true);
+  assert.equal(hidden.showAnswerContext, false);
+  assert.equal(hidden.showApplicationPlacement, false);
   assert.equal(hidden.showPhraseNotation, false);
   assert.equal(shown.showPhraseNotation, true);
+  assert.equal(shown.showAnswerContext, true);
+  assert.equal(shown.showApplicationPlacement, true);
   const applyHidden = presentation({ ...defaultState(), goal: "check", checkKind: "application", revealed: false });
   assert.equal(applyHidden.showSlashNotation, true);
   assert.equal(applyHidden.showEntranceCues, false);
+  assert.equal(applyHidden.showAnswerContext, false);
   const applyShown = presentation({ ...defaultState(), goal: "check", checkKind: "application", revealed: true });
   assert.equal(applyShown.showEntranceCues, true);
   const recallKey = assessmentKey({ ...defaultState(), goal: "check", checkKind: "recall", concertKeyId: "G" });
@@ -128,6 +134,61 @@ test("check yourself hides the answer until reveal and keeps recall separate fro
   const fKey = assessmentKey({ ...defaultState(), goal: "check", checkKind: "recall", concertKeyId: "F" });
   assert.notEqual(recallKey, applyKey);
   assert.notEqual(recallKey, fKey);
+});
+
+function hiddenCheckSurfaces(partial) {
+  const state = { ...defaultState(), goal: "check", revealed: false, ...partial };
+  const ctx = applicationContext(getKey(state.concertKeyId), state.displayMode, state.applicationId);
+  const chart = chartCopy(state);
+  return {
+    state,
+    ctx,
+    instruction: instructionCopy(state),
+    live: livePrompt(state),
+    title: chart.title,
+    meta: chart.meta,
+    view: presentation(state),
+  };
+}
+
+function assertNoAnswerLeak(surfaces) {
+  const { ctx, instruction, live, title, meta, view } = surfaces;
+  const blob = `${instruction}\n${live}\n${title}\n${meta}`;
+  assert.equal(view.showAnswerContext, false);
+  assert.equal(view.showApplicationPlacement, false);
+  assert.equal(blob.includes(ctx.targetChord), false, blob);
+  assert.doesNotMatch(blob, /shape over/i);
+  assert.equal(leaksTargetBar(blob), false);
+  if (ctx.cellName !== ctx.tuneName) {
+    assert.equal(blob.includes(ctx.cellName), false, blob);
+  }
+}
+
+test("hidden self-check copy stays neutral in G, F, and a sharp-side key", () => {
+  for (const concertKeyId of ["G", "F", "D"]) {
+    for (const applicationId of ["minor-home", "altered-dominant"]) {
+      for (const checkKind of ["recall", "application"]) {
+        const surfaces = hiddenCheckSurfaces({ concertKeyId, applicationId, checkKind });
+        assertNoAnswerLeak(surfaces);
+        assert.match(surfaces.instruction, /Reveal|hidden/i);
+        const shown = instructionCopy({ ...surfaces.state, revealed: true });
+        if (checkKind === "recall") assert.match(shown, new RegExp(surfaces.ctx.cellName.replace(/[♭#]/g, "\\$&")));
+        else assert.match(shown, new RegExp(surfaces.ctx.tuneName.replace(/[♭#]/g, "\\$&")));
+      }
+    }
+  }
+  const alteredG = hiddenCheckSurfaces({
+    concertKeyId: "G",
+    applicationId: "altered-dominant",
+    checkKind: "recall",
+  });
+  assert.doesNotMatch(`${alteredG.instruction} ${alteredG.live}`, /E♭ minor|Eb minor|D7/);
+  const fApply = hiddenCheckSurfaces({
+    concertKeyId: "F",
+    applicationId: "minor-home",
+    checkKind: "application",
+  });
+  assert.doesNotMatch(`${fApply.instruction} ${fApply.live}`, /Fm6|bar 7/i);
 });
 
 test("primary action is the chart play control, not a linear continue", () => {
@@ -139,6 +200,7 @@ test("primary action is the chart play control, not a linear continue", () => {
   assert.equal(primaryAction("hear", { playing: false, paused: true, ended: false }).id, "resume");
   assert.equal(primaryAction(helpState, { playing: false, paused: false, ended: false }).label, "Count me in");
   assert.equal(primaryAction(learnState, { playing: false, paused: false, ended: false }).label, "Hear the cell");
+  assert.equal(primaryAction({ ...defaultState(), goal: "check", checkKind: "recall", revealed: false }).label, "Count me in");
 });
 
 test("help live prompt changes at the door for each application and current key", () => {
