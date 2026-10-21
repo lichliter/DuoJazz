@@ -15,6 +15,11 @@ import {
   afterRoundActions,
   chartCopy,
   GOALS,
+  isStandPortrait,
+  isStandLandscape,
+  notationLayout,
+  nextEngravingWidth,
+  nextStaffsep,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -295,6 +300,76 @@ test("play freely stays without model at every melody register", () => {
     const events = scheduleChorus(config);
     assert.equal(events.filter((event) => event.type === "melody").length, 0);
   }
+});
+
+test("iPad Pro 12.9 portrait is the stand-portrait layout target", () => {
+  assert.equal(isStandPortrait(1024, 1366), true);
+  assert.equal(isStandPortrait(1366, 1024), false);
+  assert.equal(isStandPortrait(1280, 720), false);
+  assert.equal(isStandPortrait(375, 812), false);
+  assert.equal(isStandLandscape(1366, 1024), true);
+  assert.equal(isStandLandscape(1024, 1366), false);
+  assert.equal(isStandLandscape(1280, 720), false);
+});
+
+test("stand portrait uses four-bar systems like landscape, not two-bar wraps", () => {
+  const stand = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(stand.barsPerLine, 4);
+  assert.equal(stand.wrap, null);
+  assert.equal(stand.fitToPaper, true);
+  assert.equal(stand.fillAxis, "staffsep");
+  assert.ok(stand.staffsep >= 120);
+  assert.ok(stand.engravingRatio >= 0.55);
+  assert.ok(stand.engravingRatio <= 0.7);
+  assert.ok(stand.fillRatio >= 0.55);
+  const landscape = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1366,
+    viewportHeight: 1024,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(landscape.barsPerLine, 4);
+  assert.equal(landscape.fitToPaper, true);
+  assert.ok(landscape.scale > 1.08);
+  const desktop = notationLayout({
+    staffWidth: 760,
+    viewportWidth: 1280,
+    viewportHeight: 720,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(desktop.barsPerLine, 4);
+  const narrow = notationLayout({
+    staffWidth: 340,
+    viewportWidth: 375,
+    viewportHeight: 812,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(narrow.barsPerLine, 2);
+  assert.ok(narrow.scale < 1);
+  assert.equal(narrow.fitToPaper, false);
+});
+
+test("narrower engraving width upscales the staff to fill unused paper", () => {
+  const overflow = nextEngravingWidth(700, 900, 700, 986);
+  assert.equal(overflow > 700, true);
+  const tooShort = nextEngravingWidth(960, 450, 850, 986);
+  assert.equal(tooShort < 960, true);
+  assert.equal(tooShort >= 400, true);
+  assert.equal(nextEngravingWidth(560, 820, 850, 986), 560);
+  const underfilled = nextEngravingWidth(560, 760, 864, 986);
+  assert.equal(underfilled < 560, true);
+  assert.equal(nextEngravingWidth(500, 400, 800, 986, 720), 720);
+  assert.equal(nextStaffsep(168, 700, 900) > 168, true);
+  assert.equal(nextStaffsep(168, 880, 900), 168);
 });
 
 test("echo cell keeps the pad only; helped slash staff still uses the register", () => {

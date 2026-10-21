@@ -106,7 +106,7 @@ const QUALITY_ABC = {
   minor7: "m7",
   dominant7: "7",
   major7: "maj7",
-  minor7b5: "m7b5",
+  minor7b5: "m7♭5",
   minor6: "m6",
 };
 
@@ -563,11 +563,24 @@ function abcDuration(beats) {
   return String(Math.round(beats * 2));
 }
 
+/**
+ * Split a jazz-chord root into letter + accidental so the accidental stays
+ * full-size with the letter (B♭, F♯) instead of joining the superscript quality.
+ */
+export function jazzChordRootParts(text) {
+  const match = String(text).match(/^([A-G])([♭♯b#])(.*)$/u);
+  if (!match) return null;
+  const accidental = match[2] === "b" ? "♭" : match[2] === "#" ? "♯" : match[2];
+  return { letter: match[1], accidental, rest: match[3] };
+}
+
 function abcChordName(concertTonic, intervalFromTonic, quality, displayMode) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
   const shownKey = displayKey(concertTonic, displayMode);
-  const root = pitchName(shownPc, shownKey.usesFlats).replaceAll("♭", "b").replaceAll("♯", "#");
+  // Keep Unicode accidentals on the root so abcjs jazzchords superscripts
+  // only the quality (B♭ + maj7), not B + ♭maj7.
+  const root = pitchName(shownPc, shownKey.usesFlats);
   return `${root}${QUALITY_ABC[quality]}`;
 }
 
@@ -625,11 +638,18 @@ function barCueAnnotation(barNumber, applicationId, showCues) {
   return cue ? `"_${cue}"` : "";
 }
 
+function barAdvance(bar, barsPerLine = 4) {
+  if (bar === BARS_PER_CHORUS - 1) return " |]\n";
+  if ((bar + 1) % barsPerLine === 0) return " |\n";
+  return " | ";
+}
+
 export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF, melodyRegister = DEFAULT_MELODY_REGISTER, options = {}) {
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
   const notes = modelSolo(applicationId);
   const showCues = Boolean(options.showCues);
+  const barsPerLine = options.barsPerLine ?? 4;
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n`;
   let beat = 0;
   let noteIndex = 0;
@@ -652,7 +672,7 @@ export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
       if (atBeatBoundary(beat) && Math.abs(beat % 4) > 1e-6) abc += " ";
       noteIndex += 1;
     }
-    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : bar % 4 === 3 ? " |\n" : " | ";
+    abc += barAdvance(bar, barsPerLine);
     beat = barEnd;
   }
   return abc;
@@ -662,6 +682,7 @@ export function slashABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
   const showCues = Boolean(options.showCues);
+  const barsPerLine = options.barsPerLine ?? 4;
   const slashPitch = clef === "treble" ? "B" : "D,";
   let abc = `X:1\nM:4/4\nL:1/4\n${abcKeyLine(shownKey, clef)}\n`;
   for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
@@ -669,7 +690,7 @@ export function slashABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
     abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
     abc += barCueAnnotation(bar + 1, applicationId, showCues);
     abc += `${slashPitch} ${slashPitch} ${slashPitch} ${slashPitch}`;
-    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : bar % 4 === 3 ? " |\n" : " | ";
+    abc += barAdvance(bar, barsPerLine);
   }
   return abc;
 }
@@ -682,11 +703,12 @@ export function chorusStaffABC({
   melodyRegister = DEFAULT_MELODY_REGISTER,
   mode = "model",
   showCues = false,
+  barsPerLine = 4,
 }) {
   if (mode === "slash") {
-    return slashABC(concertKey, displayMode, applicationId, clef, { showCues });
+    return slashABC(concertKey, displayMode, applicationId, clef, { showCues, barsPerLine });
   }
-  return modelABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues });
+  return modelABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues, barsPerLine });
 }
 
 export function chartABC(concertKey, displayMode, clef = DEFAULT_CLEF) {
