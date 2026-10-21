@@ -15,6 +15,9 @@ import {
   afterRoundActions,
   chartCopy,
   GOALS,
+  isStandPortrait,
+  notationLayout,
+  nextEngravingWidth,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -295,6 +298,55 @@ test("play freely stays without model at every melody register", () => {
     const events = scheduleChorus(config);
     assert.equal(events.filter((event) => event.type === "melody").length, 0);
   }
+});
+
+test("iPad Pro 12.9 portrait is the stand-portrait layout target", () => {
+  assert.equal(isStandPortrait(1024, 1366), true);
+  assert.equal(isStandPortrait(1366, 1024), false);
+  assert.equal(isStandPortrait(1280, 720), false);
+  assert.equal(isStandPortrait(375, 812), false);
+});
+
+test("stand portrait uses two-bar systems and a larger chorus scale", () => {
+  const stand = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(stand.barsPerLine, 2);
+  assert.equal(stand.wrap, null);
+  assert.equal(stand.fitToPaper, true);
+  assert.ok(stand.scale >= 1.45);
+  assert.ok(stand.engravingRatio < 1);
+  const landscape = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1366,
+    viewportHeight: 1024,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(landscape.barsPerLine, 4);
+  assert.equal(landscape.fitToPaper, false);
+  const narrow = notationLayout({
+    staffWidth: 340,
+    viewportWidth: 375,
+    viewportHeight: 812,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(narrow.barsPerLine, 4);
+  assert.ok(narrow.scale < 1);
+});
+
+test("narrower engraving width upscales the staff to fill unused paper", () => {
+  const overflow = nextEngravingWidth(700, 900, 700, 986);
+  assert.equal(overflow > 700, true);
+  const tooShort = nextEngravingWidth(960, 450, 850, 986);
+  assert.equal(tooShort < 960, true);
+  assert.equal(tooShort >= 460, true);
+  assert.equal(nextEngravingWidth(560, 820, 850, 986), 560);
 });
 
 test("echo cell keeps the pad only; helped slash staff still uses the register", () => {
