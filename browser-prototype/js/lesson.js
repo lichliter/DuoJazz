@@ -398,6 +398,11 @@ export function isStandPortrait(viewportWidth, viewportHeight) {
   return viewportWidth >= 900 && viewportWidth <= 1180 && viewportHeight >= 1200;
 }
 
+/** iPad Pro 12.9" landscape CSS px is 1366×1024. Secondary; must not shrink portrait. */
+export function isStandLandscape(viewportWidth, viewportHeight) {
+  return viewportWidth >= 1180 && viewportHeight >= 900 && viewportHeight < 1200;
+}
+
 export function notationLayout({
   staffWidth,
   viewportWidth,
@@ -407,29 +412,32 @@ export function notationLayout({
 }) {
   const narrow = staffWidth < 520;
   const stand = isStandPortrait(viewportWidth, viewportHeight);
+  const landscape = isStandLandscape(viewportWidth, viewportHeight);
   const short = viewportHeight <= 860;
 
   if (showPhraseNotation) {
     return {
-      scale: stand ? 1.85 : narrow ? 1.18 : 1.35,
-      paddingtop: stand ? 14 : 8,
-      paddingbottom: stand ? 20 : 12,
+      scale: stand ? 1.95 : landscape ? 1.5 : narrow ? 1.18 : 1.35,
+      paddingtop: stand ? 8 : 8,
+      paddingbottom: stand ? 16 : 12,
       wrap: null,
       barsPerLine: 2,
-      chordfont: stand ? "Source Sans 3 20" : "Source Sans 3 15",
+      chordfont: stand ? "Source Sans 3 22" : "Source Sans 3 15",
       annotationfont: stand ? "Source Sans 3 16" : "Source Sans 3 13",
       annotationPx: stand ? 18 : 15,
       slashStroke: stand ? 2.6 : 1.85,
-      engravingRatio: stand ? 0.48 : 1,
+      engravingRatio: stand ? 0.44 : landscape ? 0.72 : 1,
       fitToPaper: false,
+      staffsep: stand ? 70 : 55,
+      fillRatio: 0.92,
     };
   }
 
   return {
-    scale: stand ? 1.58 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 36 : 28,
-    paddingbottom: showEntranceCues ? (stand ? 46 : 32) : (stand ? 22 : 12),
-    wrap: stand
+    scale: stand ? 1.72 : landscape ? 1.28 : short ? 0.9 : narrow ? 0.94 : 1.08,
+    paddingtop: stand ? 8 : landscape ? 10 : 28,
+    paddingbottom: showEntranceCues ? (stand ? 24 : landscape ? 22 : 32) : (stand ? 12 : 12),
+    wrap: stand || landscape
       ? null
       : {
         minSpacing: 1.45,
@@ -437,12 +445,14 @@ export function notationLayout({
         preferredMeasuresPerLine: 4,
       },
     barsPerLine: stand ? 2 : 4,
-    engravingRatio: stand ? 0.58 : 1,
-    chordfont: stand ? "Source Sans 3 20" : "Source Sans 3 15",
-    annotationfont: stand ? "Source Sans 3 16" : "Source Sans 3 13",
+    engravingRatio: stand ? 0.48 : landscape ? 0.64 : 1,
+    chordfont: stand ? "Source Sans 3 22" : landscape ? "Source Sans 3 18" : "Source Sans 3 15",
+    annotationfont: stand ? "Source Sans 3 17" : "Source Sans 3 13",
     annotationPx: stand ? 18 : 15,
-    slashStroke: stand ? 2.6 : 1.85,
-    fitToPaper: stand,
+    slashStroke: stand ? 2.9 : 1.85,
+    fitToPaper: stand || landscape,
+    staffsep: stand ? 136 : landscape ? 96 : 55,
+    fillRatio: stand ? 0.98 : landscape ? 0.94 : 0.92,
   };
 }
 
@@ -453,9 +463,9 @@ export function notationLayout({
 export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, containerWidth) {
   if (!targetHeight || targetHeight < 160 || !renderedHeight || !staffwidth) return staffwidth;
   const ratio = renderedHeight / targetHeight;
-  if (ratio >= 0.88 && ratio <= 1.02) return staffwidth;
-  const next = Math.round(staffwidth * ratio * 0.96);
-  const minWidth = 460;
+  if (ratio >= 0.95 && ratio <= 1.03) return staffwidth;
+  const next = Math.round(staffwidth * ratio * 0.98);
+  const minWidth = 400;
   const maxWidth = Math.max(minWidth, containerWidth - 24);
   return Math.min(maxWidth, Math.max(minWidth, next));
 }

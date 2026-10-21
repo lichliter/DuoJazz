@@ -16,6 +16,7 @@ import {
   chartCopy,
   GOALS,
   isStandPortrait,
+  isStandLandscape,
   notationLayout,
   nextEngravingWidth,
 } from "./lesson.js";
@@ -305,6 +306,9 @@ test("iPad Pro 12.9 portrait is the stand-portrait layout target", () => {
   assert.equal(isStandPortrait(1366, 1024), false);
   assert.equal(isStandPortrait(1280, 720), false);
   assert.equal(isStandPortrait(375, 812), false);
+  assert.equal(isStandLandscape(1366, 1024), true);
+  assert.equal(isStandLandscape(1024, 1366), false);
+  assert.equal(isStandLandscape(1280, 720), false);
 });
 
 test("stand portrait uses two-bar systems and a larger chorus scale", () => {
@@ -318,8 +322,10 @@ test("stand portrait uses two-bar systems and a larger chorus scale", () => {
   assert.equal(stand.barsPerLine, 2);
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, true);
-  assert.ok(stand.scale >= 1.45);
+  assert.ok(stand.scale >= 1.65);
   assert.ok(stand.engravingRatio < 1);
+  assert.ok(stand.staffsep >= 80);
+  assert.ok(stand.fillRatio >= 0.96);
   const landscape = notationLayout({
     staffWidth: 980,
     viewportWidth: 1366,
@@ -328,7 +334,8 @@ test("stand portrait uses two-bar systems and a larger chorus scale", () => {
     showEntranceCues: true,
   });
   assert.equal(landscape.barsPerLine, 4);
-  assert.equal(landscape.fitToPaper, false);
+  assert.equal(landscape.fitToPaper, true);
+  assert.ok(landscape.scale > 1.08);
   const narrow = notationLayout({
     staffWidth: 340,
     viewportWidth: 375,
@@ -338,6 +345,7 @@ test("stand portrait uses two-bar systems and a larger chorus scale", () => {
   });
   assert.equal(narrow.barsPerLine, 4);
   assert.ok(narrow.scale < 1);
+  assert.equal(narrow.fitToPaper, false);
 });
 
 test("narrower engraving width upscales the staff to fill unused paper", () => {
@@ -345,8 +353,10 @@ test("narrower engraving width upscales the staff to fill unused paper", () => {
   assert.equal(overflow > 700, true);
   const tooShort = nextEngravingWidth(960, 450, 850, 986);
   assert.equal(tooShort < 960, true);
-  assert.equal(tooShort >= 460, true);
+  assert.equal(tooShort >= 400, true);
   assert.equal(nextEngravingWidth(560, 820, 850, 986), 560);
+  const underfilled = nextEngravingWidth(560, 760, 864, 986);
+  assert.equal(underfilled < 560, true);
 });
 
 test("echo cell keeps the pad only; helped slash staff still uses the register", () => {
