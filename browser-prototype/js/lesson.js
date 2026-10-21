@@ -451,7 +451,7 @@ export function notationLayout({
     annotationPx: stand ? 18 : 15,
     slashStroke: stand ? 2.9 : 1.85,
     fitToPaper: stand || landscape,
-    staffsep: stand ? 136 : landscape ? 96 : 55,
+    staffsep: stand ? 90 : landscape ? 72 : 55,
     fillRatio: stand ? 0.98 : landscape ? 0.94 : 0.92,
   };
 }
