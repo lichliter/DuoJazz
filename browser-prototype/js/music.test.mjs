@@ -16,9 +16,14 @@ import {
   writtenKeyFromConcert,
   chordDisplayName,
   midiForInterval,
+  melodyMidiForInterval,
+  melodyOctaveOffset,
+  melodySemitoneShift,
+  normalizeMelodyRegister,
   phraseABC,
   modelABC,
   DEFAULT_CLEF,
+  DEFAULT_MELODY_REGISTER,
   PHRASE_OCTAVE,
   modelSolo,
   scheduleChorus,
@@ -268,4 +273,139 @@ test("sequence-down variation transposes the local cell by a major second", () =
   const varied = variationElements("sequence-down", "minor-home");
   assert.equal(varied[0].interval, 12);
   assert.equal(varied[varied.length - 1].interval, -2);
+});
+
+function chorusEvents(applicationId, melodyRegister, extras = {}) {
+  return scheduleChorus({
+    concertKey: getKey("G"),
+    displayMode: "concert",
+    includeModel: true,
+    includeGuides: true,
+    includeClick: true,
+    includeCue: true,
+    variationId: "original",
+    stage: "place",
+    applicationId,
+    modelScope: "solo",
+    lengthBeats: 32,
+    melodyRegister,
+    ...extras,
+  });
+}
+
+function backingFingerprint(events) {
+  return events
+    .filter((event) => event.type !== "melody")
+    .map((event) => ({
+      type: event.type,
+      beat: event.beat,
+      midi: event.midi ?? null,
+      midis: event.midis ?? null,
+      name: event.name ?? null,
+      strong: event.strong ?? null,
+      kind: event.kind ?? null,
+    }));
+}
+
+test("melody register is −1 / 0 / +1 octaves on the trombone default", () => {
+  assert.equal(DEFAULT_MELODY_REGISTER, 0);
+  assert.equal(normalizeMelodyRegister(undefined), 0);
+  assert.equal(normalizeMelodyRegister(2), 0);
+  assert.equal(normalizeMelodyRegister("-1"), -1);
+  assert.equal(melodyOctaveOffset(0), PHRASE_OCTAVE);
+  assert.equal(melodyOctaveOffset(1), PHRASE_OCTAVE + 1);
+  assert.equal(melodySemitoneShift(-1), -12);
+  assert.equal(melodyMidiForInterval(7, 14, 0), 57);
+  assert.equal(melodyMidiForInterval(7, 14, 1), 69);
+  assert.equal(melodyMidiForInterval(7, 14, -1), 45);
+});
+
+test("melody register shifts complete model MIDI by exact octaves without moving backing", () => {
+  for (const app of APPLICATIONS) {
+    const original = chorusEvents(app.id, 0);
+    const up = chorusEvents(app.id, 1);
+    const down = chorusEvents(app.id, -1);
+    const originalMelody = original.filter((event) => event.type === "melody");
+    const upMelody = up.filter((event) => event.type === "melody");
+    const downMelody = down.filter((event) => event.type === "melody");
+    assert.ok(originalMelody.length > 6);
+    assert.deepEqual(
+      upMelody.map((event) => event.beat),
+      originalMelody.map((event) => event.beat),
+    );
+    assert.deepEqual(
+      downMelody.map((event) => event.midi),
+      originalMelody.map((event) => event.midi - 12),
+    );
+    assert.deepEqual(
+      upMelody.map((event) => event.midi),
+      originalMelody.map((event) => event.midi + 12),
+    );
+    assert.deepEqual(backingFingerprint(up), backingFingerprint(original));
+    assert.deepEqual(backingFingerprint(down), backingFingerprint(original));
+    assert.equal(original.find((event) => event.type === "end").beat, 32);
+    assert.equal(up.find((event) => event.type === "chord").name, original.find((event) => event.type === "chord").name);
+  }
+});
+
+test("G minor cell names follow melody register; intervals and rhythm stay put", () => {
+  const g = getKey("G");
+  const original = phraseNotes(g, "concert", "minor-home", 0);
+  const up = phraseNotes(g, "concert", "minor-home", 1);
+  const down = phraseNotes(g, "concert", "minor-home", -1);
+  assert.deepEqual(original.map((n) => n.shownName), ["A3", "G3", "D3", "B♭2", "A2", "G2"]);
+  assert.deepEqual(up.map((n) => n.shownName), ["A4", "G4", "D4", "B♭3", "A3", "G3"]);
+  assert.deepEqual(down.map((n) => n.shownName), ["A2", "G2", "D2", "B♭1", "A1", "G1"]);
+  assert.deepEqual(up.map((n) => n.interval), original.map((n) => n.interval));
+  assert.deepEqual(up.map((n) => n.beats), original.map((n) => n.beats));
+  assert.deepEqual(up.map((n) => n.degree), original.map((n) => n.degree));
+});
+
+test("phrase ABC follows melody register while clef and B♭ names stay independent", () => {
+  const g = getKey("G");
+  const original = phraseABC(g, "concert", "minor-home", "bass", 0);
+  const up = phraseABC(g, "concert", "minor-home", "bass", 1);
+  const down = phraseABC(g, "concert", "minor-home", "bass", -1);
+  const trebleUp = phraseABC(g, "concert", "minor-home", "treble", 1);
+  const writtenUp = phraseABC(g, "bb-written", "minor-home", "bass", 1);
+  assert.match(original, /K:Gmin clef=bass/);
+  assert.match(original, /A,G, D,2 _B,,A,, G,,2/);
+  assert.match(up, /AG D2 _B,A, G,2/);
+  assert.match(down, /A,,G,, D,,2 _B,,,A,,, G,,,2/);
+  assert.match(trebleUp, /clef=treble/);
+  assert.match(trebleUp, /AG D2 _B,A, G,2/);
+  assert.match(writtenUp, /K:Amin clef=bass/);
+  assert.match(writtenUp, /BA E2 CB, A,2/);
+  const notes = phraseNotes(g, "bb-written", "minor-home", 1);
+  assert.equal(notes[0].concertMidi, 69);
+  assert.equal(notes[0].shownMidi, 71);
+  const bassModel = modelABC(g, "concert", "minor-home", "bass", -1);
+  const trebleModel = modelABC(g, "concert", "minor-home", "treble", -1);
+  assert.match(bassModel, /clef=bass/);
+  assert.match(trebleModel, /clef=treble/);
+  assert.match(bassModel, /"Cm7"/);
+  assert.match(trebleModel, /"Cm7"/);
+});
+
+test("isolated-cell hearing uses the same melody register as the chorus model", () => {
+  const g = getKey("G");
+  for (const app of APPLICATIONS) {
+    const chorus = chorusEvents(app.id, 1).filter((event) => event.type === "melody" && event.role === "phrase");
+    const cell = scheduleChorus({
+      concertKey: g,
+      displayMode: "concert",
+      includeModel: true,
+      includeGuides: false,
+      includeClick: false,
+      variationId: "original",
+      stage: "learn",
+      applicationId: app.id,
+      melodyRegister: 1,
+    }).filter((event) => event.type === "melody");
+    assert.deepEqual(
+      cell.map((event) => event.midi),
+      chorus.map((event) => event.midi),
+    );
+    assert.equal(cell[0].beat, 0);
+  }
 });

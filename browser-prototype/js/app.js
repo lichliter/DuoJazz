@@ -1,12 +1,14 @@
 import {
   APPLICATIONS,
   KEYS,
+  MELODY_REGISTERS,
   PRIMARY_KEY_IDS,
   applicationById,
   displayKey,
   getKey,
   minorSpelling,
   modelABC,
+  normalizeMelodyRegister,
   phraseABC,
 } from "./music.js";
 import { Transport } from "./audio.js";
@@ -42,6 +44,8 @@ const els = {
   functionLabel: document.getElementById("function-label"),
   notation: document.getElementById("notation"),
   chart: document.getElementById("chart"),
+  registerWrap: document.getElementById("register-wrap"),
+  register: document.getElementById("register"),
   primary: document.getElementById("primary"),
   back: document.getElementById("back"),
   replay: document.getElementById("replay"),
@@ -79,6 +83,7 @@ function loadState() {
     if (STEPS.some((step) => step.id === fromHash)) merged.step = fromHash;
     if (!APPLICATIONS.some((app) => app.id === merged.applicationId)) merged.applicationId = base.applicationId;
     merged.clef = merged.clef === "treble" ? "treble" : "bass";
+    merged.melodyRegister = normalizeMelodyRegister(merged.melodyRegister);
     return merged;
   } catch {
     if (STEPS.some((step) => step.id === fromHash)) base.step = fromHash;
@@ -99,6 +104,17 @@ function halt() {
   playback.playing = false;
   playback.paused = false;
   playback.ended = false;
+}
+
+function applyMelodyRegister(value) {
+  const next = normalizeMelodyRegister(value);
+  if (next === state.melodyRegister) return;
+  const wasPlaying = playback.playing;
+  state.melodyRegister = next;
+  persist();
+  halt();
+  render();
+  if (wasPlaying) start(false);
 }
 
 function go(stepId) {
@@ -141,6 +157,22 @@ function renderApplications() {
     }),
   );
   els.applicationBlurb.textContent = applicationById(state.applicationId).blurb;
+}
+
+function renderRegister() {
+  const view = presentation(state);
+  els.registerWrap.hidden = !view.showMusic;
+  els.register.replaceChildren(
+    ...MELODY_REGISTERS.map((option) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = option.label;
+      btn.setAttribute("aria-pressed", String(option.id === state.melodyRegister));
+      btn.addEventListener("click", () => applyMelodyRegister(option.id));
+      return btn;
+    }),
+  );
 }
 
 function renderKeys() {
@@ -190,8 +222,8 @@ function renderNotation() {
     return;
   }
   const abc = view.showModelNotation
-    ? modelABC(concertKey(), state.displayMode, state.applicationId, state.clef)
-    : phraseABC(concertKey(), state.displayMode, state.applicationId, state.clef);
+    ? modelABC(concertKey(), state.displayMode, state.applicationId, state.clef, state.melodyRegister)
+    : phraseABC(concertKey(), state.displayMode, state.applicationId, state.clef, state.melodyRegister);
   els.notation.replaceChildren();
   if (window.ABCJS) {
     window.ABCJS.renderAbc(els.notation, abc, {
@@ -389,6 +421,7 @@ function render(snap = transport.snapshot()) {
   renderSteps();
   renderCopy(snap);
   renderNow(snap);
+  renderRegister();
   renderNotation();
   renderChart(snap);
   renderAssess();
