@@ -19,21 +19,23 @@ Chart variant: Ultimate Guitar `autumn-leaves-chords-4419731` (jbpicon, key Gm, 
 
 Two ways to use the same cell:
 
-1. **Minor home** — G-minor shape at the Gm arrival (bar 7).
-2. **Altered dominant** — E♭-minor shape over D7 (bar 6), then a composed resolution into Gm.
+1. **Minor home** — minor-tonic shape on the i6 arrival (bar 7).
+2. **Altered dominant** — the same cell a major third down over V7 (bar 6), then a composed resolution into i.
+
+Application copy (shape, target chord, door) is derived from the current concert key. It is not hard-coded to G minor.
 
 ## Lesson
 
-Default path (isolated cell practice is optional, not a gate):
+Four goals, no unlocks and no required order:
 
-1. **Hear** — an original eight-bar model solo with a lead-in, the cell at its real location, and a continuation/resolution.
-2. **Try** — the same backing without the model; entrance cue and room before/after.
-3. **Yours** — chord chart only. Entrance labels, target styling, phrase notation, and default model playback are removed.
-4. **Check-in** — optional self-assessment after playing. Recall stays separate from application, and the two harmonic jobs do not share marks.
+1. **Learn** — hear, read, and echo the cell in one key.
+2. **Use in a solo** — Listen / Play with help / Play freely over the eight bars. Listen shows the original model; help uses rhythmic slashes plus Get ready / HERE; freely keeps slashes and removes prescribed entrance cues, including bar-number leakage in the surrounding copy.
+3. **Explore keys** — the same idea in another minor key. Twelve keys are optional, not a gate.
+4. **Check yourself** — learner-controlled recall versus application checks, with a hidden answer until reveal. Marks are stored per key, application, and check kind.
 
-Default notation is **concert bass clef** in a trombone register (G minor cell: A3 G3 D3 Bb2 A2 G2). A **melody octave** control next to the chorus (−1 / Original / +1) shifts the model line and displayed phrase by exact octaves; accompaniment, bass, chord symbols, key, count-in, and click stay put. Treble clef and B♭ written names are separate settings; changing clef does not transpose the audio. Eighth notes are beamed in beat groups.
+Harmony always lives on one staff. There is no duplicate chord strip. Melody octave (−1 / Original / +1) stays in the transport and still moves only the model line and displayed phrase.
 
-Tempo stays in the transport. Key, clef, B♭ written names, swing, metronome, and guide tones live in Settings. Melody octave is saved locally and is not a Settings item.
+Default notation is **concert bass clef** in a trombone register (G minor cell: A3 G3 D3 Bb2 A2 G2). Treble clef and B♭ written names are separate settings; changing clef does not transpose the audio.
 
 ## What it is not
 

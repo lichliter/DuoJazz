@@ -241,6 +241,84 @@ export function applicationById(id) {
   return APPLICATIONS.find((item) => item.id === id) ?? APPLICATIONS[0];
 }
 
+export function prepareBar(applicationId) {
+  return Math.max(1, applicationById(applicationId).phraseStartBar - 1);
+}
+
+export function cueCaption(bar, applicationId = DEFAULT_APPLICATION_ID) {
+  const app = applicationById(applicationId);
+  if (bar === app.phraseStartBar) return "HERE";
+  if (bar === app.phraseStartBar - 1) return "Get ready";
+  return "";
+}
+
+export function cellTonicSpelling(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+  const app = applicationById(applicationId);
+  const shownKey = displayKey(concertKey, displayMode);
+  const concertPc = wrapPc(concertKey.pc + app.cellTonicInterval);
+  const shownPc = displayMode === "bb-written" ? wrapPc(concertPc + 2) : concertPc;
+  const name = pitchName(shownPc, shownKey.usesFlats);
+  return {
+    name,
+    minorName: `${name} minor`,
+    shortName: `${name}m`,
+  };
+}
+
+export function applicationContext(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
+  const app = applicationById(applicationId);
+  const shown = displayKey(concertKey, displayMode);
+  const cell = cellTonicSpelling(concertKey, displayMode, applicationId);
+  const targetSpec = FORM_BARS[app.phraseStartBar - 1];
+  const targetChord = chordDisplayName(
+    concertKey,
+    targetSpec.intervalFromTonic,
+    targetSpec.quality,
+    displayMode,
+  );
+  const homeChord = chordDisplayName(concertKey, 0, "minor6", displayMode);
+  const dominantChord = chordDisplayName(concertKey, 7, "dominant7", displayMode);
+  const enterBar = app.phraseStartBar;
+  const readyBar = prepareBar(applicationId);
+  return {
+    id: app.id,
+    label: app.label,
+    cellName: cell.minorName,
+    cellShort: cell.shortName,
+    targetChord,
+    homeChord,
+    dominantChord,
+    tuneName: shown.name,
+    tuneShort: shown.shortName,
+    enterBar,
+    readyBar,
+    placement: `On ${targetChord} · Bar ${enterBar}`,
+    shapeOver: `${cell.minorName} shape over ${targetChord}`,
+    listenBlurb: `${cell.minorName} shape over ${targetChord}. Hear the phrase land in bar ${enterBar}, then become part of the line.`,
+    helpBlurb: `${cell.minorName} shape over ${targetChord}. Get ready in bar ${readyBar}. Bring the phrase in on bar ${enterBar}.`,
+    freeBlurb: `${cell.minorName} shape over ${targetChord}. Your line over the eight bars.`,
+    learnBlurb: `Cry Me a River cell in ${cell.minorName}. Same intervals in this key.`,
+    keysBlurb: `Same ${cell.minorName} shape. Interval meaning stays put; only the door changes.`,
+    checkRecallBlurb: `Recall the cell in ${cell.minorName}. The app is not listening.`,
+    checkApplyBlurb: `Use the cell over the eight bars in ${shown.name}. No written door unless you reveal it.`,
+    entranceQuestion: `Did you find the ${cell.minorName} door on bar ${enterBar}?`,
+    afterQuestion: app.id === "altered-dominant"
+      ? `Did you resolve into ${shown.name} and keep playing?`
+      : `Did you keep playing on the second ${homeChord} bar?`,
+    phraseFunctionLabel: app.id === "altered-dominant"
+      ? `V7 · ${cell.minorName} cell`
+      : `i6 · Cry Me a River cell`,
+    resolvePrompt: `Resolve into ${shown.name}. Keep going.`,
+  };
+}
+
+export function supportBlurb(concertKey, displayMode, applicationId, supportId) {
+  const ctx = applicationContext(concertKey, displayMode, applicationId);
+  if (supportId === "help") return ctx.helpBlurb;
+  if (supportId === "free") return ctx.freeBlurb;
+  return ctx.listenBlurb;
+}
+
 export function wrapPc(pc) {
   return ((pc % 12) + 12) % 12;
 }
@@ -535,22 +613,30 @@ export function phraseABC(concertKey, displayMode, applicationId = DEFAULT_APPLI
   const shownKey = displayKey(concertKey, displayMode);
   const app = applicationById(applicationId);
   const tonicName = abcChordName(concertKey, app.cellTonicInterval, "minor6", displayMode);
-  let abc = `X:1\nT:${PHRASE_NAME}\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n"${tonicName}"`;
+  let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n"${tonicName}"`;
   abc += notesToAbc(phraseEvents(applicationId).map((note) => ({ ...note, beat: note.beat - phraseStartBeat(applicationId) })), concertKey, displayMode, melodyRegister);
   abc += "z8 |]\n";
   return abc;
 }
 
-export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF, melodyRegister = DEFAULT_MELODY_REGISTER) {
+function barCueAnnotation(barNumber, applicationId, showCues) {
+  if (!showCues) return "";
+  const cue = cueCaption(barNumber, applicationId);
+  return cue ? `"_${cue}"` : "";
+}
+
+export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF, melodyRegister = DEFAULT_MELODY_REGISTER, options = {}) {
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
   const notes = modelSolo(applicationId);
-  let abc = `X:1\nT:${applicationById(applicationId).label} · model chorus\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n`;
+  const showCues = Boolean(options.showCues);
+  let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n`;
   let beat = 0;
   let noteIndex = 0;
   for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
     const chord = chords[bar];
     abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
+    abc += barCueAnnotation(bar + 1, applicationId, showCues);
     const barEnd = (bar + 1) * BEATS_PER_BAR;
     while (noteIndex < notes.length && notes[noteIndex].beat < barEnd - 1e-6) {
       const note = notes[noteIndex];
@@ -570,6 +656,37 @@ export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
     beat = barEnd;
   }
   return abc;
+}
+
+export function slashABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF, options = {}) {
+  const shownKey = displayKey(concertKey, displayMode);
+  const chords = chorusChords(concertKey, displayMode);
+  const showCues = Boolean(options.showCues);
+  const slashPitch = clef === "treble" ? "B" : "D,";
+  let abc = `X:1\nM:4/4\nL:1/4\n${abcKeyLine(shownKey, clef)}\n`;
+  for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
+    const chord = chords[bar];
+    abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
+    abc += barCueAnnotation(bar + 1, applicationId, showCues);
+    abc += `${slashPitch} ${slashPitch} ${slashPitch} ${slashPitch}`;
+    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : bar % 4 === 3 ? " |\n" : " | ";
+  }
+  return abc;
+}
+
+export function chorusStaffABC({
+  concertKey,
+  displayMode,
+  applicationId = DEFAULT_APPLICATION_ID,
+  clef = DEFAULT_CLEF,
+  melodyRegister = DEFAULT_MELODY_REGISTER,
+  mode = "model",
+  showCues = false,
+}) {
+  if (mode === "slash") {
+    return slashABC(concertKey, displayMode, applicationId, clef, { showCues });
+  }
+  return modelABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues });
 }
 
 export function chartABC(concertKey, displayMode, clef = DEFAULT_CLEF) {

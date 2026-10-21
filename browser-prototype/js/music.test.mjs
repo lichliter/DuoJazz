@@ -32,6 +32,9 @@ import {
   variationElements,
   chorusChords,
   applicationById,
+  slashABC,
+  cueCaption,
+  applicationContext,
 } from "./music.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
@@ -408,4 +411,37 @@ test("isolated-cell hearing uses the same melody register as the chorus model", 
     );
     assert.equal(cell[0].beat, 0);
   }
+});
+
+test("slash staff is rhythmic slashes with chord symbols, not model pitches or rests", () => {
+  const g = getKey("G");
+  const slashes = slashABC(g, "concert", "minor-home", "bass");
+  assert.match(slashes, /K:Gmin clef=bass/);
+  assert.match(slashes, /"Cm7"/);
+  assert.match(slashes, /"Gm6"/);
+  assert.match(slashes, /D, D, D, D,/);
+  assert.doesNotMatch(slashes, /A,G,/);
+  assert.doesNotMatch(slashes, /Get ready|HERE/);
+  const cued = slashABC(g, "concert", "minor-home", "bass", { showCues: true });
+  assert.match(cued, /Get ready/);
+  assert.match(cued, /HERE/);
+  const altered = slashABC(g, "concert", "altered-dominant", "bass", { showCues: true });
+  assert.equal(cueCaption(5, "altered-dominant"), "Get ready");
+  assert.equal(cueCaption(6, "altered-dominant"), "HERE");
+  assert.equal(cueCaption(7, "altered-dominant"), "");
+  assert.match(altered, /"D7""_HERE"/);
+  assert.match(altered, /"Am7b5""_Get ready"/);
+  const f = slashABC(getKey("F"), "concert", "minor-home", "bass", { showCues: true });
+  assert.match(f, /"Fm6""_HERE"/);
+  assert.doesNotMatch(f, /Gm6/);
+});
+
+test("model staff can carry the same Get ready / HERE anchors", () => {
+  const cued = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
+  assert.match(cued, /"D7""_Get ready"/);
+  assert.match(cued, /"Gm6""_HERE"/);
+  const fAlt = applicationContext(getKey("F"), "concert", "altered-dominant");
+  assert.equal(fAlt.readyBar, 5);
+  assert.equal(fAlt.enterBar, 6);
+  assert.equal(fAlt.targetChord, "C7");
 });
