@@ -422,37 +422,47 @@ export function notationLayout({
       paddingbottom: stand ? 16 : 12,
       wrap: null,
       barsPerLine: 2,
-      chordfont: stand ? "Source Sans 3 22" : "Source Sans 3 15",
+      chordfont: stand ? "Noto Sans 22" : "Noto Sans 15",
       annotationfont: stand ? "Source Sans 3 16" : "Source Sans 3 13",
       annotationPx: stand ? 18 : 15,
       slashStroke: stand ? 2.6 : 1.85,
       engravingRatio: stand ? 0.44 : landscape ? 0.72 : 1,
+      minEngravingRatio: 0.4,
       fitToPaper: false,
+      fillAxis: "width",
       staffsep: stand ? 70 : 55,
       fillRatio: 0.92,
     };
   }
 
+  // iPad portrait and landscape: 4 bars per line (8-bar chart → 2 systems).
+  // Narrow phone widths may use fewer so measures stay readable.
+  const barsPerLine = narrow ? 2 : 4;
+
   return {
-    scale: stand ? 1.72 : landscape ? 1.28 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 8 : landscape ? 10 : 28,
-    paddingbottom: showEntranceCues ? (stand ? 24 : landscape ? 22 : 32) : (stand ? 12 : 12),
-    wrap: stand || landscape
+    scale: stand ? 1.5 : landscape ? 1.28 : short ? 0.9 : narrow ? 0.94 : 1.08,
+    paddingtop: stand ? 12 : landscape ? 10 : 28,
+    paddingbottom: showEntranceCues ? (stand ? 32 : landscape ? 22 : 32) : (stand ? 16 : 12),
+    wrap: stand || landscape || narrow
       ? null
       : {
         minSpacing: 1.45,
         maxSpacing: 2.6,
-        preferredMeasuresPerLine: 4,
+        preferredMeasuresPerLine: barsPerLine,
       },
-    barsPerLine: stand ? 2 : 4,
-    engravingRatio: stand ? 0.48 : landscape ? 0.64 : 1,
-    chordfont: stand ? "Source Sans 3 22" : landscape ? "Source Sans 3 18" : "Source Sans 3 15",
+    barsPerLine,
+    // Size 4 bars to the width. Fill leftover portrait height with staffsep,
+    // not by shrinking engraving (that collides 4 bars).
+    engravingRatio: stand ? 0.56 : landscape ? 0.64 : 1,
+    minEngravingRatio: stand ? 0.52 : landscape ? 0.58 : 0.4,
+    chordfont: stand ? "Noto Sans 22" : landscape ? "Noto Sans 18" : "Noto Sans 15",
     annotationfont: stand ? "Source Sans 3 17" : "Source Sans 3 13",
     annotationPx: stand ? 18 : 15,
-    slashStroke: stand ? 2.9 : 1.85,
+    slashStroke: stand ? 2.6 : 1.85,
     fitToPaper: stand || landscape,
-    staffsep: stand ? 90 : landscape ? 72 : 55,
-    fillRatio: stand ? 0.98 : landscape ? 0.94 : 0.92,
+    fillAxis: stand ? "staffsep" : "width",
+    staffsep: stand ? 140 : landscape ? 72 : 55,
+    fillRatio: stand ? 0.58 : landscape ? 0.94 : 0.92,
   };
 }
 
@@ -460,14 +470,22 @@ export function notationLayout({
  * With abcjs `responsive: "resize"`, visual size is containerWidth / engravingWidth.
  * A narrower engraving is upscaled to the paper, so the staff gets larger.
  */
-export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, containerWidth) {
+export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, containerWidth, minWidth = 400) {
   if (!targetHeight || targetHeight < 160 || !renderedHeight || !staffwidth) return staffwidth;
   const ratio = renderedHeight / targetHeight;
   if (ratio >= 0.95 && ratio <= 1.03) return staffwidth;
   const next = Math.round(staffwidth * ratio * 0.98);
-  const minWidth = 400;
-  const maxWidth = Math.max(minWidth, containerWidth - 24);
-  return Math.min(maxWidth, Math.max(minWidth, next));
+  const floor = Math.max(400, minWidth);
+  const maxWidth = Math.max(floor, containerWidth - 24);
+  return Math.min(maxWidth, Math.max(floor, next));
+}
+
+/** Grow or shrink system separation so two 4-bar systems fill leftover paper height. */
+export function nextStaffsep(staffsep, renderedHeight, targetHeight) {
+  if (!targetHeight || targetHeight < 160 || !renderedHeight || !staffsep) return staffsep;
+  const ratio = targetHeight / renderedHeight;
+  if (ratio >= 0.95 && ratio <= 1.05) return staffsep;
+  return Math.min(280, Math.max(72, Math.round(staffsep * ratio)));
 }
 
 export { CELL_BEATS, CHORUS_BEATS, phraseStartBeat, APPLICATIONS, LEGACY_STEPS };

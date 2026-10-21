@@ -106,7 +106,7 @@ const QUALITY_ABC = {
   minor7: "m7",
   dominant7: "7",
   major7: "maj7",
-  minor7b5: "m7b5",
+  minor7b5: "m7♭5",
   minor6: "m6",
 };
 
@@ -563,11 +563,24 @@ function abcDuration(beats) {
   return String(Math.round(beats * 2));
 }
 
+/**
+ * Split a jazz-chord root into letter + accidental so the accidental stays
+ * full-size with the letter (B♭, F♯) instead of joining the superscript quality.
+ */
+export function jazzChordRootParts(text) {
+  const match = String(text).match(/^([A-G])([♭♯b#])(.*)$/u);
+  if (!match) return null;
+  const accidental = match[2] === "b" ? "♭" : match[2] === "#" ? "♯" : match[2];
+  return { letter: match[1], accidental, rest: match[3] };
+}
+
 function abcChordName(concertTonic, intervalFromTonic, quality, displayMode) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
   const shownKey = displayKey(concertTonic, displayMode);
-  const root = pitchName(shownPc, shownKey.usesFlats).replaceAll("♭", "b").replaceAll("♯", "#");
+  // Keep Unicode accidentals on the root so abcjs jazzchords superscripts
+  // only the quality (B♭ + maj7), not B + ♭maj7.
+  const root = pitchName(shownPc, shownKey.usesFlats);
   return `${root}${QUALITY_ABC[quality]}`;
 }
 
