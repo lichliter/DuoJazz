@@ -31,9 +31,9 @@ Default path (isolated cell practice is optional, not a gate):
 3. **Yours** — chord chart only. Entrance labels, target styling, phrase notation, and default model playback are removed.
 4. **Check-in** — optional self-assessment after playing. Recall stays separate from application, and the two harmonic jobs do not share marks.
 
-Default notation is **concert bass clef** in a trombone register (G minor cell: A3 G3 D3 Bb2 A2 G2). Treble clef and B♭ written names are separate settings; changing clef does not transpose the audio. Eighth notes are beamed in beat groups.
+Default notation is **concert bass clef** in a trombone register (G minor cell: A3 G3 D3 Bb2 A2 G2). A **melody octave** control next to the chorus (−1 / Original / +1) shifts the model line and displayed phrase by exact octaves; accompaniment, bass, chord symbols, key, count-in, and click stay put. Treble clef and B♭ written names are separate settings; changing clef does not transpose the audio. Eighth notes are beamed in beat groups.
 
-Tempo stays in the transport. Key, clef, B♭ written names, swing, metronome, and guide tones live in Settings.
+Tempo stays in the transport. Key, clef, B♭ written names, swing, metronome, and guide tones live in Settings. Melody octave is saved locally and is not a Settings item.
 
 ## What it is not
 

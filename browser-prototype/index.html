@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=12">
+  <link rel="stylesheet" href="./css/styles.css?v=13">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=12"></script>
+  <script type="module" src="./js/app.js?v=13"></script>
 </head>
 <body data-step="hear" data-lens="context">
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -53,6 +53,11 @@
     </section>
 
     <div id="chart" class="chart" hidden></div>
+    <section class="register" id="register-wrap" aria-label="Melody octave">
+      <p class="register-label" id="register-label">Melody octave</p>
+      <div class="row" id="register" role="group" aria-labelledby="register-label"></div>
+      <p class="help">Moves the model line and notation only. Backing, bass, chords, and click stay put.</p>
+    </section>
     <div id="notation" class="paper" aria-label="Phrase notation"></div>
 
     <label class="coach" id="coach-wrap" hidden>
@@ -116,7 +121,7 @@
         <summary>About this experiment</summary>
         <p>Browser synth only. No microphone, accounts, or pitch grading. This does not verify the native iPad app, Safari, or device audio. Space plays or pauses. Left/Right move steps. R restarts and silences leftover audio.</p>
         <p>Excerpt: Autumn Leaves opening eight bars in concert G minor, after the jbpicon Ultimate Guitar chart (key Gm, no capo, Verse 1, last update Aug 21 2025): Cm7 F7 B♭maj7 E♭maj7 Am7♭5 D7 Gm6 Gm6. Tonic bars use Gm6 as on that chart. This is a contiguous excerpt for placing a lick, not the tune’s head.</p>
-        <p>Phrase: Cry Me a River minor-tonic cell 9–1–5–♭3–2–1, one bar, eighth–eighth–quarter–eighth–eighth–quarter. Concert G minor in trombone register: A3 G3 D3 Bb2 A2 G2. Default view is concert bass clef; treble and B♭ written names are separate settings. Clef does not transpose. Not DuoJazz <code>iivi-cry-me-enclosure</code>.</p>
+        <p>Phrase: Cry Me a River minor-tonic cell 9–1–5–♭3–2–1, one bar, eighth–eighth–quarter–eighth–eighth–quarter. Concert G minor in trombone register: A3 G3 D3 Bb2 A2 G2. Melody octave (−1 / Original / +1) sits next to the chorus notation and shifts that model line together with isolated-cell hearing. Clef and B♭ written names do not change the audio octave. Not DuoJazz <code>iivi-cry-me-enclosure</code>.</p>
         <p>Two applications of that same cell: Minor home (G-minor shape on Gm, bar 7) and Altered dominant (E♭-minor shape over D7, bar 6, then a composed resolution into Gm). Isolated hear/echo of the naked cell is optional and is not required before the eight-bar demonstration.</p>
       </details>
       <button type="submit" class="primary-lite" value="close">Close</button>

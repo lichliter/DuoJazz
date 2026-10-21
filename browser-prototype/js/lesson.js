@@ -12,7 +12,9 @@ import {
   CHORUS_BEATS,
   DEFAULT_APPLICATION_ID,
   DEFAULT_KEY_ID,
+  DEFAULT_MELODY_REGISTER,
   applicationById,
+  normalizeMelodyRegister,
   chorusChords,
   chordAtBeat,
   getKey,
@@ -127,6 +129,7 @@ export function defaultState() {
     concertKeyId: DEFAULT_KEY_ID,
     displayMode: "concert",
     clef: "bass",
+    melodyRegister: DEFAULT_MELODY_REGISTER,
     tempo: 96,
     swing: true,
     metronome: false,
@@ -157,6 +160,7 @@ export function audioConfigFor(stateOrStep) {
     applicationId: view.applicationId,
     modelScope: coach ? "phrase" : view.modelScope,
     cueGain: view.includeCue ? 1 : 0,
+    melodyRegister: normalizeMelodyRegister(state.melodyRegister),
   };
 }
 

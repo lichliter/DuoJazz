@@ -172,6 +172,26 @@ h1 {
   margin-bottom: 0.7rem;
 }
 
+.register {
+  margin: 0 0 0.7rem;
+}
+
+.register-label {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.register .row {
+  margin-top: 0.35rem;
+}
+
+.register .help {
+  margin: 0.35rem 0 0;
+}
+
 .abcjs-container svg {
   max-width: 100%;
 }
@@ -374,6 +394,7 @@ input[type="checkbox"] {
 body[data-step="reflect"] .now,
 body[data-step="reflect"] .paper,
 body[data-step="reflect"] .chart,
+body[data-step="reflect"] .register,
 body[data-step="reflect"] .hero,
 body[data-step="reflect"] #replay {
   display: none;

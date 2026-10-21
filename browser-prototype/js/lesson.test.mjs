@@ -12,6 +12,7 @@ import {
   adjacentStep,
   currentAssessment,
 } from "./lesson.js";
+import { DEFAULT_MELODY_REGISTER } from "./music.js";
 
 test("independent practice removes entrance labels, target styling, notation, cues, and default model", () => {
   const view = presentation("independent");
@@ -154,4 +155,44 @@ test("self-check marks are stored per application", () => {
   assert.equal(currentAssessment(state).foundEntrance, "");
   state.applicationId = "minor-home";
   assert.equal(currentAssessment(state).foundEntrance, "yes");
+});
+
+test("melody register defaults to Original and rides on audio config", () => {
+  const state = defaultState();
+  assert.equal(state.melodyRegister, DEFAULT_MELODY_REGISTER);
+  assert.equal(audioConfigFor(state).melodyRegister, 0);
+  const up = audioConfigFor({ ...state, melodyRegister: 1 });
+  assert.equal(up.melodyRegister, 1);
+  const events = scheduleChorus(up);
+  const melody = events.filter((event) => event.type === "melody");
+  const phrase = melody.filter((event) => event.role === "phrase");
+  assert.equal(melody[0].midi, 48 + 12);
+  assert.equal(phrase[0].midi, 57 + 12);
+  assert.equal(phrase[0].beat, 24);
+});
+
+test("independent mode stays without model at every melody register", () => {
+  for (const melodyRegister of [-1, 0, 1]) {
+    const view = presentation({ ...defaultState(), step: "independent", melodyRegister });
+    assert.equal(view.showPhraseNotation, false);
+    assert.equal(view.showModelNotation, false);
+    assert.equal(view.includeModel, false);
+    const config = audioConfigFor({ ...defaultState(), step: "independent", melodyRegister });
+    assert.equal(config.includeModel, false);
+    assert.equal(config.variationId, "skip");
+    assert.equal(config.melodyRegister, melodyRegister);
+    const events = scheduleChorus(config);
+    assert.equal(events.filter((event) => event.type === "melody").length, 0);
+  }
+});
+
+test("echo cell keeps the pad only; guided try notation still uses the register", () => {
+  const echo = audioConfigFor({ ...defaultState(), step: "hear", lens: "cell", cellMode: "echo", melodyRegister: -1 });
+  assert.equal(echo.includeModel, false);
+  assert.equal(echo.melodyRegister, -1);
+  assert.equal(scheduleChorus(echo).filter((event) => event.type === "melody").length, 0);
+  const tryConfig = audioConfigFor({ ...defaultState(), step: "try", melodyRegister: 1 });
+  assert.equal(tryConfig.includeModel, false);
+  assert.equal(tryConfig.melodyRegister, 1);
+  assert.equal(presentation({ ...defaultState(), step: "try" }).showPhraseNotation, true);
 });
