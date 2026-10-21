@@ -571,15 +571,28 @@ input[type="checkbox"] {
 
 @media (max-height: 740px) {
   h1 {
-    font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+    font-size: clamp(1.25rem, 2.4vw, 1.75rem);
   }
 
   .title-row {
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.2rem;
   }
 
   .workspace {
-    padding-top: 0.4rem;
+    padding-top: 0.3rem;
+  }
+
+  .app-blurb {
+    margin: 0.2rem 0 0.4rem;
+  }
+
+  .cue-line {
+    margin: 0.28rem 0 0.2rem;
+  }
+
+  .chart-head,
+  .chart-foot {
+    padding-block: 0.45rem;
   }
 }
 
@@ -598,6 +611,79 @@ input[type="checkbox"] {
 
   .paper {
     min-height: 150px;
+  }
+}
+
+/* Primary target: iPad Pro 12.9" portrait, 1024×1366 CSS px. */
+@media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
+  .masthead {
+    padding: 0.42rem 0 0.18rem;
+  }
+
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    padding: 0.4rem 0 0.3rem;
+  }
+
+  h1 {
+    font-size: clamp(1.42rem, 2.15vw, 1.85rem);
+    max-width: 16ch;
+  }
+
+  .title-row {
+    margin: 0.06rem 0 0.38rem;
+  }
+
+  .app-blurb {
+    margin: 0.28rem 0 0.48rem;
+    font-size: 1rem;
+  }
+
+  .applications,
+  .key-panel,
+  .check-panel,
+  .hero-copy,
+  .cue-line,
+  .after {
+    flex: 0 0 auto;
+  }
+
+  .chart-card {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .chart-head,
+  .chart-foot {
+    flex: 0 0 auto;
+  }
+
+  .paper-wrap {
+    flex: 1 1 auto;
+    min-height: 24rem;
+    display: flex;
+    align-items: flex-start;
+    padding: 1.1rem 0.45rem 0.5rem;
+  }
+
+  .paper {
+    min-height: 0;
+    width: 100%;
+  }
+
+  .cue-line {
+    margin: 0.38rem 0 0.12rem;
+    font-size: 1.05rem;
+  }
+
+  .transport-spacer {
+    height: 0;
+    min-height: 0;
+    flex: 0 0 0;
+    overflow: hidden;
   }
 }
 

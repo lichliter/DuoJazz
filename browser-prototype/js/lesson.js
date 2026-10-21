@@ -393,4 +393,71 @@ export function afterRoundActions(stateOrGoal) {
   return actions;
 }
 
+/** iPad Pro 12.9" portrait CSS px is 1024×1366. That is the primary lesson-1 target. */
+export function isStandPortrait(viewportWidth, viewportHeight) {
+  return viewportWidth >= 900 && viewportWidth <= 1180 && viewportHeight >= 1200;
+}
+
+export function notationLayout({
+  staffWidth,
+  viewportWidth,
+  viewportHeight,
+  showPhraseNotation,
+  showEntranceCues,
+}) {
+  const narrow = staffWidth < 520;
+  const stand = isStandPortrait(viewportWidth, viewportHeight);
+  const short = viewportHeight <= 860;
+
+  if (showPhraseNotation) {
+    return {
+      scale: stand ? 1.85 : narrow ? 1.18 : 1.35,
+      paddingtop: stand ? 14 : 8,
+      paddingbottom: stand ? 20 : 12,
+      wrap: null,
+      barsPerLine: 2,
+      chordfont: stand ? "Source Sans 3 20" : "Source Sans 3 15",
+      annotationfont: stand ? "Source Sans 3 16" : "Source Sans 3 13",
+      annotationPx: stand ? 18 : 15,
+      slashStroke: stand ? 2.6 : 1.85,
+      engravingRatio: stand ? 0.48 : 1,
+      fitToPaper: false,
+    };
+  }
+
+  return {
+    scale: stand ? 1.58 : short ? 0.9 : narrow ? 0.94 : 1.08,
+    paddingtop: stand ? 36 : 28,
+    paddingbottom: showEntranceCues ? (stand ? 46 : 32) : (stand ? 22 : 12),
+    wrap: stand
+      ? null
+      : {
+        minSpacing: 1.45,
+        maxSpacing: 2.6,
+        preferredMeasuresPerLine: 4,
+      },
+    barsPerLine: stand ? 2 : 4,
+    engravingRatio: stand ? 0.58 : 1,
+    chordfont: stand ? "Source Sans 3 20" : "Source Sans 3 15",
+    annotationfont: stand ? "Source Sans 3 16" : "Source Sans 3 13",
+    annotationPx: stand ? 18 : 15,
+    slashStroke: stand ? 2.6 : 1.85,
+    fitToPaper: stand,
+  };
+}
+
+/**
+ * With abcjs `responsive: "resize"`, visual size is containerWidth / engravingWidth.
+ * A narrower engraving is upscaled to the paper, so the staff gets larger.
+ */
+export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, containerWidth) {
+  if (!targetHeight || targetHeight < 160 || !renderedHeight || !staffwidth) return staffwidth;
+  const ratio = renderedHeight / targetHeight;
+  if (ratio >= 0.88 && ratio <= 1.02) return staffwidth;
+  const next = Math.round(staffwidth * ratio * 0.96);
+  const minWidth = 460;
+  const maxWidth = Math.max(minWidth, containerWidth - 24);
+  return Math.min(maxWidth, Math.max(minWidth, next));
+}
+
 export { CELL_BEATS, CHORUS_BEATS, phraseStartBeat, APPLICATIONS, LEGACY_STEPS };
