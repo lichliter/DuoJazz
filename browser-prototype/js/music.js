@@ -625,11 +625,18 @@ function barCueAnnotation(barNumber, applicationId, showCues) {
   return cue ? `"_${cue}"` : "";
 }
 
+function barAdvance(bar, barsPerLine = 4) {
+  if (bar === BARS_PER_CHORUS - 1) return " |]\n";
+  if ((bar + 1) % barsPerLine === 0) return " |\n";
+  return " | ";
+}
+
 export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID, clef = DEFAULT_CLEF, melodyRegister = DEFAULT_MELODY_REGISTER, options = {}) {
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
   const notes = modelSolo(applicationId);
   const showCues = Boolean(options.showCues);
+  const barsPerLine = options.barsPerLine ?? 4;
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n`;
   let beat = 0;
   let noteIndex = 0;
@@ -652,7 +659,7 @@ export function modelABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
       if (atBeatBoundary(beat) && Math.abs(beat % 4) > 1e-6) abc += " ";
       noteIndex += 1;
     }
-    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : bar % 4 === 3 ? " |\n" : " | ";
+    abc += barAdvance(bar, barsPerLine);
     beat = barEnd;
   }
   return abc;
@@ -662,6 +669,7 @@ export function slashABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
   const shownKey = displayKey(concertKey, displayMode);
   const chords = chorusChords(concertKey, displayMode);
   const showCues = Boolean(options.showCues);
+  const barsPerLine = options.barsPerLine ?? 4;
   const slashPitch = clef === "treble" ? "B" : "D,";
   let abc = `X:1\nM:4/4\nL:1/4\n${abcKeyLine(shownKey, clef)}\n`;
   for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
@@ -669,7 +677,7 @@ export function slashABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
     abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
     abc += barCueAnnotation(bar + 1, applicationId, showCues);
     abc += `${slashPitch} ${slashPitch} ${slashPitch} ${slashPitch}`;
-    abc += bar === BARS_PER_CHORUS - 1 ? " |]\n" : bar % 4 === 3 ? " |\n" : " | ";
+    abc += barAdvance(bar, barsPerLine);
   }
   return abc;
 }
@@ -682,11 +690,12 @@ export function chorusStaffABC({
   melodyRegister = DEFAULT_MELODY_REGISTER,
   mode = "model",
   showCues = false,
+  barsPerLine = 4,
 }) {
   if (mode === "slash") {
-    return slashABC(concertKey, displayMode, applicationId, clef, { showCues });
+    return slashABC(concertKey, displayMode, applicationId, clef, { showCues, barsPerLine });
   }
-  return modelABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues });
+  return modelABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues, barsPerLine });
 }
 
 export function chartABC(concertKey, displayMode, clef = DEFAULT_CLEF) {

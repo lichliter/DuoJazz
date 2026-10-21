@@ -445,3 +445,16 @@ test("model staff can carry the same Get ready / HERE anchors", () => {
   assert.equal(fAlt.enterBar, 6);
   assert.equal(fAlt.targetChord, "C7");
 });
+
+test("stand-portrait ABC breaks every two bars without changing pitches", () => {
+  const four = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
+  const two = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true, barsPerLine: 2 });
+  assert.equal(four.split("\n").filter((line) => line.includes("|")).length, 2);
+  assert.equal(two.split("\n").filter((line) => line.includes("|")).length, 4);
+  assert.match(two, /"Cm7"/);
+  assert.match(two, /"F7"/);
+  assert.match(two, /"D7""_Get ready"/);
+  assert.match(two, /"Gm6""_HERE"/);
+  const slashTwo = slashABC(getKey("G"), "concert", "minor-home", "bass", { showCues: true, barsPerLine: 2 });
+  assert.equal(slashTwo.split("\n").filter((line) => line.includes("|")).length, 4);
+});
