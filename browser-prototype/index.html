@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=13">
+  <link rel="stylesheet" href="./css/styles.css?v=14">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=13"></script>
+  <script type="module" src="./js/app.js?v=14"></script>
 </head>
 <body data-step="hear" data-lens="context">
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -46,6 +46,12 @@
       <button type="button" class="ghost" id="cell-back" hidden>Back to the chorus</button>
     </div>
 
+    <section class="register" id="register-wrap" aria-label="Melody octave">
+      <p class="register-label" id="register-label">Melody octave</p>
+      <div class="row" id="register" role="group" aria-labelledby="register-label"></div>
+      <p class="help">Moves the model line and notation only. Backing, bass, chords, and click stay put.</p>
+    </section>
+
     <section class="now" id="music-surface" aria-label="Current harmony">
       <p class="now-chord" id="chord">—</p>
       <p class="now-beat" id="beat">Bar · Beat</p>
@@ -53,11 +59,6 @@
     </section>
 
     <div id="chart" class="chart" hidden></div>
-    <section class="register" id="register-wrap" aria-label="Melody octave">
-      <p class="register-label" id="register-label">Melody octave</p>
-      <div class="row" id="register" role="group" aria-labelledby="register-label"></div>
-      <p class="help">Moves the model line and notation only. Backing, bass, chords, and click stay put.</p>
-    </section>
     <div id="notation" class="paper" aria-label="Phrase notation"></div>
 
     <label class="coach" id="coach-wrap" hidden>
