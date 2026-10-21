@@ -35,6 +35,7 @@ import {
   slashABC,
   cueCaption,
   applicationContext,
+  jazzChordRootParts,
 } from "./music.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
@@ -430,7 +431,7 @@ test("slash staff is rhythmic slashes with chord symbols, not model pitches or r
   assert.equal(cueCaption(6, "altered-dominant"), "HERE");
   assert.equal(cueCaption(7, "altered-dominant"), "");
   assert.match(altered, /"D7""_HERE"/);
-  assert.match(altered, /"Am7b5""_Get ready"/);
+  assert.match(altered, /"Am7♭5""_Get ready"/);
   const f = slashABC(getKey("F"), "concert", "minor-home", "bass", { showCues: true });
   assert.match(f, /"Fm6""_HERE"/);
   assert.doesNotMatch(f, /Gm6/);
@@ -457,4 +458,23 @@ test("stand-portrait ABC breaks every two bars without changing pitches", () => 
   assert.match(two, /"Gm6""_HERE"/);
   const slashTwo = slashABC(getKey("G"), "concert", "minor-home", "bass", { showCues: true, barsPerLine: 2 });
   assert.equal(slashTwo.split("\n").filter((line) => line.includes("|")).length, 4);
+});
+
+test("ABC chord names keep the accidental on the root for jazzchords", () => {
+  const g = modelABC(getKey("G"), "concert", "minor-home", "bass");
+  assert.match(g, /"B♭maj7"/);
+  assert.match(g, /"E♭maj7"/);
+  assert.match(g, /"Am7♭5"/);
+  assert.doesNotMatch(g, /Bbmaj7|Ebmaj7|Am7b5/);
+  const e = modelABC(getKey("E"), "concert", "minor-home", "bass");
+  assert.match(e, /"F♯m7♭5"/);
+  const bb = modelABC(getKey("Bb"), "concert", "minor-home", "bass");
+  assert.match(bb, /"D♭maj7"/);
+  assert.match(bb, /"G♭maj7"/);
+  const written = modelABC(getKey("G"), "bb-written", "minor-home", "bass");
+  assert.match(written, /"Cmaj7"/);
+  assert.deepEqual(jazzChordRootParts("B♭maj7"), { letter: "B", accidental: "♭", rest: "maj7" });
+  assert.deepEqual(jazzChordRootParts("F♯"), { letter: "F", accidental: "♯", rest: "" });
+  assert.equal(jazzChordRootParts("Am7♭5"), null);
+  assert.equal(jazzChordRootParts("Cm7"), null);
 });

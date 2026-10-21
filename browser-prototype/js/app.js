@@ -11,6 +11,7 @@ import {
   phraseABC,
   applicationContext,
   supportBlurb,
+  jazzChordRootParts,
 } from "./music.js";
 import { Transport } from "./audio.js";
 import {
@@ -32,6 +33,7 @@ import {
   afterRoundActions,
   notationLayout,
   nextEngravingWidth,
+  nextStaffsep,
 } from "./lesson.js";
 
 const transport = new Transport();
@@ -393,17 +395,71 @@ function restyleAnnotations() {
   for (const el of els.notation.querySelectorAll(".abcjs-chord")) {
     el.style.fontSize = `${chordUser}px`;
     el.style.fontWeight = "700";
-    el.style.fontFamily = '"Source Sans 3", sans-serif';
+    el.style.fontFamily = '"Noto Sans", "Source Sans 3", sans-serif';
   }
   tightenChordSymbols();
   clearCueCollisions();
 }
 
+function nodeBox(node) {
+  if (!node) return null;
+  if (node.nodeType === Node.ELEMENT_NODE) return node.getBoundingClientRect();
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return range.getBoundingClientRect();
+}
+
+function shiftDx(el, deltaEm) {
+  const current = Number.parseFloat(el.getAttribute("dx") || "0");
+  el.setAttribute("dx", `${current + deltaEm}em`);
+}
+
+function closeGap(rightEl, leftNode, fontPx, maxGap = 0.5) {
+  if (!rightEl || !leftNode || !fontPx) return;
+  for (let i = 0; i < 10; i += 1) {
+    const leftBox = nodeBox(leftNode);
+    const rightBox = rightEl.getBoundingClientRect();
+    if (!leftBox || !rightBox.width) break;
+    const gap = rightBox.left - leftBox.right;
+    if (gap <= maxGap) break;
+    shiftDx(rightEl, -gap / fontPx);
+  }
+}
+
 function tightenChordSymbols() {
-  for (const inner of els.notation.querySelectorAll(".abcjs-chord tspan tspan")) {
-    const prefix = inner.parentNode?.childNodes?.[0]?.textContent ?? "";
-    if (/[♭b#♯]\s*$/.test(prefix)) {
-      inner.setAttribute("dx", "-0.34em");
+  const svgNS = "http://www.w3.org/2000/svg";
+  for (const chord of els.notation.querySelectorAll(".abcjs-chord")) {
+    const lines = [...chord.children].filter((el) => el.tagName?.toLowerCase() === "tspan");
+    for (const line of lines) {
+      const qualities = [...line.children].filter((el) => (
+        el.tagName?.toLowerCase() === "tspan"
+        && !el.classList.contains("abcjs-chord-root")
+        && !el.classList.contains("abcjs-chord-accidental")
+      ));
+      let root = line.querySelector(".abcjs-chord-root");
+      const textNode = [...line.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (!root && textNode) {
+        let raw = textNode.textContent.trim();
+        for (const quality of qualities) {
+          const stolen = (quality.textContent ?? "").match(/^([♭♯b#])(.*)$/u);
+          if (stolen) {
+            raw += stolen[1] === "b" ? "♭" : stolen[1] === "#" ? "♯" : stolen[1];
+            quality.textContent = stolen[2];
+          }
+        }
+        const parts = jazzChordRootParts(raw);
+        root = document.createElementNS(svgNS, "tspan");
+        root.classList.add("abcjs-chord-root");
+        root.textContent = parts ? `${parts.letter}${parts.accidental}` : raw;
+        root.style.letterSpacing = parts ? "-0.12em" : "0";
+        textNode.replaceWith(root);
+      }
+      for (const quality of qualities) {
+        quality.setAttribute("dx", "0.02em");
+      }
+      const quality = qualities.find((el) => el.isConnected);
+      const fontPx = Number.parseFloat(window.getComputedStyle(chord).fontSize) || 16;
+      if (quality) closeGap(quality, root ?? textNode, fontPx, 0.2);
     }
   }
 }
@@ -543,11 +599,18 @@ function paperTargetHeight() {
   return Math.floor(wrap.clientHeight);
 }
 
+function abcWithStaffsep(abc, staffsep) {
+  if (!staffsep || abc.includes("%%staffsep")) return abc;
+  return abc.replace(/^X:1\n/, `X:1\n%%staffsep ${staffsep}\n`);
+}
+
 function renderFittedAbc(abc, layout, width) {
   let scale = layout.scale;
   const fullWidth = Math.max(280, width - 24);
+  const minWidth = Math.max(400, Math.round(fullWidth * (layout.minEngravingRatio ?? 0.4)));
   let staffwidth = Math.round(fullWidth * (layout.engravingRatio ?? 1));
-  staffwidth = Math.min(fullWidth, Math.max(400, staffwidth));
+  staffwidth = Math.min(fullWidth, Math.max(minWidth, staffwidth));
+  let staffsep = layout.staffsep;
   let rendered = null;
   const fill = layout.fillRatio ?? 0.92;
   const target = layout.fitToPaper ? Math.floor(paperTargetHeight() * fill) : 0;
@@ -555,17 +618,25 @@ function renderFittedAbc(abc, layout, width) {
     els.notation.replaceChildren();
     rendered = window.ABCJS.renderAbc(
       els.notation,
-      abc,
-      abcRenderOptions(layout, staffwidth, scale),
+      abcWithStaffsep(abc, layout.fillAxis === "staffsep" ? staffsep : 0),
+      abcRenderOptions({ ...layout, staffsep }, staffwidth, scale),
     )[0];
     const svg = els.notation.querySelector("svg");
     const height = svg ? svg.getBoundingClientRect().height : 0;
     if (!layout.fitToPaper || !target) break;
-    const nextWidth = nextEngravingWidth(staffwidth, height, target, width);
-    if (nextWidth === staffwidth) break;
-    staffwidth = nextWidth;
+    if (layout.fillAxis === "staffsep") {
+      const nextSep = nextStaffsep(staffsep, height, target);
+      if (nextSep === staffsep) break;
+      staffsep = nextSep;
+    } else if (layout.fillAxis === "width") {
+      const nextWidth = nextEngravingWidth(staffwidth, height, target, width, minWidth);
+      if (nextWidth === staffwidth) break;
+      staffwidth = nextWidth;
+    } else {
+      break;
+    }
   }
-  lastNotationLayout = { ...layout, scale, staffwidth };
+  lastNotationLayout = { ...layout, scale, staffwidth, staffsep };
   return rendered;
 }
 

@@ -305,6 +305,17 @@ h1 {
   display: none;
 }
 
+.paper .abcjs-chord {
+  font-family: "Noto Sans", "Source Sans 3", sans-serif;
+}
+
+.paper .abcjs-chord-root {
+  font-family: "Noto Sans", "Source Sans 3", sans-serif;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: -0.12em;
+}
+
 .abcjs-container svg {
   max-width: 100%;
   height: auto;
@@ -708,7 +719,7 @@ input[type="checkbox"] {
     flex: 1 1 auto;
     min-height: 24rem;
     display: flex;
-    align-items: stretch;
+    align-items: center;
     padding: 0.28rem 0.45rem 0.2rem;
   }
 
