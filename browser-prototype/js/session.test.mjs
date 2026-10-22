@@ -311,9 +311,12 @@ test("Listen is graded on the Your-turn take, not while hearing the model", () =
   assert.equal(shouldGradeNow(hear), false);
   assert.equal(shouldGradeNow(hear, { hasTake: true }), true);
   const echo = { ...hear, listenStage: "echo" };
-  assert.equal(shouldGradeNow(echo), true);
+  assert.equal(shouldGradeNow(echo), false);
+  assert.equal(shouldGradeNow(echo, { hasTake: true }), true);
   assert.equal(shouldGradeNow(createSession({ lessonId: "learn-lick" })), false);
-  assert.equal(shouldGradeNow(jumpToCard(createSession({ lessonId: "learn-lick" }), "play")), true);
+  const play = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
+  assert.equal(shouldGradeNow(play), false);
+  assert.equal(shouldGradeNow(play, { hasTake: true }), true);
 });
 
 test("a graded card with no take is Skipped and is not a pass", () => {

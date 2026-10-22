@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   PASS_THRESHOLD,
   expectedNotesFor,
+  finishCard,
   gradePerformance,
   gradeSession,
+  hasPitchTake,
   synthTrack,
   centsBetween,
 } from "./grade.js";
@@ -18,7 +20,7 @@ import {
   lessonPassedCount,
   normalizeMastery,
 } from "./medals.js";
-import { micCopy } from "./pitch.js";
+import { PitchMonitor, micCopy } from "./pitch.js";
 
 function learnQuiz() {
   return jumpToCard(createSession({ lessonId: "learn-lick", startKeyId: "G" }), "quiz");
@@ -135,6 +137,45 @@ test("Listen Your-turn take is graded like Play against the current octave", () 
   assert.equal(result.passed, true);
   assert.equal(result.percent, 100);
   assert.equal(result.cardId, "listen");
+});
+
+test("a graded card with no take reports Skipped and is never a pass", () => {
+  const play = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
+  const skippedPlay = finishCard(play, []);
+  assert.equal(skippedPlay.outcome, "skipped");
+  assert.equal(skippedPlay.graded, false);
+  assert.equal(skippedPlay.passed, false);
+  const quiz = jumpToCard(createSession({ lessonId: "learn-lick" }), "quiz");
+  const skippedQuiz = finishCard(quiz, []);
+  assert.equal(skippedQuiz.outcome, "skipped");
+  assert.equal(skippedQuiz.passed, false);
+  const silence = finishCard(play, [{ beat: 0, hz: 0, amp: 0 }]);
+  assert.equal(silence.outcome, "skipped");
+  const echo = { ...jumpToCard(createSession({ lessonId: "learn-lick" }), "listen"), listenStage: "echo" };
+  assert.equal(finishCard(echo, []).outcome, "skipped");
+  assert.equal(finishCard(createSession({ lessonId: "learn-lick" }), []).outcome, "completed");
+});
+
+test("pitch observations reset between cards so a leftover take cannot grade the next card", () => {
+  const monitor = new PitchMonitor();
+  const play = jumpToCard(createSession({ lessonId: "learn-lick", startKeyId: "G" }), "play");
+  const expected = expectedNotesFor(play);
+  monitor.feed(synthTrack(expected));
+  assert.equal(hasPitchTake(monitor.observations), true);
+  assert.equal(finishCard(play, monitor.observations).passed, true);
+  monitor.reset();
+  assert.equal(monitor.observations.length, 0);
+  assert.equal(hasPitchTake(monitor.observations), false);
+  const quiz = jumpToCard(createSession({ lessonId: "learn-lick", startKeyId: "G" }), "quiz");
+  const leftoverWouldPass = finishCard(quiz, synthTrack(expectedNotesFor(quiz)));
+  assert.equal(leftoverWouldPass.passed, true);
+  const afterReset = finishCard(quiz, monitor.observations);
+  assert.equal(afterReset.outcome, "skipped");
+  assert.equal(afterReset.passed, false);
+  monitor.feed(synthTrack(expected));
+  monitor.reset();
+  monitor.feed(synthTrack(expected));
+  assert.equal(finishCard(play, monitor.observations).passed, true);
 });
 
 test("skipping a graded card is Skipped and never a pass", () => {
