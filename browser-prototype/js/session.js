@@ -44,6 +44,7 @@ export const CARD_SETS = [
 ];
 
 export const CARD_ORDER = ["learn", "play", "listen", "quiz"];
+export const GRADED_CARD_IDS = new Set(["play", "listen", "quiz"]);
 
 export const CARDS = {
   learn: { id: "learn", label: "Learn", kicker: "LEARN" },
@@ -261,11 +262,53 @@ export function createSession({
   };
 }
 
+export function isGradedCard(cardId) {
+  return GRADED_CARD_IDS.has(cardId);
+}
+
+export function shouldGradeNow(session, { hasTake = false } = {}) {
+  const card = currentCard(session);
+  if (!isGradedCard(card)) return false;
+  if (card === "listen" && session.listenStage === "hear" && !hasTake) return false;
+  return true;
+}
+
+export function skipResult(session) {
+  const cardId = currentCard(session);
+  if (!isGradedCard(cardId)) return { outcome: "completed" };
+  return { outcome: "skipped", graded: false, passed: false };
+}
+
+export function cardResultLabel(row) {
+  if (row.outcome === "skipped") return "Skipped";
+  if (row.graded) {
+    const bits = [`${row.percent ?? 0}%`, row.passed ? "pass" : "miss"];
+    if (row.correction && !row.passed) bits.push(row.correction);
+    return bits.join(" · ");
+  }
+  return "Completed";
+}
+
+export function setMelodyRegister(session, register) {
+  const melodyRegister = register === -1 || register === 1 ? register : 0;
+  return { ...session, melodyRegister };
+}
+
+export function persistLessonMelodyRegister(prefs, lessonId, register) {
+  const next = normalizePrefs(prefs);
+  const id = lessonById(lessonId).id;
+  next.lessons[id] = {
+    ...next.lessons[id],
+    melodyRegister: register === -1 || register === 1 ? register : 0,
+  };
+  return next;
+}
+
 export function completeCard(session, result = {}) {
   const cardId = currentCard(session);
   const cardResults = [
     ...session.cardResults.filter((row) => row.cardId !== cardId),
-    { cardId, outcome: "completed", ...result },
+    { cardId, outcome: result.outcome ?? "completed", ...result },
   ];
   if (session.cardIndex + 1 < session.cards.length) {
     return {
@@ -295,7 +338,7 @@ export function handlePlaybackEnded(session, result = {}) {
 }
 
 export function skipCard(session) {
-  return completeCard(session);
+  return completeCard(session, skipResult(session));
 }
 
 export function repeatKey(session) {
@@ -416,7 +459,21 @@ export function sessionPresentation(session) {
   const isolated = lesson.kind === "learn";
   const hideMelody = card === "listen" || card === "quiz";
 
-  if (!hideMelody) return { ...view, looping: false, hideStaff: false };
+  if (!hideMelody) {
+    if (!isolated && card === "play") {
+      return {
+        ...view,
+        looping: false,
+        hideStaff: false,
+        showLandingNotation: true,
+        showSlashNotation: true,
+        showEntranceCues: true,
+        showPhraseNotation: false,
+        showModelNotation: false,
+      };
+    }
+    return { ...view, looping: false, hideStaff: false, showLandingNotation: false };
+  }
 
   return {
     ...view,
@@ -424,6 +481,7 @@ export function sessionPresentation(session) {
     showPhraseNotation: false,
     showModelNotation: false,
     showSlashNotation: !isolated,
+    showLandingNotation: false,
     showEntranceCues: false,
     hideStaff: isolated,
     hideAnswers: card === "quiz",
@@ -552,7 +610,7 @@ export function wrapupCopy(session) {
       : (hasNextKey(session) ? "Next lap" : null),
     results: session.cards.map((cardId) => {
       const row = session.cardResults.find((item) => item.cardId === cardId) ?? { outcome: "completed" };
-      return {
+      const result = {
         cardId,
         label: CARDS[cardId].label,
         outcome: row.outcome ?? "completed",
@@ -561,6 +619,7 @@ export function wrapupCopy(session) {
         graded: Boolean(row.graded),
         correction: row.correction ?? null,
       };
+      return { ...result, summary: cardResultLabel(result) };
     }),
   };
 }

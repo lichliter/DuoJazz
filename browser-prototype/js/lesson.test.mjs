@@ -324,11 +324,12 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.barsPerLine, 4);
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, true);
-  assert.equal(stand.fillAxis, "staffsep");
-  assert.ok(stand.staffsep >= 120);
+  assert.equal(stand.fillAxis, "both");
+  assert.ok(stand.staffsep >= 80);
   assert.ok(stand.engravingRatio >= 0.55);
-  assert.ok(stand.engravingRatio <= 0.7);
+  assert.ok(stand.engravingRatio <= 0.8);
   assert.ok(stand.fillRatio >= 0.7);
+  assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
   const landscape = notationLayout({
     staffWidth: 980,
     viewportWidth: 1366,
