@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=43">
+  <link rel="stylesheet" href="./css/styles.css?v=46">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=43"></script>
+  <script type="module" src="./js/app.js?v=46"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -30,7 +30,10 @@
           <h1 id="module-title">Cry Me a River</h1>
           <p class="tune">Autumn Leaves<br><span>Opening eight bars</span></p>
         </div>
-        <p class="help" id="medal-note">Medal progress arrives with audio grading. This draft tracks the lesson path only.</p>
+        <section class="medal-panel" id="medal-panel" aria-label="Module medal">
+          <p class="medal-mark" id="medal-mark">Medal</p>
+          <p class="medal-copy" id="medal-note">Medal progress arrives with audio grading.</p>
+        </section>
         <section class="key-strip-wrap" aria-label="Keys in this module">
           <p class="panel-label">Twelve keys</p>
           <div class="key-strip" id="key-strip"></div>
@@ -58,6 +61,10 @@
           <div class="paper-wrap">
             <div id="notation" class="paper" aria-label="Staff notation"></div>
             <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
+            <div class="listen-state" id="listen-state" hidden>
+              <p class="listen-kicker" id="listen-kicker">Listening</p>
+              <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
+            </div>
           </div>
           <div class="chart-foot">
             <button type="button" class="play" id="primary">Hear the cell</button>
@@ -70,11 +77,14 @@
       </section>
 
       <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
-        <p class="kicker">Wrap-up</p>
-        <h1 id="wrapup-heading">Key complete</h1>
+        <p class="kicker" id="wrapup-kicker">Key complete</p>
+        <h1 id="wrapup-heading">G minor</h1>
         <p class="help" id="wrapup-detail"></p>
         <ul class="result-list" id="result-list"></ul>
-        <p class="help" id="wrapup-medal" hidden>Medal progress is not shown in this draft.</p>
+        <section class="medal-panel wrapup-medal" id="wrapup-medal-panel" aria-label="Medal progress">
+          <p class="medal-mark" id="wrapup-medal-mark">Medal</p>
+          <p class="medal-copy" id="wrapup-medal">Medal progress arrives with audio grading.</p>
+        </section>
         <div class="wrapup-actions">
           <button type="button" class="play" id="next-key">Next key</button>
           <button type="button" class="chip" id="again-key">Again</button>

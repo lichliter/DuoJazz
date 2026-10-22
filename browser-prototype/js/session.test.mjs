@@ -29,6 +29,7 @@ import {
   sessionAudioConfig,
   sessionCue,
   wrapupCopy,
+  listenStateCopy,
   chromaticOrder,
   fourthsOrder,
 } from "./session.js";
@@ -242,10 +243,25 @@ test("wrap-up lists per-card completion and names the next key", () => {
   }));
   const copy = wrapupCopy(session);
   assert.equal(copy.results.length, 4);
-  assert.ok(copy.detail.includes("G minor"));
+  assert.equal(copy.heading, "G minor");
+  assert.equal(copy.kicker, "Key complete");
+  assert.equal(copy.detail, "Learn the lick");
   assert.equal(copy.nextKeyName, "C minor");
+  assert.equal(copy.nextKeyLabel, "Next key · C minor");
   const one = wrapupCopy(jumpToWrapup(createSession({ keyMode: "one" })));
   assert.equal(one.nextKeyName, null);
+  assert.equal(one.nextKeyLabel, null);
+});
+
+test("Listen and Quiz expose a listening-state copy for the feedback area", () => {
+  const listen = jumpToCard(createSession({ lessonId: "learn-lick" }), "listen");
+  const hear = listenStateCopy(listen);
+  assert.equal(hear.kicker, "Listening");
+  const echo = listenStateCopy({ ...listen, listenStage: "echo" });
+  assert.equal(echo.kicker, "Your turn");
+  const quiz = listenStateCopy(jumpToCard(createSession({ lessonId: "learn-lick" }), "quiz"));
+  assert.equal(quiz.kicker, "Quiz");
+  assert.equal(listenStateCopy(createSession({ lessonId: "learn-lick" })), null);
 });
 
 test("lessons stay unlocked and the module has three paths", () => {
