@@ -24,6 +24,11 @@ import {
   normalizePrefs,
   defaultPrefs,
   markLessonStarted,
+  persistLessonMelodyRegister,
+  setMelodyRegister,
+  shouldGradeNow,
+  skipResult,
+  cardResultLabel,
   practiceStateFor,
   sessionPresentation,
   sessionAudioConfig,
@@ -135,6 +140,11 @@ test("skipping a card still auto-advances without requiring playback", () => {
   let session = createSession({ lessonId: "learn-lick" });
   session = skipCard(session);
   assert.equal(currentCard(session), "play");
+  assert.equal(session.cardResults[0].outcome, "completed");
+  session = skipCard(session);
+  assert.equal(currentCard(session), "listen");
+  assert.equal(session.cardResults.find((row) => row.cardId === "play")?.outcome, "skipped");
+  assert.equal(session.cardResults.find((row) => row.cardId === "play")?.passed, false);
 });
 
 test("wrap-up Next key walks the cycle; Again repeats the same key; one-key has no next", () => {
@@ -205,6 +215,11 @@ test("learn-the-lick cards use isolated cell audio; integration cards use the ei
   assert.equal(sessionAudioConfig(integrate).lengthBeats, 32);
   const integratePlay = jumpToCard(integrate, "play");
   assert.equal(practiceStateFor(integratePlay).support, "help");
+  const playView = sessionPresentation(integratePlay);
+  assert.equal(playView.showLandingNotation, true);
+  assert.equal(playView.showSlashNotation, true);
+  assert.equal(playView.showEntranceCues, true);
+  assert.equal(playView.showModelNotation, false);
   const events = scheduleChorus(sessionAudioConfig(integratePlay));
   assert.equal(events.filter((event) => event.type === "melody").length, 0);
   assert.ok(events.some((event) => event.type === "cue"));
@@ -229,6 +244,7 @@ test("listen and quiz hide lick notation; quiz does not leak the door in idle co
   const quizView = sessionPresentation(quiz);
   assert.equal(quizView.showEntranceCues, false);
   assert.equal(quizView.showModelNotation, false);
+  assert.equal(quizView.showLandingNotation, false);
   assert.equal(sessionAudioConfig(quiz).includeModel, false);
   const cue = sessionCue(quiz);
   assert.equal(leaksTargetBar(cue), false);
@@ -271,4 +287,49 @@ test("lessons stay unlocked and the module has three paths", () => {
     "integrate-altered-dominant",
   ]);
   assert.equal(TWELVE_KEY_IDS.length, 12);
+});
+
+test("melody octave is remembered per lesson and applied on the session", () => {
+  let prefs = defaultPrefs();
+  assert.equal(prefs.lessons["learn-lick"].melodyRegister, 0);
+  prefs = persistLessonMelodyRegister(prefs, "learn-lick", -1);
+  prefs = persistLessonMelodyRegister(prefs, "integrate-minor-home", 1);
+  const stored = normalizePrefs(prefs);
+  assert.equal(stored.lessons["learn-lick"].melodyRegister, -1);
+  assert.equal(stored.lessons["integrate-minor-home"].melodyRegister, 1);
+  assert.equal(stored.lessons["integrate-altered-dominant"].melodyRegister, 0);
+  const session = setMelodyRegister(createSession({
+    lessonId: "learn-lick",
+    melodyRegister: stored.lessons["learn-lick"].melodyRegister,
+  }), 1);
+  assert.equal(session.melodyRegister, 1);
+  assert.equal(persistLessonMelodyRegister(stored, "learn-lick", 2).lessons["learn-lick"].melodyRegister, 0);
+});
+
+test("Listen is graded on the Your-turn take, not while hearing the model", () => {
+  const hear = jumpToCard(createSession({ lessonId: "learn-lick" }), "listen");
+  assert.equal(shouldGradeNow(hear), false);
+  assert.equal(shouldGradeNow(hear, { hasTake: true }), true);
+  const echo = { ...hear, listenStage: "echo" };
+  assert.equal(shouldGradeNow(echo), true);
+  assert.equal(shouldGradeNow(createSession({ lessonId: "learn-lick" })), false);
+  assert.equal(shouldGradeNow(jumpToCard(createSession({ lessonId: "learn-lick" }), "play")), true);
+});
+
+test("a graded card with no take is Skipped and is not a pass", () => {
+  const play = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
+  assert.deepEqual(skipResult(play), { outcome: "skipped", graded: false, passed: false });
+  assert.equal(cardResultLabel(skipResult(play)), "Skipped");
+  const wrapped = wrapupCopy({
+    ...jumpToWrapup(play),
+    cardResults: [
+      { cardId: "learn", outcome: "completed" },
+      { cardId: "play", outcome: "skipped", graded: false, passed: false },
+      { cardId: "listen", outcome: "skipped", graded: false, passed: false },
+      { cardId: "quiz", outcome: "skipped", graded: false, passed: false },
+    ],
+  });
+  assert.equal(wrapped.results.find((row) => row.cardId === "play")?.summary, "Skipped");
+  assert.equal(wrapped.results.find((row) => row.cardId === "learn")?.summary, "Completed");
+  assert.equal(cardResultLabel({ graded: true, passed: false, percent: 0, correction: "1st note didn't speak", outcome: "missed" }), "0% · miss · 1st note didn't speak");
 });

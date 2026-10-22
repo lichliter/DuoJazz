@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=47">
+  <link rel="stylesheet" href="./css/styles.css?v=48">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=47"></script>
+  <script type="module" src="./js/app.js?v=48"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -53,6 +53,7 @@
           <p class="session-meta muted" id="session-card-count">1/4</p>
         </header>
         <p class="card-badge" id="card-badge">LEARN</p>
+        <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
         <section class="chart-card" id="music-surface" aria-label="Music">
           <div class="chart-head">
             <p id="chart-title">Cry Me a River cell</p>
@@ -118,10 +119,6 @@
           <span class="unit">BPM</span>
           <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
         </div>
-      </div>
-      <div class="field">
-        <span id="octave-label">Melody octave</span>
-        <div class="row" id="setup-register" role="group" aria-labelledby="octave-label"></div>
       </div>
       <p class="mic-status" id="mic-status">Microphone: off in this draft. Headphones recommended when listening starts.</p>
       <div class="setup-actions">
