@@ -581,6 +581,7 @@ function renderNotation() {
   els.chartMeta.textContent = copy.meta;
   const hideStaff = Boolean(view.hideStaff);
   els.hiddenAnswer.hidden = !hideStaff;
+  els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
   els.notation.hidden = hideStaff;
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation));
   if (hideStaff) {

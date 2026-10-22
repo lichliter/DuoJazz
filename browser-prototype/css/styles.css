@@ -131,6 +131,8 @@ body {
 .workspace {
   flex: 1 1 0%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -323,11 +325,17 @@ h1 {
 
 .hidden-answer {
   margin: 0;
-  min-height: 9rem;
+  flex: 1 1 auto;
+  min-height: 12rem;
   display: grid;
   place-items: center;
   color: #6d5c4d;
-  font-size: 1rem;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: clamp(1.4rem, 3.2vw, 2.4rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2rem 1rem;
 }
 
 .play {
@@ -469,6 +477,8 @@ h1 {
 
 dialog {
   width: min(36rem, calc(100% - 1.5rem));
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
