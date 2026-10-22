@@ -3,116 +3,127 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DuoJazz · Cry Me a River in Autumn Leaves</title>
+  <title>DuoJazz · Cry Me a River</title>
   <meta name="description" content="Practice Cry Me a River in Autumn Leaves. Browser prototype, not the native DuoJazz iPad app.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=41">
+  <link rel="stylesheet" href="./css/styles.css?v=42">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=41"></script>
+  <script type="module" src="./js/app.js?v=42"></script>
 </head>
-<body data-goal="integrate" data-support="listen">
+<body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <div class="app-shell">
-  <header class="masthead">
-    <div class="brand">
-      <p class="logo">duojazz</p>
-      <nav class="goals" aria-label="Practice goals" id="goals"></nav>
-    </div>
-    <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Concert · Bass clef</button>
-  </header>
-
-  <main id="main" class="workspace">
-    <section class="hero-copy">
-      <p class="kicker" id="kicker">Lesson 01 / Cry Me a River</p>
-      <div class="title-row">
-        <h1 id="heading">One phrase. Two ways in.</h1>
-        <p class="tune" id="tune-meta">Autumn Leaves<br><span id="tune-detail">Opening eight bars · G minor</span></p>
+  <div class="app-shell" id="app-shell" data-screen="home">
+    <header class="masthead" id="masthead">
+      <div class="brand">
+        <p class="logo">duojazz</p>
       </div>
-    </section>
+      <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Concert · Bass clef</button>
+    </header>
 
-    <section class="applications" id="application-panel" aria-label="Harmonic applications">
-      <div class="app-tabs" id="applications" role="tablist"></div>
-      <p class="app-blurb" id="application-blurb"></p>
-    </section>
+    <main id="main" class="workspace">
+      <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
+        <p class="kicker">Module</p>
+        <div class="title-row">
+          <h1 id="module-title">Cry Me a River</h1>
+          <p class="tune">Autumn Leaves<br><span>Opening eight bars</span></p>
+        </div>
+        <p class="help" id="medal-note">Medal progress arrives with audio grading. This draft tracks the lesson path only.</p>
+        <section class="key-strip-wrap" aria-label="Keys in this module">
+          <p class="panel-label">Twelve keys</p>
+          <div class="key-strip" id="key-strip"></div>
+        </section>
+        <section class="lesson-path" aria-label="Lesson path">
+          <p class="panel-label">Lessons · all open</p>
+          <div class="lesson-list" id="lesson-list"></div>
+        </section>
+      </section>
 
-    <section class="key-panel" id="key-panel" hidden>
-      <p class="panel-label" id="key-heading">Concert minor key</p>
-      <div class="row wrap" id="keys" role="group" aria-labelledby="key-heading"></div>
-    </section>
+      <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
+        <header class="session-top">
+          <button type="button" class="icon-btn" id="session-exit" aria-label="Exit session">×</button>
+          <div class="session-progress" aria-hidden="true"><span id="session-progress-fill"></span></div>
+          <p class="session-meta" id="session-key">G minor</p>
+          <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
+          <p class="session-meta muted" id="session-card-count">1/4</p>
+        </header>
+        <p class="card-badge" id="card-badge">LEARN</p>
+        <section class="chart-card" id="music-surface" aria-label="Music">
+          <div class="chart-head">
+            <p id="chart-title">Cry Me a River cell</p>
+            <p id="chart-meta">G minor</p>
+          </div>
+          <div class="paper-wrap">
+            <div id="notation" class="paper" aria-label="Staff notation"></div>
+            <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
+          </div>
+          <div class="chart-foot">
+            <button type="button" class="play" id="primary">Hear the cell</button>
+            <button type="button" class="text-link" id="continue-btn">Continue</button>
+          </div>
+        </section>
+        <p class="cue-line" id="instruction" aria-live="polite"></p>
+        <p class="meter" id="meter">1-bar count-in · Swing on</p>
+        <p class="grade-line" id="grade-line" hidden>Grading arrives in the next draft.</p>
+      </section>
 
-    <section class="check-panel" id="check-panel" hidden>
-      <p class="panel-label">What are you checking?</p>
-      <div class="row" id="check-kind" role="group"></div>
-      <p class="help" id="check-help">The app cannot hear you. Reveal when you want the answer.</p>
-    </section>
-
-    <section class="chart-card" id="music-surface" aria-label="Music">
-      <div class="chart-head">
-        <p id="chart-title">Hear it in the changes</p>
-        <p id="chart-meta">Autumn Leaves · G minor · 8 bars</p>
-      </div>
-      <div class="paper-wrap">
-        <div id="notation" class="paper" aria-label="Staff notation"></div>
-        <p class="hidden-answer" id="hidden-answer" hidden>Answer hidden. Play first, then reveal.</p>
-      </div>
-      <div class="chart-foot">
-        <button type="button" class="play" id="primary">Hear the eight bars</button>
-        <div class="supports" id="supports" role="tablist" aria-label="Practice support"></div>
-        <button type="button" class="text-link" id="cell-link">Just the cell</button>
-      </div>
-    </section>
-
-    <p class="cue-line" id="instruction" aria-live="polite"></p>
-
-    <aside class="after" id="after-round" hidden>
-      <p class="panel-label">After this chorus</p>
-      <p class="help">Optional. The app did not hear you. No score, no gate.</p>
-      <div class="row wrap" id="after-actions"></div>
-      <div class="mini-assess" id="mini-assess" hidden>
-        <p id="entrance-q">Did you find the entrance?</p>
-        <div class="row" id="foundEntrance"></div>
-        <p id="after-q">Did you keep playing afterward?</p>
-        <div class="row" id="keptPlaying"></div>
-        <p>This chorus I…</p>
-        <div class="row" id="quoteChoice"></div>
-        <p id="recall-q">Can you hear the cell without looking?</p>
-        <div class="row" id="recall"></div>
-      </div>
-    </aside>
-    <div class="transport-spacer" aria-hidden="true"></div>
-  </main>
-
-  <footer class="transport" role="region" aria-label="Transport">
-    <div class="tempo">
-      <span>Tempo</span>
-      <button type="button" class="stepper" id="tempo-down" aria-label="Slower">−</button>
-      <span id="tempo-readout">96</span>
-      <span class="unit">BPM</span>
-      <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
-    </div>
-    <section class="register" aria-label="Melody octave">
-      <p class="register-label" id="register-label">Melody octave</p>
-      <div class="row" id="register" role="group" aria-labelledby="register-label"></div>
-    </section>
-    <p class="meter" id="meter">1-bar count-in · Swing on</p>
-    <div class="transport-links">
-      <button type="button" class="text-link" id="loop-btn" aria-pressed="false">Loop off</button>
-      <button type="button" class="text-link" id="restart">Replay</button>
-      <button type="button" class="text-link" id="settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
-    </div>
-  </footer>
+      <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
+        <p class="kicker">Wrap-up</p>
+        <h1 id="wrapup-heading">Key complete</h1>
+        <p class="help" id="wrapup-detail"></p>
+        <ul class="result-list" id="result-list"></ul>
+        <p class="help" id="wrapup-medal" hidden>Medal progress is not shown in this draft.</p>
+        <div class="wrapup-actions">
+          <button type="button" class="play" id="next-key">Next key</button>
+          <button type="button" class="chip" id="again-key">Again</button>
+          <button type="button" class="text-link" id="done-session">Done</button>
+        </div>
+      </section>
+    </main>
   </div>
+
+  <dialog id="setup" data-testid="setup-sheet">
+    <form method="dialog" class="settings-form setup-form">
+      <h2 id="setup-title">Lesson setup</h2>
+      <p class="help" id="setup-summary"></p>
+      <div class="field">
+        <span id="key-mode-label">Keys</span>
+        <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
+      </div>
+      <div class="field">
+        <span id="start-key-label">Start key</span>
+        <div class="row wrap" id="setup-keys" role="group" aria-labelledby="start-key-label"></div>
+      </div>
+      <div class="field">
+        <span id="card-set-label">Cards</span>
+        <div class="row wrap" id="card-sets" role="group" aria-labelledby="card-set-label"></div>
+      </div>
+      <div class="field tempo-field">
+        <span>Tempo</span>
+        <div class="tempo">
+          <button type="button" class="stepper" id="tempo-down" aria-label="Slower">−</button>
+          <span id="tempo-readout">96</span>
+          <span class="unit">BPM</span>
+          <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <span id="octave-label">Melody octave</span>
+        <div class="row" id="setup-register" role="group" aria-labelledby="octave-label"></div>
+      </div>
+      <p class="mic-status" id="mic-status">Microphone: off in this draft. Headphones recommended when listening starts.</p>
+      <div class="setup-actions">
+        <button type="button" class="play start" id="start-lesson">Start</button>
+        <button type="submit" class="text-link" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="settings">
     <form method="dialog" class="settings-form">
-      <h2>Settings</h2>
-      <div class="field">
-        <span id="key-label">Concert minor key of the excerpt</span>
-        <div class="row wrap" id="settings-keys" role="group" aria-labelledby="key-label"></div>
-      </div>
+      <h2>Display</h2>
       <fieldset>
         <legend>Clef</legend>
         <label><input type="radio" name="clef" value="bass" checked> Bass (concert trombone, default)</label>
@@ -129,10 +140,8 @@
       <p class="help" id="display-banner"></p>
       <details>
         <summary>About this experiment</summary>
-        <p>Browser synth only. No microphone, accounts, or pitch grading. This does not verify the native iPad app, Safari, or device audio. Space plays or pauses. R restarts and silences leftover audio.</p>
-        <p>Excerpt: Autumn Leaves opening eight bars, after the jbpicon Ultimate Guitar chart (key Gm, no capo, Verse 1, last update Aug 21 2025): Cm7 F7 B♭maj7 E♭maj7 Am7♭5 D7 Gm6 Gm6. Tonic bars use Gm6 as on that chart.</p>
-        <p>Phrase: Cry Me a River minor-tonic cell 9–1–5–♭3–2–1, one bar. Melody octave (−1 / Original / +1) shifts the model line and displayed phrase together. Backing, bass, chords, and click stay put. Clef does not transpose. Not DuoJazz <code>iivi-cry-me-enclosure</code>.</p>
-        <p>Four goals, no unlocks: learn the cell, use it in the eight bars, try other keys, check yourself. Listen / Play with help / Play freely are support, not chapters. Two applications: minor home and altered dominant.</p>
+        <p>Browser synth only. Phase 1 has no microphone or pitch grading. This does not verify the native iPad app. Space plays or pauses. R restarts.</p>
+        <p>Module: Cry Me a River cell over Autumn Leaves opening eight bars. Lessons: learn the lick, integrate on minor home (bar 7), integrate on altered dominant (bar 6). Setup remembers choices per lesson.</p>
       </details>
       <button type="submit" class="play compact" value="close">Close</button>
     </form>
