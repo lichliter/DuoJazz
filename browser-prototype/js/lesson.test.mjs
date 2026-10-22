@@ -21,6 +21,7 @@ import {
   nextEngravingWidth,
   nextStaffsep,
   estimatedStaffHeightCss,
+  chorusStaffFit,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -324,10 +325,9 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.barsPerLine, 4);
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, true);
-  assert.equal(stand.fillAxis, "both");
-  assert.ok(stand.staffsep >= 80);
-  assert.ok(stand.engravingRatio >= 0.55);
-  assert.ok(stand.engravingRatio <= 0.8);
+  assert.equal(stand.fillAxis, "fit");
+  assert.ok(stand.staffsep >= 150);
+  assert.ok(stand.minStaffPx >= 80);
   assert.ok(stand.fillRatio >= 0.7);
   assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
   const landscape = notationLayout({
@@ -339,7 +339,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   });
   assert.equal(landscape.barsPerLine, 4);
   assert.equal(landscape.fitToPaper, true);
-  assert.ok(landscape.scale > 1.08);
+  assert.ok(landscape.scale >= 1.08);
   const desktop = notationLayout({
     staffWidth: 760,
     viewportWidth: 1280,
@@ -373,6 +373,16 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
   assert.equal(phrase.fillAxis, "width");
   assert.ok(estimatedStaffHeightCss(phrase, 980) >= 90);
   assert.ok(phrase.chordCssPx >= 28);
+});
+
+test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {
+  const fit = chorusStaffFit(466, 31.7, 984, 80);
+  assert.equal(fit.scaleX < 1, true);
+  assert.ok(fit.scaleX >= 0.74);
+  const staffCss = 31.7 * (984 / fit.viewBoxWidth);
+  assert.ok(staffCss >= 80);
+  const alreadyTall = chorusStaffFit(300, 40, 980, 80);
+  assert.equal(alreadyTall.scaleX, 1);
 });
 
 test("narrower engraving width upscales the staff to fill unused paper", () => {

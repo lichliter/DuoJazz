@@ -11,6 +11,7 @@ import {
   notationLayout,
   nextEngravingWidth,
   nextStaffsep,
+  chorusStaffFit,
 } from "./lesson.js";
 import {
   PREFS_KEY,
@@ -612,24 +613,53 @@ function applyRhythmSlashes(keepLandingNotes = false) {
   restyleAnnotations();
 }
 
+function notationRoot(svg) {
+  return svg.querySelector("[data-staff-fit]") ?? svg;
+}
+
 function ensurePlayhead(svg) {
   const ns = "http://www.w3.org/2000/svg";
+  const root = notationRoot(svg);
   let line = svg.querySelector("#playhead");
   let glow = svg.querySelector("#bar-glow");
   if (!glow) {
     glow = document.createElementNS(ns, "rect");
     glow.id = "bar-glow";
     glow.setAttribute("fill", "rgba(96, 57, 45, 0.14)");
-    svg.insertBefore(glow, svg.firstChild);
+    root.insertBefore(glow, root.firstChild);
   }
   if (!line) {
     line = document.createElementNS(ns, "line");
     line.id = "playhead";
     line.setAttribute("stroke", "#60392d");
     line.setAttribute("stroke-width", "2");
-    svg.append(line);
+    root.append(line);
   }
   return { line, glow };
+}
+
+function fitChorusStaffSvg(svg, layout) {
+  const minStaffPx = layout?.minStaffPx ?? 0;
+  const wrap = els.notation.parentElement;
+  const staff = svg?.querySelector(".abcjs-staff");
+  if (!svg || !wrap || !staff || minStaffPx < 40 || typeof staff.getBBox !== "function") return;
+  if (svg.querySelector("[data-staff-fit]")) return;
+  const vb = svg.viewBox?.baseVal;
+  if (!vb?.width) return;
+  let staffUserH = 0;
+  try {
+    staffUserH = staff.getBBox().height;
+  } catch {
+    return;
+  }
+  const fit = chorusStaffFit(vb.width, staffUserH, wrap.clientWidth, minStaffPx);
+  if (fit.scaleX >= 0.98) return;
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("data-staff-fit", "1");
+  g.setAttribute("transform", `scale(${fit.scaleX} 1)`);
+  while (svg.firstChild) g.appendChild(svg.firstChild);
+  svg.append(g);
+  svg.setAttribute("viewBox", `0 0 ${fit.viewBoxWidth} ${vb.height}`);
 }
 
 function updatePlayhead(snap = transport.snapshot()) {
@@ -711,7 +741,7 @@ function renderFittedAbc(abc, layout, width) {
     els.notation.replaceChildren();
     rendered = window.ABCJS.renderAbc(
       els.notation,
-      abcWithStaffsep(abc, layout.fillAxis === "staffsep" ? staffsep : 0),
+      abcWithStaffsep(abc, layout.fillAxis === "width" ? 0 : staffsep),
       abcRenderOptions({ ...layout, staffsep }, staffwidth, scale),
     )[0];
     const svg = els.notation.querySelector("svg");
@@ -813,6 +843,8 @@ function renderNotation() {
     lastTune = renderFittedAbc(abc, layout, width);
     if (view.showSlashNotation) applyRhythmSlashes(view.showLandingNotation);
     restyleAnnotations();
+    const svg = els.notation.querySelector("svg");
+    if (svg && layout.fillAxis === "fit") fitChorusStaffSvg(svg, layout);
     updatePlayhead();
   } else {
     const pre = document.createElement("pre");
