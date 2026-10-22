@@ -1242,6 +1242,7 @@ input[type="checkbox"] {
 
   .session-screen .paper-wrap {
     min-height: 28rem;
+    overflow: hidden;
   }
 
   .session-screen .cue-line {
