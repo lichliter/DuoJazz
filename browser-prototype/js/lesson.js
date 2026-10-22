@@ -443,9 +443,9 @@ export function notationLayout({
   const barsPerLine = narrow ? 2 : 4;
 
   return {
-    scale: stand ? 2.28 : landscape ? 1.55 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 10 : landscape ? 10 : 28,
-    paddingbottom: showEntranceCues ? (stand ? 28 : landscape ? 22 : 32) : (stand ? 14 : 12),
+    scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
+    paddingtop: stand ? 6 : landscape ? 8 : 28,
+    paddingbottom: showEntranceCues ? (stand ? 16 : landscape ? 16 : 32) : (stand ? 10 : 12),
     wrap: stand || landscape || narrow
       ? null
       : {
@@ -454,20 +454,22 @@ export function notationLayout({
         preferredMeasuresPerLine: barsPerLine,
       },
     barsPerLine,
-    // Grow the 5-line staff first (target ≥80px), then space the two systems
-    // evenly. Floor engraving so four bars on a line do not collide.
-    engravingRatio: stand ? 0.72 : landscape ? 0.7 : 1,
-    minEngravingRatio: stand ? 0.58 : landscape ? 0.6 : 0.4,
-    chordfont: stand ? "Noto Sans 26" : landscape ? "Noto Sans 18" : "Noto Sans 15",
-    annotationfont: stand ? "Source Sans 3 20" : "Source Sans 3 13",
-    annotationPx: stand ? 24 : landscape ? 16 : 15,
-    chordCssPx: stand ? 30 : landscape ? 20 : 15,
-    slashStroke: stand ? 3 : 1.85,
+    // Four bars will not engrave narrower than ~450px, so width-only upscale
+    // caps the 5-line staff around 67px. After render we scaleX the chorus
+    // to hit minStaffPx, and staffsep spaces the two systems in the card.
+    engravingRatio: stand ? 0.5 : landscape ? 0.7 : 1,
+    minEngravingRatio: stand ? 0.48 : landscape ? 0.55 : 0.4,
+    chordfont: stand ? "Noto Sans 16" : landscape ? "Noto Sans 15" : "Noto Sans 15",
+    annotationfont: stand ? "Source Sans 3 13" : "Source Sans 3 12",
+    annotationPx: stand ? 22 : landscape ? 16 : 15,
+    chordCssPx: stand ? 26 : landscape ? 18 : 15,
+    slashStroke: stand ? 1.45 : 1.85,
     fitToPaper: stand || landscape,
-    fillAxis: stand ? "both" : "width",
-    staffsep: stand ? 96 : landscape ? 80 : 55,
-    maxStaffsep: stand ? 150 : 220,
-    fillRatio: stand ? 0.9 : landscape ? 0.94 : 0.92,
+    fillAxis: "fit",
+    staffsep: stand ? 176 : landscape ? 88 : 55,
+    maxStaffsep: stand ? 280 : 140,
+    fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
+    minStaffPx: stand ? 84 : landscape ? 64 : 0,
   };
 }
 
@@ -500,7 +502,26 @@ export function nextStaffsep(staffsep, renderedHeight, targetHeight, maxSep = 38
 export function estimatedStaffHeightCss(layout, containerWidth) {
   const width = Math.max(1, containerWidth);
   const engravingWidth = Math.max(1, width * (layout.engravingRatio ?? 1));
-  return 40 * (layout.scale ?? 1) * (width / engravingWidth);
+  // `responsive: "resize"` sizes from viewBox width, not the abcjs scale option.
+  const natural = 40 * (width / engravingWidth);
+  return Math.max(natural, layout.minStaffPx ?? 0);
+}
+
+/**
+ * abcjs will not pack four bars into a viewBox narrow enough for an 80px staff
+ * on a 1024px iPad. Scale the engraving in X so the 5-line staff hits minStaffPx
+ * without wrapping to extra systems.
+ */
+export function chorusStaffFit(viewBoxWidth, staffUserHeight, paperWidth, minStaffPx = 80) {
+  if (!viewBoxWidth || !staffUserHeight || !paperWidth || !minStaffPx) {
+    return { scaleX: 1, viewBoxWidth };
+  }
+  const neededWidth = staffUserHeight * paperWidth / minStaffPx;
+  if (neededWidth >= viewBoxWidth * 0.98) {
+    return { scaleX: 1, viewBoxWidth };
+  }
+  const scaleX = Math.max(0.74, neededWidth / viewBoxWidth);
+  return { scaleX, viewBoxWidth: viewBoxWidth * scaleX };
 }
 
 export { CELL_BEATS, CHORUS_BEATS, phraseStartBeat, APPLICATIONS, LEGACY_STEPS };
