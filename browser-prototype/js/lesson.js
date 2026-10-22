@@ -419,22 +419,22 @@ export function notationLayout({
     // Two-bar cell is the only music on Learn/Play. Engrave narrow so
     // abcjs responsive:resize fills the card width with a large staff.
     return {
-      scale: stand ? 2.35 : landscape ? 1.7 : narrow ? 1.22 : 1.45,
-      paddingtop: stand ? 14 : 10,
-      paddingbottom: stand ? 22 : 14,
+      scale: stand ? 2.7 : landscape ? 1.85 : narrow ? 1.22 : 1.45,
+      paddingtop: stand ? 16 : 10,
+      paddingbottom: stand ? 24 : 14,
       wrap: null,
       barsPerLine: 2,
-      chordfont: stand ? "Noto Sans 28" : landscape ? "Noto Sans 20" : "Noto Sans 16",
-      annotationfont: stand ? "Source Sans 3 20" : "Source Sans 3 14",
-      annotationPx: stand ? 24 : landscape ? 18 : 15,
-      chordCssPx: stand ? 34 : landscape ? 24 : 16,
-      slashStroke: stand ? 3.2 : 2,
-      engravingRatio: stand ? 0.34 : landscape ? 0.52 : 1,
-      minEngravingRatio: stand ? 0.24 : 0.36,
+      chordfont: stand ? "Noto Sans 30" : landscape ? "Noto Sans 20" : "Noto Sans 16",
+      annotationfont: stand ? "Source Sans 3 22" : "Source Sans 3 14",
+      annotationPx: stand ? 26 : landscape ? 18 : 15,
+      chordCssPx: stand ? 36 : landscape ? 24 : 16,
+      slashStroke: stand ? 3.4 : 2,
+      engravingRatio: stand ? 0.28 : landscape ? 0.48 : 1,
+      minEngravingRatio: stand ? 0.16 : 0.32,
       fitToPaper: stand || landscape,
       fillAxis: "width",
       staffsep: stand ? 70 : 55,
-      fillRatio: stand ? 0.52 : 0.9,
+      fillRatio: stand ? 0.58 : 0.9,
     };
   }
 
@@ -479,7 +479,7 @@ export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, con
   const ratio = renderedHeight / targetHeight;
   if (ratio >= 0.95 && ratio <= 1.03) return staffwidth;
   const next = Math.round(staffwidth * ratio * 0.98);
-  const floor = Math.max(280, minWidth);
+  const floor = Math.max(200, minWidth);
   const maxWidth = Math.max(floor, containerWidth - 24);
   return Math.min(maxWidth, Math.max(floor, next));
 }
