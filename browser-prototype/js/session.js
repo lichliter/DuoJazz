@@ -1,7 +1,7 @@
 /**
  * Focused module → setup → session → wrap-up flow for the browser prototype.
  * Cards map onto the existing lesson.js practice engine (audio + notation).
- * Phase 1 completes cards without grading and does not show medal progress.
+ * Cards complete with optional grade fields; medal progress lives in medals.js.
  */
 
 import {
@@ -261,11 +261,11 @@ export function createSession({
   };
 }
 
-export function completeCard(session) {
+export function completeCard(session, result = {}) {
   const cardId = currentCard(session);
   const cardResults = [
     ...session.cardResults.filter((row) => row.cardId !== cardId),
-    { cardId, outcome: "completed" },
+    { cardId, outcome: "completed", ...result },
   ];
   if (session.cardIndex + 1 < session.cards.length) {
     return {
@@ -284,14 +284,14 @@ export function completeCard(session) {
   };
 }
 
-export function handlePlaybackEnded(session) {
+export function handlePlaybackEnded(session, result = {}) {
   if (session.screen !== "session") {
     return { session, autoStart: false };
   }
   if (currentCard(session) === "listen" && session.listenStage === "hear") {
     return { session: { ...session, listenStage: "echo" }, autoStart: true };
   }
-  return { session: completeCard(session), autoStart: false };
+  return { session: completeCard(session, result), autoStart: false };
 }
 
 export function skipCard(session) {
@@ -525,11 +525,18 @@ export function wrapupCopy(session) {
     heading: "Key complete",
     detail: `${lessonById(session.lessonId).title} · ${keyName}`,
     nextKeyName: nextId ? displayKeyName(nextId, session.displayMode) : (hasNextKey(session) ? "Next lap" : null),
-    results: session.cards.map((cardId) => ({
-      cardId,
-      label: CARDS[cardId].label,
-      outcome: session.cardResults.find((row) => row.cardId === cardId)?.outcome ?? "completed",
-    })),
+    results: session.cards.map((cardId) => {
+      const row = session.cardResults.find((item) => item.cardId === cardId) ?? { outcome: "completed" };
+      return {
+        cardId,
+        label: CARDS[cardId].label,
+        outcome: row.outcome ?? "completed",
+        percent: typeof row.percent === "number" ? row.percent : null,
+        passed: Boolean(row.passed),
+        graded: Boolean(row.graded),
+        correction: row.correction ?? null,
+      };
+    }),
   };
 }
 

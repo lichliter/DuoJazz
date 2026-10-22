@@ -30,7 +30,6 @@ import {
   keyOrdinal,
   completeCard,
   handlePlaybackEnded,
-  skipCard,
   repeatKey,
   advanceKey,
   jumpToCard,
@@ -45,15 +44,29 @@ import {
   wrapupCopy,
   displayKeyName,
 } from "./session.js";
+import { GRADED_CARDS, gradeSession } from "./grade.js";
+import {
+  emptyMastery,
+  displayMedal,
+  loadMastery,
+  saveMastery,
+  recordQuizPass,
+  lessonPassedCount,
+} from "./medals.js";
+import { PitchMonitor, micCopy } from "./pitch.js";
 
 const transport = new Transport();
+const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
 let prefs = loadPrefs();
-let setupLessonId = recommendedLessonId(prefs);
+let mastery = loadMastery();
+let prefsSetup = recommendedLessonId(prefs);
+let setupLessonId = prefsSetup;
 let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
 let lastTune = null;
 let lastNotationLayout = null;
+let wrapupBanner = null;
 
 const els = {
   shell: document.getElementById("app-shell"),
@@ -91,9 +104,13 @@ const els = {
   instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
+  sessionMic: document.getElementById("session-mic"),
+  medalNote: document.getElementById("medal-note"),
   wrapupHeading: document.getElementById("wrapup-heading"),
   wrapupDetail: document.getElementById("wrapup-detail"),
+  wrapupMedal: document.getElementById("wrapup-medal"),
   resultList: document.getElementById("result-list"),
+  micStatus: document.getElementById("mic-status"),
   nextKey: document.getElementById("next-key"),
   againKey: document.getElementById("again-key"),
   doneSession: document.getElementById("done-session"),
@@ -117,10 +134,28 @@ function persist() {
 
 function halt() {
   transport.stop();
+  monitor.stop();
   playback.playing = false;
   playback.paused = false;
   playback.ended = false;
 }
+
+function shouldListen(target = session) {
+  if (!target || target.screen !== "session") return false;
+  const card = currentCard(target);
+  if (!GRADED_CARDS.has(card)) return false;
+  if (card === "listen" && target.listenStage === "hear") return false;
+  return true;
+}
+
+function renderMic() {
+  const copy = micCopy(monitor.state);
+  if (els.sessionMic) els.sessionMic.textContent = copy;
+  if (els.micStatus) els.micStatus.textContent = copy;
+}
+
+monitor.onState = () => renderMic();
+monitor.beatClock = () => transport.snapshot().beats;
 
 function screenName() {
   if (session?.screen === "session") return "session";
@@ -170,12 +205,19 @@ function applySession(next, { autoStart = false } = {}) {
   if (autoStart && session?.screen === "session") start(false);
 }
 
-function start(resume = false) {
+async function start(resume = false) {
   if (!session || session.screen !== "session") return;
   els.primary.disabled = true;
-  transport.start(sessionAudioConfig(session), { resume }).finally(() => {
+  try {
+    await transport.ensure();
+    if (shouldListen() && !resume) {
+      monitor.beatClock = () => transport.snapshot().beats;
+      await monitor.start(transport.ctx);
+    }
+    await transport.start(sessionAudioConfig(session), { resume });
+  } finally {
     els.primary.disabled = false;
-  });
+  }
 }
 
 function runPrimary() {
@@ -187,18 +229,42 @@ function runPrimary() {
   else start(false);
 }
 
+function recordPassIfNeeded(result) {
+  if (!result?.passed || !session || currentCard(session) !== "quiz") return;
+  wrapupBanner = recordQuizPass(mastery, session.lessonId, currentKeyId(session));
+  mastery = wrapupBanner;
+  saveMastery(mastery);
+}
+
+function gradeCurrentCard() {
+  const result = shouldListen(session)
+    ? gradeSession(session, monitor.observations)
+    : { outcome: "completed" };
+  recordPassIfNeeded(result);
+  showGrade(result);
+  return result;
+}
+
 function goContinue() {
   if (!session || session.screen !== "session") return;
+  const result = gradeCurrentCard();
   halt();
-  applySession(skipCard(session));
+  applySession(completeCard(session, result));
 }
 
 function renderHome() {
   const recommended = recommendedLessonId(prefs);
+  const count = mastery.masteredKeys.length;
+  if (els.medalNote) {
+    els.medalNote.textContent = count
+      ? `${displayMedal(mastery.medal)} · ${count} of 12 keys mastered`
+      : "No medal yet. Pass Quiz in Learn the lick and in an integration lesson to master a key.";
+  }
   els.keyStrip.replaceChildren(
     ...TWELVE_KEY_IDS.map((id) => {
       const span = document.createElement("span");
       span.className = "key-dot";
+      if (mastery.masteredKeys.includes(id)) span.classList.add("mastered");
       span.textContent = getKey(id).name;
       span.title = displayKeyName(id, prefs.displayMode);
       return span;
@@ -211,7 +277,8 @@ function renderHome() {
       btn.className = "lesson-row";
       btn.dataset.testid = `lesson-${lesson.id}`;
       btn.dataset.recommended = String(lesson.id === recommended);
-      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary}</span>`;
+      const passed = lessonPassedCount(mastery, lesson.id);
+      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary} · ${passed} keys passed</span>`;
       btn.addEventListener("click", () => openSetup(lesson.id));
       return btn;
     }),
@@ -681,6 +748,13 @@ function renderMeter(snap = transport.snapshot()) {
   els.meter.textContent = playback.ended ? "Ready when you are" : sessionMeterExtras(session);
 }
 
+function resultLabel(row) {
+  if (!row.graded) return "Heard";
+  const bits = [`${row.percent ?? 0}%`, row.passed ? "pass" : "miss"];
+  if (row.correction && !row.passed) bits.push(row.correction);
+  return bits.join(" · ");
+}
+
 function renderWrapup() {
   const copy = wrapupCopy(session);
   els.wrapupHeading.textContent = copy.heading;
@@ -688,10 +762,17 @@ function renderWrapup() {
   els.resultList.replaceChildren(
     ...copy.results.map((row) => {
       const item = document.createElement("li");
-      item.innerHTML = `<span>${row.label}</span><span>Completed</span>`;
+      item.innerHTML = `<span>${row.label}</span><span>${resultLabel(row)}</span>`;
       return item;
     }),
   );
+  const count = mastery.masteredKeys.length;
+  if (els.wrapupMedal) {
+    els.wrapupMedal.hidden = false;
+    els.wrapupMedal.textContent = wrapupBanner?.upgraded
+      ? `Medal up · ${displayMedal(wrapupBanner.medal)}`
+      : (count ? `${displayMedal(mastery.medal)} · ${count} of 12 keys` : "No medal yet for this module");
+  }
   els.nextKey.hidden = !copy.nextKeyName;
   if (copy.nextKeyName) els.nextKey.textContent = copy.nextKeyName === "Next lap" ? "Next lap" : `Next key · ${copy.nextKeyName}`;
 }
@@ -710,6 +791,7 @@ function render(snap = transport.snapshot()) {
     renderNotation();
     renderPrimary();
     renderMeter(snap);
+    renderMic();
   }
   if (screen === "wrapup") renderWrapup();
 }
@@ -721,6 +803,17 @@ function applyDeepLink() {
   const card = params.get("card") || "learn";
   const keyMode = params.get("keys") || "fourths";
   if (!screen) return;
+  if (params.get("demo") === "grades" || params.get("demo") === "medal") {
+    let next = emptyMastery();
+    next = recordQuizPass(next, "learn-lick", "G");
+    next = recordQuizPass(next, "integrate-minor-home", "G");
+    wrapupBanner = next;
+    mastery = next;
+  }
+  const mic = params.get("mic");
+  if (mic === "denied" || mic === "no-signal" || mic === "listening" || mic === "unsupported") {
+    monitor.setState(mic);
+  }
   if (screen === "setup") {
     openSetup(lessonId);
     return;
@@ -740,6 +833,23 @@ function applyDeepLink() {
       guideTones: prefs.guideTones,
     });
     session = screen === "wrapup" ? jumpToWrapup(session) : jumpToCard(session, card);
+    if (screen === "wrapup" && params.get("demo") === "grades") {
+      session = {
+        ...session,
+        cardResults: session.cards.map((cardId) => (
+          cardId === "learn"
+            ? { cardId, outcome: "completed", graded: false }
+            : {
+              cardId,
+              outcome: "passed",
+              graded: true,
+              passed: true,
+              percent: cardId === "quiz" ? 100 : 83,
+              correction: cardId === "play" ? "Bar 1 · 3rd note a little flat" : null,
+            }
+        )),
+      };
+    }
   }
 }
 
@@ -754,13 +864,30 @@ transport.onUpdate = (snap) => {
   updatePlayhead(snap);
 };
 
+function showGrade(result) {
+  if (!els.gradeLine) return;
+  if (!result?.graded) {
+    els.gradeLine.hidden = true;
+    els.gradeLine.textContent = "";
+    return;
+  }
+  els.gradeLine.hidden = false;
+  const bits = [`${result.percent}%`, result.passed ? "pass" : "not yet"];
+  if (result.correction) bits.push(result.correction);
+  els.gradeLine.textContent = bits.join(" · ");
+}
+
 transport.onEnded = () => {
   playback.playing = false;
   playback.paused = false;
   playback.ended = true;
   if (!session || session.screen !== "session") return;
-  const result = handlePlaybackEnded(session);
-  applySession(result.session, { autoStart: result.autoStart });
+  const listenHear = currentCard(session) === "listen" && session.listenStage === "hear";
+  const grade = listenHear ? {} : gradeCurrentCard();
+  monitor.stop();
+  const next = handlePlaybackEnded(session, grade);
+  const wait = grade.graded && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 900 : 0;
+  window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
 
 els.displayChip.addEventListener("click", () => els.settings.showModal());
@@ -878,12 +1005,27 @@ window.__DUOJAZZ__ = {
     render();
     return session;
   },
-  completeCard() {
+  completeCard(result) {
     if (!session) return null;
     halt();
-    session = completeCard(session);
+    session = completeCard(session, result);
     render();
     return session;
+  },
+  feedPitchTrack(frames) {
+    monitor.feed(frames);
+    return monitor.observations;
+  },
+  gradeNow() {
+    if (!session) return null;
+    return gradeSession(session, monitor.observations);
+  },
+  getMastery: () => mastery,
+  setMastery(next) {
+    mastery = next;
+    saveMastery(mastery);
+    render();
+    return mastery;
   },
 };
 

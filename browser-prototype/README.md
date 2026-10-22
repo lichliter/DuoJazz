@@ -6,7 +6,7 @@ This folder is a **separate, playable browser experiment**. It is not a port of 
 cd browser-prototype
 python3 -m http.server 4173 --bind 127.0.0.1
 # open http://127.0.0.1:4173/
-node --test js/music.test.mjs js/lesson.test.mjs js/session.test.mjs
+node --test js/music.test.mjs js/lesson.test.mjs js/session.test.mjs js/grade.test.mjs
 ```
 
 Deep links for screenshots and review:
@@ -15,7 +15,9 @@ Deep links for screenshots and review:
 - `/?screen=setup&lesson=learn-lick`
 - `/?screen=session&lesson=learn-lick&card=learn`
 - `/?screen=session&lesson=integrate-minor-home&card=quiz`
-- `/?screen=wrapup&lesson=learn-lick&keys=fourths`
+- `/?screen=wrapup&lesson=learn-lick&keys=fourths&demo=grades`
+- `/?screen=home&demo=medal`
+- `/?screen=session&lesson=learn-lick&card=play&mic=denied`
 
 ## Music
 
@@ -44,8 +46,10 @@ A setup sheet remembers choices per lesson: one key / cycle 4ths / chromatic / r
 
 Melody octave (−1 / Original / +1) still moves only the model line and displayed phrase. Default notation is **concert bass clef**.
 
+Play, Listen, and Quiz cards are graded from the microphone (YIN in an AudioWorklet) on pitch (±50 cents) and onset timing. Learn is not graded. A key is mastered when Quiz is passed in Learn the lick and in at least one integration lesson. Bronze / Silver / Gold at 1 / 6 / 12 keys. Progress is monotonic in localStorage.
+
 ## What it is not
 
 - Not native iPad / Xcode / simulator verification
 - No accounts, backend, or paid services
-- Phase 1: no microphone, pitch grading, or medal progress
+- Real microphone accuracy needs a check on an iPad with a horn. Headless grading uses `window.__DUOJAZZ__.feedPitchTrack`.
