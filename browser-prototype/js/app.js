@@ -44,6 +44,12 @@ import {
   wrapupCopy,
   listenStateCopy,
   displayKeyName,
+  persistLessonMelodyRegister,
+  setMelodyRegister,
+  shouldGradeNow,
+  skipResult,
+  isGradedCard,
+  skipCard,
 } from "./session.js";
 import { GRADED_CARDS, gradeSession } from "./grade.js";
 import {
@@ -85,7 +91,7 @@ const els = {
   keyModes: document.getElementById("key-modes"),
   setupKeys: document.getElementById("setup-keys"),
   cardSets: document.getElementById("card-sets"),
-  setupRegister: document.getElementById("setup-register"),
+  sessionOctave: document.getElementById("session-octave"),
   tempoReadout: document.getElementById("tempo-readout"),
   tempoDown: document.getElementById("tempo-down"),
   tempoUp: document.getElementById("tempo-up"),
@@ -264,8 +270,12 @@ function recordPassIfNeeded(result) {
   saveMastery(mastery);
 }
 
+function hasTake() {
+  return monitor.observations.some((row) => row.amp > 0.01 && row.hz > 0);
+}
+
 function gradeCurrentCard() {
-  const result = shouldListen(session)
+  const result = shouldGradeNow(session, { hasTake: hasTake() })
     ? gradeSession(session, monitor.observations)
     : { outcome: "completed" };
   recordPassIfNeeded(result);
@@ -275,7 +285,14 @@ function gradeCurrentCard() {
 
 function goContinue() {
   if (!session || session.screen !== "session") return;
-  const result = gradeCurrentCard();
+  let result;
+  if (shouldGradeNow(session, { hasTake: hasTake() })) {
+    result = gradeCurrentCard();
+  } else if (isGradedCard(currentCard(session))) {
+    result = skipResult(session);
+  } else {
+    result = { outcome: "completed" };
+  }
   halt();
   applySession(completeCard(session, result));
 }
@@ -357,21 +374,35 @@ function renderSetup() {
     setupDraft.cardSet = id;
     renderSetup();
   });
-  els.setupRegister.replaceChildren(
+  els.tempoReadout.textContent = String(setupDraft.tempo);
+}
+
+function renderSessionOctave() {
+  if (!els.sessionOctave || !session) return;
+  els.sessionOctave.replaceChildren(
     ...MELODY_REGISTERS.map((option) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "chip";
       btn.textContent = option.id === 0 ? "Original" : option.id === 1 ? "+1" : "−1";
-      btn.setAttribute("aria-pressed", String(option.id === setupDraft.melodyRegister));
-      btn.addEventListener("click", () => {
-        setupDraft.melodyRegister = option.id;
-        renderSetup();
-      });
+      btn.setAttribute("aria-pressed", String(option.id === session.melodyRegister));
+      btn.addEventListener("click", () => applyMelodyOctave(option.id));
       return btn;
     }),
   );
-  els.tempoReadout.textContent = String(setupDraft.tempo);
+}
+
+function applyMelodyOctave(register) {
+  if (!session || session.screen !== "session") return;
+  const melodyRegister = register === -1 || register === 1 ? register : 0;
+  if (melodyRegister === session.melodyRegister) return;
+  const restart = playback.playing || playback.paused;
+  halt();
+  session = setMelodyRegister(session, melodyRegister);
+  prefs = persistLessonMelodyRegister(prefs, session.lessonId, melodyRegister);
+  persist();
+  render();
+  if (restart) start(false);
 }
 
 function renderSessionChrome() {
@@ -522,14 +553,45 @@ function clearCueCollisions() {
   }
 }
 
-function applyRhythmSlashes() {
+function barIndexForNote(note, staffs, barsOnStaff) {
+  if (!staffs.length) return 0;
+  const head = note.querySelector(".abcjs-notehead") ?? note;
+  if (typeof head.getBBox !== "function") return 0;
+  const box = head.getBBox();
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  let staffIndex = 0;
+  let best = Infinity;
+  staffs.forEach((staff, index) => {
+    const staffBox = staff.getBBox();
+    const mid = staffBox.y + staffBox.height / 2;
+    const dist = Math.abs(cy - mid);
+    if (dist < best) {
+      best = dist;
+      staffIndex = index;
+    }
+  });
+  const staffBox = staffs[staffIndex].getBBox();
+  const barWidth = staffBox.width / Math.max(1, barsOnStaff);
+  const barInSystem = Math.min(
+    barsOnStaff - 1,
+    Math.max(0, Math.floor((cx - staffBox.x) / barWidth)),
+  );
+  return staffIndex * barsOnStaff + barInSystem;
+}
+
+function applyRhythmSlashes(keepLandingNotes = false) {
   const svg = els.notation.querySelector("svg");
   if (!svg) return;
   const ns = "http://www.w3.org/2000/svg";
+  const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
+  const barsOnStaff = lastNotationLayout?.barsPerLine ?? 4;
+  const landingBar = (lastNotationLayout?.phraseStartBar ?? 7) - 1;
   for (const note of els.notation.querySelectorAll(".abcjs-note")) {
     const head = note.querySelector(".abcjs-notehead")
       ?? [...note.querySelectorAll("ellipse, path")].find((node) => !isCueNode(node));
     if (!head || typeof head.getBBox !== "function") continue;
+    if (keepLandingNotes && barIndexForNote(note, staffs, barsOnStaff) === landingBar) continue;
     const box = head.getBBox();
     hideNoteGlyphs(note, true);
     const slash = document.createElementNS(ns, "line");
@@ -655,8 +717,15 @@ function renderFittedAbc(abc, layout, width) {
     const svg = els.notation.querySelector("svg");
     const height = svg ? svg.getBoundingClientRect().height : 0;
     if (!layout.fitToPaper || !target) break;
-    if (layout.fillAxis === "staffsep") {
-      const nextSep = nextStaffsep(staffsep, height, target);
+    if (layout.fillAxis === "staffsep" || layout.fillAxis === "both") {
+      if (layout.fillAxis === "both") {
+        const nextWidth = nextEngravingWidth(staffwidth, height, target, width, minWidth);
+        if (nextWidth !== staffwidth) {
+          staffwidth = nextWidth;
+          continue;
+        }
+      }
+      const nextSep = nextStaffsep(staffsep, height, target, layout.maxStaffsep ?? 380);
       if (nextSep === staffsep) break;
       staffsep = nextSep;
     } else if (layout.fillAxis === "width") {
@@ -667,7 +736,13 @@ function renderFittedAbc(abc, layout, width) {
       break;
     }
   }
-  lastNotationLayout = { ...layout, scale, staffwidth, staffsep };
+  lastNotationLayout = {
+    ...layout,
+    scale,
+    staffwidth,
+    staffsep,
+    phraseStartBar: lastNotationLayout?.phraseStartBar ?? layout.phraseStartBar,
+  };
   return rendered;
 }
 
@@ -684,7 +759,7 @@ function renderNotation() {
   fillListenState();
   els.notation.hidden = hideStaff;
   els.session.dataset.card = currentCard(session);
-  els.notation.classList.toggle("slash", Boolean(view.showSlashNotation));
+  els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
   if (hideStaff) {
     els.notation.replaceChildren();
     lastTune = null;
@@ -698,34 +773,45 @@ function renderNotation() {
     showPhraseNotation: view.showPhraseNotation,
     showEntranceCues: view.showEntranceCues,
   });
-  lastNotationLayout = layout;
   const concertKey = getKey(currentKeyId(session));
-  const abc = view.showModelNotation
+  lastNotationLayout = { ...layout, phraseStartBar: view.application?.phraseStartBar ?? 7 };
+  const abc = view.showLandingNotation
     ? chorusStaffABC({
       concertKey,
       displayMode: session.displayMode,
       applicationId: lesson.applicationId,
       clef: session.clef,
       melodyRegister: session.melodyRegister,
-      mode: "model",
+      mode: "landing",
       showCues: view.showEntranceCues,
       barsPerLine: layout.barsPerLine,
     })
-    : view.showSlashNotation
+    : view.showModelNotation
       ? chorusStaffABC({
         concertKey,
         displayMode: session.displayMode,
         applicationId: lesson.applicationId,
         clef: session.clef,
-        mode: "slash",
+        melodyRegister: session.melodyRegister,
+        mode: "model",
         showCues: view.showEntranceCues,
         barsPerLine: layout.barsPerLine,
       })
-      : phraseABC(concertKey, session.displayMode, lesson.applicationId, session.clef, session.melodyRegister);
+      : view.showSlashNotation
+        ? chorusStaffABC({
+          concertKey,
+          displayMode: session.displayMode,
+          applicationId: lesson.applicationId,
+          clef: session.clef,
+          mode: "slash",
+          showCues: view.showEntranceCues,
+          barsPerLine: layout.barsPerLine,
+        })
+        : phraseABC(concertKey, session.displayMode, lesson.applicationId, session.clef, session.melodyRegister);
   els.notation.replaceChildren();
   if (window.ABCJS) {
     lastTune = renderFittedAbc(abc, layout, width);
-    if (view.showSlashNotation) applyRhythmSlashes();
+    if (view.showSlashNotation) applyRhythmSlashes(view.showLandingNotation);
     restyleAnnotations();
     updatePlayhead();
   } else {
@@ -783,10 +869,7 @@ function renderMeter(snap = transport.snapshot()) {
 }
 
 function resultLabel(row) {
-  if (!row.graded) return "Heard";
-  const bits = [`${row.percent ?? 0}%`, row.passed ? "pass" : "miss"];
-  if (row.correction && !row.passed) bits.push(row.correction);
-  return bits.join(" · ");
+  return row.summary ?? (row.outcome === "completed" ? "Completed" : row.outcome);
 }
 
 function renderWrapup() {
@@ -828,6 +911,7 @@ function render(snap = transport.snapshot()) {
   if (screen === "home") renderHome();
   if (screen === "session") {
     renderSessionChrome();
+    renderSessionOctave();
     renderNotation();
     renderPrimary();
     renderMeter(snap);
@@ -873,6 +957,13 @@ function applyDeepLink() {
       guideTones: prefs.guideTones,
     });
     session = screen === "wrapup" ? jumpToWrapup(session) : jumpToCard(session, card);
+    const octave = Number(params.get("octave"));
+    if (octave === -1 || octave === 1 || octave === 0) {
+      session = setMelodyRegister(session, octave);
+    }
+    if (params.get("stage") === "echo") {
+      session = { ...session, listenStage: "echo" };
+    }
     if (screen === "wrapup" && params.get("demo") === "grades") {
       session = {
         ...session,
@@ -887,6 +978,16 @@ function applyDeepLink() {
               percent: cardId === "quiz" ? 100 : 83,
               correction: cardId === "play" ? "Bar 1 · 3rd note a little flat" : null,
             }
+        )),
+      };
+    }
+    if (screen === "wrapup" && params.get("demo") === "skipped") {
+      session = {
+        ...session,
+        cardResults: session.cards.map((cardId) => (
+          cardId === "learn"
+            ? { cardId, outcome: "completed" }
+            : { cardId, outcome: "skipped", graded: false, passed: false }
         )),
       };
     }
@@ -1051,6 +1152,21 @@ window.__DUOJAZZ__ = {
     halt();
     session = completeCard(session, result);
     render();
+    return session;
+  },
+  skipCard() {
+    if (!session) return null;
+    halt();
+    session = skipCard(session);
+    render();
+    return session;
+  },
+  setMelodyOctave(register) {
+    applyMelodyOctave(register);
+    return session;
+  },
+  continue() {
+    goContinue();
     return session;
   },
   feedPitchTrack(frames) {

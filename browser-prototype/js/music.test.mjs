@@ -33,6 +33,8 @@ import {
   chorusChords,
   applicationById,
   slashABC,
+  landingABC,
+  chorusStaffABC,
   cueCaption,
   applicationContext,
   jazzChordRootParts,
@@ -412,6 +414,31 @@ test("isolated-cell hearing uses the same melody register as the chorus model", 
     );
     assert.equal(cell[0].beat, 0);
   }
+});
+
+test("integration Play landing staff shows the lick on the door bar and slashes elsewhere", () => {
+  const g = getKey("G");
+  const abc = landingABC(g, "concert", "minor-home", "bass", 0, { showCues: true });
+  assert.match(abc, /K:Gmin clef=bass/);
+  assert.match(abc, /"Cm7"/);
+  assert.match(abc, /D,2 D,2 D,2 D,2/);
+  assert.match(abc, /"Gm6""_HERE"/);
+  assert.match(abc, /A,G, D,2 _B,,A,, G,,2/);
+  assert.match(abc, /"D7""_Get ready"/);
+  const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
+  assert.match(up, /AG D2 _B,A, G,2/);
+  const quizCold = slashABC(g, "concert", "minor-home", "bass");
+  assert.doesNotMatch(quizCold, /A,G,/);
+  const viaChorus = chorusStaffABC({
+    concertKey: g,
+    displayMode: "concert",
+    applicationId: "altered-dominant",
+    mode: "landing",
+    showCues: true,
+    melodyRegister: 0,
+  });
+  assert.match(viaChorus, /"D7""_HERE"/);
+  assert.doesNotMatch(viaChorus, /"D7""_HERE"D,2 D,2 D,2 D,2/);
 });
 
 test("slash staff is rhythmic slashes with chord symbols, not model pitches or rests", () => {

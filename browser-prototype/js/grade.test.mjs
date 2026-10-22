@@ -8,7 +8,7 @@ import {
   synthTrack,
   centsBetween,
 } from "./grade.js";
-import { createSession, jumpToCard, currentKeyId } from "./session.js";
+import { createSession, jumpToCard, currentKeyId, skipResult, wrapupCopy } from "./session.js";
 import {
   emptyMastery,
   medalForCount,
@@ -19,7 +19,6 @@ import {
   normalizeMastery,
 } from "./medals.js";
 import { micCopy } from "./pitch.js";
-import { wrapupCopy } from "./session.js";
 
 function learnQuiz() {
   return jumpToCard(createSession({ lessonId: "learn-lick", startKeyId: "G" }), "quiz");
@@ -127,6 +126,38 @@ test("Learn cards are not graded", () => {
   assert.equal(result.outcome, "completed");
 });
 
+test("Listen Your-turn take is graded like Play against the current octave", () => {
+  const echo = { ...jumpToCard(createSession({ lessonId: "learn-lick", melodyRegister: 1 }), "listen"), listenStage: "echo" };
+  const expected = expectedNotesFor(echo);
+  assert.equal(expected[0].midi, expectedNotesFor(jumpToCard(createSession({ lessonId: "learn-lick" }), "play"))[0].midi + 12);
+  const result = gradeSession(echo, synthTrack(expected));
+  assert.equal(result.graded, true);
+  assert.equal(result.passed, true);
+  assert.equal(result.percent, 100);
+  assert.equal(result.cardId, "listen");
+});
+
+test("skipping a graded card is Skipped and never a pass", () => {
+  const play = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
+  const skipped = skipResult(play);
+  assert.equal(skipped.outcome, "skipped");
+  assert.equal(skipped.passed, false);
+  assert.equal(skipped.graded, false);
+  const copy = wrapupCopy({
+    ...play,
+    screen: "wrapup",
+    cardResults: [
+      { cardId: "learn", outcome: "completed" },
+      { cardId: "play", ...skipped },
+      { cardId: "listen", ...skipResult({ ...play, cards: ["listen"], cardIndex: 0 }) },
+      { cardId: "quiz", outcome: "missed", graded: true, passed: false, percent: 0, correction: "1st note didn't speak" },
+    ],
+  });
+  assert.equal(copy.results[1].summary, "Skipped");
+  assert.equal(copy.results[1].passed, false);
+  assert.equal(copy.results[3].summary, "0% · miss · 1st note didn't speak");
+});
+
 test("medal thresholds are bronze 1, silver 6, gold 12", () => {
   assert.equal(medalForCount(0), "none");
   assert.equal(medalForCount(1), "bronze");
@@ -194,6 +225,8 @@ test("wrap-up copy surfaces score, pass, and the one correction", () => {
   const copy = wrapupCopy(session);
   assert.equal(copy.results[1].percent, 50);
   assert.equal(copy.results[1].correction, "Bar 1 · 3rd note a little flat");
+  assert.equal(copy.results[1].summary, "50% · miss · Bar 1 · 3rd note a little flat");
+  assert.equal(copy.results[2].summary, "83% · pass");
   assert.equal(copy.results[3].passed, true);
 });
 

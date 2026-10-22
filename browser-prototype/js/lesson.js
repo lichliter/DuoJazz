@@ -443,9 +443,9 @@ export function notationLayout({
   const barsPerLine = narrow ? 2 : 4;
 
   return {
-    scale: stand ? 1.62 : landscape ? 1.32 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 14 : landscape ? 10 : 28,
-    paddingbottom: showEntranceCues ? (stand ? 36 : landscape ? 22 : 32) : (stand ? 18 : 12),
+    scale: stand ? 2.28 : landscape ? 1.55 : short ? 0.9 : narrow ? 0.94 : 1.08,
+    paddingtop: stand ? 10 : landscape ? 10 : 28,
+    paddingbottom: showEntranceCues ? (stand ? 28 : landscape ? 22 : 32) : (stand ? 14 : 12),
     wrap: stand || landscape || narrow
       ? null
       : {
@@ -454,19 +454,20 @@ export function notationLayout({
         preferredMeasuresPerLine: barsPerLine,
       },
     barsPerLine,
-    // Size 4 bars to the width. Fill leftover portrait height with staffsep,
-    // not by shrinking engraving (that collides 4 bars).
-    engravingRatio: stand ? 0.56 : landscape ? 0.64 : 1,
-    minEngravingRatio: stand ? 0.52 : landscape ? 0.58 : 0.4,
-    chordfont: stand ? "Noto Sans 24" : landscape ? "Noto Sans 18" : "Noto Sans 15",
-    annotationfont: stand ? "Source Sans 3 18" : "Source Sans 3 13",
-    annotationPx: stand ? 22 : landscape ? 16 : 15,
-    chordCssPx: stand ? 28 : landscape ? 20 : 15,
-    slashStroke: stand ? 2.8 : 1.85,
+    // Grow the 5-line staff first (target ≥80px), then space the two systems
+    // evenly. Floor engraving so four bars on a line do not collide.
+    engravingRatio: stand ? 0.72 : landscape ? 0.7 : 1,
+    minEngravingRatio: stand ? 0.58 : landscape ? 0.6 : 0.4,
+    chordfont: stand ? "Noto Sans 26" : landscape ? "Noto Sans 18" : "Noto Sans 15",
+    annotationfont: stand ? "Source Sans 3 20" : "Source Sans 3 13",
+    annotationPx: stand ? 24 : landscape ? 16 : 15,
+    chordCssPx: stand ? 30 : landscape ? 20 : 15,
+    slashStroke: stand ? 3 : 1.85,
     fitToPaper: stand || landscape,
-    fillAxis: stand ? "staffsep" : "width",
-    staffsep: stand ? 168 : landscape ? 80 : 55,
-    fillRatio: stand ? 0.8 : landscape ? 0.94 : 0.92,
+    fillAxis: stand ? "both" : "width",
+    staffsep: stand ? 96 : landscape ? 80 : 55,
+    maxStaffsep: stand ? 150 : 220,
+    fillRatio: stand ? 0.9 : landscape ? 0.94 : 0.92,
   };
 }
 
@@ -485,11 +486,11 @@ export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, con
 }
 
 /** Grow or shrink system separation so two 4-bar systems fill leftover paper height. */
-export function nextStaffsep(staffsep, renderedHeight, targetHeight) {
+export function nextStaffsep(staffsep, renderedHeight, targetHeight, maxSep = 380) {
   if (!targetHeight || targetHeight < 120 || !renderedHeight || !staffsep) return staffsep;
   const ratio = targetHeight / renderedHeight;
   if (ratio >= 0.95 && ratio <= 1.05) return staffsep;
-  return Math.min(380, Math.max(72, Math.round(staffsep * ratio)));
+  return Math.min(maxSep, Math.max(72, Math.round(staffsep * ratio)));
 }
 
 /**
