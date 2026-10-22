@@ -318,9 +318,13 @@ h1 {
   letter-spacing: -0.12em;
 }
 
-.abcjs-container svg {
+.abcjs-container,
+.paper .abcjs-container,
+.paper svg {
+  width: 100% !important;
   max-width: 100%;
   height: auto;
+  display: block;
 }
 
 .hidden-answer {
@@ -729,7 +733,9 @@ input[type="checkbox"] {
     flex: 1 1 auto;
     min-height: 24rem;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
     padding: 0.28rem 0.45rem 0.2rem;
   }
 
@@ -775,6 +781,7 @@ input[type="checkbox"] {
     flex: 1 1 auto;
     min-height: 12rem;
     display: flex;
+    flex-direction: column;
     align-items: stretch;
     padding: 0.35rem 0.35rem 0.2rem;
   }
@@ -883,6 +890,75 @@ input[type="checkbox"] {
   box-shadow: inset 0 3px 0 var(--accent);
 }
 
+.lesson-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.lesson-meta .count {
+  color: var(--text);
+}
+
+.medal-slot {
+  min-height: 1.1em;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.medal-panel {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  min-height: 4.4rem;
+}
+
+.medal-mark {
+  margin: 0;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-size: 1.05rem;
+}
+
+.medal-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.listen-state {
+  flex: 0 0 auto;
+  margin: 0 0.85rem 0.85rem;
+  padding: 0.85rem 1rem;
+  min-height: 5.25rem;
+  background: rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(43, 33, 26, 0.16);
+}
+
+.listen-kicker {
+  margin: 0 0 0.2rem;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--selected);
+  font-size: 0.92rem;
+}
+
+.listen-detail {
+  margin: 0;
+  color: #6d5c4d;
+  font-size: 1.05rem;
+}
+
 .session-screen {
   gap: 0.35rem;
 }
@@ -949,6 +1025,17 @@ input[type="checkbox"] {
 .session-screen .paper-wrap {
   flex: 1 1 auto;
   min-height: 12rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.session-screen .paper {
+  width: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
 }
 
 .session-screen .cue-line {
@@ -973,12 +1060,15 @@ input[type="checkbox"] {
 
 .wrapup-screen {
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.9rem;
   padding-bottom: 1.5rem;
+  width: min(42rem, 100%);
+  margin-inline: auto;
 }
 
 .wrapup-screen h1 {
   max-width: none;
+  font-size: clamp(2.2rem, 5.4vw, 3.6rem);
 }
 
 .result-list {
@@ -986,27 +1076,45 @@ input[type="checkbox"] {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .result-list li {
   display: flex;
   justify-content: space-between;
+  gap: 1rem;
   background: var(--surface);
-  min-height: var(--tap);
+  min-height: 3.4rem;
   align-items: center;
-  padding: 0.45rem 0.85rem;
+  padding: 0.7rem 1.05rem;
+  font-size: 1.08rem;
+}
+
+.result-list .outcome {
+  color: var(--accent);
+  font-weight: 700;
+  text-align: right;
 }
 
 .wrapup-actions {
   display: grid;
-  gap: 0.45rem;
-  justify-items: start;
-  margin-top: 0.6rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
 }
 
 .wrapup-actions .play {
-  width: min(22rem, 100%);
+  width: 100%;
+  grid-column: 1 / -1;
+  min-height: 3.4rem;
+  font-size: 1.15rem;
+}
+
+.wrapup-actions .chip,
+.wrapup-actions .text-link {
+  width: 100%;
+  justify-self: stretch;
+  text-align: center;
 }
 
 .setup-form .setup-actions {
@@ -1052,16 +1160,131 @@ input[type="checkbox"] {
     min-height: 0;
   }
 
+  #screen-home {
+    justify-content: space-between;
+    gap: 1.1rem;
+    padding: 0.6rem 0 1.1rem;
+  }
+
+  #screen-home h1 {
+    font-size: clamp(3.1rem, 6.6vw, 4.4rem);
+    max-width: 11ch;
+    line-height: 0.92;
+  }
+
+  #screen-home .tune {
+    font-size: 1.25rem;
+  }
+
+  #screen-home .tune span {
+    font-size: 1.05rem;
+  }
+
+  #screen-home .kicker,
+  #screen-home .panel-label {
+    font-size: 0.86rem;
+  }
+
+  .medal-panel {
+    min-height: 5.4rem;
+    padding: 1.05rem 1.15rem;
+  }
+
+  .medal-mark {
+    font-size: 1.35rem;
+  }
+
+  .medal-copy {
+    font-size: 1.08rem;
+  }
+
+  .key-strip {
+    gap: 0.4rem;
+    margin: 0.55rem 0 0.2rem;
+  }
+
+  .key-dot {
+    min-height: 3.35rem;
+    font-size: 1.08rem;
+  }
+
+  .lesson-list {
+    gap: 0.55rem;
+  }
+
   .lesson-row {
-    padding: 0.85rem 1rem;
+    padding: 1.15rem 1.2rem;
+    min-height: 6.4rem;
+  }
+
+  .lesson-row .n {
+    font-size: 0.92rem;
+  }
+
+  .lesson-row .title {
+    font-size: 1.42rem;
+  }
+
+  .lesson-row .sub {
+    font-size: 1.05rem;
+  }
+
+  .lesson-meta {
+    font-size: 1.02rem;
   }
 
   .session-screen .paper-wrap {
-    min-height: 24rem;
+    min-height: 28rem;
   }
 
   .session-screen .cue-line {
+    font-size: 1.18rem;
+  }
+
+  .session-screen .card-badge {
     font-size: 1.05rem;
+  }
+
+  .session-screen .chart-head p:first-child {
+    font-size: 1.2rem;
+  }
+
+  .hidden-answer {
+    font-size: clamp(1.8rem, 3.8vw, 2.8rem);
+    min-height: 8rem;
+  }
+
+  .listen-state {
+    min-height: 6.2rem;
+    padding: 1.05rem 1.15rem;
+  }
+
+  .listen-kicker {
+    font-size: 1.08rem;
+  }
+
+  .listen-detail {
+    font-size: 1.18rem;
+  }
+
+  .wrapup-screen {
+    gap: 1.15rem;
+    padding-top: 1.5rem;
+  }
+
+  .wrapup-screen h1 {
+    font-size: clamp(3rem, 6vw, 4.1rem);
+  }
+
+  .result-list li {
+    min-height: 3.8rem;
+    font-size: 1.2rem;
+    padding: 0.85rem 1.2rem;
+  }
+
+  .wrapup-actions .play {
+    min-height: 3.7rem;
+    font-size: 1.28rem;
   }
 }
 
