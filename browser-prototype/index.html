@@ -32,7 +32,7 @@
         </div>
         <section class="medal-panel" id="medal-panel" aria-label="Module medal">
           <p class="medal-mark" id="medal-mark">Medal</p>
-          <p class="medal-copy" id="medal-note">Medal progress arrives with audio grading.</p>
+          <p class="medal-copy" id="medal-note">No medal yet. Pass Quiz in Learn the lick and in an integration lesson to master a key.</p>
         </section>
         <section class="key-strip-wrap" aria-label="Keys in this module">
           <p class="panel-label">Twelve keys</p>
@@ -74,7 +74,8 @@
         </section>
         <p class="cue-line" id="instruction" aria-live="polite"></p>
         <p class="meter" id="meter">1-bar count-in · Swing on</p>
-        <p class="grade-line" id="grade-line" hidden>Grading arrives in the next draft.</p>
+        <p class="mic-line" id="session-mic">Microphone ready after you press Play. Headphones recommended.</p>
+        <p class="grade-line" id="grade-line" hidden></p>
       </section>
 
       <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
@@ -84,7 +85,7 @@
         <ul class="result-list" id="result-list"></ul>
         <section class="medal-panel wrapup-medal" id="wrapup-medal-panel" aria-label="Medal progress">
           <p class="medal-mark" id="wrapup-medal-mark">Medal</p>
-          <p class="medal-copy" id="wrapup-medal">Medal progress arrives with audio grading.</p>
+          <p class="medal-copy" id="wrapup-medal"></p>
         </section>
         <div class="wrapup-actions">
           <button type="button" class="play" id="next-key">Next key</button>
@@ -120,7 +121,7 @@
           <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
         </div>
       </div>
-      <p class="mic-status" id="mic-status">Microphone: off in this draft. Headphones recommended when listening starts.</p>
+      <p class="mic-status" id="mic-status">Microphone asks on Play. Headphones recommended so the backing does not leak into grading.</p>
       <div class="setup-actions">
         <button type="button" class="play start" id="start-lesson">Start</button>
         <button type="submit" class="text-link" value="cancel">Cancel</button>
@@ -147,7 +148,7 @@
       <p class="help" id="display-banner"></p>
       <details>
         <summary>About this experiment</summary>
-        <p>Browser synth only. Phase 1 has no microphone or pitch grading. This does not verify the native iPad app. Space plays or pauses. R restarts.</p>
+        <p>Browser prototype with getUserMedia + AudioWorklet (YIN) grading. Real microphone accuracy needs a check on an iPad with a horn. Space plays or pauses. R restarts.</p>
         <p>Module: Cry Me a River cell over Autumn Leaves opening eight bars. Lessons: learn the lick, integrate on minor home (bar 7), integrate on altered dominant (bar 6). Setup remembers choices per lesson.</p>
       </details>
       <button type="submit" class="play compact" value="close">Close</button>

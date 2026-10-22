@@ -1,0 +1,147 @@
+/**
+ * Microphone + AudioWorklet pitch monitor.
+ * iPad Safari: start only after a user gesture, same-origin worklet, silent tap to keep the graph alive.
+ */
+
+const WORKLET_URL = new URL("./pitch-worklet.js", import.meta.url);
+
+export class PitchMonitor {
+  constructor() {
+    this.ctx = null;
+    this.stream = null;
+    this.source = null;
+    this.node = null;
+    this.mute = null;
+    this.observations = [];
+    this.state = "idle";
+    this.onState = () => {};
+    this.onFrame = () => {};
+    this.beatClock = () => 0;
+    this.silentFrames = 0;
+    this.ownsContext = false;
+  }
+
+  setState(state) {
+    this.state = state;
+    this.onState(state);
+  }
+
+  reset() {
+    this.observations = [];
+    this.silentFrames = 0;
+  }
+
+  feed(frames) {
+    for (const frame of frames) {
+      this.observations.push({
+        beat: typeof frame.beat === "number" ? frame.beat : this.beatClock(),
+        hz: frame.hz ?? 0,
+        amp: frame.amp ?? 0.2,
+      });
+    }
+    if (frames.length) this.setState("listening");
+  }
+
+  async start(ctx) {
+    this.reset();
+    if (!ctx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) {
+        this.setState("unsupported");
+        return;
+      }
+      this.ctx = new Ctx();
+      this.ownsContext = true;
+    } else {
+      this.ctx = ctx;
+      this.ownsContext = false;
+    }
+    if (this.ctx.state === "suspended") await this.ctx.resume();
+    if (typeof this.ctx.audioWorklet?.addModule !== "function") {
+      this.setState("unsupported");
+      return;
+    }
+    this.setState("requesting");
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+    } catch (error) {
+      this.setState(error?.name === "NotAllowedError" ? "denied" : "unsupported");
+      return;
+    }
+    try {
+      await this.ctx.audioWorklet.addModule(WORKLET_URL);
+      this.source = this.ctx.createMediaStreamSource(this.stream);
+      this.node = new AudioWorkletNode(this.ctx, "duojazz-pitch");
+      this.mute = this.ctx.createGain();
+      this.mute.gain.value = 0;
+      this.source.connect(this.node);
+      this.node.connect(this.mute);
+      this.mute.connect(this.ctx.destination);
+      this.node.port.onmessage = (event) => this.handleFrame(event.data);
+      this.setState("listening");
+    } catch {
+      this.setState("unsupported");
+    }
+  }
+
+  handleFrame(data) {
+    const hz = data?.hz ?? 0;
+    const amp = data?.amp ?? 0;
+    if (amp < 0.01) {
+      this.silentFrames += 1;
+      if (this.silentFrames > 12 && this.state === "listening") this.setState("no-signal");
+      return;
+    }
+    this.silentFrames = 0;
+    if (this.state !== "listening") this.setState("listening");
+    if (hz > 40 && hz < 2000) {
+      const frame = { beat: this.beatClock(), hz, amp };
+      this.observations.push(frame);
+      this.onFrame(frame);
+    }
+  }
+
+  stop() {
+    try {
+      this.node?.port.postMessage("stop");
+    } catch {
+      /* ignore */
+    }
+    try {
+      this.source?.disconnect();
+      this.node?.disconnect();
+      this.mute?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    this.source = null;
+    this.node = null;
+    this.mute = null;
+    if (this.stream) {
+      for (const track of this.stream.getTracks()) track.stop();
+      this.stream = null;
+    }
+    if (this.ownsContext && this.ctx) {
+      this.ctx.close();
+      this.ctx = null;
+    }
+    if (this.state === "listening" || this.state === "no-signal" || this.state === "requesting") {
+      this.setState("idle");
+    }
+  }
+}
+
+export function micCopy(state) {
+  if (state === "denied") return "Microphone blocked. Enable it in Safari settings to grade.";
+  if (state === "unsupported") return "This browser cannot run pitch detection. Try iPad Safari.";
+  if (state === "no-signal") return "No signal. Play closer to the mic, or use headphones for the backing.";
+  if (state === "listening") return "Listening. Headphones recommended — backing can leak into the mic.";
+  if (state === "requesting") return "Asking for the microphone…";
+  return "Microphone ready after you press Play. Headphones recommended.";
+}

@@ -1,7 +1,7 @@
 /**
  * Focused module → setup → session → wrap-up flow for the browser prototype.
  * Cards map onto the existing lesson.js practice engine (audio + notation).
- * Phase 1 completes cards without grading and does not show medal progress.
+ * Cards complete with optional grade fields; medal progress lives in medals.js.
  */
 
 import {
@@ -327,14 +327,14 @@ export function completeCard(session, result = {}) {
   };
 }
 
-export function handlePlaybackEnded(session) {
+export function handlePlaybackEnded(session, result = {}) {
   if (session.screen !== "session") {
     return { session, autoStart: false };
   }
   if (currentCard(session) === "listen" && session.listenStage === "hear") {
     return { session: { ...session, listenStage: "echo" }, autoStart: true };
   }
-  return { session: completeCard(session), autoStart: false };
+  return { session: completeCard(session, result), autoStart: false };
 }
 
 export function skipCard(session) {
