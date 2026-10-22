@@ -558,7 +558,7 @@ function abcWithStaffsep(abc, staffsep) {
 function renderFittedAbc(abc, layout, width) {
   const scale = layout.scale;
   const fullWidth = Math.max(280, width - 24);
-  const minWidth = Math.max(400, Math.round(fullWidth * (layout.minEngravingRatio ?? 0.4)));
+  const minWidth = Math.max(200, Math.round(fullWidth * (layout.minEngravingRatio ?? 0.4)));
   let staffwidth = Math.round(fullWidth * (layout.engravingRatio ?? 1));
   staffwidth = Math.min(fullWidth, Math.max(minWidth, staffwidth));
   let staffsep = layout.staffsep;
