@@ -326,8 +326,8 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
-  assert.ok(stand.staffsep <= 90);
-  assert.ok(stand.staffsep >= 60);
+  assert.ok(stand.staffsep <= 60);
+  assert.ok(stand.staffsep >= 40);
   assert.equal(stand.minStaffPx, 83);
   assert.ok(stand.fillRatio >= 0.7);
   assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);

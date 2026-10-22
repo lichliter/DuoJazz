@@ -663,6 +663,16 @@ function fitChorusStaffSvg(svg, layout) {
   while (svg.firstChild) g.appendChild(svg.firstChild);
   svg.append(g);
   svg.setAttribute("viewBox", `0 0 ${fit.viewBoxWidth} ${vb.height}`);
+  svg.removeAttribute("height");
+  svg.removeAttribute("width");
+  const displayHeight = `${Math.round(wrap.clientWidth * vb.height / fit.viewBoxWidth)}px`;
+  svg.style.setProperty("width", "100%", "important");
+  svg.style.setProperty("height", displayHeight, "important");
+  const container = svg.parentElement;
+  if (container) {
+    container.style.setProperty("height", displayHeight, "important");
+    container.style.setProperty("overflow", "visible");
+  }
 }
 
 function updatePlayhead(snap = transport.snapshot()) {
