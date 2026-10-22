@@ -1,119 +1,118 @@
 import {
-  APPLICATIONS,
-  KEYS,
   MELODY_REGISTERS,
-  PRIMARY_KEY_IDS,
   chorusStaffABC,
-  displayKey,
   getKey,
   minorSpelling,
-  normalizeMelodyRegister,
   phraseABC,
-  applicationContext,
-  supportBlurb,
   jazzChordRootParts,
 } from "./music.js";
 import { Transport } from "./audio.js";
 import {
-  STORAGE_KEY,
-  GOALS,
-  SUPPORTS,
-  CHECK_KINDS,
-  LEGACY_STEPS,
-  goalById,
-  presentation,
-  defaultState,
-  normalizeState,
-  audioConfigFor,
-  livePrompt,
-  primaryAction,
-  currentAssessment,
-  assessmentKey,
-  chartCopy,
-  afterRoundActions,
   notationLayout,
   nextEngravingWidth,
   nextStaffsep,
 } from "./lesson.js";
+import {
+  PREFS_KEY,
+  MODULE,
+  LESSONS,
+  KEY_MODES,
+  CARD_SETS,
+  CARDS,
+  TWELVE_KEY_IDS,
+  lessonById,
+  normalizePrefs,
+  defaultPrefs,
+  recommendedLessonId,
+  createSession,
+  currentCard,
+  currentKeyId,
+  keyOrdinal,
+  completeCard,
+  handlePlaybackEnded,
+  skipCard,
+  repeatKey,
+  advanceKey,
+  jumpToCard,
+  jumpToWrapup,
+  markLessonStarted,
+  sessionPresentation,
+  sessionAudioConfig,
+  sessionPrimaryAction,
+  sessionChartCopy,
+  sessionCue,
+  sessionMeterExtras,
+  wrapupCopy,
+  displayKeyName,
+} from "./session.js";
 
 const transport = new Transport();
-const state = loadState();
 const playback = { playing: false, paused: false, ended: false };
+let prefs = loadPrefs();
+let setupLessonId = recommendedLessonId(prefs);
+let setupDraft = { ...prefs.lessons[setupLessonId] };
+let session = null;
 let lastTune = null;
 let lastNotationLayout = null;
 
 const els = {
-  heading: document.getElementById("heading"),
-  kicker: document.getElementById("kicker"),
-  instruction: document.getElementById("instruction"),
-  goals: document.getElementById("goals"),
-  applicationPanel: document.getElementById("application-panel"),
-  applications: document.getElementById("applications"),
-  applicationBlurb: document.getElementById("application-blurb"),
-  music: document.getElementById("music-surface"),
+  shell: document.getElementById("app-shell"),
+  masthead: document.getElementById("masthead"),
+  home: document.getElementById("screen-home"),
+  session: document.getElementById("screen-session"),
+  wrapup: document.getElementById("screen-wrapup"),
+  keyStrip: document.getElementById("key-strip"),
+  lessonList: document.getElementById("lesson-list"),
+  displayChip: document.getElementById("display-chip"),
+  settings: document.getElementById("settings"),
+  setup: document.getElementById("setup"),
+  setupTitle: document.getElementById("setup-title"),
+  setupSummary: document.getElementById("setup-summary"),
+  keyModes: document.getElementById("key-modes"),
+  setupKeys: document.getElementById("setup-keys"),
+  cardSets: document.getElementById("card-sets"),
+  setupRegister: document.getElementById("setup-register"),
+  tempoReadout: document.getElementById("tempo-readout"),
+  tempoDown: document.getElementById("tempo-down"),
+  tempoUp: document.getElementById("tempo-up"),
+  startLesson: document.getElementById("start-lesson"),
+  sessionExit: document.getElementById("session-exit"),
+  sessionKey: document.getElementById("session-key"),
+  sessionKeyCount: document.getElementById("session-key-count"),
+  sessionCardCount: document.getElementById("session-card-count"),
+  sessionProgressFill: document.getElementById("session-progress-fill"),
+  cardBadge: document.getElementById("card-badge"),
   notation: document.getElementById("notation"),
   hiddenAnswer: document.getElementById("hidden-answer"),
   chartTitle: document.getElementById("chart-title"),
   chartMeta: document.getElementById("chart-meta"),
-  supports: document.getElementById("supports"),
-  cellLink: document.getElementById("cell-link"),
-  register: document.getElementById("register"),
   primary: document.getElementById("primary"),
-  afterRound: document.getElementById("after-round"),
-  afterActions: document.getElementById("after-actions"),
-  miniAssess: document.getElementById("mini-assess"),
-  entranceQ: document.getElementById("entrance-q"),
-  afterQ: document.getElementById("after-q"),
-  keyPanel: document.getElementById("key-panel"),
-  keys: document.getElementById("keys"),
-  settingsKeys: document.getElementById("settings-keys"),
-  checkPanel: document.getElementById("check-panel"),
-  checkKind: document.getElementById("check-kind"),
-  restart: document.getElementById("restart"),
-  loopBtn: document.getElementById("loop-btn"),
-  tempoReadout: document.getElementById("tempo-readout"),
-  tempoDown: document.getElementById("tempo-down"),
-  tempoUp: document.getElementById("tempo-up"),
+  continueBtn: document.getElementById("continue-btn"),
+  instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
-  settingsBtn: document.getElementById("settings-btn"),
-  displayChip: document.getElementById("display-chip"),
-  settings: document.getElementById("settings"),
+  gradeLine: document.getElementById("grade-line"),
+  wrapupHeading: document.getElementById("wrapup-heading"),
+  wrapupDetail: document.getElementById("wrapup-detail"),
+  resultList: document.getElementById("result-list"),
+  nextKey: document.getElementById("next-key"),
+  againKey: document.getElementById("again-key"),
+  doneSession: document.getElementById("done-session"),
   swing: document.getElementById("swing"),
   guideTones: document.getElementById("guideTones"),
   metronome: document.getElementById("metronome"),
   displayBanner: document.getElementById("display-banner"),
-  tuneDetail: document.getElementById("tune-detail"),
 };
 
-function loadState() {
-  const base = defaultState();
-  const fromHash = location.hash.replace("#", "");
+function loadPrefs() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    const merged = saved ? normalizeState({ ...base, ...saved, assessments: { ...base.assessments, ...(saved.assessments ?? {}) } }) : base;
-    applyHash(merged, fromHash);
-    return merged;
+    return normalizePrefs(JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null"));
   } catch {
-    applyHash(base, fromHash);
-    return base;
+    return defaultPrefs();
   }
 }
 
-function applyHash(target, fromHash) {
-  if (GOALS.some((goal) => goal.id === fromHash)) target.goal = fromHash;
-  else if (LEGACY_STEPS[fromHash]) Object.assign(target, LEGACY_STEPS[fromHash]);
-}
-
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function concertKey() {
-  return getKey(state.concertKeyId);
-}
-
-function ctx() {
-  return applicationContext(concertKey(), state.displayMode, state.applicationId);
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
 function halt() {
@@ -123,235 +122,168 @@ function halt() {
   playback.ended = false;
 }
 
-function applyMelodyRegister(value) {
-  const next = normalizeMelodyRegister(value);
-  if (next === state.melodyRegister) return;
-  const wasPlaying = playback.playing;
-  state.melodyRegister = next;
-  persist();
-  halt();
-  render();
-  if (wasPlaying) start(false);
+function screenName() {
+  if (session?.screen === "session") return "session";
+  if (session?.screen === "wrapup") return "wrapup";
+  return "home";
 }
 
-function goGoal(goalId, extra = {}) {
-  if (!GOALS.some((goal) => goal.id === goalId)) return;
-  Object.assign(state, extra);
-  state.goal = goalId;
-  if (goalId !== "check") state.revealed = false;
-  if (goalId === "learn" || goalId === "keys") state.cellMode = extra.cellMode ?? "hear";
+function openSetup(lessonId) {
+  setupLessonId = lessonById(lessonId).id;
+  setupDraft = { ...prefs.lessons[setupLessonId] };
+  renderSetup();
+  if (!els.setup.open) els.setup.showModal();
+}
+
+function closeSetup() {
+  if (els.setup.open) els.setup.close();
+}
+
+function startFromSetup() {
+  prefs.lessons[setupLessonId] = { ...setupDraft };
+  prefs = markLessonStarted(prefs, setupLessonId, setupDraft.startKeyId);
   persist();
-  if (location.hash.replace("#", "") !== goalId) {
-    history.replaceState(null, "", `#${goalId}`);
-  }
   halt();
+  session = createSession({
+    lessonId: setupLessonId,
+    ...setupDraft,
+    displayMode: prefs.displayMode,
+    clef: prefs.clef,
+    swing: prefs.swing,
+    metronome: prefs.metronome,
+    guideTones: prefs.guideTones,
+  });
+  closeSetup();
   render();
 }
 
-function setKey(id) {
-  state.concertKeyId = id;
-  if (!state.triedKeys.includes(id)) state.triedKeys.push(id);
-  persist();
+function exitSession() {
   halt();
+  session = null;
   render();
+}
+
+function applySession(next, { autoStart = false } = {}) {
+  session = next;
+  persist();
+  render();
+  if (autoStart && session?.screen === "session") start(false);
 }
 
 function start(resume = false) {
+  if (!session || session.screen !== "session") return;
   els.primary.disabled = true;
-  if (!resume) {
-    playback.ended = false;
-    els.afterRound.hidden = true;
-  }
-  transport.start(audioConfigFor(state), { resume }).finally(() => {
+  transport.start(sessionAudioConfig(session), { resume }).finally(() => {
     els.primary.disabled = false;
   });
 }
 
-function renderGoals() {
-  els.goals.replaceChildren(
-    ...GOALS.map((goal) => {
+function runPrimary() {
+  if (!session || session.screen !== "session") return;
+  const action = sessionPrimaryAction(session, playback);
+  if (!action) return;
+  if (action.id === "pause") transport.pause();
+  else if (action.id === "resume") start(true);
+  else start(false);
+}
+
+function goContinue() {
+  if (!session || session.screen !== "session") return;
+  halt();
+  applySession(skipCard(session));
+}
+
+function renderHome() {
+  const recommended = recommendedLessonId(prefs);
+  els.keyStrip.replaceChildren(
+    ...TWELVE_KEY_IDS.map((id) => {
+      const span = document.createElement("span");
+      span.className = "key-dot";
+      span.textContent = getKey(id).name;
+      span.title = displayKeyName(id, prefs.displayMode);
+      return span;
+    }),
+  );
+  els.lessonList.replaceChildren(
+    ...LESSONS.map((lesson, index) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "goal";
-      btn.textContent = goal.label;
-      btn.setAttribute("aria-current", goal.id === state.goal ? "page" : "false");
-      btn.addEventListener("click", () => goGoal(goal.id));
+      btn.className = "lesson-row";
+      btn.dataset.testid = `lesson-${lesson.id}`;
+      btn.dataset.recommended = String(lesson.id === recommended);
+      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary}</span>`;
+      btn.addEventListener("click", () => openSetup(lesson.id));
       return btn;
     }),
   );
 }
 
-function renderApplications() {
-  const view = presentation(state);
-  const current = ctx();
-  els.applicationPanel.hidden = !view.showApplications;
-  if (!view.showApplications) {
-    els.applications.replaceChildren();
-    els.applicationBlurb.textContent = "";
-    return;
-  }
-  els.applications.replaceChildren(
-    ...APPLICATIONS.map((app, index) => {
-      const info = applicationContext(concertKey(), state.displayMode, app.id);
+function chipRow(host, options, current, onPick) {
+  host.replaceChildren(
+    ...options.map((option) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "app-tab";
-      btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-selected", String(app.id === state.applicationId));
-      const placement = view.showApplicationPlacement
-        ? `<span class="sub">${info.placement}</span>`
-        : "";
-      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}</span>${app.label}${placement}`;
+      btn.className = "chip";
+      btn.textContent = option.label;
+      btn.setAttribute("aria-pressed", String(option.id === current));
+      btn.addEventListener("click", () => onPick(option.id));
+      return btn;
+    }),
+  );
+}
+
+function renderSetup() {
+  const lesson = lessonById(setupLessonId);
+  els.setupTitle.textContent = lesson.title;
+  els.setupSummary.textContent = lesson.summary;
+  chipRow(els.keyModes, KEY_MODES, setupDraft.keyMode, (id) => {
+    setupDraft.keyMode = id;
+    renderSetup();
+  });
+  els.setupKeys.replaceChildren(
+    ...TWELVE_KEY_IDS.map((id) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "key-btn";
+      btn.textContent = minorSpelling(getKey(id)).shortName;
+      btn.setAttribute("aria-pressed", String(id === setupDraft.startKeyId));
       btn.addEventListener("click", () => {
-        state.applicationId = app.id;
-        persist();
-        halt();
-        render();
+        setupDraft.startKeyId = id;
+        renderSetup();
       });
       return btn;
     }),
   );
-  if (!view.showAnswerContext) {
-    els.applicationBlurb.hidden = true;
-    els.applicationBlurb.textContent = "";
-    return;
-  }
-  els.applicationBlurb.hidden = false;
-  els.applicationBlurb.textContent = state.goal === "integrate"
-    ? supportBlurb(concertKey(), state.displayMode, state.applicationId, view.supportId)
-    : current.shapeOver;
-}
-
-function renderSupports() {
-  const view = presentation(state);
-  els.cellLink.hidden = state.goal === "check";
-  els.cellLink.textContent = state.goal === "integrate" ? "Just the cell" : "Use in a solo";
-  if (state.goal === "learn" || state.goal === "keys") {
-    els.supports.hidden = false;
-    els.supports.replaceChildren(
-      ...[
-        ["hear", "Hear"],
-        ["echo", "Echo"],
-      ].map(([id, label]) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "support";
-        btn.textContent = label;
-        btn.setAttribute("aria-selected", String(state.cellMode === id));
-        btn.addEventListener("click", () => {
-          state.cellMode = id;
-          persist();
-          halt();
-          render();
-        });
-        return btn;
-      }),
-    );
-    return;
-  }
-  els.supports.hidden = !view.showSupportModes;
-  if (!view.showSupportModes) {
-    els.supports.replaceChildren();
-    return;
-  }
-  els.supports.replaceChildren(
-    ...SUPPORTS.map((item) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "support";
-      btn.textContent = item.label;
-      btn.setAttribute("role", "tab");
-      btn.setAttribute("aria-selected", String(item.id === state.support));
-      btn.addEventListener("click", () => {
-        state.support = item.id;
-        delete state.looping;
-        persist();
-        halt();
-        render();
-      });
-      return btn;
-    }),
-  );
-}
-
-function renderRegister() {
-  els.register.replaceChildren(
+  chipRow(els.cardSets, CARD_SETS, setupDraft.cardSet, (id) => {
+    setupDraft.cardSet = id;
+    renderSetup();
+  });
+  els.setupRegister.replaceChildren(
     ...MELODY_REGISTERS.map((option) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "chip";
       btn.textContent = option.id === 0 ? "Original" : option.id === 1 ? "+1" : "−1";
-      btn.setAttribute("aria-pressed", String(option.id === state.melodyRegister));
-      btn.addEventListener("click", () => applyMelodyRegister(option.id));
-      return btn;
-    }),
-  );
-}
-
-function keyButtons(host) {
-  const shown = [
-    ...KEYS.filter((key) => PRIMARY_KEY_IDS.includes(key.id)),
-    ...KEYS.filter((key) => !PRIMARY_KEY_IDS.includes(key.id)),
-  ];
-  host.replaceChildren(
-    ...shown.map((key) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "key-btn";
-      btn.textContent = minorSpelling(key).shortName;
-      btn.setAttribute("aria-pressed", String(key.id === state.concertKeyId));
-      btn.addEventListener("click", () => setKey(key.id));
-      return btn;
-    }),
-  );
-}
-
-function renderKeys() {
-  const view = presentation(state);
-  els.keyPanel.hidden = !view.showKeyPicker;
-  keyButtons(els.keys);
-  keyButtons(els.settingsKeys);
-}
-
-function renderCheck() {
-  const view = presentation(state);
-  els.checkPanel.hidden = !view.showCheckSetup;
-  if (!view.showCheckSetup) {
-    els.checkKind.replaceChildren();
-    return;
-  }
-  els.checkKind.replaceChildren(
-    ...CHECK_KINDS.map((kind) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chip";
-      btn.textContent = kind.label;
-      btn.setAttribute("aria-pressed", String(kind.id === state.checkKind));
+      btn.setAttribute("aria-pressed", String(option.id === setupDraft.melodyRegister));
       btn.addEventListener("click", () => {
-        state.checkKind = kind.id;
-        state.revealed = false;
-        persist();
-        halt();
-        render();
+        setupDraft.melodyRegister = option.id;
+        renderSetup();
       });
       return btn;
     }),
-    revealButton(),
   );
+  els.tempoReadout.textContent = String(setupDraft.tempo);
 }
 
-function revealButton() {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "chip";
-  btn.textContent = state.revealed ? "Hide answer" : "Reveal answer";
-  btn.setAttribute("aria-pressed", String(state.revealed));
-  btn.addEventListener("click", () => {
-    state.revealed = !state.revealed;
-    persist();
-    render();
-  });
-  return btn;
+function renderSessionChrome() {
+  const card = currentCard(session);
+  const ordinal = keyOrdinal(session);
+  const total = session.cards.length;
+  els.cardBadge.textContent = CARDS[card].kicker;
+  els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode);
+  els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
+  els.sessionCardCount.textContent = `${session.cardIndex + 1}/${total}`;
+  els.sessionProgressFill.style.width = `${((session.cardIndex) / total) * 100}%`;
 }
 
 function staffWidth() {
@@ -541,7 +473,7 @@ function ensurePlayhead(svg) {
 
 function updatePlayhead(snap = transport.snapshot()) {
   const svg = els.notation.querySelector("svg");
-  if (!svg) return;
+  if (!svg || !session) return;
   const { line, glow } = ensurePlayhead(svg);
   const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
   const active = (snap.playing || snap.paused) && !snap.inCountIn && staffs.length;
@@ -550,7 +482,7 @@ function updatePlayhead(snap = transport.snapshot()) {
     glow.setAttribute("opacity", "0");
     return;
   }
-  const view = presentation(state);
+  const view = sessionPresentation(session);
   const barsOnStaff = view.audioStage === "learn" ? 2 : (lastNotationLayout?.barsPerLine ?? 4);
   const barIndex = Math.max(0, (snap.bar ?? 1) - 1);
   const system = Math.min(staffs.length - 1, Math.floor(barIndex / barsOnStaff));
@@ -605,7 +537,7 @@ function abcWithStaffsep(abc, staffsep) {
 }
 
 function renderFittedAbc(abc, layout, width) {
-  let scale = layout.scale;
+  const scale = layout.scale;
   const fullWidth = Math.max(280, width - 24);
   const minWidth = Math.max(400, Math.round(fullWidth * (layout.minEngravingRatio ?? 0.4)));
   let staffwidth = Math.round(fullWidth * (layout.engravingRatio ?? 1));
@@ -641,11 +573,13 @@ function renderFittedAbc(abc, layout, width) {
 }
 
 function renderNotation() {
-  const view = presentation(state);
-  const copy = chartCopy(state);
+  if (!session || session.screen !== "session") return;
+  const view = sessionPresentation(session);
+  const copy = sessionChartCopy(session);
+  const lesson = lessonById(session.lessonId);
   els.chartTitle.textContent = copy.title;
   els.chartMeta.textContent = copy.meta;
-  const hideStaff = Boolean(view.hideAnswers && !view.showSlashNotation && !view.showPhraseNotation && !view.showModelNotation);
+  const hideStaff = Boolean(view.hideStaff);
   els.hiddenAnswer.hidden = !hideStaff;
   els.notation.hidden = hideStaff;
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation));
@@ -663,28 +597,29 @@ function renderNotation() {
     showEntranceCues: view.showEntranceCues,
   });
   lastNotationLayout = layout;
+  const concertKey = getKey(currentKeyId(session));
   const abc = view.showModelNotation
     ? chorusStaffABC({
-      concertKey: concertKey(),
-      displayMode: state.displayMode,
-      applicationId: state.applicationId,
-      clef: state.clef,
-      melodyRegister: state.melodyRegister,
+      concertKey,
+      displayMode: session.displayMode,
+      applicationId: lesson.applicationId,
+      clef: session.clef,
+      melodyRegister: session.melodyRegister,
       mode: "model",
       showCues: view.showEntranceCues,
       barsPerLine: layout.barsPerLine,
     })
     : view.showSlashNotation
       ? chorusStaffABC({
-        concertKey: concertKey(),
-        displayMode: state.displayMode,
-        applicationId: state.applicationId,
-        clef: state.clef,
+        concertKey,
+        displayMode: session.displayMode,
+        applicationId: lesson.applicationId,
+        clef: session.clef,
         mode: "slash",
         showCues: view.showEntranceCues,
         barsPerLine: layout.barsPerLine,
       })
-      : phraseABC(concertKey(), state.displayMode, state.applicationId, state.clef, state.melodyRegister);
+      : phraseABC(concertKey, session.displayMode, lesson.applicationId, session.clef, session.melodyRegister);
   els.notation.replaceChildren();
   if (window.ABCJS) {
     lastTune = renderFittedAbc(abc, layout, width);
@@ -698,108 +633,28 @@ function renderNotation() {
   }
 }
 
-function choiceRow(containerId, name, options) {
-  const host = document.getElementById(containerId);
-  const marks = currentAssessment(state);
-  host.replaceChildren(
-    ...options.map(([value, label]) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chip";
-      btn.textContent = label;
-      btn.setAttribute("aria-pressed", String(marks[name] === value));
-      btn.addEventListener("click", () => {
-        const key = assessmentKey(state);
-        state.assessments[key] = { ...currentAssessment(state), [name]: value };
-        persist();
-        renderAfter();
-      });
-      return btn;
-    }),
-  );
-}
-
-function renderAfter(force = false) {
-  const view = presentation(state);
-  const show = force || playback.ended;
-  els.afterRound.hidden = !view.showAfterRound || !show;
-  if (els.afterRound.hidden) return;
-  const current = ctx();
-  els.entranceQ.textContent = current.entranceQuestion;
-  els.afterQ.textContent = current.afterQuestion;
-  els.miniAssess.hidden = false;
-  els.afterActions.replaceChildren(
-    ...afterRoundActions(state).map((action) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chip";
-      btn.textContent = action.label;
-      btn.addEventListener("click", () => runAfter(action.id));
-      return btn;
-    }),
-  );
-  choiceRow("foundEntrance", "foundEntrance", [["yes", "Yes"], ["somewhat", "Somewhat"], ["not-yet", "Not yet"]]);
-  choiceRow("keptPlaying", "keptPlaying", [["yes", "Yes"], ["somewhat", "Somewhat"], ["not-yet", "Not yet"]]);
-  choiceRow("quoteChoice", "quoteChoice", [["quote", "Quoted it"], ["vary", "Varied it"], ["skip", "Skipped it"]]);
-  choiceRow("recall", "recall", [["yes", "Yes"], ["somewhat", "Somewhat"], ["not-yet", "Not yet"]]);
-}
-
-function runAfter(id) {
-  if (id === "repeat") {
-    halt();
-    start(false);
-    return;
-  }
-  if (id === "learn") {
-    goGoal("learn");
-    return;
-  }
-  if (id === "keys") {
-    goGoal("keys");
-    return;
-  }
-  if (id === "help" || id === "free" || id === "listen") {
-    state.support = id;
-    persist();
-    halt();
-    render();
-    start(false);
-  }
-}
-
 function renderCopy(snap = transport.snapshot()) {
-  const view = presentation(state);
-  const goal = goalById(state.goal);
-  const current = ctx();
-  const written = displayKey(concertKey(), state.displayMode);
-  const concert = minorSpelling(concertKey());
-  const clefLabel = state.clef === "bass" ? "Bass clef" : "Treble clef";
-  document.body.dataset.goal = state.goal;
-  document.body.dataset.support = view.supportId;
-  els.kicker.textContent = goal.kicker;
-  els.heading.textContent = goal.heading;
-  els.tuneDetail.textContent = `Opening eight bars · ${concert.name}`;
-  els.instruction.textContent = livePrompt(state, snap);
-  els.swing.checked = state.swing;
-  els.guideTones.checked = state.guideTones;
-  els.metronome.checked = state.metronome;
-  els.tempoReadout.textContent = String(state.tempo);
-  els.displayChip.textContent = `${state.displayMode === "bb-written" ? "B♭ written" : "Concert"} · ${clefLabel}`;
-  els.displayBanner.textContent =
-    state.displayMode === "bb-written"
-      ? `${clefLabel}, B♭ written names in ${written.name}. Audio is concert ${concert.name}; clef does not transpose.`
-      : `Concert ${clefLabel.toLowerCase()} in ${concert.name}. Audio matches this octave; clef does not transpose.`;
+  const clefLabel = prefs.clef === "bass" ? "Bass clef" : "Treble clef";
+  els.displayChip.textContent = `${prefs.displayMode === "bb-written" ? "B♭ written" : "Concert"} · ${clefLabel}`;
+  els.swing.checked = prefs.swing;
+  els.guideTones.checked = prefs.guideTones;
+  els.metronome.checked = prefs.metronome;
   document.querySelectorAll("[name=displayMode]").forEach((input) => {
-    input.checked = input.value === state.displayMode;
+    input.checked = input.value === prefs.displayMode;
   });
   document.querySelectorAll("[name=clef]").forEach((input) => {
-    input.checked = input.value === state.clef;
+    input.checked = input.value === prefs.clef;
   });
-  void current;
+  els.displayBanner.textContent = prefs.displayMode === "bb-written"
+    ? `${clefLabel}, B♭ written names. Audio stays concert; clef does not transpose.`
+    : `Concert ${clefLabel.toLowerCase()}. Audio matches this octave; clef does not transpose.`;
+  if (!session || session.screen !== "session") return;
+  els.instruction.textContent = sessionCue(session, snap);
 }
 
 function renderPrimary() {
-  const action = primaryAction(state, playback);
+  if (!session || session.screen !== "session") return;
+  const action = sessionPrimaryAction(session, playback);
   els.primary.hidden = !action;
   if (action) {
     els.primary.dataset.action = action.id;
@@ -807,16 +662,9 @@ function renderPrimary() {
   }
 }
 
-function meterExtras() {
-  const bits = ["1-bar count-in", state.swing ? "Swing on" : "Swing off"];
-  if (presentation(state).looping) bits.push("Loop on");
-  return bits.join(" · ");
-}
-
 function renderMeter(snap = transport.snapshot()) {
-  const concert = minorSpelling(concertKey());
-  els.loopBtn.setAttribute("aria-pressed", String(presentation(state).looping));
-  els.loopBtn.textContent = presentation(state).looping ? "Loop on" : "Loop off";
+  if (!session || session.screen !== "session") return;
+  const concert = minorSpelling(getKey(currentKeyId(session)));
   if (snap.inCountIn) {
     els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
     return;
@@ -829,42 +677,76 @@ function renderMeter(snap = transport.snapshot()) {
     els.meter.textContent = `Paused · bar ${snap.bar} beat ${snap.beatInBar}`;
     return;
   }
-  els.meter.textContent = playback.ended ? "Ready when you are" : meterExtras();
+  els.meter.textContent = playback.ended ? "Ready when you are" : sessionMeterExtras(session);
+}
+
+function renderWrapup() {
+  const copy = wrapupCopy(session);
+  els.wrapupHeading.textContent = copy.heading;
+  els.wrapupDetail.textContent = copy.detail;
+  els.resultList.replaceChildren(
+    ...copy.results.map((row) => {
+      const item = document.createElement("li");
+      item.innerHTML = `<span>${row.label}</span><span>Completed</span>`;
+      return item;
+    }),
+  );
+  els.nextKey.hidden = !copy.nextKeyName;
+  if (copy.nextKeyName) els.nextKey.textContent = copy.nextKeyName === "Next lap" ? "Next lap" : `Next key · ${copy.nextKeyName}`;
 }
 
 function render(snap = transport.snapshot()) {
-  renderGoals();
-  renderApplications();
-  renderSupports();
-  renderRegister();
-  renderKeys();
-  renderCheck();
+  const screen = screenName();
+  els.shell.dataset.screen = screen;
+  els.home.setAttribute("aria-hidden", String(screen !== "home"));
+  els.session.setAttribute("aria-hidden", String(screen !== "session"));
+  els.wrapup.setAttribute("aria-hidden", String(screen !== "wrapup"));
+  document.title = screen === "home" ? `DuoJazz · ${MODULE.name}` : `DuoJazz · ${MODULE.name} session`;
   renderCopy(snap);
-  renderNotation();
-  renderPrimary();
-  renderMeter(snap);
-  renderAfter(playback.ended);
+  if (screen === "home") renderHome();
+  if (screen === "session") {
+    renderSessionChrome();
+    renderNotation();
+    renderPrimary();
+    renderMeter(snap);
+  }
+  if (screen === "wrapup") renderWrapup();
 }
 
-function runPrimary() {
-  const action = primaryAction(state, playback);
-  if (!action) return;
-  if (action.id === "pause") transport.pause();
-  else if (action.id === "resume") start(true);
-  else start(false);
-}
-
-function nudgeTempo(delta) {
-  state.tempo = Math.min(160, Math.max(60, state.tempo + delta));
-  persist();
-  halt();
-  render();
+function applyDeepLink() {
+  const params = new URLSearchParams(location.search);
+  const screen = params.get("screen");
+  const lessonId = params.get("lesson") || "learn-lick";
+  const card = params.get("card") || "learn";
+  const keyMode = params.get("keys") || "fourths";
+  if (!screen) return;
+  if (screen === "setup") {
+    openSetup(lessonId);
+    return;
+  }
+  if (screen === "session" || screen === "wrapup") {
+    session = createSession({
+      lessonId,
+      keyMode,
+      startKeyId: params.get("key") || prefs.lessons[lessonById(lessonId).id].startKeyId,
+      cardSet: params.get("cards") || "all",
+      tempo: prefs.lessons[lessonById(lessonId).id].tempo,
+      melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
+      displayMode: prefs.displayMode,
+      clef: prefs.clef,
+      swing: prefs.swing,
+      metronome: prefs.metronome,
+      guideTones: prefs.guideTones,
+    });
+    session = screen === "wrapup" ? jumpToWrapup(session) : jumpToCard(session, card);
+  }
 }
 
 transport.onUpdate = (snap) => {
   playback.playing = snap.playing;
   playback.paused = snap.paused;
   playback.ended = Boolean(snap.ended);
+  if (!session || session.screen !== "session") return;
   renderCopy(snap);
   renderPrimary();
   renderMeter(snap);
@@ -875,36 +757,45 @@ transport.onEnded = () => {
   playback.playing = false;
   playback.paused = false;
   playback.ended = true;
-  renderPrimary();
-  renderMeter(transport.snapshot());
-  updatePlayhead(transport.snapshot());
-  renderAfter(true);
+  if (!session || session.screen !== "session") return;
+  const result = handlePlaybackEnded(session);
+  applySession(result.session, { autoStart: result.autoStart });
 };
 
-els.primary.addEventListener("click", runPrimary);
-els.cellLink.addEventListener("click", () => {
-  if (state.goal === "learn") goGoal("integrate");
-  else goGoal("learn");
-});
-els.restart.addEventListener("click", () => {
-  halt();
-  start(false);
-});
-els.loopBtn.addEventListener("click", () => {
-  state.looping = !presentation(state).looping;
-  persist();
-  if (transport.playing) transport.looping = state.looping;
-  renderMeter();
-});
-els.tempoDown.addEventListener("click", () => nudgeTempo(-4));
-els.tempoUp.addEventListener("click", () => nudgeTempo(4));
-els.settingsBtn.addEventListener("click", () => els.settings.showModal());
 els.displayChip.addEventListener("click", () => els.settings.showModal());
+els.startLesson.addEventListener("click", (event) => {
+  event.preventDefault();
+  startFromSetup();
+});
+els.sessionExit.addEventListener("click", exitSession);
+els.primary.addEventListener("click", runPrimary);
+els.continueBtn.addEventListener("click", goContinue);
+els.nextKey.addEventListener("click", () => {
+  if (!session) return;
+  halt();
+  applySession(advanceKey(session));
+});
+els.againKey.addEventListener("click", () => {
+  if (!session) return;
+  halt();
+  applySession(repeatKey(session));
+});
+els.doneSession.addEventListener("click", exitSession);
+
+els.tempoDown.addEventListener("click", () => {
+  setupDraft.tempo = Math.max(60, setupDraft.tempo - 4);
+  renderSetup();
+});
+els.tempoUp.addEventListener("click", () => {
+  setupDraft.tempo = Math.min(160, setupDraft.tempo + 4);
+  renderSetup();
+});
 
 document.querySelectorAll("[name=displayMode]").forEach((input) => {
   input.addEventListener("change", () => {
-    state.displayMode = input.value;
+    prefs.displayMode = input.value;
     persist();
+    if (session) session = { ...session, displayMode: prefs.displayMode };
     halt();
     render();
   });
@@ -912,8 +803,9 @@ document.querySelectorAll("[name=displayMode]").forEach((input) => {
 
 document.querySelectorAll("[name=clef]").forEach((input) => {
   input.addEventListener("change", () => {
-    state.clef = input.value === "treble" ? "treble" : "bass";
+    prefs.clef = input.value === "treble" ? "treble" : "bass";
     persist();
+    if (session) session = { ...session, clef: prefs.clef };
     render();
   });
 });
@@ -924,10 +816,11 @@ for (const [id, key] of [
   ["metronome", "metronome"],
 ]) {
   els[id].addEventListener("change", () => {
-    state[key] = els[id].checked;
+    prefs[key] = els[id].checked;
     persist();
+    if (session) session = { ...session, [key]: prefs[key] };
     halt();
-    renderMeter();
+    render();
   });
 }
 
@@ -938,46 +831,61 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     runPrimary();
   }
-  if (event.key === "r" || event.key === "R") {
+  if ((event.key === "r" || event.key === "R") && session?.screen === "session") {
     event.preventDefault();
     halt();
     start(false);
   }
+  if (event.key === "Escape" && session) {
+    exitSession();
+  }
 });
 
-window.addEventListener("hashchange", () => {
-  const id = location.hash.replace("#", "");
-  if (GOALS.some((goal) => goal.id === id) && id !== state.goal) goGoal(id);
-  else if (LEGACY_STEPS[id]) {
-    Object.assign(state, LEGACY_STEPS[id]);
-    persist();
+window.addEventListener("resize", () => {
+  if (session?.screen === "session") renderNotation();
+});
+
+window.__DUOJAZZ__ = {
+  getPrefs: () => prefs,
+  getSession: () => session,
+  openSetup,
+  startFromSetup,
+  createAndShow(options) {
     halt();
+    session = createSession({
+      displayMode: prefs.displayMode,
+      clef: prefs.clef,
+      swing: prefs.swing,
+      metronome: prefs.metronome,
+      guideTones: prefs.guideTones,
+      ...options,
+    });
     render();
-  }
-});
+    return session;
+  },
+  jumpToCard(cardId) {
+    if (!session) return null;
+    halt();
+    session = jumpToCard(session, cardId);
+    render();
+    return session;
+  },
+  jumpToWrapup() {
+    if (!session) return null;
+    halt();
+    session = jumpToWrapup(session);
+    render();
+    return session;
+  },
+  completeCard() {
+    if (!session) return null;
+    halt();
+    session = completeCard(session);
+    render();
+    return session;
+  },
+};
 
-function syncTransportSpace() {
-  const footer = document.querySelector(".transport");
-  if (!footer) return;
-  const height = Math.ceil(footer.getBoundingClientRect().height);
-  document.documentElement.style.setProperty("--transport-h", `${Math.max(height, 48)}px`);
-}
-
-function bindTransportSpace() {
-  const footer = document.querySelector(".transport");
-  syncTransportSpace();
-  if (footer && typeof ResizeObserver === "function") {
-    new ResizeObserver(() => syncTransportSpace()).observe(footer);
-  }
-  window.addEventListener("resize", () => {
-    syncTransportSpace();
-    renderNotation();
-  });
-}
-
-bindTransportSpace();
-window.addEventListener("load", () => {
-  syncTransportSpace();
-  render();
-});
+applyDeepLink();
+renderSetup();
 render();

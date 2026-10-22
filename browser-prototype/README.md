@@ -6,8 +6,16 @@ This folder is a **separate, playable browser experiment**. It is not a port of 
 cd browser-prototype
 python3 -m http.server 4173 --bind 127.0.0.1
 # open http://127.0.0.1:4173/
-node --test js/music.test.mjs js/lesson.test.mjs
+node --test js/music.test.mjs js/lesson.test.mjs js/session.test.mjs
 ```
+
+Deep links for screenshots and review:
+
+- `/?screen=home`
+- `/?screen=setup&lesson=learn-lick`
+- `/?screen=session&lesson=learn-lick&card=learn`
+- `/?screen=session&lesson=integrate-minor-home&card=quiz`
+- `/?screen=wrapup&lesson=learn-lick&keys=fourths`
 
 ## Music
 
@@ -24,21 +32,20 @@ Two ways to use the same cell:
 
 Application copy (shape, target chord, door) is derived from the current concert key. It is not hard-coded to G minor.
 
-## Lesson
+## Lesson flow
 
-Four goals, no unlocks and no required order:
+The module is the Cry Me a River cell. Module home shows the lick, a 12-key strip, and three always-open lessons:
 
-1. **Learn** — hear, read, and echo the cell in one key.
-2. **Use in a solo** — Listen / Play with help / Play freely over the eight bars. Listen shows the original model; help uses rhythmic slashes plus Get ready / HERE; freely keeps slashes and removes prescribed entrance cues, including bar-number leakage in the surrounding copy.
-3. **Explore keys** — the same idea in another minor key. Twelve keys are optional, not a gate.
-4. **Check yourself** — learner-controlled recall versus application checks, with a hidden answer until reveal. Marks are stored per key, application, and check kind.
+1. **Learn the lick** — isolated cell.
+2. **Integrate: minor home** — land it on the i6 arrival (bar 7).
+3. **Integrate: altered dominant** — over V7 (bar 6).
 
-Harmony always lives on one staff. There is no duplicate chord strip. Melody octave (−1 / Original / +1) stays in the transport and still moves only the model line and displayed phrase.
+A setup sheet remembers choices per lesson: one key / cycle 4ths / chromatic / random, start key, all cards or Listen + Quiz, tempo, and melody octave. The session is full screen: Learn → Play → Listen → Quiz, then a wrap-up per key.
 
-Default notation is **concert bass clef** in a trombone register (G minor cell: A3 G3 D3 Bb2 A2 G2). Treble clef and B♭ written names are separate settings; changing clef does not transpose the audio.
+Melody octave (−1 / Original / +1) still moves only the model line and displayed phrase. Default notation is **concert bass clef**.
 
 ## What it is not
 
 - Not native iPad / Xcode / simulator verification
-- No accounts, backend, microphone, or paid services
-- Key coverage is optional and is **not** a gate
+- No accounts, backend, or paid services
+- Phase 1: no microphone, pitch grading, or medal progress
