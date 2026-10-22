@@ -324,10 +324,11 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   });
   assert.equal(stand.barsPerLine, 4);
   assert.equal(stand.wrap, null);
-  assert.equal(stand.fitToPaper, true);
+  assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
-  assert.ok(stand.staffsep >= 150);
-  assert.ok(stand.minStaffPx >= 80);
+  assert.ok(stand.staffsep <= 90);
+  assert.ok(stand.staffsep >= 60);
+  assert.equal(stand.minStaffPx, 83);
   assert.ok(stand.fillRatio >= 0.7);
   assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
   const landscape = notationLayout({
@@ -338,7 +339,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(landscape.barsPerLine, 4);
-  assert.equal(landscape.fitToPaper, true);
+  assert.equal(landscape.fitToPaper, false);
   assert.ok(landscape.scale >= 1.08);
   const desktop = notationLayout({
     staffWidth: 760,

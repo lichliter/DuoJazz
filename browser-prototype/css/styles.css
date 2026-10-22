@@ -936,8 +936,10 @@ input[type="checkbox"] {
 }
 
 .listen-state {
+  position: relative;
+  z-index: 2;
   flex: 0 0 auto;
-  margin: 0 0.85rem 0.85rem;
+  margin: 0.45rem 0.85rem 0.85rem;
   padding: 0.85rem 1rem;
   min-height: 5.25rem;
   background: rgba(255, 255, 255, 0.32);
@@ -1040,20 +1042,21 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow: visible;
 }
 
 .session-screen .paper {
   width: 100%;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .session-screen .paper .abcjs-container {
-  margin-block: auto;
+  margin-block: 0;
 }
 
 .session-screen .cue-line {
@@ -1252,8 +1255,8 @@ input[type="checkbox"] {
   }
 
   .session-screen .paper-wrap {
-    min-height: 28rem;
-    overflow: hidden;
+    min-height: 0;
+    overflow: visible;
   }
 
   .session-screen .cue-line {

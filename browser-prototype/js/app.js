@@ -47,12 +47,10 @@ import {
   displayKeyName,
   persistLessonMelodyRegister,
   setMelodyRegister,
-  shouldGradeNow,
-  skipResult,
-  isGradedCard,
   skipCard,
+  sessionSlot,
 } from "./session.js";
-import { GRADED_CARDS, gradeSession } from "./grade.js";
+import { GRADED_CARDS, finishCard, gradeSession } from "./grade.js";
 import {
   emptyMastery,
   displayMedal,
@@ -75,6 +73,8 @@ let session = null;
 let lastTune = null;
 let lastNotationLayout = null;
 let wrapupBanner = null;
+let liveGrade = null;
+let lastSessionSlot = "";
 
 const els = {
   shell: document.getElementById("app-shell"),
@@ -154,6 +154,18 @@ function halt() {
   playback.ended = false;
 }
 
+function clearGradeLine() {
+  liveGrade = null;
+  if (!els.gradeLine) return;
+  els.gradeLine.hidden = true;
+  els.gradeLine.textContent = "";
+}
+
+function resetPitchTake() {
+  monitor.reset();
+  clearGradeLine();
+}
+
 function shouldListen(target = session) {
   if (!target || target.screen !== "session") return false;
   const card = currentCard(target);
@@ -162,7 +174,7 @@ function shouldListen(target = session) {
   return true;
 }
 
-function fillListenState(gradeResult) {
+function fillListenState(gradeResult = liveGrade) {
   const copy = session ? listenStateCopy(session) : null;
   if (!els.listenState) return;
   if (!copy) {
@@ -177,9 +189,7 @@ function fillListenState(gradeResult) {
     els.listenDetail.textContent = bits.join(" · ");
     return;
   }
-  els.listenDetail.textContent = monitor.state === "idle"
-    ? copy.detail
-    : micCopy(monitor.state);
+  els.listenDetail.textContent = copy.detail;
 }
 
 function renderMic() {
@@ -214,7 +224,7 @@ function startFromSetup() {
   prefs = markLessonStarted(prefs, setupLessonId, setupDraft.startKeyId);
   persist();
   halt();
-  session = createSession({
+  applySession(createSession({
     lessonId: setupLessonId,
     ...setupDraft,
     displayMode: prefs.displayMode,
@@ -222,18 +232,22 @@ function startFromSetup() {
     swing: prefs.swing,
     metronome: prefs.metronome,
     guideTones: prefs.guideTones,
-  });
+  }));
   closeSetup();
-  render();
 }
 
 function exitSession() {
   halt();
+  resetPitchTake();
+  lastSessionSlot = "";
   session = null;
   render();
 }
 
 function applySession(next, { autoStart = false } = {}) {
+  const slot = sessionSlot(next);
+  if (slot !== lastSessionSlot) resetPitchTake();
+  lastSessionSlot = slot;
   session = next;
   persist();
   render();
@@ -245,6 +259,7 @@ async function start(resume = false) {
   els.primary.disabled = true;
   try {
     await transport.ensure();
+    if (!resume) resetPitchTake();
     if (shouldListen() && !resume) {
       monitor.beatClock = () => transport.snapshot().beats;
       await monitor.start(transport.ctx);
@@ -271,14 +286,8 @@ function recordPassIfNeeded(result) {
   saveMastery(mastery);
 }
 
-function hasTake() {
-  return monitor.observations.some((row) => row.amp > 0.01 && row.hz > 0);
-}
-
 function gradeCurrentCard() {
-  const result = shouldGradeNow(session, { hasTake: hasTake() })
-    ? gradeSession(session, monitor.observations)
-    : { outcome: "completed" };
+  const result = finishCard(session, monitor.observations);
   recordPassIfNeeded(result);
   showGrade(result);
   return result;
@@ -286,14 +295,7 @@ function gradeCurrentCard() {
 
 function goContinue() {
   if (!session || session.screen !== "session") return;
-  let result;
-  if (shouldGradeNow(session, { hasTake: hasTake() })) {
-    result = gradeCurrentCard();
-  } else if (isGradedCard(currentCard(session))) {
-    result = skipResult(session);
-  } else {
-    result = { outcome: "completed" };
-  }
+  const result = gradeCurrentCard();
   halt();
   applySession(completeCard(session, result));
 }
@@ -399,6 +401,7 @@ function applyMelodyOctave(register) {
   if (melodyRegister === session.melodyRegister) return;
   const restart = playback.playing || playback.paused;
   halt();
+  resetPitchTake();
   session = setMelodyRegister(session, melodyRegister);
   prefs = persistLessonMelodyRegister(prefs, session.lessonId, melodyRegister);
   persist();
@@ -948,6 +951,7 @@ function render(snap = transport.snapshot()) {
     renderPrimary();
     renderMeter(snap);
     renderMic();
+    if (!liveGrade) showGrade(null);
   }
   if (screen === "wrapup") renderWrapup();
 }
@@ -1023,6 +1027,8 @@ function applyDeepLink() {
         )),
       };
     }
+    lastSessionSlot = sessionSlot(session);
+    resetPitchTake();
   }
 }
 
@@ -1038,16 +1044,17 @@ transport.onUpdate = (snap) => {
 };
 
 function showGrade(result) {
-  fillListenState(result);
+  liveGrade = result?.graded ? result : null;
+  fillListenState(liveGrade);
   if (!els.gradeLine) return;
-  if (!result?.graded) {
+  if (!liveGrade) {
     els.gradeLine.hidden = true;
     els.gradeLine.textContent = "";
     return;
   }
   els.gradeLine.hidden = false;
-  const bits = [`${result.percent}%`, result.passed ? "pass" : "not yet"];
-  if (result.correction) bits.push(result.correction);
+  const bits = [`${liveGrade.percent}%`, liveGrade.passed ? "pass" : "not yet"];
+  if (liveGrade.correction) bits.push(liveGrade.correction);
   els.gradeLine.textContent = bits.join(" · ");
 }
 
@@ -1154,43 +1161,38 @@ window.__DUOJAZZ__ = {
   startFromSetup,
   createAndShow(options) {
     halt();
-    session = createSession({
+    applySession(createSession({
       displayMode: prefs.displayMode,
       clef: prefs.clef,
       swing: prefs.swing,
       metronome: prefs.metronome,
       guideTones: prefs.guideTones,
       ...options,
-    });
-    render();
+    }));
     return session;
   },
   jumpToCard(cardId) {
     if (!session) return null;
     halt();
-    session = jumpToCard(session, cardId);
-    render();
+    applySession(jumpToCard(session, cardId));
     return session;
   },
   jumpToWrapup() {
     if (!session) return null;
     halt();
-    session = jumpToWrapup(session);
-    render();
+    applySession(jumpToWrapup(session));
     return session;
   },
   completeCard(result) {
     if (!session) return null;
     halt();
-    session = completeCard(session, result);
-    render();
+    applySession(completeCard(session, result));
     return session;
   },
   skipCard() {
     if (!session) return null;
     halt();
-    session = skipCard(session);
-    render();
+    applySession(skipCard(session));
     return session;
   },
   setMelodyOctave(register) {
@@ -1201,6 +1203,7 @@ window.__DUOJAZZ__ = {
     goContinue();
     return session;
   },
+  resetPitchTake,
   feedPitchTrack(frames) {
     monitor.feed(frames);
     return monitor.observations;

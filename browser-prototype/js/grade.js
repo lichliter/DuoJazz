@@ -10,7 +10,14 @@ import {
   phraseEvents,
   phraseStartBeat,
 } from "./music.js";
-import { currentCard, currentKeyId, lessonById } from "./session.js";
+import {
+  currentCard,
+  currentKeyId,
+  isGradedCard,
+  lessonById,
+  shouldGradeNow,
+  skipResult,
+} from "./session.js";
 
 export const PASS_THRESHOLD = 0.8;
 export const PITCH_CENTS = 50;
@@ -205,6 +212,19 @@ export function gradeSession(session, observations) {
     outcome: result.passed ? "passed" : "missed",
     cardId: card,
   };
+}
+
+export function hasPitchTake(observations = []) {
+  return observations.some((row) => row.amp > 0.01 && row.hz > 0);
+}
+
+/** Grade a take, or Skipped when a graded card has no take. Never a pass without a take. */
+export function finishCard(session, observations = []) {
+  if (shouldGradeNow(session, { hasTake: hasPitchTake(observations) })) {
+    return gradeSession(session, observations);
+  }
+  if (isGradedCard(currentCard(session))) return skipResult(session);
+  return { outcome: "completed", graded: false, passed: false };
 }
 
 export function synthTrack(expected, { cents = 0, delayBeats = 0, octave = 0, silence = false, amp = 0.2 } = {}) {

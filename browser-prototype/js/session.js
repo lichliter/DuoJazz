@@ -269,8 +269,20 @@ export function isGradedCard(cardId) {
 export function shouldGradeNow(session, { hasTake = false } = {}) {
   const card = currentCard(session);
   if (!isGradedCard(card)) return false;
-  if (card === "listen" && session.listenStage === "hear" && !hasTake) return false;
+  if (!hasTake) return false;
   return true;
+}
+
+export function sessionSlot(session) {
+  if (!session) return "";
+  return [
+    session.lessonId,
+    session.keyIndex,
+    session.cardIndex,
+    currentCard(session),
+    session.listenStage,
+    session.screen,
+  ].join(":");
 }
 
 export function skipResult(session) {

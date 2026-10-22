@@ -456,7 +456,8 @@ export function notationLayout({
     barsPerLine,
     // Four bars will not engrave narrower than ~450px, so width-only upscale
     // caps the 5-line staff around 67px. After render we scaleX the chorus
-    // to hit minStaffPx, and staffsep spaces the two systems in the card.
+    // to hit minStaffPx. staffsep stays about one system height so the two
+    // 4-bar systems group, with the feedback panel below them.
     engravingRatio: stand ? 0.5 : landscape ? 0.7 : 1,
     minEngravingRatio: stand ? 0.48 : landscape ? 0.55 : 0.4,
     chordfont: stand ? "Noto Sans 16" : landscape ? "Noto Sans 15" : "Noto Sans 15",
@@ -464,12 +465,12 @@ export function notationLayout({
     annotationPx: stand ? 22 : landscape ? 16 : 15,
     chordCssPx: stand ? 26 : landscape ? 18 : 15,
     slashStroke: stand ? 1.45 : 1.85,
-    fitToPaper: stand || landscape,
+    fitToPaper: false,
     fillAxis: "fit",
-    staffsep: stand ? 176 : landscape ? 88 : 55,
-    maxStaffsep: stand ? 280 : 140,
+    staffsep: stand ? 80 : landscape ? 64 : 55,
+    maxStaffsep: stand ? 90 : 72,
     fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
-    minStaffPx: stand ? 84 : landscape ? 64 : 0,
+    minStaffPx: stand ? 83 : landscape ? 64 : 0,
   };
 }
 
