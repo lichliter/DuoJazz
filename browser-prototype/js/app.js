@@ -278,7 +278,7 @@ function renderHome() {
       btn.dataset.testid = `lesson-${lesson.id}`;
       btn.dataset.recommended = String(lesson.id === recommended);
       const passed = lessonPassedCount(mastery, lesson.id);
-      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary} · ${passed} keys passed</span>`;
+      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary} · ${passed} ${passed === 1 ? "key" : "keys"} passed</span>`;
       btn.addEventListener("click", () => openSetup(lesson.id));
       return btn;
     }),
