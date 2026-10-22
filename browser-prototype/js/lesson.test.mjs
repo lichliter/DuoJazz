@@ -20,6 +20,7 @@ import {
   notationLayout,
   nextEngravingWidth,
   nextStaffsep,
+  estimatedStaffHeightCss,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -327,7 +328,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.ok(stand.staffsep >= 120);
   assert.ok(stand.engravingRatio >= 0.55);
   assert.ok(stand.engravingRatio <= 0.7);
-  assert.ok(stand.fillRatio >= 0.55);
+  assert.ok(stand.fillRatio >= 0.7);
   const landscape = notationLayout({
     staffWidth: 980,
     viewportWidth: 1366,
@@ -356,6 +357,21 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(narrow.barsPerLine, 2);
   assert.ok(narrow.scale < 1);
   assert.equal(narrow.fitToPaper, false);
+});
+
+test("focused two-bar cell fills width with a staff taller than 90px on iPad portrait", () => {
+  const phrase = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: true,
+    showEntranceCues: false,
+  });
+  assert.equal(phrase.barsPerLine, 2);
+  assert.equal(phrase.fitToPaper, true);
+  assert.equal(phrase.fillAxis, "width");
+  assert.ok(estimatedStaffHeightCss(phrase, 980) >= 90);
+  assert.ok(phrase.chordCssPx >= 28);
 });
 
 test("narrower engraving width upscales the staff to fill unused paper", () => {

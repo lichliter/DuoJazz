@@ -518,13 +518,38 @@ export function peekNextKeyId(session) {
   return session.keyQueue[0];
 }
 
+export function listenStateCopy(session) {
+  const card = currentCard(session);
+  if (card !== "listen" && card !== "quiz") return null;
+  if (card === "quiz") {
+    return {
+      kicker: "Quiz",
+      detail: "Chords and a prompt. Grading feedback will appear here.",
+    };
+  }
+  if (session.listenStage === "echo") {
+    return {
+      kicker: "Your turn",
+      detail: "Play it back. Grading feedback will appear here.",
+    };
+  }
+  return {
+    kicker: "Listening",
+    detail: "Hear the model first. Grading feedback will appear here.",
+  };
+}
+
 export function wrapupCopy(session) {
   const keyName = displayKeyName(currentKeyId(session), session.displayMode);
   const nextId = peekNextKeyId(session);
   return {
-    heading: "Key complete",
-    detail: `${lessonById(session.lessonId).title} · ${keyName}`,
+    kicker: "Key complete",
+    heading: keyName,
+    detail: lessonById(session.lessonId).title,
     nextKeyName: nextId ? displayKeyName(nextId, session.displayMode) : (hasNextKey(session) ? "Next lap" : null),
+    nextKeyLabel: nextId
+      ? `Next key · ${displayKeyName(nextId, session.displayMode)}`
+      : (hasNextKey(session) ? "Next lap" : null),
     results: session.cards.map((cardId) => {
       const row = session.cardResults.find((item) => item.cardId === cardId) ?? { outcome: "completed" };
       return {
