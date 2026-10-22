@@ -43,6 +43,7 @@ import {
   sessionCue,
   sessionMeterExtras,
   wrapupCopy,
+  listenStateCopy,
   displayKeyName,
 } from "./session.js";
 
@@ -84,6 +85,9 @@ const els = {
   cardBadge: document.getElementById("card-badge"),
   notation: document.getElementById("notation"),
   hiddenAnswer: document.getElementById("hidden-answer"),
+  listenState: document.getElementById("listen-state"),
+  listenKicker: document.getElementById("listen-kicker"),
+  listenDetail: document.getElementById("listen-detail"),
   chartTitle: document.getElementById("chart-title"),
   chartMeta: document.getElementById("chart-meta"),
   primary: document.getElementById("primary"),
@@ -91,8 +95,13 @@ const els = {
   instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
+  medalMark: document.getElementById("medal-mark"),
+  medalNote: document.getElementById("medal-note"),
+  wrapupKicker: document.getElementById("wrapup-kicker"),
   wrapupHeading: document.getElementById("wrapup-heading"),
   wrapupDetail: document.getElementById("wrapup-detail"),
+  wrapupMedalMark: document.getElementById("wrapup-medal-mark"),
+  wrapupMedal: document.getElementById("wrapup-medal"),
   resultList: document.getElementById("result-list"),
   nextKey: document.getElementById("next-key"),
   againKey: document.getElementById("again-key"),
@@ -193,8 +202,16 @@ function goContinue() {
   applySession(skipCard(session));
 }
 
+function lessonKeysPassed(lessonId) {
+  return prefs.progress?.[lessonId]?.keysPassed ?? 0;
+}
+
 function renderHome() {
   const recommended = recommendedLessonId(prefs);
+  if (els.medalMark) els.medalMark.textContent = "Medal";
+  if (els.medalNote) {
+    els.medalNote.textContent = "Medal progress arrives with audio grading.";
+  }
   els.keyStrip.replaceChildren(
     ...TWELVE_KEY_IDS.map((id) => {
       const span = document.createElement("span");
@@ -211,7 +228,9 @@ function renderHome() {
       btn.className = "lesson-row";
       btn.dataset.testid = `lesson-${lesson.id}`;
       btn.dataset.recommended = String(lesson.id === recommended);
-      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary}</span>`;
+      const passed = lessonKeysPassed(lesson.id);
+      const countLabel = `${passed} ${passed === 1 ? "key" : "keys"} passed`;
+      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary}</span><span class="lesson-meta"><span class="count">${countLabel}</span><span class="medal-slot"></span></span>`;
       btn.addEventListener("click", () => openSetup(lesson.id));
       return btn;
     }),
@@ -317,7 +336,7 @@ function svgCssToUser(svg, cssPx) {
 function restyleAnnotations() {
   const svg = els.notation.querySelector("svg");
   const annUser = svgCssToUser(svg, lastNotationLayout?.annotationPx ?? 15);
-  const chordUser = svgCssToUser(svg, lastNotationLayout?.fitToPaper ? 20 : 15);
+  const chordUser = svgCssToUser(svg, lastNotationLayout?.chordCssPx ?? 18);
   for (const el of els.notation.querySelectorAll(".abcjs-annotation")) {
     el.style.fontSize = `${annUser}px`;
     el.style.fontWeight = "700";
@@ -580,9 +599,18 @@ function renderNotation() {
   els.chartTitle.textContent = copy.title;
   els.chartMeta.textContent = copy.meta;
   const hideStaff = Boolean(view.hideStaff);
+  const listenCopy = listenStateCopy(session);
   els.hiddenAnswer.hidden = !hideStaff;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
+  if (els.listenState) {
+    els.listenState.hidden = !listenCopy;
+    if (listenCopy) {
+      els.listenKicker.textContent = listenCopy.kicker;
+      els.listenDetail.textContent = listenCopy.detail;
+    }
+  }
   els.notation.hidden = hideStaff;
+  els.session.dataset.card = currentCard(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation));
   if (hideStaff) {
     els.notation.replaceChildren();
@@ -681,19 +709,29 @@ function renderMeter(snap = transport.snapshot()) {
   els.meter.textContent = playback.ended ? "Ready when you are" : sessionMeterExtras(session);
 }
 
+function resultLabel(row) {
+  return row.outcome === "completed" ? "Completed" : row.outcome;
+}
+
 function renderWrapup() {
   const copy = wrapupCopy(session);
+  if (els.wrapupKicker) els.wrapupKicker.textContent = copy.kicker;
   els.wrapupHeading.textContent = copy.heading;
   els.wrapupDetail.textContent = copy.detail;
   els.resultList.replaceChildren(
     ...copy.results.map((row) => {
       const item = document.createElement("li");
-      item.innerHTML = `<span>${row.label}</span><span>Completed</span>`;
+      item.innerHTML = `<span>${row.label}</span><span class="outcome">${resultLabel(row)}</span>`;
       return item;
     }),
   );
-  els.nextKey.hidden = !copy.nextKeyName;
-  if (copy.nextKeyName) els.nextKey.textContent = copy.nextKeyName === "Next lap" ? "Next lap" : `Next key · ${copy.nextKeyName}`;
+  if (els.wrapupMedalMark) els.wrapupMedalMark.textContent = "Medal";
+  if (els.wrapupMedal) {
+    els.wrapupMedal.hidden = false;
+    els.wrapupMedal.textContent = "Medal progress arrives with audio grading.";
+  }
+  els.nextKey.hidden = !copy.nextKeyLabel;
+  if (copy.nextKeyLabel) els.nextKey.textContent = copy.nextKeyLabel;
 }
 
 function render(snap = transport.snapshot()) {
