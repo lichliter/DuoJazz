@@ -1009,6 +1009,18 @@ input[type="checkbox"] {
   font-size: 0.85rem;
 }
 
+.session-octave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.session-octave .chip {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
 .session-screen .chart-card {
   flex: 1 1 auto;
   display: flex;
