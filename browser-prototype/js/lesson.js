@@ -467,8 +467,8 @@ export function notationLayout({
     slashStroke: stand ? 1.45 : 1.85,
     fitToPaper: false,
     fillAxis: "fit",
-    staffsep: stand ? 80 : landscape ? 64 : 55,
-    maxStaffsep: stand ? 90 : 72,
+    staffsep: stand ? 52 : landscape ? 48 : 46,
+    maxStaffsep: stand ? 60 : 56,
     fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
     minStaffPx: stand ? 83 : landscape ? 64 : 0,
   };

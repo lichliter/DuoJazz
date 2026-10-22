@@ -323,8 +323,12 @@ h1 {
 .paper svg {
   width: 100% !important;
   max-width: 100%;
-  height: auto;
+  height: auto !important;
   display: block;
+}
+
+.paper .abcjs-container {
+  overflow: visible;
 }
 
 .hidden-answer {
@@ -939,7 +943,7 @@ input[type="checkbox"] {
   position: relative;
   z-index: 2;
   flex: 0 0 auto;
-  margin: 0.45rem 0.85rem 0.85rem;
+  margin: 0.35rem 0.85rem 0.55rem;
   padding: 0.85rem 1rem;
   min-height: 5.25rem;
   background: rgba(255, 255, 255, 0.32);
@@ -963,6 +967,8 @@ input[type="checkbox"] {
 
 .session-screen {
   gap: 0.35rem;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .session-top {
@@ -1030,15 +1036,20 @@ input[type="checkbox"] {
 }
 
 .session-screen .chart-card {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: visible;
+}
+
+.session-screen .chart-foot {
+  margin-top: auto;
 }
 
 .session-screen .paper-wrap {
-  flex: 1 1 auto;
-  min-height: 12rem;
+  flex: 0 0 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
