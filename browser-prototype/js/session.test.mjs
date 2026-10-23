@@ -10,6 +10,8 @@ import {
   lessonPathNode,
   lessonPathNodes,
   lessonSleeve,
+  vinylTier,
+  sleeveCaption,
   buildKeyQueue,
   nextLapQueue,
   cardsFor,
@@ -313,8 +315,11 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(nodes[0].recommended, true);
   assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
+  assert.equal(nodes[0].vinylTier, "bronze");
   assert.equal(nodes[1].complete, true);
   assert.equal(nodes[1].passedCount, 12);
+  assert.equal(nodes[1].vinylTier, "gold");
+  assert.equal(nodes[2].vinylTier, "black");
   assert.equal(nodes[2].recommended, false);
   assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
 
@@ -323,6 +328,20 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(next[0].recommended, false);
   assert.equal(next[1].recommended, true);
   assert.equal(next.every((node) => node.complete === false), true);
+});
+
+test("vinyl tier follows keys-passed thresholds", () => {
+  assert.equal(vinylTier(0), "black");
+  assert.equal(vinylTier(1), "bronze");
+  assert.equal(vinylTier(5), "bronze");
+  assert.equal(vinylTier(6), "silver");
+  assert.equal(vinylTier(11), "silver");
+  assert.equal(vinylTier(12), "gold");
+});
+
+test("sleeve captions omit the key count at zero", () => {
+  assert.equal(sleeveCaption("Autumn Leaves · bar 7", 0), "Autumn Leaves · bar 7");
+  assert.equal(sleeveCaption("Autumn Leaves · bar 7", 4), "Autumn Leaves · bar 7 · 4/12 keys");
 });
 
 test("a single path node keeps cover copy and a 12-key passed list", () => {
@@ -337,6 +356,14 @@ test("a single path node keeps cover copy and a 12-key passed list", () => {
   assert.equal(node.recommended, true);
   assert.deepEqual(node.passedKeys, ["G", "C"]);
   assert.equal(node.passedCount, 2);
+  assert.equal(node.vinylTier, "bronze");
+  assert.equal(node.caption, "The cell in this key · 2/12 keys");
+  const empty = lessonPathNode(LESSONS[1], 1, { passedKeys: [] });
+  assert.equal(empty.vinylTier, "black");
+  assert.equal(empty.caption, "Autumn Leaves · bar 7");
+  const gold = lessonPathNode(LESSONS[1], 1, { passedKeys: TWELVE_KEY_IDS });
+  assert.equal(gold.vinylTier, "gold");
+  assert.equal(gold.caption, "Autumn Leaves · bar 7 · 12/12 keys");
 });
 
 test("melody octave is remembered per lesson and applied on the session", () => {

@@ -22,6 +22,7 @@
   --press-shadow: #140e0b;
   --sleeve-size: 200px;
   --vinyl-size: 164px;
+  --sleeve-radius: 28px;
   --path-left: 28%;
   --path-center: 50%;
   --path-right: 72%;
@@ -1598,10 +1599,19 @@ input[type="checkbox"] {
   z-index: 2;
 }
 
-.sleeve-node[data-recommended="true"] .sleeve-stage {
-  outline: 5px solid var(--accent);
-  outline-offset: 6px;
-  border-radius: 36px;
+.sleeve-node:focus,
+.sleeve-node:focus-visible {
+  outline: none;
+}
+
+.sleeve-node:focus-visible .sleeve-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sleeve-radius);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent);
+  pointer-events: none;
+  z-index: 4;
 }
 
 .start-tag {
@@ -1639,6 +1649,11 @@ input[type="checkbox"] {
 }
 
 .vinyl {
+  --vinyl-hi: #3a3432;
+  --vinyl-mid: #161210;
+  --vinyl-lo: #070605;
+  --vinyl-shine: rgba(255, 248, 236, 0.34);
+  --vinyl-rim: #1a1410;
   position: absolute;
   right: calc(var(--vinyl-size) * -0.32);
   top: calc((var(--sleeve-size) - var(--vinyl-size)) / 2);
@@ -1646,19 +1661,43 @@ input[type="checkbox"] {
   height: var(--vinyl-size);
   border-radius: 50%;
   background:
-    radial-gradient(circle at 30% 26%, rgba(255, 248, 236, 0.42) 0 10%, rgba(255, 248, 236, 0.08) 22%, transparent 44%),
-    radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.28) 0 18%, transparent 46%),
+    radial-gradient(circle at 28% 24%, var(--vinyl-shine) 0 9%, transparent 38%),
+    radial-gradient(circle at 74% 78%, rgba(0, 0, 0, 0.38) 0 16%, transparent 48%),
     repeating-radial-gradient(
       circle at 50% 50%,
-      #cbb59a 0 1.5px,
-      #8d7664 1.5px 3px,
-      #e8d7c2 3px 4px,
-      #6d584a 4px 6px
+      var(--vinyl-hi) 0 1.3px,
+      var(--vinyl-mid) 1.3px 2.8px,
+      var(--vinyl-lo) 2.8px 4px,
+      var(--vinyl-mid) 4px 5.8px
     );
   box-shadow:
     0 7px 0 rgba(0, 0, 0, 0.32),
-    inset 0 0 0 7px #241810;
+    inset 0 0 0 7px var(--vinyl-rim);
   transition: transform 0.28s ease;
+}
+
+.vinyl[data-tier="bronze"] {
+  --vinyl-hi: #f3c48a;
+  --vinyl-mid: #b56a2c;
+  --vinyl-lo: #6d3914;
+  --vinyl-shine: rgba(255, 224, 170, 0.58);
+  --vinyl-rim: #5c2f12;
+}
+
+.vinyl[data-tier="silver"] {
+  --vinyl-hi: #f5f8fb;
+  --vinyl-mid: #9aa4af;
+  --vinyl-lo: #4a545e;
+  --vinyl-shine: rgba(255, 255, 255, 0.66);
+  --vinyl-rim: #2c343c;
+}
+
+.vinyl[data-tier="gold"] {
+  --vinyl-hi: #ffe9a8;
+  --vinyl-mid: #d4a017;
+  --vinyl-lo: #8a5a08;
+  --vinyl-shine: rgba(255, 242, 186, 0.64);
+  --vinyl-rim: #6a4308;
 }
 
 .vinyl::before {
@@ -1666,7 +1705,7 @@ input[type="checkbox"] {
   position: absolute;
   inset: 7%;
   border-radius: 50%;
-  background: linear-gradient(118deg, rgba(255, 255, 255, 0.34) 0 7%, transparent 28%, transparent 68%, rgba(255, 255, 255, 0.1) 100%);
+  background: linear-gradient(118deg, rgba(255, 255, 255, 0.42) 0 8%, transparent 30%, transparent 66%, rgba(255, 255, 255, 0.12) 100%);
   pointer-events: none;
 }
 
@@ -1693,7 +1732,7 @@ input[type="checkbox"] {
   z-index: 1;
   width: var(--sleeve-size);
   height: var(--sleeve-size);
-  border-radius: 28px;
+  border-radius: var(--sleeve-radius);
   overflow: hidden;
   background: var(--sleeve);
   color: var(--sleeve-ink);
@@ -1769,31 +1808,6 @@ input[type="checkbox"] {
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
 }
 
-.sleeve-dots {
-  display: flex;
-  gap: 5px;
-  min-height: 12px;
-  padding: 0.18rem 0.45rem 0.12rem;
-  position: relative;
-  z-index: 1;
-  background: var(--bg);
-  border-radius: 999px;
-}
-
-.sleeve-dot {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 12px;
-  border-radius: 50%;
-  background: #16100c;
-  box-shadow: inset 0 0 0 1.5px #4a372e;
-}
-
-.sleeve-dot.passed {
-  background: #f6c86a;
-  box-shadow: 0 0 0 1px #edbf7e, 0 1px 0 #8a5a20;
-}
-
 .sleeve-context {
   color: var(--muted);
   font-size: 0.92rem;
@@ -1803,6 +1817,8 @@ input[type="checkbox"] {
   background: var(--bg);
   padding: 0.05rem 0.45rem 0.12rem;
   border-radius: 999px;
+  max-width: calc(var(--sleeve-size) + var(--vinyl-size) * 0.28);
+  text-align: center;
 }
 
 .path-end {
@@ -1961,16 +1977,6 @@ input[type="checkbox"] {
     --vinyl-size: 138px;
   }
 
-  .sleeve-dots {
-    gap: 3px;
-  }
-
-  .sleeve-dot {
-    width: 8px;
-    height: 8px;
-    flex: 0 0 8px;
-  }
-
   .module-banner {
     padding: 0.85rem 0.95rem;
     border-radius: 22px;
@@ -2022,6 +2028,7 @@ input[type="checkbox"] {
   .lesson-path {
     --sleeve-size: 124px;
     --vinyl-size: 100px;
+    --sleeve-radius: 22px;
     padding-top: 0.35rem;
   }
 
@@ -2044,7 +2051,8 @@ input[type="checkbox"] {
 
   .sleeve {
     padding: 0.65rem 0.7rem 0.55rem;
-    border-radius: 22px;
+    --sleeve-radius: 22px;
+    border-radius: var(--sleeve-radius);
   }
 
   .sleeve-title {

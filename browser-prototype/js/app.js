@@ -51,6 +51,8 @@ import {
   sessionSlot,
   lessonPathNodes,
   lessonSleeve,
+  vinylTier,
+  sleeveCaption,
 } from "./session.js";
 import { GRADED_CARDS, finishCard, gradeSession } from "./grade.js";
 import {
@@ -61,6 +63,7 @@ import {
   saveMastery,
   recordQuizPass,
   lessonPassedKeys,
+  normalizeMastery,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
 import { sleeveTrailPath } from "./path-trail.js";
@@ -346,12 +349,11 @@ function moreLicksSoon() {
 function sleeveBoxFromStage(stage, svgRect) {
   const node = stage.closest(".sleeve-node");
   const stageRect = stage.getBoundingClientRect();
-  const dots = node?.querySelector(".sleeve-dots")?.getBoundingClientRect();
   const context = node?.querySelector(".sleeve-context")?.getBoundingClientRect();
-  const captionTop = dots?.top ?? stageRect.bottom;
-  const captionBottom = context?.bottom ?? (dots?.bottom ?? stageRect.bottom);
-  const captionLeft = Math.min(dots?.left ?? stageRect.left, context?.left ?? stageRect.left);
-  const captionRight = Math.max(dots?.right ?? stageRect.right, context?.right ?? stageRect.right);
+  const captionTop = context?.top ?? stageRect.bottom;
+  const captionBottom = context?.bottom ?? stageRect.bottom;
+  const captionLeft = context?.left ?? stageRect.left;
+  const captionRight = context?.right ?? stageRect.right;
   return {
     cx: stageRect.left + stageRect.width / 2 - svgRect.left,
     cy: stageRect.top + stageRect.height / 2 - svgRect.top,
@@ -404,9 +406,11 @@ function sleeveButton(node) {
   btn.dataset.align = node.align;
   btn.dataset.recommended = String(node.recommended);
   btn.dataset.complete = String(node.complete);
+  btn.dataset.vinylTier = node.vinylTier;
   const bits = [
     `Lesson ${node.number}: ${node.title}`,
     `${node.passedCount} of 12 keys passed`,
+    `${node.vinylTier} vinyl`,
   ];
   if (node.recommended) bits.push("recommended start");
   if (node.complete) bits.push("all keys passed");
@@ -421,7 +425,7 @@ function sleeveButton(node) {
 
   const stage = document.createElement("span");
   stage.className = "sleeve-stage";
-  stage.innerHTML = `<span class="vinyl" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
+  stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
   if (node.complete) {
     const badge = document.createElement("span");
     badge.className = "check-badge";
@@ -431,20 +435,9 @@ function sleeveButton(node) {
   }
   btn.append(stage);
 
-  const dots = document.createElement("span");
-  dots.className = "sleeve-dots";
-  dots.setAttribute("aria-hidden", "true");
-  for (const id of TWELVE_KEY_IDS) {
-    const dot = document.createElement("span");
-    dot.className = "sleeve-dot";
-    if (node.passedKeys.includes(id)) dot.classList.add("passed");
-    dots.append(dot);
-  }
-  btn.append(dots);
-
   const context = document.createElement("span");
   context.className = "sleeve-context";
-  context.textContent = node.context;
+  context.textContent = node.caption ?? sleeveCaption(node.context, node.passedCount);
   btn.append(context);
 
   btn.addEventListener("click", () => openSetup(node.id));
@@ -1044,6 +1037,8 @@ function renderWrapup() {
     els.wrapupSleeve.hidden = false;
     els.wrapupSleeve.dataset.sleeve = lesson.sleeve;
     els.wrapupSleeve.classList.toggle("is-upgrade", Boolean(wrapupBanner?.upgraded));
+    const wrapVinyl = els.wrapupSleeve.querySelector(".vinyl");
+    if (wrapVinyl) wrapVinyl.dataset.tier = vinylTier(lessonPassedKeys(mastery, lesson.id).length);
   }
   if (els.wrapupSleeveNum) {
     els.wrapupSleeveNum.textContent = String(LESSONS.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
@@ -1369,7 +1364,7 @@ window.__DUOJAZZ__ = {
   },
   getMastery: () => mastery,
   setMastery(next) {
-    mastery = next;
+    mastery = normalizeMastery(next);
     saveMastery(mastery);
     render();
     return mastery;

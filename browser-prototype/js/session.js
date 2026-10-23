@@ -55,6 +55,22 @@ export const CARDS = {
 
 export const PATH_ALIGNS = ["left", "center", "right"];
 
+/**
+ * Per-lesson vinyl color from keys passed in that lesson.
+ * Black 0, bronze 1–5, silver 6–11, gold 12.
+ */
+export function vinylTier(count) {
+  if (count >= 12) return "gold";
+  if (count >= 6) return "silver";
+  if (count >= 1) return "bronze";
+  return "black";
+}
+
+export function sleeveCaption(context, passedCount) {
+  if (!passedCount) return context;
+  return `${context} · ${passedCount}/12 keys`;
+}
+
 export const LESSONS = [
   {
     id: "learn-lick",
@@ -101,6 +117,8 @@ export function lessonSleeve(lessonId) {
  */
 export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] } = {}) {
   const passed = [...new Set(passedKeys)];
+  const passedCount = passed.length;
+  const tier = vinylTier(passedCount);
   return {
     id: lesson.id,
     index,
@@ -109,12 +127,14 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
     coverTitle: lesson.coverTitle,
     summary: lesson.summary,
     context: lesson.context,
+    caption: sleeveCaption(lesson.context, passedCount),
     sleeve: lesson.sleeve,
     align: PATH_ALIGNS[index] ?? "center",
     recommended: lesson.id === recommendedId,
-    complete: passed.length >= 12,
-    passedCount: passed.length,
+    complete: passedCount >= 12,
+    passedCount,
     passedKeys: passed,
+    vinylTier: tier,
   };
 }
 

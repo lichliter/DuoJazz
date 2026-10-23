@@ -1,6 +1,6 @@
 /**
  * Module-home dotted trail geometry.
- * Routes between record sleeves and stays out of caption / key-dot boxes.
+ * Routes between record sleeves and stays out of caption boxes.
  */
 
 export const PATH_SLOT_PCTS = [28, 50, 72];
@@ -54,7 +54,7 @@ function curveTo(fromX, fromY, to) {
 }
 
 /**
- * Drop to just above the key dots, skip the caption, resume below, then curve.
+ * Drop to just above the caption, skip it, resume below, then curve.
  * Used on stacked phone sleeves and for the 03 → end-cap connector.
  */
 function gappedCurve(segs, from, to) {
