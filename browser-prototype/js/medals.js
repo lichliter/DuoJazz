@@ -95,8 +95,12 @@ function orderValue(medal) {
   return { none: 0, bronze: 1, silver: 2, gold: 3 }[medal] ?? 0;
 }
 
+export function lessonPassedKeys(mastery, lessonId) {
+  return [...(normalizeMastery(mastery).lessons[lessonId]?.passedKeys ?? [])];
+}
+
 export function lessonPassedCount(mastery, lessonId) {
-  return normalizeMastery(mastery).lessons[lessonId]?.passedKeys.length ?? 0;
+  return lessonPassedKeys(mastery, lessonId).length;
 }
 
 export function loadMastery() {

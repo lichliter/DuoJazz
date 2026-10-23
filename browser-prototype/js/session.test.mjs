@@ -4,7 +4,11 @@ import { getKey, scheduleChorus } from "./music.js";
 import { leaksTargetBar } from "./lesson.js";
 import {
   LESSONS,
+  PATH_ALIGNS,
   TWELVE_KEY_IDS,
+  lessonPathNode,
+  lessonPathNodes,
+  lessonSleeve,
   buildKeyQueue,
   nextLapQueue,
   cardsFor,
@@ -287,6 +291,50 @@ test("lessons stay unlocked and the module has three paths", () => {
     "integrate-altered-dominant",
   ]);
   assert.equal(TWELVE_KEY_IDS.length, 12);
+});
+
+test("module home path zig-zags record sleeves and never locks a lesson", () => {
+  assert.deepEqual(PATH_ALIGNS, ["left", "center", "right"]);
+  assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve), ["amber", "teal", "oxblood"]);
+  assert.equal(lessonSleeve("learn-lick"), "amber");
+  assert.equal(lessonSleeve("integrate-minor-home"), "teal");
+  assert.equal(lessonSleeve("integrate-altered-dominant"), "oxblood");
+  assert.equal(LESSONS[1].context, "Autumn Leaves · bar 7");
+  assert.equal(LESSONS[2].context, "Over D7 · bar 6");
+
+  const nodes = lessonPathNodes(defaultPrefs(), {
+    "learn-lick": ["G", "C", "F"],
+    "integrate-minor-home": TWELVE_KEY_IDS,
+  });
+  assert.equal(nodes.length, 3);
+  assert.deepEqual(nodes.map((node) => node.align), ["left", "center", "right"]);
+  assert.equal(nodes[0].recommended, true);
+  assert.equal(nodes[0].complete, false);
+  assert.equal(nodes[0].passedCount, 3);
+  assert.equal(nodes[1].complete, true);
+  assert.equal(nodes[1].passedCount, 12);
+  assert.equal(nodes[2].recommended, false);
+  assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
+
+  const started = markLessonStarted(defaultPrefs(), "learn-lick", "G");
+  const next = lessonPathNodes(started, {});
+  assert.equal(next[0].recommended, false);
+  assert.equal(next[1].recommended, true);
+  assert.equal(next.every((node) => node.complete === false), true);
+});
+
+test("a single path node keeps cover copy and a 12-key passed list", () => {
+  const node = lessonPathNode(LESSONS[0], 0, {
+    recommendedId: "learn-lick",
+    passedKeys: ["G", "G", "C"],
+  });
+  assert.equal(node.number, "01");
+  assert.equal(node.coverTitle, "Learn the lick");
+  assert.equal(node.sleeve, "amber");
+  assert.equal(node.align, "left");
+  assert.equal(node.recommended, true);
+  assert.deepEqual(node.passedKeys, ["G", "C"]);
+  assert.equal(node.passedCount, 2);
 });
 
 test("melody octave is remembered per lesson and applied on the session", () => {
