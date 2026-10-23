@@ -22,6 +22,8 @@ import {
   normalizeMelodyRegister,
   phraseStartBeat,
   supportBlurb,
+  learnBeatsFor,
+  formBeatsFor,
 } from "./music.js";
 
 export const STORAGE_KEY = "duojazz-integration-prototype-v6";
@@ -188,7 +190,7 @@ export function presentation(stateOrGoal) {
     includeCue: Boolean(help),
     includeGuides: Boolean(help),
     audioStage: isolated ? "learn" : "place",
-    lengthBeats: isolated ? CELL_BEATS : CHORUS_BEATS,
+    lengthBeats: isolated ? learnBeatsFor(state.applicationId) : formBeatsFor(state.applicationId),
     modelScope: listen ? "solo" : "phrase",
     looping: typeof state.looping === "boolean" ? state.looping : Boolean(help || free),
     showMusic: true,

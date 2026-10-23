@@ -7,6 +7,7 @@ import {
   BEATS_PER_BAR,
   getKey,
   melodyMidiForInterval,
+  octaveForApplication,
   phraseEvents,
   phraseStartBeat,
 } from "./music.js";
@@ -61,6 +62,7 @@ export function expectedNotesFor(session) {
   const events = phraseEvents(lesson.applicationId);
   const isolated = lesson.kind === "learn";
   const shift = isolated ? phraseStartBeat(lesson.applicationId) : 0;
+  const octaveBase = octaveForApplication(lesson.applicationId, key.pc);
   return events.map((event, index) => {
     const startBeat = event.beat - shift;
     return {
@@ -68,23 +70,27 @@ export function expectedNotesFor(session) {
       number: index + 1,
       startBeat,
       beats: event.beats,
-      bar: Math.floor(startBeat / BEATS_PER_BAR) + 1,
-      midi: melodyMidiForInterval(key.pc, event.interval, session.melodyRegister),
+      bar: startBeat < 0 ? 1 : Math.floor(startBeat / BEATS_PER_BAR) + 1,
+      midi: melodyMidiForInterval(key.pc, event.interval, session.melodyRegister, octaveBase),
     };
   });
 }
 
 function pickOnset(pool, note, windowBeats) {
   const start = note.startBeat - windowBeats;
-  const end = note.startBeat + Math.max(note.beats, 1) + windowBeats;
+  const lateEnd = note.startBeat + Math.max(note.beats, 1) + windowBeats;
+  const tightEnd = note.startBeat + windowBeats;
   let best = -1;
   let bestScore = Infinity;
   for (let i = 0; i < pool.length; i += 1) {
     const row = pool[i];
     if (row.used || !(row.amp > 0.01) || !(row.hz > 0)) continue;
-    if (row.beat < start || row.beat > end) continue;
+    if (row.beat < start || row.beat > lateEnd) continue;
     const heard = midiFromHz(row.hz);
     const pitchClass = heard != null && wrapMidi(heard) === wrapMidi(note.midi);
+    // Wrong-pitch hits stay in the tight window so a missed pickup or
+    // 16th cannot steal the next note's onset and cascade the grade.
+    if (!pitchClass && row.beat > tightEnd) continue;
     const score = (pitchClass ? 0 : 2) + Math.abs(row.beat - note.startBeat);
     if (score < bestScore) {
       bestScore = score;

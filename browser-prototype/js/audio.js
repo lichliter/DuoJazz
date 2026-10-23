@@ -147,8 +147,9 @@ export class Transport {
   }
 
   scheduleEvent(event, origin) {
-    let time = origin + beatsToSeconds(event.beat, this.tempo, this.swing);
-    const dur = beatsToSeconds(event.durationBeats ?? 0.5, this.tempo, this.swing);
+    const swing = event.swing === false || event.beat < 0 ? false : this.swing;
+    let time = origin + beatsToSeconds(event.beat, this.tempo, swing);
+    const dur = beatsToSeconds(event.durationBeats ?? 0.5, this.tempo, event.swing === false ? false : this.swing);
     if (time + dur < this.ctx.currentTime) return;
     if (time < this.ctx.currentTime) time = this.ctx.currentTime;
     if (event.type === "click") {

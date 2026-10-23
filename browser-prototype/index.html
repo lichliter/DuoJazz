@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DuoJazz · Cry Me a River</title>
-  <meta name="description" content="Practice Cry Me a River in Autumn Leaves. Browser prototype, not the native DuoJazz iPad app.">
+  <title>DuoJazz</title>
+  <meta name="description" content="Practice jazz licks in all 12 keys. Browser prototype, not the native DuoJazz iPad app.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=61">
+  <link rel="stylesheet" href="./css/styles.css?v=63">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=61"></script>
+  <script type="module" src="./js/app.js?v=63"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -25,17 +25,6 @@
 
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
-        <section class="module-banner" id="module-banner" data-testid="module-banner">
-          <div class="banner-copy">
-            <p class="banner-kicker">Module 1 · a lick</p>
-            <h1 id="module-title">Cry Me a River</h1>
-            <p class="banner-count" id="medal-note">0 of 12 keys mastered</p>
-          </div>
-          <div class="medal-badge" id="medal-badge" data-medal="none" aria-label="0 of 12 keys, no medal yet">
-            <span class="medal-count" id="medal-count">0/12</span>
-            <span class="medal-mark" id="medal-mark" hidden></span>
-          </div>
-        </section>
         <section class="lesson-path" aria-label="Lesson path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
             <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
@@ -162,7 +151,7 @@
       <details>
         <summary>About this experiment</summary>
         <p>Browser prototype with getUserMedia + AudioWorklet (YIN) grading. Real microphone accuracy needs a check on an iPad with a horn. Space plays or pauses. R restarts.</p>
-        <p>Module: Cry Me a River cell over Autumn Leaves opening eight bars. Lessons: learn the lick, integrate on minor home (bar 7), integrate on altered dominant (bar 6). Setup remembers choices per lesson.</p>
+        <p>Five modules from Essential Jazz Vocabulary. Each has Learn the lick plus two Integrate placements. Setup remembers choices per lesson.</p>
       </details>
       <button type="submit" class="play compact" value="close">Close</button>
     </form>
