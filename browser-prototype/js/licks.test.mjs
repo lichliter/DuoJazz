@@ -114,7 +114,8 @@ test("Bird opening has a pickup, sixteenths, and a 12.5-beat span", () => {
   assert.ok(Math.abs(integrated[0].beat + 0.5) < 1e-9);
   assert.equal(integrated[1].beat, 0);
   const isolated = phraseEvents("bo-learn", true);
-  assert.equal(isolated[0].beat, 0);
+  assert.ok(Math.abs(isolated[0].beat + 0.5) < 1e-9);
+  assert.equal(isolated[1].beat, 0);
 });
 
 test("HSR is six eighths and a quarter rest", () => {
@@ -132,7 +133,7 @@ test("each lick stays in trombone range across twelve keys at original register"
       const min = Math.min(...midis);
       const max = Math.max(...midis);
       assert.ok(min >= TROMBONE_LOW_MIDI - 4, `${lick.id} ${keyId} low ${min}`);
-      assert.ok(max <= TROMBONE_HIGH_MIDI + 8, `${lick.id} ${keyId} high ${max}`);
+      assert.ok(max <= TROMBONE_HIGH_MIDI, `${lick.id} ${keyId} high ${max}`);
       const up = midis.map((midi) => midi + 12);
       const down = midis.map((midi) => midi - 12);
       assert.equal(up[0] - midis[0], 12);
@@ -247,7 +248,8 @@ test("model audio follows the new rhythms, including triplets and 16ths", () => 
     applicationId: "bo-learn",
   }).filter((event) => event.type === "melody");
   assert.ok(bo.some((event) => event.durationBeats === 0.25));
-  assert.equal(bo[0].beat, 0);
+  assert.ok(Math.abs(bo[0].beat + 0.5) < 1e-9);
+  assert.equal(bo[1].beat, 0);
 });
 
 test("saved CMAR mastery survives and new lessons start empty", () => {

@@ -9,7 +9,7 @@ import {
   melodyMidiForInterval,
   octaveForApplication,
   phraseEvents,
-  phraseStartBeat,
+  wrapPc,
 } from "./music.js";
 import {
   currentCard,
@@ -59,19 +59,22 @@ export function timingWindowBeats(tempo) {
 export function expectedNotesFor(session) {
   const lesson = lessonById(session.lessonId);
   const key = getKey(currentKeyId(session));
-  const events = phraseEvents(lesson.applicationId);
   const isolated = lesson.kind === "learn";
-  const shift = isolated ? phraseStartBeat(lesson.applicationId) : 0;
+  const events = phraseEvents(lesson.applicationId, isolated);
   const octaveBase = octaveForApplication(lesson.applicationId, key.pc);
   return events.map((event, index) => {
-    const startBeat = event.beat - shift;
+    const startBeat = event.beat;
+    const cellPc = event.cellInterval == null
+      ? key.pc
+      : wrapPc(key.pc + (event.cellTonicInterval ?? 0));
+    const interval = event.cellInterval ?? event.interval;
     return {
       index,
       number: index + 1,
       startBeat,
       beats: event.beats,
       bar: startBeat < 0 ? 1 : Math.floor(startBeat / BEATS_PER_BAR) + 1,
-      midi: melodyMidiForInterval(key.pc, event.interval, session.melodyRegister, octaveBase),
+      midi: melodyMidiForInterval(cellPc, interval, session.melodyRegister, octaveBase),
     };
   });
 }
