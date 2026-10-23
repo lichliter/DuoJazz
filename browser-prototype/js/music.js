@@ -133,6 +133,8 @@ const QUALITY_ASCII = {
   dominant7b13: "7♭13",
   dominant7s11: "7♯11",
   diminished7: "°7",
+  dominant9: "9",
+  dominant7sus: "7sus",
 };
 
 const QUALITY_ABC = { ...QUALITY_ASCII };
@@ -151,6 +153,8 @@ const QUALITY_INTERVALS = {
   dominant7b13: [0, 4, 8, 10],
   dominant7s11: [0, 4, 6, 10],
   diminished7: [0, 3, 6, 9],
+  dominant9: [0, 4, 7, 10, 14],
+  dominant7sus: [0, 5, 7, 10],
 };
 
 const GUIDE_INTERVALS = {
@@ -167,6 +171,8 @@ const GUIDE_INTERVALS = {
   dominant7b13: [4, 10],
   dominant7s11: [4, 10],
   diminished7: [3, 9],
+  dominant9: [4, 10],
+  dominant7sus: [5, 10],
 };
 
 const AL_FUNCTION = ["iv-7", "♭VII7", "♭IIImaj7", "♭VImaj7", "iiø7", "V7", "i6", "i6"];
