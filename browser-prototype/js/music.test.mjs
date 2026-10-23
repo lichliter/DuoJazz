@@ -38,6 +38,8 @@ import {
   cueCaption,
   applicationContext,
   jazzChordRootParts,
+  displayKey,
+  lickNoun,
 } from "./music.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
@@ -145,10 +147,10 @@ test("phrase ABC defaults to bass clef with beat-grouped eighth beams", () => {
   const abc = phraseABC(getKey("G"), "concert", "minor-home");
   assert.match(abc, /K:Gmin clef=bass/);
   assert.match(abc, /"Gm6"/);
-  assert.match(abc, /A,2 \(3G,D,_B,, A,,G,, z2/);
+  assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
   const treble = phraseABC(getKey("G"), "concert", "minor-home", "treble");
   assert.match(treble, /clef=treble/);
-  assert.match(treble, /A,2 \(3G,D,_B,, A,,G,, z2/);
+  assert.match(treble, /A,2 \(3G,D,B,, A,,G,, z2/);
 });
 
 test("clef selection does not change concert MIDI or B-flat written transposition", () => {
@@ -376,11 +378,11 @@ test("phrase ABC follows melody register while clef and B♭ names stay independ
   const trebleUp = phraseABC(g, "concert", "minor-home", "treble", 1);
   const writtenUp = phraseABC(g, "bb-written", "minor-home", "bass", 1);
   assert.match(original, /K:Gmin clef=bass/);
-  assert.match(original, /A,2 \(3G,D,_B,, A,,G,, z2/);
-  assert.match(up, /A2 \(3GD_B, A,G, z2/);
-  assert.match(down, /A,,2 \(3G,,D,,_B,,, A,,,G,,, z2/);
+  assert.match(original, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(up, /A2 \(3GDB, A,G, z2/);
+  assert.match(down, /A,,2 \(3G,,D,,B,,, A,,,G,,, z2/);
   assert.match(trebleUp, /clef=treble/);
-  assert.match(trebleUp, /A2 \(3GD_B, A,G, z2/);
+  assert.match(trebleUp, /A2 \(3GDB, A,G, z2/);
   assert.match(writtenUp, /K:Amin clef=bass/);
   assert.match(writtenUp, /B2 \(3AEC B,A, z2/);
   const notes = phraseNotes(g, "bb-written", "minor-home", 1);
@@ -424,10 +426,10 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   assert.match(abc, /"Cm7"/);
   assert.match(abc, /D,2 D,2 D,2 D,2/);
   assert.match(abc, /"Gm6""_HERE"/);
-  assert.match(abc, /A,2 \(3G,D,_B,, A,,G,, z2/);
+  assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
   assert.match(abc, /"D7""_Get ready"/);
   const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
-  assert.match(up, /A2 \(3GD_B, A,G, z2/);
+  assert.match(up, /A2 \(3GDB, A,G, z2/);
   const quizCold = slashABC(g, "concert", "minor-home", "bass");
   assert.doesNotMatch(quizCold, /A,G,/);
   const viaChorus = chorusStaffABC({
@@ -496,7 +498,7 @@ test("four-bar landing systems keep bars 7–8 together with the lick on the doo
   assert.doesNotMatch(systems[0], /HERE|A,G,/);
   assert.match(systems[1], /"D7""_Get ready"/);
   assert.match(systems[1], /"Gm6""_HERE"/);
-  assert.match(systems[1], /A,2 \(3G,D,_B,, A,,G,, z2/);
+  assert.match(systems[1], /A,2 \(3G,D,B,, A,,G,, z2/);
   assert.match(systems[1], /"Gm6""_HERE".+"Gm6"/);
   assert.doesNotMatch(systems[1], /\n/);
 });
@@ -518,4 +520,61 @@ test("ABC chord names keep the accidental on the root for jazzchords", () => {
   assert.deepEqual(jazzChordRootParts("F♯"), { letter: "F", accidental: "♯", rest: "" });
   assert.equal(jazzChordRootParts("Am7♭5"), null);
   assert.equal(jazzChordRootParts("Cm7"), null);
+});
+
+test("Learn ABC spells against the key signature in C, G, B♭, F♯, and E♭", () => {
+  const samples = [
+    { app: "cmar-learn", quality: "minor" },
+    { app: "emr-learn", quality: "minor" },
+    { app: "gts-learn", quality: "major" },
+    { app: "bo-learn", quality: "major" },
+    { app: "hsr-learn", quality: "major" },
+  ];
+  for (const sample of samples) {
+    for (const keyId of ["C", "G", "Bb", "F#", "Eb"]) {
+      const key = getKey(keyId);
+      const abc = phraseABC(key, "concert", sample.app);
+      const shown = displayKey(key, "concert", sample.quality);
+      const escaped = shown.abc.replaceAll("#", "\\#");
+      assert.match(abc, new RegExp(`K:${escaped} clef=bass`), `${sample.app} ${keyId} ${shown.abc}`);
+      const landing = landingABC(key, "concert", sample.app);
+      assert.match(landing, new RegExp(`K:${escaped} clef=bass`), `landing ${sample.app} ${keyId}`);
+    }
+  }
+  const boG = phraseABC(getKey("G"), "concert", "bo-learn");
+  assert.match(boG, /K:G clef=bass/);
+  assert.match(boG, /=F/);
+  assert.doesNotMatch(boG, /K:D/);
+  const gtsG = phraseABC(getKey("G"), "concert", "gts-learn");
+  assert.match(gtsG, /K:G clef=bass/);
+  assert.doesNotMatch(gtsG, /K:D/);
+  assert.match(gtsG, /=F/);
+  assert.doesNotMatch(gtsG, /\^F/);
+  const cmarG = phraseABC(getKey("G"), "concert", "cmar-learn");
+  assert.doesNotMatch(cmarG.split("K:")[1], /_B/);
+  const cmarC = phraseABC(getKey("C"), "concert", "cmar-learn");
+  assert.match(cmarC, /K:Cmin clef=bass/);
+  assert.doesNotMatch(cmarC.split("K:")[1], /_E/);
+});
+
+test("BO and GTS Learn labels follow the I chord, not the cell tonic", () => {
+  const bo = applicationContext(getKey("G"), "concert", "bo-learn");
+  assert.equal(bo.tuneName, "G major");
+  assert.match(bo.learnBlurb, /G major/);
+  assert.doesNotMatch(bo.learnBlurb, /D major/);
+  assert.equal(lickNoun("bo-learn"), "lick");
+  assert.equal(lickNoun("gts-learn"), "lick");
+  assert.equal(lickNoun("minor-home"), "cell");
+  const gts = applicationContext(getKey("G"), "concert", "gts-learn");
+  assert.equal(gts.tuneName, "G major");
+  const gtsBb = applicationContext(getKey("Bb"), "concert", "gts-learn");
+  assert.equal(gtsBb.tuneName, "B♭ major");
+  const boBb = applicationContext(getKey("Bb"), "concert", "bo-learn");
+  assert.equal(boBb.tuneName, "B♭ major");
+  assert.doesNotMatch(boBb.learnBlurb, /F major/);
+});
+
+test("GTS eighths beam in beat pairs across the half-bar chord change", () => {
+  const abc = phraseABC(getKey("G"), "concert", "gts-learn");
+  assert.match(abc, /A,, "E7"/);
 });

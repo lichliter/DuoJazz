@@ -75,6 +75,7 @@ export function expectedNotesFor(session) {
       beats: event.beats,
       bar: startBeat < 0 ? 1 : Math.floor(startBeat / BEATS_PER_BAR) + 1,
       midi: melodyMidiForInterval(cellPc, interval, session.melodyRegister, octaveBase),
+      spotIndex: event.spotIndex ?? 0,
     };
   });
 }
@@ -194,14 +195,30 @@ export function gradePerformance({ expected, observations, tempo, passThreshold 
   const notes = expected.map((note) => gradeNoteWithPool(note, pool, tempo));
   const passedCount = notes.filter((note) => note.passed).length;
   const score = notes.length ? passedCount / notes.length : 0;
+  const spotIds = [...new Set(notes.map((note) => note.spotIndex ?? 0))];
+  const spotResults = spotIds.map((id) => {
+    const group = notes.filter((note) => (note.spotIndex ?? 0) === id);
+    const groupPassed = group.filter((note) => note.passed).length;
+    const groupScore = group.length ? groupPassed / group.length : 0;
+    return {
+      spotIndex: id,
+      passed: groupScore >= passThreshold,
+      score: groupScore,
+      total: group.length,
+    };
+  });
+  const passed = spotResults.length > 1
+    ? spotResults.every((spot) => spot.passed)
+    : score >= passThreshold;
   return {
     graded: true,
-    passed: score >= passThreshold,
+    passed,
     score,
     percent: Math.round(score * 100),
     passedCount,
     total: notes.length,
     notes,
+    spots: spotResults,
     correction: mostUsefulCorrection(notes),
   };
 }

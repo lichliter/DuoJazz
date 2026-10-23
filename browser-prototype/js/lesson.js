@@ -17,8 +17,10 @@ import {
   applicationContext,
   chorusChords,
   chordAtBeat,
+  cueCaption,
   getKey,
   learnChords,
+  lickNoun,
   normalizeMelodyRegister,
   phraseStartBeat,
   supportBlurb,
@@ -251,10 +253,7 @@ export function formBars(concertKey, displayMode, applicationId = DEFAULT_APPLIC
 
 export function barCaption(bar, showEntranceLabels, applicationId = DEFAULT_APPLICATION_ID) {
   if (!showEntranceLabels) return "";
-  const app = applicationById(applicationId);
-  if (bar === app.phraseStartBar) return "HERE";
-  if (bar === app.phraseStartBar - 1) return "Get ready";
-  return "";
+  return cueCaption(bar, applicationId);
 }
 
 export function chartCopy(stateOrGoal) {
@@ -278,9 +277,10 @@ export function chartCopy(stateOrGoal) {
     return { title: "Same cell · this key", meta: `${ctx.cellName} · ${clef}` };
   }
   if (state.goal === "learn") {
+    const noun = lickNoun(state.applicationId);
     return {
-      title: state.cellMode === "echo" ? "Your turn on the cell" : "Cry Me a River cell",
-      meta: `${ctx.cellName} · ${clef}`,
+      title: state.cellMode === "echo" ? `Your turn on the ${noun}` : ctx.lickName,
+      meta: `${ctx.tuneName} · ${clef}`,
     };
   }
   if (view.supportId === "help") {
@@ -297,9 +297,10 @@ export function instructionCopy(stateOrGoal) {
   const view = presentation(state);
   const ctx = applicationContext(getKey(state.concertKeyId), state.displayMode, state.applicationId);
   if (state.goal === "learn") {
+    const noun = lickNoun(state.applicationId);
     return state.cellMode === "echo"
       ? "Your turn. The synth is only a pad."
-      : `Hear the cell in ${ctx.cellName}. Repeat, echo, or change octave.`;
+      : `Hear the ${noun} in ${ctx.tuneName}. Repeat, echo, or change octave.`;
   }
   if (state.goal === "keys") return ctx.keysBlurb;
   if (state.goal === "check") {
@@ -327,7 +328,8 @@ export function livePrompt(stateOrGoal, snap = {}) {
     return `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
   }
   if (view.audioStage === "learn") {
-    return state.cellMode === "echo" ? "Play the cell." : "Listen to the cell.";
+    const noun = lickNoun(state.applicationId);
+    return state.cellMode === "echo" ? `Play the ${noun}.` : `Listen to the ${noun}.`;
   }
   if (view.supportId === "free" || (state.goal === "check" && !state.revealed)) {
     return "Your chorus. Quote, vary, or skip.";
@@ -365,9 +367,10 @@ export function primaryAction(stateOrGoal, playback = {}) {
     return { id: "start", label: "Count me in" };
   }
   if (view.audioStage === "learn") {
+    const noun = lickNoun(state.applicationId);
     return {
       id: "start",
-      label: state.cellMode === "echo" ? "Count me in" : "Hear the cell",
+      label: state.cellMode === "echo" ? "Count me in" : `Hear the ${noun}`,
     };
   }
   return { id: "start", label: view.support.playLabel };

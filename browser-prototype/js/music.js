@@ -20,6 +20,8 @@ import {
   formBeatsFor,
   applicationKeyQuality,
   phraseSpanBars,
+  spotsFor,
+  elementsForSpot,
   TROMBONE_LOW_MIDI,
   TROMBONE_HIGH_MIDI,
 } from "./registry.js";
@@ -125,6 +127,12 @@ const QUALITY_ASCII = {
   minor6: "m6",
   halfdim7: "ø7",
   dominant7b9: "7♭9",
+  minor: "m",
+  minorb6: "m♭6",
+  major6: "6",
+  dominant7b13: "7♭13",
+  dominant7s11: "7♯11",
+  diminished7: "°7",
 };
 
 const QUALITY_ABC = { ...QUALITY_ASCII };
@@ -137,6 +145,12 @@ const QUALITY_INTERVALS = {
   minor6: [0, 3, 7, 9],
   halfdim7: [0, 3, 6, 10],
   dominant7b9: [0, 4, 7, 10, 13],
+  minor: [0, 3, 7],
+  minorb6: [0, 3, 7, 8],
+  major6: [0, 4, 7, 9],
+  dominant7b13: [0, 4, 8, 10],
+  dominant7s11: [0, 4, 6, 10],
+  diminished7: [0, 3, 6, 9],
 };
 
 const GUIDE_INTERVALS = {
@@ -147,6 +161,12 @@ const GUIDE_INTERVALS = {
   minor6: [3, 9],
   halfdim7: [3, 10],
   dominant7b9: [4, 10],
+  minor: [3, 7],
+  minorb6: [3, 8],
+  major6: [4, 9],
+  dominant7b13: [4, 10],
+  dominant7s11: [4, 10],
+  diminished7: [3, 9],
 };
 
 const AL_FUNCTION = ["iv-7", "♭VII7", "♭IIImaj7", "♭VImaj7", "iiø7", "V7", "i6", "i6"];
@@ -169,15 +189,58 @@ export function applicationById(id) {
   return registryApplication(id);
 }
 
+export function lickNoun(applicationId) {
+  return lickForApplication(applicationId).id === "cmar" ? "cell" : "lick";
+}
+
+export function spotStartBars(applicationId) {
+  return [...new Set(spotsFor(applicationId).map((spot) => spot.bar))].sort((a, b) => a - b);
+}
+
 export function prepareBar(applicationId) {
-  return Math.max(1, applicationById(applicationId).phraseStartBar - 1);
+  const starts = spotStartBars(applicationId);
+  const first = starts[0] ?? applicationById(applicationId).phraseStartBar ?? 1;
+  return Math.max(1, first - 1);
 }
 
 export function cueCaption(bar, applicationId = DEFAULT_APPLICATION_ID) {
-  const app = applicationById(applicationId);
-  if (bar === app.phraseStartBar) return "HERE";
-  if (bar === app.phraseStartBar - 1) return "Get ready";
+  const starts = new Set(spotStartBars(applicationId));
+  if (starts.has(bar)) return "HERE";
+  if (starts.has(bar + 1) && !starts.has(bar)) return "Get ready";
   return "";
+}
+
+const SHARP_ORDER = ["F", "C", "G", "D", "A", "E", "B"];
+const FLAT_ORDER = ["B", "E", "A", "D", "G", "C", "F"];
+const MAJOR_SIG_COUNT = {
+  C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, "F#": 6, "C#": 7,
+  F: -1, Bb: -2, Eb: -3, Ab: -4, Db: -5, Gb: -6, Cb: -7,
+};
+
+export function keySignatureCount(shownKey) {
+  if (String(shownKey.abc ?? "").endsWith("min")) {
+    const relativePc = wrapPc(shownKey.pc + 3);
+    const relative = KEYS.find((key) => key.pc === relativePc && key.usesFlats === shownKey.usesFlats)
+      ?? KEYS.find((key) => key.pc === relativePc)
+      ?? shownKey;
+    return MAJOR_SIG_COUNT[relative.abc] ?? 0;
+  }
+  return MAJOR_SIG_COUNT[shownKey.abc] ?? 0;
+}
+
+export function keySignatureByLetter(shownKey) {
+  const n = keySignatureCount(shownKey);
+  const map = { C: 0, D: 0, E: 0, F: 0, G: 0, A: 0, B: 0 };
+  if (n > 0) {
+    for (let i = 0; i < n && i < SHARP_ORDER.length; i += 1) map[SHARP_ORDER[i]] = 1;
+  } else if (n < 0) {
+    for (let i = 0; i < -n && i < FLAT_ORDER.length; i += 1) map[FLAT_ORDER[i]] = -1;
+  }
+  return map;
+}
+
+export function newBarState(shownKey) {
+  return { sig: keySignatureByLetter(shownKey), written: new Map() };
 }
 
 export function wrapPc(pc) {
@@ -251,6 +314,14 @@ export function midiForInterval(concertTonicPc, interval, octaveOffset = PHRASE_
   return 60 + concertTonicPc + interval + octaveOffset * 12;
 }
 
+const TROMBONE_MIN_ALLOWED = TROMBONE_LOW_MIDI - 4;
+
+function octaveFitScore(min, max, oct, preferred) {
+  const below = Math.max(0, TROMBONE_MIN_ALLOWED - min);
+  const above = Math.max(0, max - TROMBONE_HIGH_MIDI);
+  return below * 8 + above * 8 + Math.abs(oct - preferred) * 0.25;
+}
+
 export function lickOctaveForKey(lick, keyPc) {
   const notes = lickNoteElements(lick);
   if (!notes.length || lick.id === "cmar") return lick.octave;
@@ -258,11 +329,7 @@ export function lickOctaveForKey(lick, keyPc) {
   let bestScore = Infinity;
   for (const oct of [lick.octave - 1, lick.octave, lick.octave + 1]) {
     const midis = notes.map((note) => midiForInterval(keyPc, note.interval, oct));
-    const min = Math.min(...midis);
-    const max = Math.max(...midis);
-    const below = Math.max(0, TROMBONE_LOW_MIDI - min);
-    const above = Math.max(0, max - TROMBONE_HIGH_MIDI);
-    const score = below * 4 + above * 4 + Math.abs(oct - lick.octave) * 0.25;
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
     if (score < bestScore) {
       bestScore = score;
       best = oct;
@@ -273,7 +340,30 @@ export function lickOctaveForKey(lick, keyPc) {
 
 export function octaveForApplication(applicationId, concertTonicPc) {
   const app = applicationById(applicationId);
-  return lickOctaveForKey(lickForApplication(applicationId), wrapPc(concertTonicPc + app.cellTonicInterval));
+  const lick = lickForApplication(applicationId);
+  const spots = spotsFor(applicationId);
+  const notes = [];
+  spots.forEach((spot, index) => {
+    const { elements } = elementsForSpot(app, spot, spots[index + 1]);
+    const tonic = wrapPc(concertTonicPc + (spot.anchorInterval ?? 0));
+    for (const el of elements) {
+      if (el.type === "note") notes.push({ tonic, interval: el.interval });
+    }
+  });
+  if (!notes.length || (lick.id === "cmar" && spots.length <= 1)) {
+    return lick.octave;
+  }
+  let best = lick.octave;
+  let bestScore = Infinity;
+  for (const oct of [lick.octave - 1, lick.octave, lick.octave + 1]) {
+    const midis = notes.map((note) => midiForInterval(note.tonic, note.interval, oct));
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
+    if (score < bestScore) {
+      bestScore = score;
+      best = oct;
+    }
+  }
+  return best;
 }
 
 export function melodyMidiForInterval(
@@ -315,30 +405,43 @@ export function degreeInI(interval) {
 }
 
 export function phraseStartBeat(applicationId) {
-  const app = applicationById(applicationId);
-  return (app.phraseStartBar - 1) * BEATS_PER_BAR;
+  const first = spotStartBars(applicationId)[0] ?? applicationById(applicationId).phraseStartBar ?? 1;
+  return (first - 1) * BEATS_PER_BAR;
+}
+
+function timelineFromElements(elements, origin, cellTonicInterval, spotIndex) {
+  let beat = origin;
+  const items = [];
+  for (const el of elements) {
+    items.push({
+      ...el,
+      beat,
+      interval: el.type === "note" ? el.interval + cellTonicInterval : null,
+      cellInterval: el.interval,
+      cellTonicInterval,
+      role: "phrase",
+      spotIndex,
+    });
+    beat += el.beats;
+  }
+  return items;
 }
 
 export function phraseTimeline(applicationId, isolated = false) {
   const app = applicationById(applicationId);
   const lick = lickById(app.lickId);
-  const usePickup = lick.pickupBeats > 0 && (isolated || app.includePickup);
-  const pickup = usePickup ? lick.pickupBeats : 0;
-  const origin = isolated ? 0 - pickup : phraseStartBeat(applicationId) - pickup;
-  let beat = origin;
-  const items = [];
-  for (const el of lick.elements) {
-    items.push({
-      ...el,
-      beat,
-      interval: el.type === "note" ? el.interval + app.cellTonicInterval : null,
-      cellInterval: el.interval,
-      cellTonicInterval: app.cellTonicInterval,
-      role: "phrase",
-    });
-    beat += el.beats;
+  if (isolated) {
+    const pickup = lick.pickupBeats > 0 ? lick.pickupBeats : 0;
+    return timelineFromElements(lick.elements, 0 - pickup, app.cellTonicInterval ?? 0, 0);
   }
-  return items;
+  const spots = spotsFor(applicationId);
+  const items = [];
+  spots.forEach((spot, index) => {
+    const { elements, pickupBeats } = elementsForSpot(app, spot, spots[index + 1]);
+    const origin = (spot.bar - 1) * BEATS_PER_BAR - (pickupBeats || 0);
+    items.push(...timelineFromElements(elements, origin, spot.anchorInterval ?? 0, index));
+  });
+  return items.sort((a, b) => a.beat - b.beat);
 }
 
 function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
@@ -403,12 +506,13 @@ export function phraseNotes(
 function materializeChord(concertKey, displayMode, spec, startBeat, quality) {
   const keyQuality = quality ?? "minor";
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
+  const flats = spec.usesFlats ?? shownKey.usesFlats;
   const name = `${pitchName(
     displayMode === "bb-written"
       ? wrapPc(chordRootPc(concertKey.pc, spec.intervalFromTonic) + 2)
       : chordRootPc(concertKey.pc, spec.intervalFromTonic),
-    shownKey.usesFlats,
-  )}${QUALITY_ASCII[spec.quality] ?? ""}`;
+    flats,
+  )}${QUALITY_ASCII[spec.quality] ?? ""}${slashBassName(concertKey, spec, displayMode, { ...shownKey, usesFlats: flats })}`;
   return {
     ...spec,
     startBeat,
@@ -490,6 +594,7 @@ export function applicationContext(concertKey, displayMode, applicationId = DEFA
   const readyBar = prepareBar(applicationId);
   const lick = lickById(app.lickId);
   const cellName = cell.minorName;
+  const noun = lickNoun(app.id);
   const base = {
     id: app.id,
     label: app.label,
@@ -504,12 +609,13 @@ export function applicationContext(concertKey, displayMode, applicationId = DEFA
     readyBar,
     formTitle: form.shortTitle ?? form.title,
     lickName: lick.shortName,
+    noun,
     placement: `On ${targetChord} · Bar ${enterBar}`,
     shapeOver: `${cellName} over ${targetChord}`,
     listenBlurb: `${cellName} over ${targetChord}. Hear the phrase land in bar ${enterBar}.`,
     helpBlurb: `${cellName} over ${targetChord}. Get ready in bar ${readyBar}. Bring the phrase in on bar ${enterBar}.`,
     freeBlurb: `${cellName} over ${targetChord}. Your line over the form.`,
-    learnBlurb: `${lick.shortName} in ${cellName}. Same intervals in this key.`,
+    learnBlurb: `${lick.shortName} in ${shown.name}. Same intervals in this key.`,
     keysBlurb: `Same ${cellName} shape. Interval meaning stays put; only the door changes.`,
     checkRecallBlurb: `Recall the lick in ${cellName}. The app is not listening.`,
     checkApplyBlurb: `Use the lick over the form in ${shown.name}. No written door unless you reveal it.`,
@@ -611,16 +717,38 @@ function almost(a, b, eps = 1e-6) {
   return Math.abs(a - b) < eps;
 }
 
-function abcNote(midi, usesFlats) {
+function accidentalValue(name) {
+  if (name.includes("♯")) return 1;
+  if (name.includes("♭")) return -1;
+  return 0;
+}
+
+function abcOctaveLetter(letter, octave) {
+  if (octave <= 3) return `${letter}${",".repeat(4 - octave)}`;
+  if (octave === 4) return letter;
+  if (octave === 5) return letter.toLowerCase();
+  return `${letter.toLowerCase()}${"'".repeat(octave - 5)}`;
+}
+
+function abcNote(midi, shownKey, barState) {
   const pc = wrapPc(midi);
   const octave = Math.floor(midi / 12) - 1;
+  const usesFlats = typeof shownKey === "boolean" ? shownKey : Boolean(shownKey?.usesFlats);
   const name = pitchName(pc, usesFlats);
   const letter = name[0];
-  const accidental = name.includes("♯") ? "^" : name.includes("♭") ? "_" : "";
-  if (octave <= 3) return `${accidental}${letter}${",".repeat(4 - octave)}`;
-  if (octave === 4) return `${accidental}${letter}`;
-  if (octave === 5) return `${accidental}${letter.toLowerCase()}`;
-  return `${accidental}${letter.toLowerCase()}${"'".repeat(octave - 5)}`;
+  const acc = accidentalValue(name);
+  if (!barState) {
+    const prefix = acc === 1 ? "^" : acc === -1 ? "_" : "";
+    return `${prefix}${abcOctaveLetter(letter, octave)}`;
+  }
+  const sig = barState.sig?.[letter] ?? 0;
+  const current = barState.written.has(letter) ? barState.written.get(letter) : sig;
+  let prefix = "";
+  if (acc !== current) {
+    prefix = acc === 1 ? "^" : acc === -1 ? "_" : "=";
+    barState.written.set(letter, acc);
+  }
+  return `${prefix}${abcOctaveLetter(letter, octave)}`;
 }
 
 function abcDuration(beats) {
@@ -656,12 +784,21 @@ export function jazzChordRootParts(text) {
   return { letter: match[1], accidental, rest: match[3] };
 }
 
-function abcChordName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor") {
+function slashBassName(concertTonic, spec, displayMode, shownKey) {
+  if (spec?.slashIntervalFromTonic == null) return "";
+  const concertPc = chordRootPc(concertTonic.pc, spec.slashIntervalFromTonic);
+  const shownPc = displayMode === "bb-written" ? wrapPc(concertPc + 2) : concertPc;
+  return `/${pitchName(shownPc, shownKey.usesFlats)}`;
+}
+
+function abcChordName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
   const shownKey = displayKey(concertTonic, displayMode, keyQuality);
-  const root = pitchName(shownPc, shownKey.usesFlats);
-  return `${root}${QUALITY_ABC[quality] ?? ""}`;
+  const flats = forceFlats ?? shownKey.usesFlats;
+  const root = pitchName(shownPc, flats);
+  const slash = slashBassName(concertTonic, { slashIntervalFromTonic }, displayMode, { ...shownKey, usesFlats: flats });
+  return `${root}${QUALITY_ABC[quality] ?? ""}${slash}`;
 }
 
 function atBeatBoundary(beat) {
@@ -674,11 +811,11 @@ function afterNoteSpacing(beat) {
   return "";
 }
 
-function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor") {
+function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null) {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
-  const pitch = abcNote(shownMidi, shownKey.usesFlats);
+  const pitch = abcNote(shownMidi, shownKey, barState);
   const dur = item.tuplet === 3 ? "" : abcDuration(durationBeats);
   return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
 }
@@ -695,11 +832,13 @@ function renderSlice(items, start, end, ctx) {
     let out = "";
     while (left > 1e-6) {
       const chunk = left >= 4 - 1e-6 ? 4 : left >= 2 - 1e-6 ? 2 : left >= 1 - 1e-6 ? 1 : left >= 0.5 - 1e-6 ? 0.5 : left;
-      out += `z${abcDuration(chunk)}`;
+      const glyph = chunk >= 4 - 1e-6 ? "x" : "z";
+      out += `${glyph}${abcDuration(chunk)}`;
       left -= chunk;
     }
     return out;
   };
+  if (!ctx.barState) ctx.barState = newBarState(ctx.shownKey);
   while (i < covering.length) {
     const item = covering[i];
     const iStart = Math.max(item.beat, start);
@@ -715,21 +854,25 @@ function renderSlice(items, start, end, ctx) {
       }
       abc += "(3";
       for (const note of group) {
-        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality);
+        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality, ctx.barState);
       }
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
-      if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) abc += " | ";
-      else if (atBeatBoundary(cursor) && Math.abs(cursor - end) > 1e-6) abc += " ";
+      if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
+        abc += " | ";
+        ctx.barState = newBarState(ctx.shownKey);
+      } else if (atBeatBoundary(cursor)) abc += " ";
       continue;
     }
     const iEnd = Math.min(item.beat + item.beats, end);
     const dur = iEnd - iStart;
     const tieOut = item.type === "note" && item.beat + item.beats > end + 1e-6;
     if (item.type === "rest") abc += restFill(dur);
-    else abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality);
+    else abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState);
     cursor = iEnd;
-    if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) abc += " | ";
-    else if (atBeatBoundary(cursor) && Math.abs(cursor - end) > 1e-6) abc += " ";
+    if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
+      abc += " | ";
+      ctx.barState = newBarState(ctx.shownKey);
+    } else if (atBeatBoundary(cursor)) abc += " ";
     i += 1;
   }
   if (end > cursor + 1e-6) {
@@ -739,6 +882,7 @@ function renderSlice(items, start, end, ctx) {
       abc += restFill(toBar);
       cursor += toBar;
       abc += " | ";
+      ctx.barState = newBarState(ctx.shownKey);
     }
     abc += restFill(end - cursor);
   }
@@ -778,6 +922,7 @@ function renderSlashBeats(durationBeats, clef, eighthUnit = true) {
 
 function formContext(concertKey, displayMode, applicationId, melodyRegister) {
   const quality = applicationKeyQuality(applicationId);
+  const shownKey = displayKey(concertKey, displayMode, quality);
   return {
     concertKey,
     displayMode,
@@ -785,7 +930,8 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister) {
     melodyRegister,
     octaveBase: octaveForApplication(applicationId, concertKey.pc),
     quality,
-    shownKey: displayKey(concertKey, displayMode, quality),
+    shownKey,
+    barState: newBarState(shownKey),
   };
 }
 
@@ -823,11 +969,13 @@ function renderFormAbc({
 
   const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
   if (pickupNotes.length) {
+    ctx.barState = newBarState(ctx.shownKey);
     abc += renderSlice(items, pickupNotes[0].beat, 0, ctx);
     abc += " |";
   }
 
   for (let bar = 0; bar < barCount; bar += 1) {
+    ctx.barState = newBarState(ctx.shownKey);
     const barStart = bar * BEATS_PER_BAR;
     const barEnd = barStart + BEATS_PER_BAR;
     const barChords = chords.filter((chord) => (
@@ -847,8 +995,9 @@ function renderFormAbc({
     for (const [index, chord] of barChords.entries()) {
       const sliceStart = Math.max(barStart, chord.startBeat);
       const sliceEnd = Math.min(barEnd, chord.startBeat + chord.durationBeats);
-      abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality)}"`;
+      abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality, chord.slashIntervalFromTonic, chord.usesFlats)}"`;
       if (index === 0) abc += barCueAnnotation(bar + 1, applicationId, showCues);
+      abc += "yy";
       if (useNotes) abc += renderSlice(items, sliceStart, sliceEnd, ctx);
       else abc += renderSlashBeats(sliceEnd - sliceStart, clef, eighth);
     }
@@ -873,11 +1022,13 @@ export function phraseABC(
 
   const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
   if (pickupNotes.length) {
+    ctx.barState = newBarState(ctx.shownKey);
     abc += renderSlice(items, pickupNotes[0].beat, 0, ctx);
     abc += " |";
   }
 
   for (let bar = 0; bar < barCount; bar += 1) {
+    ctx.barState = newBarState(ctx.shownKey);
     const barStart = bar * BEATS_PER_BAR;
     const barEnd = Math.min(length, barStart + BEATS_PER_BAR);
     const barChords = chords.filter((chord) => (
@@ -889,11 +1040,11 @@ export function phraseABC(
       for (const chord of barChords) {
         const sliceStart = Math.max(barStart, chord.startBeat);
         const sliceEnd = Math.min(barEnd, chord.startBeat + chord.durationBeats);
-        abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality)}"`;
+        abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality, chord.slashIntervalFromTonic, chord.usesFlats)}"yy`;
         abc += renderSlice(items, sliceStart, sliceEnd, ctx);
       }
     }
-    abc += barAdvance(bar, barCount, 4);
+    abc += barAdvance(bar, barCount, 2);
   }
   return abc;
 }
@@ -940,8 +1091,9 @@ export function slashABC(
       chord.startBeat < barEnd - 1e-6 && chord.startBeat + chord.durationBeats > barStart + 1e-6
     ));
     for (const [index, chord] of barChords.entries()) {
-      abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, shownKey.name.includes("minor") ? "minor" : "major")}"`;
+      abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, shownKey.name.includes("minor") ? "minor" : "major", chord.slashIntervalFromTonic, chord.usesFlats)}"`;
       if (index === 0) abc += barCueAnnotation(bar + 1, applicationId, showCues);
+      abc += "yy";
       const n = Math.max(1, Math.round(Math.min(chord.durationBeats, barEnd - Math.max(barStart, chord.startBeat))));
       abc += Array.from({ length: n }, () => slashPitch).join(" ");
       if (index < barChords.length - 1) abc += " ";
@@ -999,7 +1151,7 @@ export function chartABC(concertKey, displayMode, clef = DEFAULT_CLEF, applicati
   for (let bar = 0; bar < barCount; bar += 1) {
     const barStart = bar * BEATS_PER_BAR;
     const chord = chords.find((item) => item.startBeat >= barStart - 1e-6 && item.startBeat < barStart + BEATS_PER_BAR);
-    if (chord) abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, shownKey.name.includes("minor") ? "minor" : "major")}"`;
+    if (chord) abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, shownKey.name.includes("minor") ? "minor" : "major", chord.slashIntervalFromTonic, chord.usesFlats)}"`;
     abc += "x";
     abc += bar === barCount - 1 ? " |]\n" : " | ";
   }
@@ -1072,9 +1224,14 @@ export function scheduleChorus({
     }
   }
 
-  if (cuesOn && phraseStart > 0 && phraseStart < length) {
-    events.push({ type: "cue", beat: phraseStart - 1, kind: "warning" });
-    events.push({ type: "cue", beat: phraseStart, kind: "downbeat" });
+  if (cuesOn) {
+    for (const bar of spotStartBars(applicationId)) {
+      const start = (bar - 1) * BEATS_PER_BAR;
+      if (start > 0 && start < length) {
+        events.push({ type: "cue", beat: start - 1, kind: "warning" });
+        events.push({ type: "cue", beat: start, kind: "downbeat" });
+      }
+    }
   }
 
   if (includeModel && variationId !== "skip") {

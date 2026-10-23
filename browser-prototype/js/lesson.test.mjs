@@ -207,6 +207,8 @@ test("primary action is the chart play control, not a linear continue", () => {
   assert.equal(primaryAction("hear", { playing: false, paused: true, ended: false }).id, "resume");
   assert.equal(primaryAction(helpState, { playing: false, paused: false, ended: false }).label, "Count me in");
   assert.equal(primaryAction(learnState, { playing: false, paused: false, ended: false }).label, "Hear the cell");
+  assert.equal(primaryAction({ ...learnState, applicationId: "gts-learn" }, { playing: false, paused: false, ended: false }).label, "Hear the lick");
+  assert.equal(primaryAction({ ...learnState, applicationId: "bo-learn" }, { playing: false, paused: false, ended: false }).label, "Hear the lick");
   assert.equal(primaryAction({ ...defaultState(), goal: "check", checkKind: "recall", revealed: false }).label, "Count me in");
 });
 

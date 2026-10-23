@@ -10,6 +10,10 @@ import {
   formBeatsFor,
   learnBeatsFor,
   phraseSpanBars,
+  spotsFor,
+  fragmentBeats,
+  formById,
+  applicationById,
 } from "./registry.js";
 import {
   getKey,
@@ -50,14 +54,18 @@ function midisFor(lick, keyId) {
   return phraseNotes(getKey(keyId), "concert", lesson.applicationId).map((note) => note.concertMidi);
 }
 
-test("registry has five modules and fifteen always-open lessons", () => {
+test("registry has five modules and 25 always-open lessons", () => {
   assert.deepEqual(LICKS.map((lick) => lick.id), ["cmar", "emr", "gts", "bo", "hsr"]);
   assert.equal(MODULES.length, 5);
-  assert.equal(LESSONS.length, 15);
+  assert.deepEqual(MODULES.map((module) => module.lessons.length), [7, 5, 4, 4, 5]);
+  assert.equal(LESSONS.length, 25);
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "integrate"));
   for (const lick of LICKS) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);
   }
+  assert.equal(LESSONS[0].id, "learn-lick");
+  assert.equal(LESSONS[1].id, "integrate-minor-home");
+  assert.equal(LESSONS[2].id, "integrate-altered-dominant");
 });
 
 test("each lick’s sounding beats match the workbook cell", () => {
@@ -68,10 +76,10 @@ test("each lick’s sounding beats match the workbook cell", () => {
   assert.equal(lickTotalBeats(lickById("hsr")), 4);
   assert.equal(learnBeatsFor("minor-home"), 8);
   assert.equal(formBeatsFor("minor-home"), 32);
-  assert.equal(formBeatsFor("emr-minor-251"), 16);
-  assert.equal(formBeatsFor("gts-rhythm"), 20);
-  assert.equal(formBeatsFor("bo-into-i"), 16);
-  assert.equal(formBeatsFor("hsr-251"), 16);
+  assert.equal(formBeatsFor("emr-autumn-leaves-a"), 16);
+  assert.equal(formBeatsFor("gts-oleo"), 32);
+  assert.equal(formBeatsFor("bo-rhythm"), 32);
+  assert.equal(formBeatsFor("hsr-honeysuckle"), 20);
 });
 
 test("CMAR is a quarter, triplet, two eighths, and a rest", () => {
@@ -109,7 +117,7 @@ test("Bird opening has a pickup, sixteenths, and a 12.5-beat span", () => {
   assert.equal(notes[0].interval, -5);
   const sixteenths = notes.filter((note) => note.beats === 0.25);
   assert.equal(sixteenths.length, 2);
-  const integrated = phraseEvents("bo-into-i");
+  const integrated = phraseEvents("bo-honeysuckle");
   assert.ok(integrated[0].beat < 0);
   assert.ok(Math.abs(integrated[0].beat + 0.5) < 1e-9);
   assert.equal(integrated[1].beat, 0);
@@ -122,8 +130,8 @@ test("HSR is six eighths and a quarter rest", () => {
   const notes = lickNoteElements(lickById("hsr"));
   assert.deepEqual(notes.map((note) => note.interval), [5, 3, -5, -2, 2, 0]);
   assert.ok(notes.every((note) => note.beats === 0.5));
-  assert.equal(phraseSpanBars("hsr-251")[0], 1);
-  assert.deepEqual(phraseSpanBars("hsr-over-v7"), [2]);
+  assert.equal(phraseSpanBars("hsr-honeysuckle")[0], 1);
+  assert.deepEqual(phraseSpanBars("hsr-a-train"), [5, 6]);
 });
 
 test("each lick stays in trombone range across twelve keys at original register", () => {
@@ -166,30 +174,29 @@ test("each lick renders in C, G, B♭ and F♯ with barlines and chord symbols",
       assert.match(landing, /K:/);
     }
   }
-  const emr = landingABC(getKey("A"), "concert", "emr-minor-251", "bass", 0, { showCues: true });
+  const emr = landingABC(getKey("G"), "concert", "emr-autumn-leaves-a", "bass", 0, { showCues: true });
   assert.match(emr, /HERE/);
   assert.match(emr, /Get ready/);
-  const gts = landingABC(getKey("G"), "concert", "gts-turnaround", "bass", 0, { showCues: true });
+  const gts = landingABC(getKey("Bb"), "concert", "gts-oleo", "bass", 0, { showCues: true });
   assert.match(gts, /HERE/);
-  const hsrV = landingABC(getKey("C"), "concert", "hsr-over-v7", "bass", 0, { showCues: true });
+  const hsrV = landingABC(getKey("C"), "concert", "hsr-a-train", "bass", 0, { showCues: true });
   assert.match(hsrV, /HERE/);
   assert.match(hsrV, /Get ready/);
 });
 
 test("integrate placements put the lick on the briefed bars", () => {
-  assert.deepEqual(phraseSpanBars("emr-minor-251"), [2, 3]);
-  assert.deepEqual(phraseSpanBars("emr-autumn-leaves"), [6, 7]);
-  assert.deepEqual(phraseSpanBars("gts-turnaround"), [1, 2, 3]);
-  assert.deepEqual(phraseSpanBars("gts-rhythm"), [3, 4, 5]);
-  assert.deepEqual(phraseSpanBars("bo-into-i"), [1, 2, 3]);
-  assert.deepEqual(phraseSpanBars("bo-blues"), [1, 2, 3]);
-  assert.deepEqual(phraseSpanBars("hsr-251"), [1]);
-  assert.deepEqual(phraseSpanBars("hsr-over-v7"), [2]);
-  const a = chorusChords(getKey("A"), "concert", "emr-minor-251").map((chord) => chord.name);
-  assert.deepEqual(a.slice(0, 4), ["Bø7", "E7♭9", "Am7", "Am7"]);
-  const gBlues = chorusChords(getKey("G"), "concert", "bo-blues").map((chord) => chord.name);
-  assert.equal(gBlues[0], "G7");
-  assert.equal(gBlues[1], "C7");
+  assert.deepEqual(phraseSpanBars("emr-autumn-leaves-a"), [2, 3]);
+  assert.deepEqual(phraseSpanBars("emr-blue-bossa"), [6, 7, 14, 15]);
+  assert.deepEqual(phraseSpanBars("gts-oleo"), [3, 4, 5, 7, 8]);
+  assert.deepEqual(phraseSpanBars("gts-jones"), [5, 6, 7]);
+  assert.deepEqual(phraseSpanBars("bo-rhythm"), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(phraseSpanBars("hsr-honeysuckle"), [1, 3]);
+  assert.deepEqual(phraseSpanBars("hsr-a-train"), [5, 6]);
+  const leaves = chorusChords(getKey("G"), "concert", "emr-autumn-leaves-a").map((chord) => chord.name);
+  assert.deepEqual(leaves, ["Aø7", "D7♭13", "Gm6", "Gm6"]);
+  const blues = chorusChords(getKey("F"), "concert", "bo-billies").map((chord) => chord.name);
+  assert.equal(blues[0], "F7");
+  assert.equal(blues[1], "B♭7");
 });
 
 test("grading treats a tie as one note and still grades a pickup", () => {
@@ -202,11 +209,11 @@ test("grading treats a tie as one note and still grades a pickup", () => {
   const emrMiss = gradeSession(emr, synthTrack(emrExpected.slice(0, 3)));
   assert.equal(emrMiss.passed, false);
 
-  const bo = jumpToCard(createSession({ lessonId: "bo-integrate-into-i", startKeyId: "G" }), "quiz");
+  const bo = jumpToCard(createSession({ lessonId: "bo-integrate-honeysuckle", startKeyId: "F" }), "quiz");
   const boExpected = expectedNotesFor(bo);
   assert.ok(boExpected[0].startBeat < 0);
   assert.equal(boExpected[0].bar, 1);
-  const boNotes = phraseNotes(getKey("G"), "concert", "bo-into-i");
+  const boNotes = phraseNotes(getKey("F"), "concert", "bo-honeysuckle");
   assert.deepEqual(boExpected.map((note) => note.midi), boNotes.map((note) => note.concertMidi));
   const boPass = gradeSession(bo, synthTrack(boExpected));
   assert.equal(boPass.passed, true);
@@ -268,7 +275,7 @@ test("saved CMAR mastery survives and new lessons start empty", () => {
   assert.equal(next.medal, "bronze");
   assert.deepEqual(lessonPassedKeys(next, "emr-learn"), []);
   assert.equal(moduleMastery(next, "emr").medal, "none");
-  const afterEmr = recordQuizPass(recordQuizPass(next, "emr-learn", "A"), "emr-integrate-minor-251", "A");
+  const afterEmr = recordQuizPass(recordQuizPass(next, "emr-learn", "A"), "emr-integrate-autumn-leaves", "A");
   assert.equal(isKeyMastered(afterEmr, "A", "emr"), true);
   assert.equal(isKeyMastered(afterEmr, "A", "cmar"), false);
   assert.equal(moduleMastery(afterEmr, "cmar").medal, "bronze");
@@ -294,8 +301,8 @@ test("Start bubble walks the five-module path in order", () => {
 
 test("sleeve colors rotate so neighboring modules do not share an edge color", () => {
   const colors = MODULES.flatMap((module) => module.lessons.map((lesson) => lesson.sleeve));
-  for (let i = 2; i < colors.length - 1; i += 3) {
-    assert.notEqual(colors[i], colors[i + 1]);
+  for (let i = 0; i < colors.length - 1; i += 1) {
+    assert.notEqual(colors[i], colors[i + 1], `${i} ${colors[i]} ${colors[i + 1]}`);
   }
 });
 
@@ -306,4 +313,225 @@ test("learn defaults follow each lick’s home key", () => {
   assert.equal(prefs.lessons["gts-learn"].startKeyId, "G");
   assert.equal(prefs.lessons["bo-learn"].startKeyId, "G");
   assert.equal(prefs.lessons["hsr-learn"].startKeyId, "C");
+});
+
+const EXCERPTS = [
+  {
+    id: "cmar-blue-bossa",
+    bars: 8,
+    spots: [1, 3, 7],
+    key: "C",
+    chords: ["Cm7", "Cm7", "Fm7", "Fm7", "Dø7", "G7♭9", "Cm7", "Cm7"],
+    source: "Blue Bossa",
+  },
+  {
+    id: "cmar-fly-me",
+    bars: 8,
+    spots: [1, 2, 5, 8],
+    key: "C",
+    chords: ["Am7", "Dm7", "G7", "Cmaj7", "Fmaj7", "Bø7", "E7♭9", "Am7", "A7"],
+    source: "Fly Me to the Moon",
+  },
+  {
+    id: "cmar-summertime",
+    bars: 8,
+    spots: [1, 3, 5],
+    key: "A",
+    chords: ["Am7", "Bø7", "E7♭13", "Am7", "A7♭9", "Dm7", "F7", "Bø7", "E7♭13"],
+    source: "Summertime",
+  },
+  {
+    id: "cmar-cry-me",
+    bars: 4,
+    spots: [1, 3],
+    key: "Eb",
+    chords: ["Cm", "Cm♭6", "Cm6", "Cm7", "Fm7", "B♭7", "E♭maj7", "G7♭9"],
+    source: "Cry Me a River",
+  },
+  {
+    id: "emr-autumn-leaves-a",
+    bars: 4,
+    spots: [2],
+    key: "G",
+    chords: ["Aø7", "D7♭13", "Gm6", "Gm6"],
+    source: "Autumn Leaves",
+  },
+  {
+    id: "emr-blue-bossa",
+    bars: 16,
+    spots: [6, 14],
+    key: "C",
+    chords: [
+      "Cm7", "Cm7", "Fm7", "Fm7", "Dø7", "G7♭9", "Cm7", "Cm7",
+      "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dø7", "G7♭9", "Cm7", "Dø7", "G7♭9",
+    ],
+    source: "Blue Bossa",
+  },
+  {
+    id: "emr-softly",
+    bars: 9,
+    spots: [2, 4, 6, 8],
+    key: "C",
+    chords: [
+      "Cm7", "Dø7", "G7♭9", "Cm7", "Dø7", "G7♭9",
+      "Cm7", "Dø7", "G7♭9", "Cm7", "Dø7", "G7♭9", "Cm7",
+    ],
+    source: "Softly, As in a Morning Sunrise",
+  },
+  {
+    id: "emr-fly-me",
+    bars: 4,
+    spots: [3],
+    key: "C",
+    chords: ["Fmaj7", "Bø7", "E7♭9", "Am7", "A7"],
+    source: "Fly Me to the Moon",
+  },
+  {
+    id: "gts-oleo",
+    bars: 8,
+    spots: [3, 7],
+    key: "Bb",
+    chords: [
+      "B♭maj7", "G7", "Cm7", "F7", "Dm7", "G7", "Cm7", "F7",
+      "Fm7", "B♭7", "E♭7", "A♭7", "Cm7", "F7", "B♭6",
+    ],
+    source: "Oleo",
+  },
+  {
+    id: "gts-jones",
+    bars: 8,
+    spots: [5],
+    key: "F",
+    chords: [
+      "Fmaj7", "B♭7", "Am7", "D7", "Gm7", "C7",
+      "Am7", "D7", "Gm7", "C7", "F6", "Gm7", "C7",
+    ],
+    source: "Have You Met Miss Jones?",
+  },
+  {
+    id: "gts-misty",
+    bars: 9,
+    spots: [2, 7],
+    key: "Eb",
+    chords: [
+      "E♭maj7", "B♭m7", "E♭7", "A♭maj7", "A♭m7", "D♭7",
+      "E♭maj7", "Cm7", "Fm7", "B♭7", "Gm7", "C7", "Fm7", "B♭7", "E♭6",
+    ],
+    source: "Misty",
+  },
+  {
+    id: "bo-billies",
+    bars: 12,
+    spots: [1, 7],
+    key: "F",
+    chords: [
+      "F7", "B♭7", "F7", "Cm7", "F7", "B♭7", "B°7", "F7",
+      "Am7", "D7", "Gm7", "C7", "F7", "D7", "Gm7", "C7",
+    ],
+    source: "Billie's Bounce",
+  },
+  {
+    id: "bo-rhythm",
+    bars: 8,
+    spots: [1, 5],
+    key: "Bb",
+    chords: ["D7", "D7", "G7", "G7", "C7", "C7", "F7", "F7"],
+    source: "I Got Rhythm",
+  },
+  {
+    id: "bo-honeysuckle",
+    bars: 8,
+    spots: [1, 5],
+    key: "F",
+    chords: ["F7", "F7", "B♭6", "B♭6", "G7", "G7", "C7", "C7"],
+    source: "Honeysuckle Rose",
+  },
+  {
+    id: "hsr-honeysuckle",
+    bars: 5,
+    spots: [1, 3],
+    key: "F",
+    chords: ["Gm7", "C7", "Gm7", "C7", "Gm7", "C7", "Gm7", "C7", "F6", "F7/A"],
+    source: "Honeysuckle Rose",
+  },
+  {
+    id: "hsr-a-train",
+    bars: 8,
+    spots: [5, 6],
+    key: "C",
+    chords: ["C6", "C6", "D7♯11", "D7♯11", "Dm7", "G7", "C6", "Dm7", "G7"],
+    source: "Take the A Train",
+  },
+  {
+    id: "hsr-satin",
+    bars: 8,
+    spots: [1, 3, 5, 6],
+    key: "C",
+    chords: [
+      "Dm7", "G7", "Dm7", "G7", "Em7", "A7", "Em7", "A7",
+      "Am7", "D7", "A♭m7", "D♭7", "Cmaj7", "Cmaj7",
+    ],
+    source: "Satin Doll",
+  },
+  {
+    id: "hsr-attya",
+    bars: 5,
+    spots: [1, 2, 3],
+    key: "Ab",
+    chords: ["Fm7", "B♭m7", "E♭7", "A♭maj7", "D♭maj7"],
+    source: "All the Things You Are",
+  },
+];
+
+test("standards excerpts match bar counts, spot bars, and iReal source lines", () => {
+  assert.equal(EXCERPTS.length, 18);
+  assert.equal(fragmentBeats("gts-half"), 4);
+  assert.equal(fragmentBeats("gts-half", { withResolution: true }), 6);
+  assert.equal(fragmentBeats("bo-first"), 4.5);
+  assert.equal(fragmentBeats("bo-second"), 6);
+  assert.equal(fragmentBeats("hsr-altered"), 4);
+  for (const excerpt of EXCERPTS) {
+    const app = applicationById(excerpt.id);
+    const form = formById(app.formId);
+    assert.equal(form.bars.length, excerpt.bars, excerpt.id);
+    assert.equal(formBeatsFor(excerpt.id), excerpt.bars * 4, excerpt.id);
+    assert.deepEqual(spotsFor(excerpt.id).map((spot) => spot.bar), excerpt.spots, excerpt.id);
+    assert.match(form.source, new RegExp(excerpt.source.replace(/[?]/g, "\\?")));
+    assert.match(form.source, /iReal Pro Jazz 1460/);
+    if (excerpt.chords) {
+      assert.deepEqual(
+        chorusChords(getKey(excerpt.key), "concert", excerpt.id).map((chord) => chord.name),
+        excerpt.chords,
+        excerpt.id,
+      );
+    }
+  }
+});
+
+test("each excerpt keeps every note in trombone range across twelve keys", () => {
+  for (const excerpt of EXCERPTS) {
+    for (const keyId of TWELVE_KEY_IDS) {
+      const notes = phraseNotes(getKey(keyId), "concert", excerpt.id);
+      assert.ok(notes.length > 0, excerpt.id);
+      const min = Math.min(...notes.map((note) => note.concertMidi));
+      const max = Math.max(...notes.map((note) => note.concertMidi));
+      assert.ok(min >= TROMBONE_LOW_MIDI - 4, `${excerpt.id} ${keyId} low ${min}`);
+      assert.ok(max <= TROMBONE_HIGH_MIDI, `${excerpt.id} ${keyId} high ${max}`);
+    }
+  }
+});
+
+test("a multi-spot lesson passes only when every spot passes", () => {
+  const session = jumpToCard(createSession({
+    lessonId: "cmar-integrate-blue-bossa",
+    startKeyId: "C",
+  }), "quiz");
+  const expected = expectedNotesFor(session);
+  const spots = [...new Set(expected.map((note) => note.spotIndex))];
+  assert.equal(spots.length, 3);
+  assert.equal(gradeSession(session, synthTrack(expected)).passed, true);
+  const firstSpot = expected.filter((note) => note.spotIndex === 0);
+  const onlyFirst = gradeSession(session, synthTrack(firstSpot));
+  assert.equal(onlyFirst.passed, false);
+  assert.equal(onlyFirst.spots.filter((spot) => spot.passed).length, 1);
 });

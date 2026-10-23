@@ -107,7 +107,7 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
     context: lesson.context,
     caption: sleeveCaption(lesson.context, passedCount),
     sleeve: lesson.sleeve,
-    align: PATH_ALIGNS[index] ?? "center",
+    align: PATH_ALIGNS[index % PATH_ALIGNS.length],
     recommended: lesson.id === recommendedId,
     complete: passedCount >= 12,
     passedCount,
@@ -575,15 +575,16 @@ export function sessionChartCopy(session) {
   );
   const formName = ctx.formTitle ?? "the form";
   if (lesson.kind === "learn") {
-    if (card === "learn") return { title: ctx.lickName ?? "The lick", meta: `${ctx.cellName} · hear it` };
-    if (card === "play") return { title: "Your turn on the cell", meta: `${ctx.cellName} · with notation` };
+    const noun = ctx.noun ?? "lick";
+    if (card === "learn") return { title: ctx.lickName ?? "The lick", meta: `${ctx.tuneName} · hear it` };
+    if (card === "play") return { title: `Your turn on the ${noun}`, meta: `${ctx.tuneName} · with notation` };
     if (card === "listen") {
       return {
         title: session.listenStage === "echo" ? "Play it back by ear" : "Listen, then play it back",
-        meta: ctx.cellName,
+        meta: ctx.tuneName,
       };
     }
-    return { title: "From memory", meta: ctx.cellName };
+    return { title: "From memory", meta: ctx.tuneName };
   }
   if (card === "learn") return { title: "Hear it in the changes", meta: `${formName} · ${ctx.tuneName}` };
   if (card === "play") return { title: "Play it in the form", meta: ctx.placement };
@@ -608,11 +609,12 @@ export function sessionCue(session, snap = {}) {
   if (playing) return livePrompt(practiceStateFor(session), snap);
 
   if (lesson.kind === "learn") {
-    if (card === "learn") return `Hear the cell in ${ctx.cellName}.`;
-    if (card === "play") return "Play the cell. The staff is there if you need it.";
+    const noun = ctx.noun ?? "lick";
+    if (card === "learn") return `Hear the ${noun} in ${ctx.tuneName}.`;
+    if (card === "play") return `Play the ${noun}. The staff is there if you need it.`;
     if (card === "listen") {
       return session.listenStage === "echo"
-        ? "Your turn. Play the cell by ear."
+        ? `Your turn. Play the ${noun} by ear.`
         : "Listen first. The staff stays hidden.";
     }
     return "Cold recall. No staff, no model.";
