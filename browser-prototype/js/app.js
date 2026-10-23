@@ -853,7 +853,8 @@ function abcRenderOptions(layout, staffwidth, scale) {
     responsive: "resize",
     stretchlast: false,
     jazzchords: true,
-    format,
+    maxshrink: 0.55,
+    format: { ...format, maxshrink: 0.55 },
     wrap: layout.wrap ? { ...layout.wrap, staffwidth: width } : undefined,
   };
 }

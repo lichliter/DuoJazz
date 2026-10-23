@@ -220,11 +220,14 @@ test("recommended start is the first lesson not yet 12/12", () => {
   };
   assert.equal(recommendedLessonId(firstComplete), "integrate-minor-home");
 
-  const cmarComplete = {
+  const autumnComplete = {
     "learn-lick": TWELVE_KEY_IDS,
     "integrate-minor-home": TWELVE_KEY_IDS,
     "integrate-altered-dominant": TWELVE_KEY_IDS,
   };
+  assert.equal(recommendedLessonId(autumnComplete), "cmar-integrate-blue-bossa");
+
+  const cmarComplete = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.equal(recommendedLessonId(cmarComplete), "emr-learn");
 
   const allComplete = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
@@ -312,21 +315,28 @@ test("Listen and Quiz expose a listening-state copy for the feedback area", () =
   assert.equal(listenStateCopy(createSession({ lessonId: "learn-lick" })), null);
 });
 
-test("lessons stay unlocked and the module has three paths", () => {
+test("lessons stay unlocked and the module has 25 records", () => {
   assert.equal(MODULES.length, 5);
   assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.id), [
     "learn-lick",
     "integrate-minor-home",
     "integrate-altered-dominant",
+    "cmar-integrate-blue-bossa",
+    "cmar-integrate-fly-me",
+    "cmar-integrate-summertime",
+    "cmar-integrate-cry-me",
   ]);
-  assert.equal(LESSONS.length, 15);
+  assert.deepEqual(MODULES.map((module) => module.lessons.length), [7, 5, 4, 4, 5]);
+  assert.equal(LESSONS.length, 25);
   assert.equal(TWELVE_KEY_IDS.length, 12);
 });
 
 test("module home path zig-zags record sleeves and never locks a lesson", () => {
   assert.deepEqual(PATH_ALIGNS, ["left", "center", "right"]);
   assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
-  assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.sleeve), ["amber", "teal", "oxblood"]);
+  assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.sleeve), [
+    "amber", "teal", "oxblood", "amber", "teal", "oxblood", "amber",
+  ]);
   assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve).slice(0, 3), ["amber", "teal", "oxblood"]);
   assert.equal(lessonSleeve("learn-lick"), "amber");
   assert.equal(lessonSleeve("integrate-minor-home"), "teal");
@@ -338,9 +348,11 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
     "learn-lick": ["G", "C", "F"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   });
-  assert.equal(nodes.length, 3);
-  assert.deepEqual(nodes.map((node) => node.align), ["left", "center", "right"]);
-  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 15);
+  assert.equal(nodes.length, 7);
+  assert.deepEqual(nodes.map((node) => node.align), [
+    "left", "center", "right", "left", "center", "right", "left",
+  ]);
+  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 25);
   assert.equal(nodes[0].recommended, true);
   assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
@@ -365,11 +377,7 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(firstDone[2].recommended, false);
   assert.equal(firstDone[2].passedCount, 3);
 
-  const cmarKeys = {
-    "learn-lick": TWELVE_KEY_IDS,
-    "integrate-minor-home": TWELVE_KEY_IDS,
-    "integrate-altered-dominant": TWELVE_KEY_IDS,
-  };
+  const cmarKeys = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   const allCmar = modulePathNodes(MODULES[0], defaultPrefs(), cmarKeys);
   assert.equal(allCmar.every((node) => node.complete === true), true);
   assert.equal(allCmar.every((node) => node.recommended === false), true);
