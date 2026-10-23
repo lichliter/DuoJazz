@@ -5,7 +5,9 @@ import { leaksTargetBar } from "./lesson.js";
 import { PATH_SLOT_PCTS } from "./path-trail.js";
 import {
   LESSONS,
+  MODULES,
   PATH_ALIGNS,
+  modulePathNodes,
   TWELVE_KEY_IDS,
   lessonPathNode,
   lessonPathNodes,
@@ -218,11 +220,14 @@ test("recommended start is the first lesson not yet 12/12", () => {
   };
   assert.equal(recommendedLessonId(firstComplete), "integrate-minor-home");
 
-  const allComplete = {
+  const cmarComplete = {
     "learn-lick": TWELVE_KEY_IDS,
     "integrate-minor-home": TWELVE_KEY_IDS,
     "integrate-altered-dominant": TWELVE_KEY_IDS,
   };
+  assert.equal(recommendedLessonId(cmarComplete), "emr-learn");
+
+  const allComplete = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.equal(recommendedLessonId(allComplete), null);
 });
 
@@ -308,30 +313,34 @@ test("Listen and Quiz expose a listening-state copy for the feedback area", () =
 });
 
 test("lessons stay unlocked and the module has three paths", () => {
-  assert.deepEqual(LESSONS.map((lesson) => lesson.id), [
+  assert.equal(MODULES.length, 5);
+  assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.id), [
     "learn-lick",
     "integrate-minor-home",
     "integrate-altered-dominant",
   ]);
+  assert.equal(LESSONS.length, 15);
   assert.equal(TWELVE_KEY_IDS.length, 12);
 });
 
 test("module home path zig-zags record sleeves and never locks a lesson", () => {
   assert.deepEqual(PATH_ALIGNS, ["left", "center", "right"]);
   assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
-  assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve), ["amber", "teal", "oxblood"]);
+  assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.sleeve), ["amber", "teal", "oxblood"]);
+  assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve).slice(0, 3), ["amber", "teal", "oxblood"]);
   assert.equal(lessonSleeve("learn-lick"), "amber");
   assert.equal(lessonSleeve("integrate-minor-home"), "teal");
   assert.equal(lessonSleeve("integrate-altered-dominant"), "oxblood");
   assert.equal(LESSONS[1].context, "Autumn Leaves · bar 7");
   assert.equal(LESSONS[2].context, "Over D7 · bar 6");
 
-  const nodes = lessonPathNodes(defaultPrefs(), {
+  const nodes = modulePathNodes(MODULES[0], defaultPrefs(), {
     "learn-lick": ["G", "C", "F"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   });
   assert.equal(nodes.length, 3);
   assert.deepEqual(nodes.map((node) => node.align), ["left", "center", "right"]);
+  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 15);
   assert.equal(nodes[0].recommended, true);
   assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
@@ -344,7 +353,7 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(nodes[2].recommended, false);
   assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
 
-  const firstDone = lessonPathNodes(defaultPrefs(), {
+  const firstDone = modulePathNodes(MODULES[0], defaultPrefs(), {
     "learn-lick": TWELVE_KEY_IDS,
     "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
     "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
@@ -356,13 +365,16 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(firstDone[2].recommended, false);
   assert.equal(firstDone[2].passedCount, 3);
 
-  const allDone = lessonPathNodes(defaultPrefs(), {
+  const cmarKeys = {
     "learn-lick": TWELVE_KEY_IDS,
     "integrate-minor-home": TWELVE_KEY_IDS,
     "integrate-altered-dominant": TWELVE_KEY_IDS,
-  });
-  assert.equal(allDone.every((node) => node.recommended === false), true);
-  assert.equal(allDone.every((node) => node.complete === true), true);
+  };
+  const allCmar = modulePathNodes(MODULES[0], defaultPrefs(), cmarKeys);
+  assert.equal(allCmar.every((node) => node.complete === true), true);
+  assert.equal(allCmar.every((node) => node.recommended === false), true);
+  const across = lessonPathNodes(defaultPrefs(), cmarKeys);
+  assert.equal(across.find((node) => node.recommended)?.id, "emr-learn");
 });
 
 test("vinyl tier follows keys-passed thresholds", () => {
