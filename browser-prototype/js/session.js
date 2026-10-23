@@ -139,7 +139,7 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
 }
 
 export function lessonPathNodes(prefs, lessonKeys = {}) {
-  const recommendedId = recommendedLessonId(prefs);
+  const recommendedId = recommendedLessonId(lessonKeys);
   return LESSONS.map((lesson, index) => lessonPathNode(lesson, index, {
     recommendedId,
     passedKeys: lessonKeys[lesson.id] ?? [],
@@ -266,10 +266,15 @@ export function normalizePrefs(raw) {
   return merged;
 }
 
-export function recommendedLessonId(prefs) {
-  const progress = normalizePrefs(prefs).progress;
-  const unfinished = LESSONS.find((lesson) => !progress[lesson.id]?.started);
-  return unfinished?.id ?? LESSONS[0].id;
+/**
+ * First lesson in order that is not yet 12/12. Null when every lesson is complete.
+ */
+export function recommendedLessonId(lessonKeys = {}) {
+  const unfinished = LESSONS.find((lesson) => {
+    const passed = [...new Set(lessonKeys[lesson.id] ?? [])];
+    return passed.length < 12;
+  });
+  return unfinished?.id ?? null;
 }
 
 export function currentCard(session) {

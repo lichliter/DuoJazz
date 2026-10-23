@@ -73,8 +73,7 @@ const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
 let prefs = loadPrefs();
 let mastery = loadMastery();
-let prefsSetup = recommendedLessonId(prefs);
-let setupLessonId = prefsSetup;
+let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
 let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
 let lastTune = null;
@@ -312,6 +311,12 @@ function goContinue() {
   applySession(completeCard(session, result));
 }
 
+function keysByLesson(current = mastery) {
+  return Object.fromEntries(
+    LESSONS.map((lesson) => [lesson.id, lessonPassedKeys(current, lesson.id)]),
+  );
+}
+
 function renderHome() {
   const count = mastery.masteredKeys.length;
   const medal = count ? mastery.medal : "none";
@@ -330,10 +335,7 @@ function renderHome() {
   if (els.medalNote) {
     els.medalNote.textContent = `${count} of 12 keys mastered`;
   }
-  const lessonKeys = Object.fromEntries(
-    LESSONS.map((lesson) => [lesson.id, lessonPassedKeys(mastery, lesson.id)]),
-  );
-  const nodes = lessonPathNodes(prefs, lessonKeys);
+  const nodes = lessonPathNodes(prefs, keysByLesson(mastery));
   els.lessonList.replaceChildren(...nodes.map((node) => sleeveButton(node)), moreLicksSoon());
   requestAnimationFrame(paintPathTrail);
 }
@@ -426,13 +428,6 @@ function sleeveButton(node) {
   const stage = document.createElement("span");
   stage.className = "sleeve-stage";
   stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
-  if (node.complete) {
-    const badge = document.createElement("span");
-    badge.className = "check-badge";
-    badge.textContent = "✓";
-    badge.setAttribute("aria-hidden", "true");
-    stage.querySelector(".sleeve")?.append(badge);
-  }
   btn.append(stage);
 
   const context = document.createElement("span");
