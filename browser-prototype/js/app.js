@@ -313,7 +313,7 @@ function renderHome() {
   if (els.medalBadge) els.medalBadge.dataset.medal = medal;
   if (els.medalCount) els.medalCount.textContent = `${count}/12`;
   if (els.medalMark) {
-    els.medalMark.textContent = count ? displayMedal(mastery.medal) : "No medal";
+    els.medalMark.textContent = count ? displayMedal(mastery.medal) : "None";
   }
   if (els.medalNote) {
     els.medalNote.textContent = `${count} of 12 keys mastered`;
