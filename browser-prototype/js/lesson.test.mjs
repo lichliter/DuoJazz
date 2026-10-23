@@ -20,6 +20,8 @@ import {
   notationLayout,
   nextEngravingWidth,
   nextStaffsep,
+  estimatedStaffHeightCss,
+  chorusStaffFit,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -322,12 +324,13 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   });
   assert.equal(stand.barsPerLine, 4);
   assert.equal(stand.wrap, null);
-  assert.equal(stand.fitToPaper, true);
-  assert.equal(stand.fillAxis, "staffsep");
-  assert.ok(stand.staffsep >= 120);
-  assert.ok(stand.engravingRatio >= 0.55);
-  assert.ok(stand.engravingRatio <= 0.7);
-  assert.ok(stand.fillRatio >= 0.55);
+  assert.equal(stand.fitToPaper, false);
+  assert.equal(stand.fillAxis, "fit");
+  assert.ok(stand.staffsep <= 60);
+  assert.ok(stand.staffsep >= 40);
+  assert.equal(stand.minStaffPx, 83);
+  assert.ok(stand.fillRatio >= 0.7);
+  assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
   const landscape = notationLayout({
     staffWidth: 980,
     viewportWidth: 1366,
@@ -336,8 +339,9 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(landscape.barsPerLine, 4);
-  assert.equal(landscape.fitToPaper, true);
-  assert.ok(landscape.scale > 1.08);
+  assert.equal(landscape.wrap, null);
+  assert.equal(landscape.fitToPaper, false);
+  assert.ok(landscape.scale >= 1.08);
   const desktop = notationLayout({
     staffWidth: 760,
     viewportWidth: 1280,
@@ -346,6 +350,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(desktop.barsPerLine, 4);
+  assert.equal(desktop.wrap, null);
   const narrow = notationLayout({
     staffWidth: 340,
     viewportWidth: 375,
@@ -354,8 +359,60 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(narrow.barsPerLine, 2);
+  assert.equal(narrow.wrap, null);
   assert.ok(narrow.scale < 1);
   assert.equal(narrow.fitToPaper, false);
+});
+
+test("chorus layout keeps bars intact: 4 per line wherever width allows, never abcjs wrap", () => {
+  const chorusBars = 8;
+  const cases = [
+    { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 4 },
+    { name: "iPad landscape 1366×1024", staffWidth: 980, viewportWidth: 1366, viewportHeight: 1024, barsPerLine: 4 },
+    { name: "laptop 1280×720", staffWidth: 760, viewportWidth: 1280, viewportHeight: 720, barsPerLine: 4 },
+    { name: "phone 375×812", staffWidth: 340, viewportWidth: 375, viewportHeight: 812, barsPerLine: 2 },
+  ];
+  for (const viewport of cases) {
+    const layout = notationLayout({
+      staffWidth: viewport.staffWidth,
+      viewportWidth: viewport.viewportWidth,
+      viewportHeight: viewport.viewportHeight,
+      showPhraseNotation: false,
+      showEntranceCues: true,
+    });
+    assert.equal(layout.barsPerLine, viewport.barsPerLine, viewport.name);
+    assert.equal(layout.wrap, null, viewport.name);
+    assert.equal(
+      Math.ceil(chorusBars / layout.barsPerLine),
+      viewport.barsPerLine === 4 ? 2 : 4,
+      viewport.name,
+    );
+  }
+});
+
+test("focused two-bar cell fills width with a staff taller than 90px on iPad portrait", () => {
+  const phrase = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: true,
+    showEntranceCues: false,
+  });
+  assert.equal(phrase.barsPerLine, 2);
+  assert.equal(phrase.fitToPaper, true);
+  assert.equal(phrase.fillAxis, "width");
+  assert.ok(estimatedStaffHeightCss(phrase, 980) >= 90);
+  assert.ok(phrase.chordCssPx >= 28);
+});
+
+test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {
+  const fit = chorusStaffFit(466, 31.7, 984, 80);
+  assert.equal(fit.scaleX < 1, true);
+  assert.ok(fit.scaleX >= 0.74);
+  const staffCss = 31.7 * (984 / fit.viewBoxWidth);
+  assert.ok(staffCss >= 80);
+  const alreadyTall = chorusStaffFit(300, 40, 980, 80);
+  assert.equal(alreadyTall.scaleX, 1);
 });
 
 test("narrower engraving width upscales the staff to fill unused paper", () => {
