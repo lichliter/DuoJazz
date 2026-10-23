@@ -695,6 +695,43 @@ export function slashABC(concertKey, displayMode, applicationId = DEFAULT_APPLIC
   return abc;
 }
 
+/** Slashes in the form, lick notation only on the landing bar, optional Get ready / HERE. */
+export function landingABC(
+  concertKey,
+  displayMode,
+  applicationId = DEFAULT_APPLICATION_ID,
+  clef = DEFAULT_CLEF,
+  melodyRegister = DEFAULT_MELODY_REGISTER,
+  options = {},
+) {
+  const shownKey = displayKey(concertKey, displayMode);
+  const chords = chorusChords(concertKey, displayMode);
+  const app = applicationById(applicationId);
+  const notes = phraseEvents(applicationId);
+  const showCues = Boolean(options.showCues);
+  const barsPerLine = options.barsPerLine ?? 4;
+  const slashPitch = clef === "treble" ? "B2" : "D,2";
+  let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(shownKey, clef)}\n`;
+  for (let bar = 0; bar < BARS_PER_CHORUS; bar += 1) {
+    const chord = chords[bar];
+    abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode)}"`;
+    abc += barCueAnnotation(bar + 1, applicationId, showCues);
+    if (bar + 1 === app.phraseStartBar) {
+      const barStart = bar * BEATS_PER_BAR;
+      abc += notesToAbc(
+        notes.map((note) => ({ ...note, beat: note.beat - barStart })),
+        concertKey,
+        displayMode,
+        melodyRegister,
+      );
+    } else {
+      abc += `${slashPitch} ${slashPitch} ${slashPitch} ${slashPitch}`;
+    }
+    abc += barAdvance(bar, barsPerLine);
+  }
+  return abc;
+}
+
 export function chorusStaffABC({
   concertKey,
   displayMode,
@@ -707,6 +744,9 @@ export function chorusStaffABC({
 }) {
   if (mode === "slash") {
     return slashABC(concertKey, displayMode, applicationId, clef, { showCues, barsPerLine });
+  }
+  if (mode === "landing") {
+    return landingABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues, barsPerLine });
   }
   return modelABC(concertKey, displayMode, applicationId, clef, melodyRegister, { showCues, barsPerLine });
 }

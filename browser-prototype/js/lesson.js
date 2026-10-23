@@ -416,53 +416,60 @@ export function notationLayout({
   const short = viewportHeight <= 860;
 
   if (showPhraseNotation) {
+    // Two-bar cell is the only music on Learn/Play. Engrave narrow so
+    // abcjs responsive:resize fills the card width with a large staff.
     return {
-      scale: stand ? 1.95 : landscape ? 1.5 : narrow ? 1.18 : 1.35,
-      paddingtop: stand ? 8 : 8,
-      paddingbottom: stand ? 16 : 12,
+      scale: stand ? 2.7 : landscape ? 1.85 : narrow ? 1.22 : 1.45,
+      paddingtop: stand ? 16 : 10,
+      paddingbottom: stand ? 24 : 14,
       wrap: null,
       barsPerLine: 2,
-      chordfont: stand ? "Noto Sans 22" : "Noto Sans 15",
-      annotationfont: stand ? "Source Sans 3 16" : "Source Sans 3 13",
-      annotationPx: stand ? 18 : 15,
-      slashStroke: stand ? 2.6 : 1.85,
-      engravingRatio: stand ? 0.44 : landscape ? 0.72 : 1,
-      minEngravingRatio: 0.4,
-      fitToPaper: false,
+      chordfont: stand ? "Noto Sans 30" : landscape ? "Noto Sans 20" : "Noto Sans 16",
+      annotationfont: stand ? "Source Sans 3 22" : "Source Sans 3 14",
+      annotationPx: stand ? 26 : landscape ? 18 : 15,
+      chordCssPx: stand ? 36 : landscape ? 24 : 16,
+      slashStroke: stand ? 3.4 : 2,
+      engravingRatio: stand ? 0.28 : landscape ? 0.48 : 1,
+      minEngravingRatio: stand ? 0.16 : 0.32,
+      fitToPaper: stand || landscape,
       fillAxis: "width",
       staffsep: stand ? 70 : 55,
-      fillRatio: 0.92,
+      fillRatio: stand ? 0.58 : 0.9,
     };
   }
 
-  // iPad portrait and landscape: 4 bars per line (8-bar chart → 2 systems).
-  // Narrow phone widths may use fewer so measures stay readable.
+  // Keep bars intact at every viewport: 4 per line wherever the paper is
+  // wide enough (8-bar chart → 2 systems). Phones drop to 2 bars per line.
+  // Never hand wrapping to abcjs — its wrap engine will split 4+3+1 at
+  // laptop widths (1280×720), dumping bar 8 onto a third system and mixing
+  // landing notes with slashes. Line breaks come only from ABC newlines.
   const barsPerLine = narrow ? 2 : 4;
 
   return {
-    scale: stand ? 1.5 : landscape ? 1.28 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 12 : landscape ? 10 : 28,
-    paddingbottom: showEntranceCues ? (stand ? 32 : landscape ? 22 : 32) : (stand ? 16 : 12),
-    wrap: stand || landscape || narrow
-      ? null
-      : {
-        minSpacing: 1.45,
-        maxSpacing: 2.6,
-        preferredMeasuresPerLine: barsPerLine,
-      },
+    scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
+    paddingtop: stand ? 6 : landscape ? 8 : short ? 8 : 16,
+    paddingbottom: showEntranceCues
+      ? (stand ? 16 : landscape ? 16 : short ? 14 : 20)
+      : (stand ? 10 : 12),
+    wrap: null,
     barsPerLine,
-    // Size 4 bars to the width. Fill leftover portrait height with staffsep,
-    // not by shrinking engraving (that collides 4 bars).
-    engravingRatio: stand ? 0.56 : landscape ? 0.64 : 1,
-    minEngravingRatio: stand ? 0.52 : landscape ? 0.58 : 0.4,
-    chordfont: stand ? "Noto Sans 22" : landscape ? "Noto Sans 18" : "Noto Sans 15",
-    annotationfont: stand ? "Source Sans 3 17" : "Source Sans 3 13",
-    annotationPx: stand ? 18 : 15,
-    slashStroke: stand ? 2.6 : 1.85,
-    fitToPaper: stand || landscape,
-    fillAxis: stand ? "staffsep" : "width",
-    staffsep: stand ? 140 : landscape ? 72 : 55,
-    fillRatio: stand ? 0.58 : landscape ? 0.94 : 0.92,
+    // Four bars will not engrave narrower than ~450px, so width-only upscale
+    // caps the 5-line staff around 67px. After render we scaleX the chorus
+    // to hit minStaffPx. staffsep stays about one system height so the two
+    // 4-bar systems group, with the feedback panel below them.
+    engravingRatio: stand ? 0.5 : landscape ? 0.7 : 1,
+    minEngravingRatio: stand ? 0.48 : landscape ? 0.55 : 0.4,
+    chordfont: stand ? "Noto Sans 16" : landscape ? "Noto Sans 15" : "Noto Sans 15",
+    annotationfont: stand ? "Source Sans 3 13" : "Source Sans 3 12",
+    annotationPx: stand ? 22 : landscape ? 16 : 15,
+    chordCssPx: stand ? 26 : landscape ? 18 : 15,
+    slashStroke: stand ? 1.45 : 1.85,
+    fitToPaper: false,
+    fillAxis: "fit",
+    staffsep: stand ? 52 : landscape ? 48 : 46,
+    maxStaffsep: stand ? 60 : 56,
+    fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
+    minStaffPx: stand ? 83 : landscape ? 64 : 0,
   };
 }
 
@@ -471,21 +478,50 @@ export function notationLayout({
  * A narrower engraving is upscaled to the paper, so the staff gets larger.
  */
 export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, containerWidth, minWidth = 400) {
-  if (!targetHeight || targetHeight < 160 || !renderedHeight || !staffwidth) return staffwidth;
+  if (!targetHeight || targetHeight < 120 || !renderedHeight || !staffwidth) return staffwidth;
   const ratio = renderedHeight / targetHeight;
   if (ratio >= 0.95 && ratio <= 1.03) return staffwidth;
   const next = Math.round(staffwidth * ratio * 0.98);
-  const floor = Math.max(400, minWidth);
+  const floor = Math.max(200, minWidth);
   const maxWidth = Math.max(floor, containerWidth - 24);
   return Math.min(maxWidth, Math.max(floor, next));
 }
 
 /** Grow or shrink system separation so two 4-bar systems fill leftover paper height. */
-export function nextStaffsep(staffsep, renderedHeight, targetHeight) {
-  if (!targetHeight || targetHeight < 160 || !renderedHeight || !staffsep) return staffsep;
+export function nextStaffsep(staffsep, renderedHeight, targetHeight, maxSep = 380) {
+  if (!targetHeight || targetHeight < 120 || !renderedHeight || !staffsep) return staffsep;
   const ratio = targetHeight / renderedHeight;
   if (ratio >= 0.95 && ratio <= 1.05) return staffsep;
-  return Math.min(280, Math.max(72, Math.round(staffsep * ratio)));
+  return Math.min(maxSep, Math.max(72, Math.round(staffsep * ratio)));
+}
+
+/**
+ * Approximate 5-line staff height in CSS px after abcjs `responsive: "resize"`.
+ * abcjs staffspace is 10 user units; four spaces → 40px at scale 1 before upscale.
+ */
+export function estimatedStaffHeightCss(layout, containerWidth) {
+  const width = Math.max(1, containerWidth);
+  const engravingWidth = Math.max(1, width * (layout.engravingRatio ?? 1));
+  // `responsive: "resize"` sizes from viewBox width, not the abcjs scale option.
+  const natural = 40 * (width / engravingWidth);
+  return Math.max(natural, layout.minStaffPx ?? 0);
+}
+
+/**
+ * abcjs will not pack four bars into a viewBox narrow enough for an 80px staff
+ * on a 1024px iPad. Scale the engraving in X so the 5-line staff hits minStaffPx
+ * without wrapping to extra systems.
+ */
+export function chorusStaffFit(viewBoxWidth, staffUserHeight, paperWidth, minStaffPx = 80) {
+  if (!viewBoxWidth || !staffUserHeight || !paperWidth || !minStaffPx) {
+    return { scaleX: 1, viewBoxWidth };
+  }
+  const neededWidth = staffUserHeight * paperWidth / minStaffPx;
+  if (neededWidth >= viewBoxWidth * 0.98) {
+    return { scaleX: 1, viewBoxWidth };
+  }
+  const scaleX = Math.max(0.74, neededWidth / viewBoxWidth);
+  return { scaleX, viewBoxWidth: viewBoxWidth * scaleX };
 }
 
 export { CELL_BEATS, CHORUS_BEATS, phraseStartBeat, APPLICATIONS, LEGACY_STEPS };

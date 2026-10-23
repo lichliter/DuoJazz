@@ -131,6 +131,8 @@ body {
 .workspace {
   flex: 1 1 0%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -316,18 +318,32 @@ h1 {
   letter-spacing: -0.12em;
 }
 
-.abcjs-container svg {
+.abcjs-container,
+.paper .abcjs-container,
+.paper svg {
+  width: 100% !important;
   max-width: 100%;
-  height: auto;
+  height: auto !important;
+  display: block;
+}
+
+.paper .abcjs-container {
+  overflow: visible;
 }
 
 .hidden-answer {
   margin: 0;
-  min-height: 9rem;
+  flex: 1 1 auto;
+  min-height: 12rem;
   display: grid;
   place-items: center;
   color: #6d5c4d;
-  font-size: 1rem;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: clamp(1.4rem, 3.2vw, 2.4rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2rem 1rem;
 }
 
 .play {
@@ -469,6 +485,8 @@ h1 {
 
 dialog {
   width: min(36rem, calc(100% - 1.5rem));
+  max-height: calc(100dvh - 1.5rem);
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -719,7 +737,9 @@ input[type="checkbox"] {
     flex: 1 1 auto;
     min-height: 24rem;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
     padding: 0.28rem 0.45rem 0.2rem;
   }
 
@@ -765,6 +785,7 @@ input[type="checkbox"] {
     flex: 1 1 auto;
     min-height: 12rem;
     display: flex;
+    flex-direction: column;
     align-items: stretch;
     padding: 0.35rem 0.35rem 0.2rem;
   }
@@ -783,6 +804,557 @@ input[type="checkbox"] {
     min-height: 0;
     flex: 0 0 0;
     overflow: hidden;
+  }
+}
+
+.screen {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.app-shell[data-screen="home"] #screen-home,
+.app-shell[data-screen="session"] #screen-session,
+.app-shell[data-screen="wrapup"] #screen-wrapup {
+  display: flex;
+}
+
+#screen-home {
+  gap: 0.7rem;
+}
+
+#screen-home > * {
+  flex-shrink: 0;
+}
+
+.app-shell[data-screen="session"] .masthead,
+.app-shell[data-screen="wrapup"] .masthead {
+  display: none;
+}
+
+.app-shell[data-screen="session"] .workspace,
+.app-shell[data-screen="wrapup"] .workspace {
+  width: min(1080px, calc(100% - 1.5rem));
+}
+
+.key-strip {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.28rem;
+  margin: 0.35rem 0 0.9rem;
+}
+
+.key-dot {
+  min-height: var(--tap);
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.2rem 0;
+  text-align: center;
+}
+
+.key-dot.mastered {
+  background: var(--selected);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.lesson-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.lesson-row {
+  min-height: var(--tap);
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  font: inherit;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.lesson-row .n {
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+}
+
+.lesson-row .title {
+  font-weight: 700;
+}
+
+.lesson-row .sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lesson-row[data-recommended="true"] {
+  background: var(--selected);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+.lesson-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.lesson-meta .count {
+  color: var(--text);
+}
+
+.medal-slot {
+  min-height: 1.1em;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
+.medal-panel {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  min-height: 4.4rem;
+  overflow: visible;
+}
+
+.medal-mark {
+  margin: 0;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-size: 1.05rem;
+}
+
+.medal-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.listen-state {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin: 0.35rem 0.85rem 0.55rem;
+  padding: 0.85rem 1rem;
+  min-height: 5.25rem;
+  background: rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(43, 33, 26, 0.16);
+}
+
+.listen-kicker {
+  margin: 0 0 0.2rem;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--selected);
+  font-size: 0.92rem;
+}
+
+.listen-detail {
+  margin: 0;
+  color: #6d5c4d;
+  font-size: 1.05rem;
+}
+
+.session-screen {
+  gap: 0.35rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.session-top {
+  display: flex;
+  align-items: center;
+  align-content: flex-start;
+  gap: 0.55rem;
+  min-height: var(--tap);
+  flex: 0 0 auto;
+}
+
+.icon-btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.session-progress {
+  flex: 1 1 auto;
+  height: 8px;
+  background: var(--surface);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.session-progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+}
+
+.session-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.session-meta.muted {
+  color: var(--muted);
+}
+
+.card-badge {
+  margin: 0;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.session-octave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.session-octave .chip {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
+.session-screen .chart-card {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: visible;
+}
+
+.session-screen .chart-foot {
+  margin-top: auto;
+}
+
+.session-screen .paper-wrap {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.session-screen .paper {
+  width: 100%;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.session-screen .paper .abcjs-container {
+  margin-block: 0;
+}
+
+.session-screen .cue-line {
+  margin: 0.2rem 0 0;
+}
+
+.session-screen .meter {
+  margin: 0 0 0.35rem;
+}
+
+.grade-line,
+.mic-line {
+  margin: 0 0 0.35rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  min-height: 1.3em;
+}
+
+.grade-line {
+  color: var(--accent);
+}
+
+.wrapup-screen {
+  justify-content: center;
+  gap: 0.9rem;
+  padding-bottom: 1.5rem;
+  width: min(42rem, 100%);
+  margin-inline: auto;
+}
+
+.wrapup-screen h1 {
+  max-width: none;
+  font-size: clamp(2.2rem, 5.4vw, 3.6rem);
+}
+
+.result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.result-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--surface);
+  min-height: 3.4rem;
+  align-items: center;
+  padding: 0.7rem 1.05rem;
+  font-size: 1.08rem;
+}
+
+.result-list .outcome {
+  color: var(--accent);
+  font-weight: 700;
+  text-align: right;
+}
+
+.wrapup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.wrapup-actions .play {
+  width: 100%;
+  grid-column: 1 / -1;
+  min-height: 3.4rem;
+  font-size: 1.15rem;
+}
+
+.wrapup-actions .chip,
+.wrapup-actions .text-link {
+  width: 100%;
+  justify-self: stretch;
+  text-align: center;
+}
+
+.setup-form .setup-actions {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+
+.play.start {
+  width: 100%;
+  min-height: 3.2rem;
+  font-size: 1.05rem;
+}
+
+.mic-status {
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.8rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .key-strip {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .medal-panel {
+    min-height: 0;
+    padding: 0.7rem 0.85rem;
+  }
+
+  .medal-copy {
+    font-size: 0.88rem;
+  }
+
+  .key-strip-wrap .panel-label {
+    margin-top: 0.1rem;
+  }
+
+  .session-top {
+    flex-wrap: wrap;
+    row-gap: 0.45rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .session-progress {
+    order: 5;
+    flex: 1 1 100%;
+    margin: 0.05rem 0 0.2rem;
+  }
+
+  .card-badge {
+    margin-top: 0.1rem;
+  }
+}
+
+/* Primary target: iPad Pro 12.9" portrait, 1024×1366 CSS px. */
+@media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
+  #screen-home,
+  #screen-session,
+  #screen-wrapup {
+    min-height: 0;
+  }
+
+  #screen-home {
+    justify-content: space-between;
+    gap: 1.1rem;
+    padding: 0.6rem 0 1.1rem;
+  }
+
+  #screen-home h1 {
+    font-size: clamp(3.1rem, 6.6vw, 4.4rem);
+    max-width: 11ch;
+    line-height: 0.92;
+  }
+
+  #screen-home .tune {
+    font-size: 1.25rem;
+  }
+
+  #screen-home .tune span {
+    font-size: 1.05rem;
+  }
+
+  #screen-home .kicker,
+  #screen-home .panel-label {
+    font-size: 0.86rem;
+  }
+
+  .medal-panel {
+    min-height: 5.4rem;
+    padding: 1.05rem 1.15rem;
+  }
+
+  .medal-mark {
+    font-size: 1.35rem;
+  }
+
+  .medal-copy {
+    font-size: 1.08rem;
+  }
+
+  .key-strip {
+    gap: 0.4rem;
+    margin: 0.55rem 0 0.2rem;
+  }
+
+  .key-dot {
+    min-height: 3.35rem;
+    font-size: 1.08rem;
+  }
+
+  .lesson-list {
+    gap: 0.55rem;
+  }
+
+  .lesson-row {
+    padding: 1.15rem 1.2rem;
+    min-height: 6.4rem;
+  }
+
+  .lesson-row .n {
+    font-size: 0.92rem;
+  }
+
+  .lesson-row .title {
+    font-size: 1.42rem;
+  }
+
+  .lesson-row .sub {
+    font-size: 1.05rem;
+  }
+
+  .lesson-meta {
+    font-size: 1.02rem;
+  }
+
+  .session-screen .paper-wrap {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .session-screen .cue-line {
+    font-size: 1.18rem;
+  }
+
+  .session-screen .card-badge {
+    font-size: 1.05rem;
+  }
+
+  .session-screen .chart-head p:first-child {
+    font-size: 1.2rem;
+  }
+
+  .hidden-answer {
+    font-size: clamp(1.8rem, 3.8vw, 2.8rem);
+    min-height: 8rem;
+  }
+
+  .listen-state {
+    min-height: 6.2rem;
+    padding: 1.05rem 1.15rem;
+  }
+
+  .listen-kicker {
+    font-size: 1.08rem;
+  }
+
+  .listen-detail {
+    font-size: 1.18rem;
+  }
+
+  .wrapup-screen {
+    gap: 1.15rem;
+    padding-top: 1.5rem;
+  }
+
+  .wrapup-screen h1 {
+    font-size: clamp(3rem, 6vw, 4.1rem);
+  }
+
+  .result-list li {
+    min-height: 3.8rem;
+    font-size: 1.2rem;
+    padding: 0.85rem 1.2rem;
+  }
+
+  .wrapup-actions .play {
+    min-height: 3.7rem;
+    font-size: 1.28rem;
   }
 }
 
