@@ -335,9 +335,13 @@ test("lessons stay unlocked and the module has 25 records", () => {
     "cmar-integrate-fly-me",
     "cmar-integrate-summertime",
     "cmar-integrate-cry-me",
+    "tune-four-cmar",
+    "tune-autumn-leaves-cmar",
+    "tune-so-what-cmar",
   ]);
-  assert.deepEqual(MODULES.map((module) => module.lessons.length), [7, 5, 4, 4, 5]);
-  assert.equal(LESSONS.length, 25);
+  assert.deepEqual(MODULES.map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
+  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 25);
+  assert.equal(LESSONS.length, 57);
   assert.equal(TWELVE_KEY_IDS.length, 12);
 });
 
@@ -346,6 +350,7 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
   assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.sleeve), [
     "amber", "teal", "oxblood", "amber", "teal", "oxblood", "amber",
+    "teal", "oxblood", "amber",
   ]);
   assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve).slice(0, 3), ["amber", "teal", "oxblood"]);
   assert.equal(lessonSleeve("learn-lick"), "amber");
@@ -358,11 +363,12 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
     "learn-lick": ["G", "C", "F"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   });
-  assert.equal(nodes.length, 7);
+  assert.equal(nodes.length, 10);
   assert.deepEqual(nodes.map((node) => node.align), [
     "left", "center", "right", "left", "center", "right", "left",
+    "center", "right", "left",
   ]);
-  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 25);
+  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 49);
   assert.equal(nodes[0].recommended, true);
   assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
@@ -551,8 +557,8 @@ test("quick view lists every module and record", () => {
     "learn-lick": ["G", "C"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   }, { cmar: ["G"], emr: [] });
-  assert.equal(data.length, 5);
-  assert.deepEqual(data.map((module) => module.id), MODULES.map((module) => module.id));
+  assert.equal(data.length, 6);
+  assert.deepEqual(data.map((module) => module.id), [...MODULES.map((module) => module.id), "tunes"]);
   assert.equal(data.flatMap((module) => module.records).length, LESSONS.length);
   assert.equal(data[0].lickName, "Cry Me a River");
   assert.equal(data[0].keysMastered, 1);
@@ -577,6 +583,7 @@ test("quick view jump targets resolve to the right module or lesson id", () => {
     id: "hsr-integrate-satin",
     moduleId: "hsr",
   });
+  assert.deepEqual(resolveQuickViewJump("tunes"), { type: "module", id: "tunes", targetId: "tunes" });
   assert.equal(resolveQuickViewJump("missing-id"), null);
 });
 

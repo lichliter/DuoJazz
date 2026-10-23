@@ -15,12 +15,14 @@ import {
 import {
   LESSONS,
   MODULES,
+  TUNE_SECTION,
+  TUNE_LESSONS,
   lessonById as registryLesson,
   moduleForLesson,
   moduleById,
 } from "./registry.js";
 
-export { LESSONS, MODULES, moduleForLesson, moduleById };
+export { LESSONS, MODULES, TUNE_SECTION, TUNE_LESSONS, moduleForLesson, moduleById };
 import {
   defaultState,
   presentation,
@@ -113,7 +115,21 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
     passedCount,
     passedKeys: passed,
     vinylTier: tier,
+    group: lesson.group ?? "standards",
+    tuneId: lesson.tuneId ?? null,
   };
+}
+
+export function tunePathNodes(prefs, lessonKeys = {}) {
+  const recommendedId = recommendedLessonId(lessonKeys);
+  return TUNE_SECTION.lessons.map((lesson, index) => lessonPathNode({
+    ...lesson,
+    moduleId: TUNE_SECTION.id,
+    moduleName: TUNE_SECTION.name,
+  }, index, {
+    recommendedId,
+    passedKeys: lessonKeys[lesson.id] ?? [],
+  }));
 }
 
 export function modulePathNodes(module, prefs, lessonKeys = {}) {
@@ -373,6 +389,21 @@ export function persistLessonMelodyRegister(prefs, lessonId, register) {
   return next;
 }
 
+export function lessonsSharingTempo(lessonId) {
+  const lesson = lessonById(lessonId);
+  if (!lesson.tuneId) return [lesson.id];
+  return LESSONS.filter((item) => item.tuneId === lesson.tuneId).map((item) => item.id);
+}
+
+export function persistLessonTempo(prefs, lessonId, tempo) {
+  const next = normalizePrefs(prefs);
+  const bpm = Math.min(160, Math.max(60, Number(tempo) || 96));
+  for (const id of lessonsSharingTempo(lessonId)) {
+    next.lessons[id] = { ...next.lessons[id], tempo: bpm };
+  }
+  return next;
+}
+
 export function completeCard(session, result = {}) {
   const cardId = currentCard(session);
   const cardResults = [
@@ -511,7 +542,7 @@ export function skipRemainingCards(session) {
 }
 
 export function quickViewData(lessonKeys = {}, masteredByModule = {}) {
-  return MODULES.map((module) => {
+  const modules = MODULES.map((module) => {
     const mastered = masteredByModule[module.id];
     const keysMastered = Array.isArray(mastered)
       ? mastered.length
@@ -532,9 +563,30 @@ export function quickViewData(lessonKeys = {}, masteredByModule = {}) {
       })),
     };
   });
+  return [
+    ...modules,
+    {
+      id: TUNE_SECTION.id,
+      number: null,
+      name: TUNE_SECTION.name,
+      lickName: TUNE_SECTION.name,
+      keysMastered: 0,
+      records: tunePathNodes({}, lessonKeys).map((node) => ({
+        id: node.id,
+        number: node.number,
+        title: node.title,
+        coverTitle: node.coverTitle,
+        context: node.context,
+        keysPassed: node.passedCount,
+      })),
+    },
+  ];
 }
 
 export function resolveQuickViewJump(id) {
+  if (id === TUNE_SECTION.id) {
+    return { type: "module", id: TUNE_SECTION.id, targetId: TUNE_SECTION.id };
+  }
   const module = MODULES.find((item) => item.id === id);
   if (module) {
     return { type: "module", id: module.id, targetId: module.id };

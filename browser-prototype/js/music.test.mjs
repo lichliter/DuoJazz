@@ -424,7 +424,7 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   const abc = landingABC(g, "concert", "minor-home", "bass", 0, { showCues: true });
   assert.match(abc, /K:Gmin clef=bass/);
   assert.match(abc, /"Cm7"/);
-  assert.match(abc, /D,2 D,2 D,2 D,2/);
+  assert.match(abc, /z2z2z2z2/);
   assert.match(abc, /"Gm6""_HERE"/);
   assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
   assert.match(abc, /"D7""_Get ready"/);
@@ -588,5 +588,6 @@ test("empty bars draw a whole rest instead of a blank spacer", () => {
   assert.match(learn, /z8/);
   assert.doesNotMatch(learn, /\bx8\b/);
   const emr = landingABC(getKey("G"), "concert", "emr-autumn-leaves-a");
-  assert.match(emr, /z4/);
+  assert.match(emr, /z2z2z2z2/);
+  assert.doesNotMatch(emr, /\bx8\b/);
 });
