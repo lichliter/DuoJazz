@@ -18,6 +18,7 @@ import {
   recordQuizPass,
   isKeyMastered,
   lessonPassedCount,
+  lessonPassedKeys,
   normalizeMastery,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
@@ -236,6 +237,7 @@ test("mastery is monotonic across keys and ignores later misses", () => {
   const frozen = normalizeMastery(mastery);
   assert.equal(frozen.medal, "silver");
   assert.equal(lessonPassedCount(frozen, "learn-lick"), 6);
+  assert.deepEqual(lessonPassedKeys(frozen, "learn-lick"), keys);
   assert.equal(currentKeyId(learnQuiz()), "G");
 });
 
