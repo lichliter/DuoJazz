@@ -75,10 +75,27 @@ test("exit x clears the origin sleeve caption toward the next stop", () => {
   assert.equal(onward > ipadSleeves[1].captionRight, true);
 });
 
-test("constructed trail never crosses lesson captions or key-dot rows", () => {
+test("constructed trail never crosses lesson captions", () => {
   const segs = assertCaptionsClear(ipadSleeves, endCap);
   assert.equal(sleeveTrailPath(ipadSleeves, endCap).startsWith("M "), true);
   assert.equal(segs.some((seg) => seg.type === "C"), true);
+});
+
+test("trail still clears short captions after the key-dot row is gone", () => {
+  const short = ipadSleeves.map((sleeve) => ({
+    ...sleeve,
+    captionTop: sleeve.cy + sleeve.halfH + 6,
+    captionBottom: sleeve.cy + sleeve.halfH + 22,
+  }));
+  assertCaptionsClear(short, endCap);
+  assertCaptionsClear(
+    phoneSleeves.map((sleeve) => ({
+      ...sleeve,
+      captionTop: sleeve.cy + sleeve.halfH + 4,
+      captionBottom: sleeve.cy + sleeve.halfH + 20,
+    })),
+    phoneEnd,
+  );
 });
 
 test("stacked phone trail skips captions instead of running through them", () => {
