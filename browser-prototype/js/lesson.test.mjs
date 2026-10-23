@@ -339,6 +339,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(landscape.barsPerLine, 4);
+  assert.equal(landscape.wrap, null);
   assert.equal(landscape.fitToPaper, false);
   assert.ok(landscape.scale >= 1.08);
   const desktop = notationLayout({
@@ -349,6 +350,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(desktop.barsPerLine, 4);
+  assert.equal(desktop.wrap, null);
   const narrow = notationLayout({
     staffWidth: 340,
     viewportWidth: 375,
@@ -357,8 +359,35 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showEntranceCues: true,
   });
   assert.equal(narrow.barsPerLine, 2);
+  assert.equal(narrow.wrap, null);
   assert.ok(narrow.scale < 1);
   assert.equal(narrow.fitToPaper, false);
+});
+
+test("chorus layout keeps bars intact: 4 per line wherever width allows, never abcjs wrap", () => {
+  const chorusBars = 8;
+  const cases = [
+    { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 4 },
+    { name: "iPad landscape 1366×1024", staffWidth: 980, viewportWidth: 1366, viewportHeight: 1024, barsPerLine: 4 },
+    { name: "laptop 1280×720", staffWidth: 760, viewportWidth: 1280, viewportHeight: 720, barsPerLine: 4 },
+    { name: "phone 375×812", staffWidth: 340, viewportWidth: 375, viewportHeight: 812, barsPerLine: 2 },
+  ];
+  for (const viewport of cases) {
+    const layout = notationLayout({
+      staffWidth: viewport.staffWidth,
+      viewportWidth: viewport.viewportWidth,
+      viewportHeight: viewport.viewportHeight,
+      showPhraseNotation: false,
+      showEntranceCues: true,
+    });
+    assert.equal(layout.barsPerLine, viewport.barsPerLine, viewport.name);
+    assert.equal(layout.wrap, null, viewport.name);
+    assert.equal(
+      Math.ceil(chorusBars / layout.barsPerLine),
+      viewport.barsPerLine === 4 ? 2 : 4,
+      viewport.name,
+    );
+  }
 });
 
 test("focused two-bar cell fills width with a staff taller than 90px on iPad portrait", () => {

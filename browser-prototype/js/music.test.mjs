@@ -487,6 +487,19 @@ test("stand-portrait ABC breaks every two bars without changing pitches", () => 
   assert.equal(slashTwo.split("\n").filter((line) => line.includes("|")).length, 4);
 });
 
+test("four-bar landing systems keep bars 7–8 together with the lick on the door bar", () => {
+  const abc = landingABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true, barsPerLine: 4 });
+  const systems = abc.split("\n").filter((line) => line.includes("|"));
+  assert.equal(systems.length, 2);
+  assert.match(systems[0], /"Cm7"/);
+  assert.doesNotMatch(systems[0], /HERE|A,G,/);
+  assert.match(systems[1], /"D7""_Get ready"/);
+  assert.match(systems[1], /"Gm6""_HERE"/);
+  assert.match(systems[1], /A,G, D,2 _B,,A,, G,,2/);
+  assert.match(systems[1], /"Gm6""_HERE".+"Gm6"/);
+  assert.doesNotMatch(systems[1], /\n/);
+});
+
 test("ABC chord names keep the accidental on the root for jazzchords", () => {
   const g = modelABC(getKey("G"), "concert", "minor-home", "bass");
   assert.match(g, /"B♭maj7"/);
