@@ -76,10 +76,10 @@ test("each lick’s sounding beats match the workbook cell", () => {
   assert.equal(lickTotalBeats(lickById("hsr")), 4);
   assert.equal(learnBeatsFor("minor-home"), 8);
   assert.equal(formBeatsFor("minor-home"), 32);
-  assert.equal(formBeatsFor("emr-autumn-leaves-a"), 16);
+  assert.equal(formBeatsFor("emr-autumn-leaves-a"), 32);
   assert.equal(formBeatsFor("gts-oleo"), 32);
   assert.equal(formBeatsFor("bo-rhythm"), 32);
-  assert.equal(formBeatsFor("hsr-honeysuckle"), 20);
+  assert.equal(formBeatsFor("hsr-honeysuckle"), 32);
 });
 
 test("CMAR is a quarter, triplet, two eighths, and a rest", () => {
@@ -185,7 +185,7 @@ test("each lick renders in C, G, B♭ and F♯ with barlines and chord symbols",
 });
 
 test("integrate placements put the lick on the briefed bars", () => {
-  assert.deepEqual(phraseSpanBars("emr-autumn-leaves-a"), [2, 3]);
+  assert.deepEqual(phraseSpanBars("emr-autumn-leaves-a"), [6, 7]);
   assert.deepEqual(phraseSpanBars("emr-blue-bossa"), [6, 7, 14, 15]);
   assert.deepEqual(phraseSpanBars("gts-oleo"), [3, 4, 5, 7, 8]);
   assert.deepEqual(phraseSpanBars("gts-jones"), [5, 6, 7]);
@@ -193,7 +193,7 @@ test("integrate placements put the lick on the briefed bars", () => {
   assert.deepEqual(phraseSpanBars("hsr-honeysuckle"), [1, 3]);
   assert.deepEqual(phraseSpanBars("hsr-a-train"), [5, 6]);
   const leaves = chorusChords(getKey("G"), "concert", "emr-autumn-leaves-a").map((chord) => chord.name);
-  assert.deepEqual(leaves, ["Aø7", "D7♭13", "Gm6", "Gm6"]);
+  assert.deepEqual(leaves, ["Cm7", "F7", "B♭maj7", "E♭maj7", "Aø7", "D7♭13", "Gm6", "Gm6"]);
   const blues = chorusChords(getKey("F"), "concert", "bo-billies").map((chord) => chord.name);
   assert.equal(blues[0], "F7");
   assert.equal(blues[1], "B♭7");
@@ -342,18 +342,21 @@ const EXCERPTS = [
   },
   {
     id: "cmar-cry-me",
-    bars: 4,
+    bars: 8,
     spots: [1, 3],
     key: "Eb",
-    chords: ["Cm", "Cm♭6", "Cm6", "Cm7", "Fm7", "B♭7", "E♭maj7", "G7♭9"],
+    chords: [
+      "Cm", "Cm♭6", "Cm6", "Cm7", "Fm7", "B♭7", "E♭maj7", "G7♭9",
+      "Gø7", "C7♭9", "F9", "Fm7", "B♭7sus", "E♭6", "G7♭13",
+    ],
     source: "Cry Me a River",
   },
   {
     id: "emr-autumn-leaves-a",
-    bars: 4,
-    spots: [2],
+    bars: 8,
+    spots: [6],
     key: "G",
-    chords: ["Aø7", "D7♭13", "Gm6", "Gm6"],
+    chords: ["Cm7", "F7", "B♭maj7", "E♭maj7", "Aø7", "D7♭13", "Gm6", "Gm6"],
     source: "Autumn Leaves",
   },
   {
@@ -380,10 +383,10 @@ const EXCERPTS = [
   },
   {
     id: "emr-fly-me",
-    bars: 4,
-    spots: [3],
+    bars: 8,
+    spots: [7],
     key: "C",
-    chords: ["Fmaj7", "Bø7", "E7♭9", "Am7", "A7"],
+    chords: ["Am7", "Dm7", "G7", "Cmaj7", "Fmaj7", "Bø7", "E7♭9", "Am7", "A7"],
     source: "Fly Me to the Moon",
   },
   {
@@ -448,10 +451,13 @@ const EXCERPTS = [
   },
   {
     id: "hsr-honeysuckle",
-    bars: 5,
+    bars: 8,
     spots: [1, 3],
     key: "F",
-    chords: ["Gm7", "C7", "Gm7", "C7", "Gm7", "C7", "Gm7", "C7", "F6", "F7/A"],
+    chords: [
+      "Gm7", "C7", "Gm7", "C7", "Gm7", "C7", "Gm7", "C7", "F6", "F7/A",
+      "B♭6", "C7", "F6", "B♭7", "Am7", "D7",
+    ],
     source: "Honeysuckle Rose",
   },
   {
@@ -475,10 +481,10 @@ const EXCERPTS = [
   },
   {
     id: "hsr-attya",
-    bars: 5,
+    bars: 8,
     spots: [1, 2, 3],
     key: "Ab",
-    chords: ["Fm7", "B♭m7", "E♭7", "A♭maj7", "D♭maj7"],
+    chords: ["Fm7", "B♭m7", "E♭7", "A♭maj7", "D♭maj7", "Dm7", "G7", "Cmaj7", "Cmaj7"],
     source: "All the Things You Are",
   },
 ];
@@ -493,6 +499,7 @@ test("standards excerpts match bar counts, spot bars, and iReal source lines", (
   for (const excerpt of EXCERPTS) {
     const app = applicationById(excerpt.id);
     const form = formById(app.formId);
+    assert.ok(excerpt.bars >= 8, `${excerpt.id} length rule`);
     assert.equal(form.bars.length, excerpt.bars, excerpt.id);
     assert.equal(formBeatsFor(excerpt.id), excerpt.bars * 4, excerpt.id);
     assert.deepEqual(spotsFor(excerpt.id).map((spot) => spot.bar), excerpt.spots, excerpt.id);
@@ -505,6 +512,32 @@ test("standards excerpts match bar counts, spot bars, and iReal source lines", (
         excerpt.id,
       );
     }
+  }
+});
+
+test("every Integrate excerpt is at least 8 bars with 4-bar systems", () => {
+  const grown = [
+    ["cmar-integrate-cry-me", "Cry Me a River · A, bars 1–8"],
+    ["emr-integrate-autumn-leaves", "Autumn Leaves · A, bars 1–8"],
+    ["emr-integrate-fly-me", "Fly Me to the Moon · A, bars 1–8"],
+    ["hsr-integrate-honeysuckle", "Honeysuckle Rose · A, bars 1–8"],
+    ["hsr-integrate-attya", "All the Things You Are · A, bars 1–8"],
+  ];
+  assert.deepEqual(grown.map(([id]) => id), grown.map(([id]) => LESSONS.find((lesson) => lesson.id === id)?.id));
+  for (const [id, context] of grown) {
+    const lesson = LESSONS.find((item) => item.id === id);
+    assert.equal(lesson.context, context, id);
+  }
+  for (const lesson of LESSONS.filter((item) => item.kind === "integrate")) {
+    const form = formById(applicationById(lesson.applicationId).formId);
+    assert.ok(form.bars.length >= 8, lesson.id);
+  }
+  const grownApps = ["cmar-cry-me", "emr-autumn-leaves-a", "emr-fly-me", "hsr-honeysuckle", "hsr-attya"];
+  for (const excerpt of EXCERPTS.filter((item) => grownApps.includes(item.id))) {
+    const abc = landingABC(getKey(excerpt.key), "concert", excerpt.id, "bass", 0, { barsPerLine: 4 });
+    const musicLines = abc.split("\n").filter((line) => /\|/.test(line));
+    assert.equal(musicLines.length, 2, excerpt.id);
+    assert.match(musicLines[0], /\|.*\|.*\|.*\|/, excerpt.id);
   }
 });
 
