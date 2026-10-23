@@ -981,15 +981,7 @@ function renderSlashBeats(durationBeats, clef, eighthUnit = true) {
   return Array.from({ length: n }, () => glyph).join(" ");
 }
 
-function sliceHasSoundingNotes(items, start, end) {
-  return items.some((item) => (
-    item.type === "note"
-    && item.beat < end - 1e-6
-    && item.beat + item.beats > start + 1e-6
-  ));
-}
-
-function formContext(concertKey, displayMode, applicationId, melodyRegister, clef = DEFAULT_CLEF) {
+function formContext(concertKey, displayMode, applicationId, melodyRegister) {
   const quality = applicationKeyQuality(applicationId);
   const shownKey = displayKey(concertKey, displayMode, quality);
   return {
@@ -1000,7 +992,6 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister, cle
     octaveBase: octaveForApplication(applicationId, concertKey.pc),
     quality,
     shownKey,
-    clef,
     barState: newBarState(shownKey),
   };
 }
@@ -1032,7 +1023,7 @@ function renderFormAbc({
   barsPerLine = 4,
   isolated = false,
 }) {
-  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
+  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister);
   const form = isolated && mode === "phrase"
     ? formForApplication(applicationId)
     : formForApplication(applicationId);
@@ -1061,9 +1052,7 @@ function renderFormAbc({
     ));
     const useNotes = mode === "model" || mode === "phrase" || mode === "landing";
     if (!barChords.length) {
-      const sounding = sliceHasSoundingNotes(items, barStart, barEnd);
-      if (mode === "landing" && !sounding) abc += renderSlashBeats(4, clef, eighth);
-      else if (useNotes) abc += renderSlice(items, barStart, barEnd, ctx);
+      if (useNotes) abc += renderSlice(items, barStart, barEnd, ctx);
       else abc += renderSlashBeats(4, clef, eighth);
       abc += barAdvance(bar, barCount, barsPerLine);
       continue;
@@ -1075,9 +1064,7 @@ function renderFormAbc({
       abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality, chord.slashIntervalFromTonic, chord.usesFlats)}"`;
       if (index === 0) abc += barCueAnnotation(bar + 1, applicationId, showCues);
       abc += "yy";
-      const sounding = sliceHasSoundingNotes(items, sliceStart, sliceEnd);
-      if (mode === "landing" && !sounding) abc += renderSlashBeats(sliceEnd - sliceStart, clef, eighth);
-      else if (useNotes) abc += renderSlice(items, sliceStart, sliceEnd, ctx);
+      if (useNotes) abc += renderSlice(items, sliceStart, sliceEnd, ctx);
       else abc += renderSlashBeats(sliceEnd - sliceStart, clef, eighth);
     }
     abc += barAdvance(bar, barCount, barsPerLine);
