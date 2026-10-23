@@ -15,9 +15,11 @@ import {
   emptyMastery,
   medalForCount,
   displayMedal,
+  homeMedalMark,
   recordQuizPass,
   isKeyMastered,
   lessonPassedCount,
+  lessonPassedKeys,
   normalizeMastery,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
@@ -208,6 +210,10 @@ test("medal thresholds are bronze 1, silver 6, gold 12", () => {
   assert.equal(medalForCount(12), "gold");
   assert.equal(displayMedal("bronze"), "Bronze");
   assert.equal(displayMedal("none"), "No medal");
+  assert.equal(homeMedalMark(0, "none"), "");
+  assert.equal(homeMedalMark(2, "bronze"), "Bronze");
+  assert.equal(homeMedalMark(6, "silver"), "Silver");
+  assert.equal(homeMedalMark(12, "gold"), "Gold");
 });
 
 test("a key is mastered only after Learn-the-lick quiz and one integration quiz", () => {
@@ -236,6 +242,7 @@ test("mastery is monotonic across keys and ignores later misses", () => {
   const frozen = normalizeMastery(mastery);
   assert.equal(frozen.medal, "silver");
   assert.equal(lessonPassedCount(frozen, "learn-lick"), 6);
+  assert.deepEqual(lessonPassedKeys(frozen, "learn-lick"), keys);
   assert.equal(currentKeyId(learnQuiz()), "G");
 });
 

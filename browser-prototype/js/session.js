@@ -53,32 +53,97 @@ export const CARDS = {
   quiz: { id: "quiz", label: "Quiz", kicker: "QUIZ" },
 };
 
+export const PATH_ALIGNS = ["left", "center", "right"];
+
+/**
+ * Per-lesson vinyl color from keys passed in that lesson.
+ * Black 0, bronze 1–5, silver 6–11, gold 12.
+ */
+export function vinylTier(count) {
+  if (count >= 12) return "gold";
+  if (count >= 6) return "silver";
+  if (count >= 1) return "bronze";
+  return "black";
+}
+
+export function sleeveCaption(context, passedCount) {
+  if (!passedCount) return context;
+  return `${context} · ${passedCount}/12 keys`;
+}
+
 export const LESSONS = [
   {
     id: "learn-lick",
     kind: "learn",
     applicationId: "minor-home",
     title: "Learn the lick",
+    coverTitle: "Learn the lick",
     summary: "Hear, play, and recall the Cry Me a River cell in one key.",
+    context: "The cell in this key",
+    sleeve: "amber",
   },
   {
     id: "integrate-minor-home",
     kind: "integrate",
     applicationId: "minor-home",
     title: "Integrate: minor home",
+    coverTitle: "Minor home",
     summary: "Land the cell on the i6 arrival (bar 7 of Autumn Leaves).",
+    context: "Autumn Leaves · bar 7",
+    sleeve: "teal",
   },
   {
     id: "integrate-altered-dominant",
     kind: "integrate",
     applicationId: "altered-dominant",
     title: "Integrate: altered dominant",
+    coverTitle: "Altered dominant",
     summary: "Bring the same cell in over V7 (bar 6), then resolve.",
+    context: "Over D7 · bar 6",
+    sleeve: "oxblood",
   },
 ];
 
 export function lessonById(id) {
   return LESSONS.find((lesson) => lesson.id === id) ?? LESSONS[0];
+}
+
+export function lessonSleeve(lessonId) {
+  return lessonById(lessonId).sleeve;
+}
+
+/**
+ * Duolingo-style path node for the module home. Visual only — lessons stay unlocked.
+ */
+export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] } = {}) {
+  const passed = [...new Set(passedKeys)];
+  const passedCount = passed.length;
+  const tier = vinylTier(passedCount);
+  return {
+    id: lesson.id,
+    index,
+    number: String(index + 1).padStart(2, "0"),
+    title: lesson.title,
+    coverTitle: lesson.coverTitle,
+    summary: lesson.summary,
+    context: lesson.context,
+    caption: sleeveCaption(lesson.context, passedCount),
+    sleeve: lesson.sleeve,
+    align: PATH_ALIGNS[index] ?? "center",
+    recommended: lesson.id === recommendedId,
+    complete: passedCount >= 12,
+    passedCount,
+    passedKeys: passed,
+    vinylTier: tier,
+  };
+}
+
+export function lessonPathNodes(prefs, lessonKeys = {}) {
+  const recommendedId = recommendedLessonId(lessonKeys);
+  return LESSONS.map((lesson, index) => lessonPathNode(lesson, index, {
+    recommendedId,
+    passedKeys: lessonKeys[lesson.id] ?? [],
+  }));
 }
 
 export function keyModeById(id) {
@@ -201,10 +266,15 @@ export function normalizePrefs(raw) {
   return merged;
 }
 
-export function recommendedLessonId(prefs) {
-  const progress = normalizePrefs(prefs).progress;
-  const unfinished = LESSONS.find((lesson) => !progress[lesson.id]?.started);
-  return unfinished?.id ?? LESSONS[0].id;
+/**
+ * First lesson in order that is not yet 12/12. Null when every lesson is complete.
+ */
+export function recommendedLessonId(lessonKeys = {}) {
+  const unfinished = LESSONS.find((lesson) => {
+    const passed = [...new Set(lessonKeys[lesson.id] ?? [])];
+    return passed.length < 12;
+  });
+  return unfinished?.id ?? null;
 }
 
 export function currentCard(session) {

@@ -12,6 +12,7 @@ node --test js/music.test.mjs js/lesson.test.mjs js/session.test.mjs js/grade.te
 Deep links for screenshots and review:
 
 - `/?screen=home`
+- `/?screen=home&demo=path`
 - `/?screen=setup&lesson=learn-lick`
 - `/?screen=session&lesson=learn-lick&card=learn`
 - `/?screen=session&lesson=integrate-minor-home&card=quiz`
@@ -36,7 +37,7 @@ Application copy (shape, target chord, door) is derived from the current concert
 
 ## Lesson flow
 
-The module is the Cry Me a River cell. Module home shows the lick, a 12-key strip, and three always-open lessons:
+The module is the Cry Me a River cell. Module home is a Duolingo-style winding path of record-sleeve lesson nodes (Learn amber, minor-home teal, altered-dominant oxblood). A terracotta banner shows the lick and medal count. Tapping any sleeve opens setup. Three always-open lessons:
 
 1. **Learn the lick** — isolated cell.
 2. **Integrate: minor home** — land it on the i6 arrival (bar 7).
