@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getKey, scheduleChorus } from "./music.js";
 import { leaksTargetBar } from "./lesson.js";
+import { PATH_SLOT_PCTS } from "./path-trail.js";
 import {
   LESSONS,
   PATH_ALIGNS,
@@ -295,6 +296,7 @@ test("lessons stay unlocked and the module has three paths", () => {
 
 test("module home path zig-zags record sleeves and never locks a lesson", () => {
   assert.deepEqual(PATH_ALIGNS, ["left", "center", "right"]);
+  assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
   assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve), ["amber", "teal", "oxblood"]);
   assert.equal(lessonSleeve("learn-lick"), "amber");
   assert.equal(lessonSleeve("integrate-minor-home"), "teal");

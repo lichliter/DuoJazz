@@ -42,6 +42,11 @@ export function displayMedal(medal) {
   return "No medal";
 }
 
+/** Home badge sub-label. Empty when none so the round badge shows only 0/12. */
+export function homeMedalMark(count, medal) {
+  return count ? displayMedal(medal) : "";
+}
+
 export function isKeyMastered(mastery, keyId) {
   const id = normalizeKeyId(keyId);
   const learn = mastery.lessons["learn-lick"]?.passedKeys.includes(id);

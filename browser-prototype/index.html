@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=57">
+  <link rel="stylesheet" href="./css/styles.css?v=58">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=57"></script>
+  <script type="module" src="./js/app.js?v=58"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -31,14 +31,15 @@
             <h1 id="module-title">Cry Me a River</h1>
             <p class="banner-count" id="medal-note">0 of 12 keys mastered</p>
           </div>
-          <div class="medal-badge" id="medal-badge" data-medal="none" aria-label="Module medal">
+          <div class="medal-badge" id="medal-badge" data-medal="none" aria-label="0 of 12 keys, no medal yet">
             <span class="medal-count" id="medal-count">0/12</span>
-            <span class="medal-mark" id="medal-mark">No medal</span>
+            <span class="medal-mark" id="medal-mark" hidden></span>
           </div>
         </section>
         <section class="lesson-path" aria-label="Lesson path">
-          <svg class="path-trail" viewBox="0 0 400 720" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-            <path d="M88 48 C88 150 200 170 200 268 S312 400 312 520" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 18" />
+          <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
+            <circle data-trail-cap cx="0" cy="0" r="0" fill="currentColor"></circle>
           </svg>
           <div class="path-rail" aria-hidden="true"></div>
           <div class="lesson-list" id="lesson-list"></div>

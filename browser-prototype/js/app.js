@@ -56,12 +56,14 @@ import { GRADED_CARDS, finishCard, gradeSession } from "./grade.js";
 import {
   emptyMastery,
   displayMedal,
+  homeMedalMark,
   loadMastery,
   saveMastery,
   recordQuizPass,
   lessonPassedKeys,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
+import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
 const monitor = new PitchMonitor();
@@ -310,10 +312,17 @@ function goContinue() {
 function renderHome() {
   const count = mastery.masteredKeys.length;
   const medal = count ? mastery.medal : "none";
-  if (els.medalBadge) els.medalBadge.dataset.medal = medal;
+  if (els.medalBadge) {
+    els.medalBadge.dataset.medal = medal;
+    els.medalBadge.setAttribute(
+      "aria-label",
+      count ? `${displayMedal(mastery.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
+    );
+  }
   if (els.medalCount) els.medalCount.textContent = `${count}/12`;
   if (els.medalMark) {
-    els.medalMark.textContent = count ? displayMedal(mastery.medal) : "None";
+    els.medalMark.textContent = homeMedalMark(count, mastery.medal);
+    els.medalMark.hidden = !count;
   }
   if (els.medalNote) {
     els.medalNote.textContent = `${count} of 12 keys mastered`;
@@ -322,7 +331,68 @@ function renderHome() {
     LESSONS.map((lesson) => [lesson.id, lessonPassedKeys(mastery, lesson.id)]),
   );
   const nodes = lessonPathNodes(prefs, lessonKeys);
-  els.lessonList.replaceChildren(...nodes.map((node) => sleeveButton(node)));
+  els.lessonList.replaceChildren(...nodes.map((node) => sleeveButton(node)), moreLicksSoon());
+  requestAnimationFrame(paintPathTrail);
+}
+
+function moreLicksSoon() {
+  const wrap = document.createElement("div");
+  wrap.className = "path-end";
+  wrap.setAttribute("aria-hidden", "true");
+  wrap.innerHTML = `<span class="path-end-sleeve"></span><span class="path-end-label">More licks soon</span>`;
+  return wrap;
+}
+
+function sleeveBoxFromStage(stage, svgRect) {
+  const node = stage.closest(".sleeve-node");
+  const stageRect = stage.getBoundingClientRect();
+  const dots = node?.querySelector(".sleeve-dots")?.getBoundingClientRect();
+  const context = node?.querySelector(".sleeve-context")?.getBoundingClientRect();
+  const captionTop = dots?.top ?? stageRect.bottom;
+  const captionBottom = context?.bottom ?? (dots?.bottom ?? stageRect.bottom);
+  const captionLeft = Math.min(dots?.left ?? stageRect.left, context?.left ?? stageRect.left);
+  const captionRight = Math.max(dots?.right ?? stageRect.right, context?.right ?? stageRect.right);
+  return {
+    cx: stageRect.left + stageRect.width / 2 - svgRect.left,
+    cy: stageRect.top + stageRect.height / 2 - svgRect.top,
+    halfW: stageRect.width / 2,
+    halfH: stageRect.height / 2,
+    captionTop: captionTop - svgRect.top,
+    captionBottom: captionBottom - svgRect.top,
+    captionLeft: captionLeft - svgRect.left,
+    captionRight: captionRight - svgRect.left,
+  };
+}
+
+function paintPathTrail() {
+  const svg = document.querySelector(".path-trail");
+  const path = svg?.querySelector("[data-trail]");
+  const cap = svg?.querySelector("[data-trail-cap]");
+  if (!svg || !path || !els.lessonList) return;
+  const svgRect = svg.getBoundingClientRect();
+  if (svgRect.width < 8 || svgRect.height < 8) {
+    path.setAttribute("d", "");
+    return;
+  }
+  svg.setAttribute("viewBox", `0 0 ${svgRect.width} ${svgRect.height}`);
+  const sleeves = [...els.lessonList.querySelectorAll(".sleeve-node .sleeve-stage")]
+    .map((stage) => sleeveBoxFromStage(stage, svgRect));
+  const endEl = els.lessonList.querySelector(".path-end-sleeve");
+  let end = null;
+  if (endEl) {
+    const rect = endEl.getBoundingClientRect();
+    end = {
+      cx: rect.left + rect.width / 2 - svgRect.left,
+      cy: rect.top + rect.height / 2 - svgRect.top,
+    };
+  }
+  path.setAttribute("d", sleeveTrailPath(sleeves, end));
+  const last = end ?? sleeves.at(-1);
+  if (cap && last) {
+    cap.setAttribute("cx", String(last.cx));
+    cap.setAttribute("cy", String(last.cy));
+    cap.setAttribute("r", "8");
+  }
 }
 
 function sleeveButton(node) {
@@ -1228,7 +1298,16 @@ document.addEventListener("keydown", (event) => {
 
 window.addEventListener("resize", () => {
   if (session?.screen === "session") renderNotation();
+  else paintPathTrail();
 });
+
+const lessonPath = document.querySelector(".lesson-path");
+if (lessonPath && typeof ResizeObserver === "function") {
+  new ResizeObserver(() => paintPathTrail()).observe(lessonPath);
+}
+if (document.fonts?.ready) {
+  document.fonts.ready.then(() => paintPathTrail());
+}
 
 window.__DUOJAZZ__ = {
   getPrefs: () => prefs,
