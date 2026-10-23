@@ -438,21 +438,20 @@ export function notationLayout({
     };
   }
 
-  // iPad portrait and landscape: 4 bars per line (8-bar chart → 2 systems).
-  // Narrow phone widths may use fewer so measures stay readable.
+  // Keep bars intact at every viewport: 4 per line wherever the paper is
+  // wide enough (8-bar chart → 2 systems). Phones drop to 2 bars per line.
+  // Never hand wrapping to abcjs — its wrap engine will split 4+3+1 at
+  // laptop widths (1280×720), dumping bar 8 onto a third system and mixing
+  // landing notes with slashes. Line breaks come only from ABC newlines.
   const barsPerLine = narrow ? 2 : 4;
 
   return {
     scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 6 : landscape ? 8 : 28,
-    paddingbottom: showEntranceCues ? (stand ? 16 : landscape ? 16 : 32) : (stand ? 10 : 12),
-    wrap: stand || landscape || narrow
-      ? null
-      : {
-        minSpacing: 1.45,
-        maxSpacing: 2.6,
-        preferredMeasuresPerLine: barsPerLine,
-      },
+    paddingtop: stand ? 6 : landscape ? 8 : short ? 8 : 16,
+    paddingbottom: showEntranceCues
+      ? (stand ? 16 : landscape ? 16 : short ? 14 : 20)
+      : (stand ? 10 : 12),
+    wrap: null,
     barsPerLine,
     // Four bars will not engrave narrower than ~450px, so width-only upscale
     // caps the 5-line staff around 67px. After render we scaleX the chorus
