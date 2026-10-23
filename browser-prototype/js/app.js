@@ -920,33 +920,6 @@ function clearCueCollisions() {
   }
 }
 
-function barIndexForNote(note, staffs, barsOnStaff) {
-  if (!staffs.length) return 0;
-  const head = note.querySelector(".abcjs-notehead") ?? note;
-  if (typeof head.getBBox !== "function") return 0;
-  const box = head.getBBox();
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  let staffIndex = 0;
-  let best = Infinity;
-  staffs.forEach((staff, index) => {
-    const staffBox = staff.getBBox();
-    const mid = staffBox.y + staffBox.height / 2;
-    const dist = Math.abs(cy - mid);
-    if (dist < best) {
-      best = dist;
-      staffIndex = index;
-    }
-  });
-  const staffBox = staffs[staffIndex].getBBox();
-  const barWidth = staffBox.width / Math.max(1, barsOnStaff);
-  const barInSystem = Math.min(
-    barsOnStaff - 1,
-    Math.max(0, Math.floor((cx - staffBox.x) / barWidth)),
-  );
-  return staffIndex * barsOnStaff + barInSystem;
-}
-
 function elementBox(el) {
   if (!el || typeof el.getBBox !== "function") return null;
   try {
@@ -1013,10 +986,6 @@ function applyRhythmSlashes(keepLandingNotes = false) {
   const svg = els.notation.querySelector("svg");
   if (!svg) return;
   const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
-  const barsOnStaff = lastNotationLayout?.barsPerLine ?? 4;
-  const landingBars = new Set(
-    (lastNotationLayout?.phraseBars ?? [lastNotationLayout?.phraseStartBar ?? 7]).map((bar) => bar - 1),
-  );
   for (const rest of els.notation.querySelectorAll(".abcjs-rest")) {
     const staffBox = nearestStaffBox(rest, staffs);
     if (isSpacerRest(rest, staffBox)) continue;
@@ -1026,15 +995,16 @@ function applyRhythmSlashes(keepLandingNotes = false) {
     hideRestGlyph(rest);
     drawSlashOn(rest, box, staffBox);
   }
-  for (const note of els.notation.querySelectorAll(".abcjs-note")) {
-    const head = note.querySelector(".abcjs-notehead")
-      ?? [...note.querySelectorAll("ellipse, path")].find((node) => !isCueNode(node));
-    if (!head) continue;
-    if (keepLandingNotes && landingBars.has(barIndexForNote(note, staffs, barsOnStaff))) continue;
-    const box = elementBox(head);
-    if (!box) continue;
-    hideNoteGlyphs(note, true);
-    drawSlashOn(note, box, nearestStaffBox(head, staffs) ?? nearestStaffBox(note, staffs));
+  if (!keepLandingNotes) {
+    for (const note of els.notation.querySelectorAll(".abcjs-note")) {
+      const head = note.querySelector(".abcjs-notehead")
+        ?? [...note.querySelectorAll("ellipse, path")].find((node) => !isCueNode(node));
+      if (!head) continue;
+      const box = elementBox(head);
+      if (!box) continue;
+      hideNoteGlyphs(note, true);
+      drawSlashOn(note, box, nearestStaffBox(head, staffs) ?? nearestStaffBox(note, staffs));
+    }
   }
   for (const el of els.notation.querySelectorAll(".abcjs-chord, .abcjs-annotation")) {
     el.style.opacity = "1";
