@@ -492,6 +492,35 @@ export function nextEngravingWidth(staffwidth, renderedHeight, targetHeight, con
   return Math.min(maxWidth, Math.max(floor, next));
 }
 
+/**
+ * Short rhythm slash on the staff midline. Caps size so a rest or spacer bbox
+ * cannot draw a bar-crossing diagonal through the chord symbols.
+ */
+export function slashStrokeBox(glyphBox, staffBox) {
+  const staffH = Math.max(8, staffBox?.height ?? 16);
+  const staffMid = (staffBox?.y ?? 0) + staffH / 2;
+  const span = Math.min(staffH * 0.7, 16);
+  const gw = glyphBox?.width ?? span;
+  const cx = gw > staffH
+    ? (glyphBox?.x ?? 0) + Math.min(gw, staffH) * 0.2
+    : (glyphBox?.x ?? 0) + gw / 2;
+  const halfW = span * 0.42;
+  const halfH = span * 0.48;
+  return {
+    x1: cx - halfW,
+    y1: staffMid + halfH,
+    x2: cx + halfW,
+    y2: staffMid - halfH,
+  };
+}
+
+export function slashFitsStaff(stroke, staffBox, pad = 0.75) {
+  if (!stroke || !staffBox) return false;
+  const top = Math.min(stroke.y1, stroke.y2);
+  const bot = Math.max(stroke.y1, stroke.y2);
+  return top >= staffBox.y - pad && bot <= staffBox.y + staffBox.height + pad;
+}
+
 /** Grow or shrink system separation so two 4-bar systems fill leftover paper height. */
 export function nextStaffsep(staffsep, renderedHeight, targetHeight, maxSep = 380) {
   if (!targetHeight || targetHeight < 120 || !renderedHeight || !staffsep) return staffsep;

@@ -22,6 +22,8 @@ import {
   nextStaffsep,
   estimatedStaffHeightCss,
   chorusStaffFit,
+  slashStrokeBox,
+  slashFitsStaff,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -429,6 +431,19 @@ test("narrower engraving width upscales the staff to fill unused paper", () => {
   assert.equal(nextEngravingWidth(500, 400, 800, 986, 720), 720);
   assert.equal(nextStaffsep(168, 700, 900) > 168, true);
   assert.equal(nextStaffsep(168, 880, 900), 168);
+});
+
+test("slash glyph bounds stay inside the staff even from a huge rest box", () => {
+  const staff = { x: 0, y: 40, width: 400, height: 20 };
+  const hugeRest = { x: 8, y: 0, width: 180, height: 92 };
+  const stroke = slashStrokeBox(hugeRest, staff);
+  assert.equal(slashFitsStaff(stroke, staff), true);
+  assert.ok(Math.abs(stroke.x2 - stroke.x1) < staff.height);
+  assert.ok(Math.abs(stroke.y2 - stroke.y1) <= staff.height + 0.75);
+  const notehead = { x: 24, y: 46, width: 7, height: 6 };
+  const short = slashStrokeBox(notehead, staff);
+  assert.equal(slashFitsStaff(short, staff), true);
+  assert.ok(Math.abs(short.x2 - short.x1) < staff.height);
 });
 
 test("echo cell keeps the pad only; helped slash staff still uses the register", () => {
