@@ -2,9 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getKey, scheduleChorus } from "./music.js";
 import { leaksTargetBar } from "./lesson.js";
+import { PATH_SLOT_PCTS } from "./path-trail.js";
 import {
   LESSONS,
+  PATH_ALIGNS,
   TWELVE_KEY_IDS,
+  lessonPathNode,
+  lessonPathNodes,
+  lessonSleeve,
+  vinylTier,
+  sleeveCaption,
   buildKeyQueue,
   nextLapQueue,
   cardsFor,
@@ -180,9 +187,8 @@ test("finishing a twelve-key lap starts a new lap", () => {
   assert.equal(currentKeyId(next), "G");
 });
 
-test("per-lesson preferences stay independent and recommended lesson is the first unstarted", () => {
-  let prefs = defaultPrefs();
-  assert.equal(recommendedLessonId(prefs), "learn-lick");
+test("per-lesson preferences stay independent", () => {
+  const prefs = defaultPrefs();
   prefs.lessons["integrate-minor-home"].keyMode = "fourths";
   prefs.lessons["integrate-minor-home"].startKeyId = "F";
   prefs.lessons["integrate-minor-home"].cardSet = "listen-quiz";
@@ -192,11 +198,32 @@ test("per-lesson preferences stay independent and recommended lesson is the firs
   assert.equal(normalized.lessons["integrate-minor-home"].keyMode, "fourths");
   assert.equal(normalized.lessons["integrate-minor-home"].startKeyId, "F");
   assert.equal(normalized.lessons["integrate-altered-dominant"].keyMode, "one");
-  prefs = markLessonStarted(normalized, "learn-lick", "G");
-  assert.equal(recommendedLessonId(prefs), "integrate-minor-home");
-  prefs = markLessonStarted(prefs, "integrate-minor-home", "F");
-  prefs = markLessonStarted(prefs, "integrate-altered-dominant", "G");
-  assert.equal(recommendedLessonId(prefs), "learn-lick");
+  const started = markLessonStarted(normalized, "learn-lick", "G");
+  assert.equal(started.progress["learn-lick"].started, true);
+});
+
+test("recommended start is the first lesson not yet 12/12", () => {
+  const none = {};
+  assert.equal(recommendedLessonId(none), "learn-lick");
+  assert.equal(recommendedLessonId({
+    "learn-lick": [],
+    "integrate-minor-home": [],
+    "integrate-altered-dominant": [],
+  }), "learn-lick");
+
+  const firstComplete = {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
+    "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
+  };
+  assert.equal(recommendedLessonId(firstComplete), "integrate-minor-home");
+
+  const allComplete = {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS,
+    "integrate-altered-dominant": TWELVE_KEY_IDS,
+  };
+  assert.equal(recommendedLessonId(allComplete), null);
 });
 
 test("learn-the-lick cards use isolated cell audio; integration cards use the eight-bar form", () => {
@@ -287,6 +314,91 @@ test("lessons stay unlocked and the module has three paths", () => {
     "integrate-altered-dominant",
   ]);
   assert.equal(TWELVE_KEY_IDS.length, 12);
+});
+
+test("module home path zig-zags record sleeves and never locks a lesson", () => {
+  assert.deepEqual(PATH_ALIGNS, ["left", "center", "right"]);
+  assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
+  assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve), ["amber", "teal", "oxblood"]);
+  assert.equal(lessonSleeve("learn-lick"), "amber");
+  assert.equal(lessonSleeve("integrate-minor-home"), "teal");
+  assert.equal(lessonSleeve("integrate-altered-dominant"), "oxblood");
+  assert.equal(LESSONS[1].context, "Autumn Leaves · bar 7");
+  assert.equal(LESSONS[2].context, "Over D7 · bar 6");
+
+  const nodes = lessonPathNodes(defaultPrefs(), {
+    "learn-lick": ["G", "C", "F"],
+    "integrate-minor-home": TWELVE_KEY_IDS,
+  });
+  assert.equal(nodes.length, 3);
+  assert.deepEqual(nodes.map((node) => node.align), ["left", "center", "right"]);
+  assert.equal(nodes[0].recommended, true);
+  assert.equal(nodes[0].complete, false);
+  assert.equal(nodes[0].passedCount, 3);
+  assert.equal(nodes[0].vinylTier, "bronze");
+  assert.equal(nodes[1].complete, true);
+  assert.equal(nodes[1].passedCount, 12);
+  assert.equal(nodes[1].vinylTier, "gold");
+  assert.equal(nodes[1].recommended, false);
+  assert.equal(nodes[2].vinylTier, "black");
+  assert.equal(nodes[2].recommended, false);
+  assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
+
+  const firstDone = lessonPathNodes(defaultPrefs(), {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
+    "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
+  });
+  assert.equal(firstDone[0].recommended, false);
+  assert.equal(firstDone[0].complete, true);
+  assert.equal(firstDone[1].recommended, true);
+  assert.equal(firstDone[1].passedCount, 7);
+  assert.equal(firstDone[2].recommended, false);
+  assert.equal(firstDone[2].passedCount, 3);
+
+  const allDone = lessonPathNodes(defaultPrefs(), {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS,
+    "integrate-altered-dominant": TWELVE_KEY_IDS,
+  });
+  assert.equal(allDone.every((node) => node.recommended === false), true);
+  assert.equal(allDone.every((node) => node.complete === true), true);
+});
+
+test("vinyl tier follows keys-passed thresholds", () => {
+  assert.equal(vinylTier(0), "black");
+  assert.equal(vinylTier(1), "bronze");
+  assert.equal(vinylTier(5), "bronze");
+  assert.equal(vinylTier(6), "silver");
+  assert.equal(vinylTier(11), "silver");
+  assert.equal(vinylTier(12), "gold");
+});
+
+test("sleeve captions omit the key count at zero", () => {
+  assert.equal(sleeveCaption("Autumn Leaves · bar 7", 0), "Autumn Leaves · bar 7");
+  assert.equal(sleeveCaption("Autumn Leaves · bar 7", 4), "Autumn Leaves · bar 7 · 4/12 keys");
+});
+
+test("a single path node keeps cover copy and a 12-key passed list", () => {
+  const node = lessonPathNode(LESSONS[0], 0, {
+    recommendedId: "learn-lick",
+    passedKeys: ["G", "G", "C"],
+  });
+  assert.equal(node.number, "01");
+  assert.equal(node.coverTitle, "Learn the lick");
+  assert.equal(node.sleeve, "amber");
+  assert.equal(node.align, "left");
+  assert.equal(node.recommended, true);
+  assert.deepEqual(node.passedKeys, ["G", "C"]);
+  assert.equal(node.passedCount, 2);
+  assert.equal(node.vinylTier, "bronze");
+  assert.equal(node.caption, "The cell in this key · 2/12 keys");
+  const empty = lessonPathNode(LESSONS[1], 1, { passedKeys: [] });
+  assert.equal(empty.vinylTier, "black");
+  assert.equal(empty.caption, "Autumn Leaves · bar 7");
+  const gold = lessonPathNode(LESSONS[1], 1, { passedKeys: TWELVE_KEY_IDS });
+  assert.equal(gold.vinylTier, "gold");
+  assert.equal(gold.caption, "Autumn Leaves · bar 7 · 12/12 keys");
 });
 
 test("melody octave is remembered per lesson and applied on the session", () => {

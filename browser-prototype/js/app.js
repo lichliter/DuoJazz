@@ -49,25 +49,31 @@ import {
   setMelodyRegister,
   skipCard,
   sessionSlot,
+  lessonPathNodes,
+  lessonSleeve,
+  vinylTier,
+  sleeveCaption,
 } from "./session.js";
 import { GRADED_CARDS, finishCard, gradeSession } from "./grade.js";
 import {
   emptyMastery,
   displayMedal,
+  homeMedalMark,
   loadMastery,
   saveMastery,
   recordQuizPass,
-  lessonPassedCount,
+  lessonPassedKeys,
+  normalizeMastery,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
+import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
 const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
 let prefs = loadPrefs();
 let mastery = loadMastery();
-let prefsSetup = recommendedLessonId(prefs);
-let setupLessonId = prefsSetup;
+let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
 let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
 let lastTune = null;
@@ -82,8 +88,10 @@ const els = {
   home: document.getElementById("screen-home"),
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
-  keyStrip: document.getElementById("key-strip"),
   lessonList: document.getElementById("lesson-list"),
+  moduleBanner: document.getElementById("module-banner"),
+  medalBadge: document.getElementById("medal-badge"),
+  medalCount: document.getElementById("medal-count"),
   displayChip: document.getElementById("display-chip"),
   settings: document.getElementById("settings"),
   setup: document.getElementById("setup"),
@@ -123,6 +131,9 @@ const els = {
   wrapupDetail: document.getElementById("wrapup-detail"),
   wrapupMedalMark: document.getElementById("wrapup-medal-mark"),
   wrapupMedal: document.getElementById("wrapup-medal"),
+  wrapupSleeve: document.getElementById("wrapup-sleeve"),
+  wrapupSleeveNum: document.getElementById("wrapup-sleeve-num"),
+  wrapupSleeveTitle: document.getElementById("wrapup-sleeve-title"),
   resultList: document.getElementById("result-list"),
   micStatus: document.getElementById("mic-status"),
   nextKey: document.getElementById("next-key"),
@@ -300,41 +311,132 @@ function goContinue() {
   applySession(completeCard(session, result));
 }
 
+function keysByLesson(current = mastery) {
+  return Object.fromEntries(
+    LESSONS.map((lesson) => [lesson.id, lessonPassedKeys(current, lesson.id)]),
+  );
+}
+
 function renderHome() {
-  const recommended = recommendedLessonId(prefs);
   const count = mastery.masteredKeys.length;
+  const medal = count ? mastery.medal : "none";
+  if (els.medalBadge) {
+    els.medalBadge.dataset.medal = medal;
+    els.medalBadge.setAttribute(
+      "aria-label",
+      count ? `${displayMedal(mastery.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
+    );
+  }
+  if (els.medalCount) els.medalCount.textContent = `${count}/12`;
   if (els.medalMark) {
-    els.medalMark.textContent = count ? displayMedal(mastery.medal) : "Medal";
+    els.medalMark.textContent = homeMedalMark(count, mastery.medal);
+    els.medalMark.hidden = !count;
   }
   if (els.medalNote) {
-    els.medalNote.textContent = count
-      ? `${count} of 12 keys mastered`
-      : "No medal yet. Pass Quiz in Learn the lick and in an integration lesson to master a key.";
+    els.medalNote.textContent = `${count} of 12 keys mastered`;
   }
-  els.keyStrip.replaceChildren(
-    ...TWELVE_KEY_IDS.map((id) => {
-      const span = document.createElement("span");
-      span.className = "key-dot";
-      if (mastery.masteredKeys.includes(id)) span.classList.add("mastered");
-      span.textContent = getKey(id).name;
-      span.title = displayKeyName(id, prefs.displayMode);
-      return span;
-    }),
-  );
-  els.lessonList.replaceChildren(
-    ...LESSONS.map((lesson, index) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "lesson-row";
-      btn.dataset.testid = `lesson-${lesson.id}`;
-      btn.dataset.recommended = String(lesson.id === recommended);
-      const passed = lessonPassedCount(mastery, lesson.id);
-      const countLabel = `${passed} ${passed === 1 ? "key" : "keys"} passed`;
-      btn.innerHTML = `<span class="n">${String(index + 1).padStart(2, "0")}${lesson.id === recommended ? " · next" : ""}</span><span class="title">${lesson.title}</span><span class="sub">${lesson.summary}</span><span class="lesson-meta"><span class="count">${countLabel}</span><span class="medal-slot">${passed ? "Quiz pass" : ""}</span></span>`;
-      btn.addEventListener("click", () => openSetup(lesson.id));
-      return btn;
-    }),
-  );
+  const nodes = lessonPathNodes(prefs, keysByLesson(mastery));
+  els.lessonList.replaceChildren(...nodes.map((node) => sleeveButton(node)), moreLicksSoon());
+  requestAnimationFrame(paintPathTrail);
+}
+
+function moreLicksSoon() {
+  const wrap = document.createElement("div");
+  wrap.className = "path-end";
+  wrap.setAttribute("aria-hidden", "true");
+  wrap.innerHTML = `<span class="path-end-sleeve"></span><span class="path-end-label">More licks soon</span>`;
+  return wrap;
+}
+
+function sleeveBoxFromStage(stage, svgRect) {
+  const node = stage.closest(".sleeve-node");
+  const stageRect = stage.getBoundingClientRect();
+  const context = node?.querySelector(".sleeve-context")?.getBoundingClientRect();
+  const captionTop = context?.top ?? stageRect.bottom;
+  const captionBottom = context?.bottom ?? stageRect.bottom;
+  const captionLeft = context?.left ?? stageRect.left;
+  const captionRight = context?.right ?? stageRect.right;
+  return {
+    cx: stageRect.left + stageRect.width / 2 - svgRect.left,
+    cy: stageRect.top + stageRect.height / 2 - svgRect.top,
+    halfW: stageRect.width / 2,
+    halfH: stageRect.height / 2,
+    captionTop: captionTop - svgRect.top,
+    captionBottom: captionBottom - svgRect.top,
+    captionLeft: captionLeft - svgRect.left,
+    captionRight: captionRight - svgRect.left,
+  };
+}
+
+function paintPathTrail() {
+  const svg = document.querySelector(".path-trail");
+  const path = svg?.querySelector("[data-trail]");
+  const cap = svg?.querySelector("[data-trail-cap]");
+  if (!svg || !path || !els.lessonList) return;
+  const svgRect = svg.getBoundingClientRect();
+  if (svgRect.width < 8 || svgRect.height < 8) {
+    path.setAttribute("d", "");
+    return;
+  }
+  svg.setAttribute("viewBox", `0 0 ${svgRect.width} ${svgRect.height}`);
+  const sleeves = [...els.lessonList.querySelectorAll(".sleeve-node .sleeve-stage")]
+    .map((stage) => sleeveBoxFromStage(stage, svgRect));
+  const endEl = els.lessonList.querySelector(".path-end-sleeve");
+  let end = null;
+  if (endEl) {
+    const rect = endEl.getBoundingClientRect();
+    end = {
+      cx: rect.left + rect.width / 2 - svgRect.left,
+      cy: rect.top + rect.height / 2 - svgRect.top,
+    };
+  }
+  path.setAttribute("d", sleeveTrailPath(sleeves, end));
+  const last = end ?? sleeves.at(-1);
+  if (cap && last) {
+    cap.setAttribute("cx", String(last.cx));
+    cap.setAttribute("cy", String(last.cy));
+    cap.setAttribute("r", "8");
+  }
+}
+
+function sleeveButton(node) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "sleeve-node";
+  btn.dataset.testid = `lesson-${node.id}`;
+  btn.dataset.sleeve = node.sleeve;
+  btn.dataset.align = node.align;
+  btn.dataset.recommended = String(node.recommended);
+  btn.dataset.complete = String(node.complete);
+  btn.dataset.vinylTier = node.vinylTier;
+  const bits = [
+    `Lesson ${node.number}: ${node.title}`,
+    `${node.passedCount} of 12 keys passed`,
+    `${node.vinylTier} vinyl`,
+  ];
+  if (node.recommended) bits.push("recommended start");
+  if (node.complete) bits.push("all keys passed");
+  btn.setAttribute("aria-label", bits.join(". "));
+
+  if (node.recommended) {
+    const tag = document.createElement("span");
+    tag.className = "start-tag";
+    tag.textContent = "Start";
+    btn.append(tag);
+  }
+
+  const stage = document.createElement("span");
+  stage.className = "sleeve-stage";
+  stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
+  btn.append(stage);
+
+  const context = document.createElement("span");
+  context.className = "sleeve-context";
+  context.textContent = node.caption ?? sleeveCaption(node.context, node.passedCount);
+  btn.append(context);
+
+  btn.addEventListener("click", () => openSetup(node.id));
+  return btn;
 }
 
 function chipRow(host, options, current, onPick) {
@@ -353,6 +455,7 @@ function chipRow(host, options, current, onPick) {
 
 function renderSetup() {
   const lesson = lessonById(setupLessonId);
+  els.setup.dataset.sleeve = lesson.sleeve;
   els.setupTitle.textContent = lesson.title;
   els.setupSummary.textContent = lesson.summary;
   chipRow(els.keyModes, KEY_MODES, setupDraft.keyMode, (id) => {
@@ -413,6 +516,7 @@ function renderSessionChrome() {
   const card = currentCard(session);
   const ordinal = keyOrdinal(session);
   const total = session.cards.length;
+  els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
   els.cardBadge.textContent = CARDS[card].kicker;
   els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode);
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
@@ -919,9 +1023,22 @@ function resultLabel(row) {
 
 function renderWrapup() {
   const copy = wrapupCopy(session);
+  const lesson = lessonById(session.lessonId);
+  els.shell.dataset.sleeve = lesson.sleeve;
   if (els.wrapupKicker) els.wrapupKicker.textContent = copy.kicker;
   els.wrapupHeading.textContent = copy.heading;
   els.wrapupDetail.textContent = copy.detail;
+  if (els.wrapupSleeve) {
+    els.wrapupSleeve.hidden = false;
+    els.wrapupSleeve.dataset.sleeve = lesson.sleeve;
+    els.wrapupSleeve.classList.toggle("is-upgrade", Boolean(wrapupBanner?.upgraded));
+    const wrapVinyl = els.wrapupSleeve.querySelector(".vinyl");
+    if (wrapVinyl) wrapVinyl.dataset.tier = vinylTier(lessonPassedKeys(mastery, lesson.id).length);
+  }
+  if (els.wrapupSleeveNum) {
+    els.wrapupSleeveNum.textContent = String(LESSONS.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
+  }
+  if (els.wrapupSleeveTitle) els.wrapupSleeveTitle.textContent = lesson.coverTitle;
   els.resultList.replaceChildren(
     ...copy.results.map((row) => {
       const item = document.createElement("li");
@@ -948,6 +1065,7 @@ function renderWrapup() {
 function render(snap = transport.snapshot()) {
   const screen = screenName();
   els.shell.dataset.screen = screen;
+  if (screen === "home") delete els.shell.dataset.sleeve;
   els.home.setAttribute("aria-hidden", String(screen !== "home"));
   els.session.setAttribute("aria-hidden", String(screen !== "session"));
   els.wrapup.setAttribute("aria-hidden", String(screen !== "wrapup"));
@@ -979,6 +1097,14 @@ function applyDeepLink() {
     next = recordQuizPass(next, "integrate-minor-home", "G");
     wrapupBanner = next;
     mastery = next;
+  }
+  if (params.get("demo") === "path") {
+    let next = emptyMastery();
+    for (const key of ["G", "C", "F", "Bb"]) next = recordQuizPass(next, "learn-lick", key);
+    for (const key of ["G", "C"]) next = recordQuizPass(next, "integrate-minor-home", key);
+    mastery = next;
+    prefs = markLessonStarted(prefs, "learn-lick", "G");
+    prefs = markLessonStarted(prefs, "integrate-minor-home", "C");
   }
   const mic = params.get("mic");
   if (mic === "denied" || mic === "no-signal" || mic === "listening" || mic === "unsupported") {
@@ -1162,7 +1288,16 @@ document.addEventListener("keydown", (event) => {
 
 window.addEventListener("resize", () => {
   if (session?.screen === "session") renderNotation();
+  else paintPathTrail();
 });
+
+const lessonPath = document.querySelector(".lesson-path");
+if (lessonPath && typeof ResizeObserver === "function") {
+  new ResizeObserver(() => paintPathTrail()).observe(lessonPath);
+}
+if (document.fonts?.ready) {
+  document.fonts.ready.then(() => paintPathTrail());
+}
 
 window.__DUOJAZZ__ = {
   getPrefs: () => prefs,
@@ -1224,7 +1359,7 @@ window.__DUOJAZZ__ = {
   },
   getMastery: () => mastery,
   setMastery(next) {
-    mastery = next;
+    mastery = normalizeMastery(next);
     saveMastery(mastery);
     render();
     return mastery;

@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=55">
+  <link rel="stylesheet" href="./css/styles.css?v=61">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=55"></script>
+  <script type="module" src="./js/app.js?v=61"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -25,21 +25,23 @@
 
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
-        <p class="kicker">Module</p>
-        <div class="title-row">
-          <h1 id="module-title">Cry Me a River</h1>
-          <p class="tune">Autumn Leaves<br><span>Opening eight bars</span></p>
-        </div>
-        <section class="medal-panel" id="medal-panel" aria-label="Module medal">
-          <p class="medal-mark" id="medal-mark">Medal</p>
-          <p class="medal-copy" id="medal-note">No medal yet. Pass Quiz in Learn the lick and in an integration lesson to master a key.</p>
-        </section>
-        <section class="key-strip-wrap" aria-label="Keys in this module">
-          <p class="panel-label">Twelve keys</p>
-          <div class="key-strip" id="key-strip"></div>
+        <section class="module-banner" id="module-banner" data-testid="module-banner">
+          <div class="banner-copy">
+            <p class="banner-kicker">Module 1 · a lick</p>
+            <h1 id="module-title">Cry Me a River</h1>
+            <p class="banner-count" id="medal-note">0 of 12 keys mastered</p>
+          </div>
+          <div class="medal-badge" id="medal-badge" data-medal="none" aria-label="0 of 12 keys, no medal yet">
+            <span class="medal-count" id="medal-count">0/12</span>
+            <span class="medal-mark" id="medal-mark" hidden></span>
+          </div>
         </section>
         <section class="lesson-path" aria-label="Lesson path">
-          <p class="panel-label">Lessons · all open</p>
+          <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
+            <circle data-trail-cap cx="0" cy="0" r="0" fill="currentColor"></circle>
+          </svg>
+          <div class="path-rail" aria-hidden="true"></div>
           <div class="lesson-list" id="lesson-list"></div>
         </section>
       </section>
@@ -82,6 +84,16 @@
         <p class="kicker" id="wrapup-kicker">Key complete</p>
         <h1 id="wrapup-heading">G minor</h1>
         <p class="help" id="wrapup-detail"></p>
+        <div class="wrapup-sleeve" id="wrapup-sleeve" data-testid="wrapup-sleeve" hidden>
+          <div class="sleeve-stage" aria-hidden="true">
+            <span class="vinyl" data-tier="black"><span class="vinyl-label"></span></span>
+            <span class="sleeve">
+              <span class="sleeve-deco"></span>
+              <span class="sleeve-num" id="wrapup-sleeve-num">01</span>
+              <span class="sleeve-title" id="wrapup-sleeve-title">Learn the lick</span>
+            </span>
+          </div>
+        </div>
         <ul class="result-list" id="result-list"></ul>
         <section class="medal-panel wrapup-medal" id="wrapup-medal-panel" aria-label="Medal progress">
           <p class="medal-mark" id="wrapup-medal-mark">Medal</p>
@@ -96,8 +108,9 @@
     </main>
   </div>
 
-  <dialog id="setup" data-testid="setup-sheet">
+  <dialog id="setup" class="setup-sheet" data-testid="setup-sheet" data-sleeve="amber">
     <form method="dialog" class="settings-form setup-form">
+      <p class="setup-handle" aria-hidden="true"></p>
       <h2 id="setup-title">Lesson setup</h2>
       <p class="help" id="setup-summary"></p>
       <div class="field">
