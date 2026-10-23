@@ -187,9 +187,8 @@ test("finishing a twelve-key lap starts a new lap", () => {
   assert.equal(currentKeyId(next), "G");
 });
 
-test("per-lesson preferences stay independent and recommended lesson is the first unstarted", () => {
-  let prefs = defaultPrefs();
-  assert.equal(recommendedLessonId(prefs), "learn-lick");
+test("per-lesson preferences stay independent", () => {
+  const prefs = defaultPrefs();
   prefs.lessons["integrate-minor-home"].keyMode = "fourths";
   prefs.lessons["integrate-minor-home"].startKeyId = "F";
   prefs.lessons["integrate-minor-home"].cardSet = "listen-quiz";
@@ -199,11 +198,32 @@ test("per-lesson preferences stay independent and recommended lesson is the firs
   assert.equal(normalized.lessons["integrate-minor-home"].keyMode, "fourths");
   assert.equal(normalized.lessons["integrate-minor-home"].startKeyId, "F");
   assert.equal(normalized.lessons["integrate-altered-dominant"].keyMode, "one");
-  prefs = markLessonStarted(normalized, "learn-lick", "G");
-  assert.equal(recommendedLessonId(prefs), "integrate-minor-home");
-  prefs = markLessonStarted(prefs, "integrate-minor-home", "F");
-  prefs = markLessonStarted(prefs, "integrate-altered-dominant", "G");
-  assert.equal(recommendedLessonId(prefs), "learn-lick");
+  const started = markLessonStarted(normalized, "learn-lick", "G");
+  assert.equal(started.progress["learn-lick"].started, true);
+});
+
+test("recommended start is the first lesson not yet 12/12", () => {
+  const none = {};
+  assert.equal(recommendedLessonId(none), "learn-lick");
+  assert.equal(recommendedLessonId({
+    "learn-lick": [],
+    "integrate-minor-home": [],
+    "integrate-altered-dominant": [],
+  }), "learn-lick");
+
+  const firstComplete = {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
+    "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
+  };
+  assert.equal(recommendedLessonId(firstComplete), "integrate-minor-home");
+
+  const allComplete = {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS,
+    "integrate-altered-dominant": TWELVE_KEY_IDS,
+  };
+  assert.equal(recommendedLessonId(allComplete), null);
 });
 
 test("learn-the-lick cards use isolated cell audio; integration cards use the eight-bar form", () => {
@@ -319,15 +339,30 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(nodes[1].complete, true);
   assert.equal(nodes[1].passedCount, 12);
   assert.equal(nodes[1].vinylTier, "gold");
+  assert.equal(nodes[1].recommended, false);
   assert.equal(nodes[2].vinylTier, "black");
   assert.equal(nodes[2].recommended, false);
   assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
 
-  const started = markLessonStarted(defaultPrefs(), "learn-lick", "G");
-  const next = lessonPathNodes(started, {});
-  assert.equal(next[0].recommended, false);
-  assert.equal(next[1].recommended, true);
-  assert.equal(next.every((node) => node.complete === false), true);
+  const firstDone = lessonPathNodes(defaultPrefs(), {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
+    "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
+  });
+  assert.equal(firstDone[0].recommended, false);
+  assert.equal(firstDone[0].complete, true);
+  assert.equal(firstDone[1].recommended, true);
+  assert.equal(firstDone[1].passedCount, 7);
+  assert.equal(firstDone[2].recommended, false);
+  assert.equal(firstDone[2].passedCount, 3);
+
+  const allDone = lessonPathNodes(defaultPrefs(), {
+    "learn-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": TWELVE_KEY_IDS,
+    "integrate-altered-dominant": TWELVE_KEY_IDS,
+  });
+  assert.equal(allDone.every((node) => node.recommended === false), true);
+  assert.equal(allDone.every((node) => node.complete === true), true);
 });
 
 test("vinyl tier follows keys-passed thresholds", () => {
