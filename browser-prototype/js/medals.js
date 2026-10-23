@@ -4,15 +4,20 @@
  * integration lesson in that key. Progress is monotonic.
  */
 
-import { LESSONS, TWELVE_KEY_IDS, normalizeKeyId } from "./session.js";
+import { LESSONS, TWELVE_KEY_IDS, normalizeKeyId, moduleForLesson, MODULES } from "./session.js";
 
 export const MASTERY_KEY = "duojazz-mastery-v1";
+
+function emptyModuleMastery() {
+  return Object.fromEntries(MODULES.map((module) => [module.id, { masteredKeys: [], medal: "none" }]));
+}
 
 export function emptyMastery() {
   return {
     lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, { passedKeys: [] }])),
     masteredKeys: [],
     medal: "none",
+    modules: emptyModuleMastery(),
   };
 }
 
@@ -47,13 +52,14 @@ export function homeMedalMark(count, medal) {
   return count ? displayMedal(medal) : "";
 }
 
-export function isKeyMastered(mastery, keyId) {
+export function isKeyMastered(mastery, keyId, moduleId = "cmar") {
   const id = normalizeKeyId(keyId);
-  const learn = mastery.lessons["learn-lick"]?.passedKeys.includes(id);
-  const integrate = LESSONS
-    .filter((lesson) => lesson.kind === "integrate")
-    .some((lesson) => mastery.lessons[lesson.id]?.passedKeys.includes(id));
-  return Boolean(learn && integrate);
+  const lessons = LESSONS.filter((lesson) => (lesson.moduleId ?? moduleForLesson(lesson.id).id) === moduleId);
+  const learn = lessons.find((lesson) => lesson.kind === "learn");
+  const integrate = lessons.filter((lesson) => lesson.kind === "integrate");
+  const learned = Boolean(learn && mastery.lessons[learn.id]?.passedKeys.includes(id));
+  const applied = integrate.some((lesson) => mastery.lessons[lesson.id]?.passedKeys.includes(id));
+  return Boolean(learned && applied);
 }
 
 export function reconcileMastery(mastery) {
@@ -66,15 +72,26 @@ export function reconcileMastery(mastery) {
     ),
     masteredKeys: [...(mastery.masteredKeys ?? [])],
     medal: mastery.medal ?? "none",
+    modules: emptyModuleMastery(),
   };
-  for (const keyId of TWELVE_KEY_IDS) {
-    if (isKeyMastered(next, keyId) && !next.masteredKeys.includes(keyId)) {
-      next.masteredKeys.push(keyId);
+  for (const module of MODULES) {
+    const saved = mastery.modules?.[module.id] ?? {};
+    const moduleState = {
+      masteredKeys: [...(saved.masteredKeys ?? [])],
+      medal: saved.medal ?? "none",
+    };
+    for (const keyId of TWELVE_KEY_IDS) {
+      if (isKeyMastered(next, keyId, module.id) && !moduleState.masteredKeys.includes(keyId)) {
+        moduleState.masteredKeys.push(keyId);
+      }
     }
+    const earned = medalForCount(moduleState.masteredKeys.length);
+    const order = { none: 0, bronze: 1, silver: 2, gold: 3 };
+    moduleState.medal = order[earned] > (order[moduleState.medal] ?? 0) ? earned : moduleState.medal;
+    next.modules[module.id] = moduleState;
   }
-  const earned = medalForCount(next.masteredKeys.length);
-  const order = { none: 0, bronze: 1, silver: 2, gold: 3 };
-  next.medal = order[earned] > (order[next.medal] ?? 0) ? earned : next.medal;
+  next.masteredKeys = [...next.modules.cmar.masteredKeys];
+  next.medal = next.modules.cmar.medal;
   return next;
 }
 
@@ -84,16 +101,24 @@ export function recordQuizPass(mastery, lessonId, keyId) {
   if (!lesson) return next;
   const id = normalizeKeyId(keyId);
   if (!lesson.passedKeys.includes(id)) lesson.passedKeys.push(id);
-  const previousMedal = next.medal;
-  const previousCount = next.masteredKeys.length;
+  const moduleId = moduleForLesson(lessonId).id;
+  const previousMedal = next.modules[moduleId]?.medal ?? next.medal;
+  const previousCount = next.modules[moduleId]?.masteredKeys.length ?? next.masteredKeys.length;
   const reconciled = reconcileMastery(next);
+  const moduleState = reconciled.modules[moduleId];
   return {
     ...reconciled,
-    upgraded: orderValue(reconciled.medal) > orderValue(previousMedal),
+    upgraded: orderValue(moduleState.medal) > orderValue(previousMedal),
     previousMedal,
     previousCount,
-    newlyMastered: reconciled.masteredKeys.length > previousCount,
+    newlyMastered: moduleState.masteredKeys.length > previousCount,
+    moduleId,
   };
+}
+
+export function moduleMastery(mastery, moduleId) {
+  const normalized = normalizeMastery(mastery);
+  return normalized.modules[moduleId] ?? { masteredKeys: [], medal: "none" };
 }
 
 function orderValue(medal) {

@@ -3,8 +3,11 @@ import {
   chorusStaffABC,
   getKey,
   minorSpelling,
+  majorSpelling,
   phraseABC,
   jazzChordRootParts,
+  applicationKeyQuality,
+  phraseSpanBars,
 } from "./music.js";
 import { Transport } from "./audio.js";
 import {
@@ -16,6 +19,7 @@ import {
 import {
   PREFS_KEY,
   MODULE,
+  MODULES,
   LESSONS,
   KEY_MODES,
   CARD_SETS,
@@ -49,10 +53,12 @@ import {
   setMelodyRegister,
   skipCard,
   sessionSlot,
-  lessonPathNodes,
+  modulePathNodes,
   lessonSleeve,
   vinylTier,
   sleeveCaption,
+  moduleForLesson,
+  sessionKeyQuality,
 } from "./session.js";
 import { GRADED_CARDS, finishCard, gradeSession } from "./grade.js";
 import {
@@ -64,6 +70,7 @@ import {
   recordQuizPass,
   lessonPassedKeys,
   normalizeMastery,
+  moduleMastery,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
 import { sleeveTrailPath } from "./path-trail.js";
@@ -89,9 +96,6 @@ const els = {
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
   lessonList: document.getElementById("lesson-list"),
-  moduleBanner: document.getElementById("module-banner"),
-  medalBadge: document.getElementById("medal-badge"),
-  medalCount: document.getElementById("medal-count"),
   displayChip: document.getElementById("display-chip"),
   settings: document.getElementById("settings"),
   setup: document.getElementById("setup"),
@@ -317,26 +321,44 @@ function keysByLesson(current = mastery) {
   );
 }
 
+function moduleBanner(module, stats) {
+  const count = stats.masteredKeys.length;
+  const medal = count ? stats.medal : "none";
+  const section = document.createElement("section");
+  section.className = "module-banner";
+  section.dataset.testid = `module-banner-${module.id}`;
+  const copy = document.createElement("div");
+  copy.className = "banner-copy";
+  copy.innerHTML = `<p class="banner-kicker">Module ${module.number} · a lick</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
+  const badge = document.createElement("div");
+  badge.className = "medal-badge";
+  badge.dataset.medal = medal;
+  badge.setAttribute(
+    "aria-label",
+    count ? `${displayMedal(stats.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
+  );
+  const mark = homeMedalMark(count, stats.medal);
+  badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
+  section.append(copy, badge);
+  return section;
+}
+
+function moduleBlock(module, nodes, stats) {
+  const wrap = document.createElement("section");
+  wrap.className = "module-block";
+  wrap.dataset.module = module.id;
+  wrap.append(moduleBanner(module, stats), ...nodes.map((node) => sleeveButton(node)));
+  return wrap;
+}
+
 function renderHome() {
-  const count = mastery.masteredKeys.length;
-  const medal = count ? mastery.medal : "none";
-  if (els.medalBadge) {
-    els.medalBadge.dataset.medal = medal;
-    els.medalBadge.setAttribute(
-      "aria-label",
-      count ? `${displayMedal(mastery.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
-    );
-  }
-  if (els.medalCount) els.medalCount.textContent = `${count}/12`;
-  if (els.medalMark) {
-    els.medalMark.textContent = homeMedalMark(count, mastery.medal);
-    els.medalMark.hidden = !count;
-  }
-  if (els.medalNote) {
-    els.medalNote.textContent = `${count} of 12 keys mastered`;
-  }
-  const nodes = lessonPathNodes(prefs, keysByLesson(mastery));
-  els.lessonList.replaceChildren(...nodes.map((node) => sleeveButton(node)), moreLicksSoon());
+  const keys = keysByLesson(mastery);
+  const blocks = MODULES.map((module) => moduleBlock(
+    module,
+    modulePathNodes(module, prefs, keys),
+    moduleMastery(mastery, module.id),
+  ));
+  els.lessonList.replaceChildren(...blocks, moreLicksSoon());
   requestAnimationFrame(paintPathTrail);
 }
 
@@ -467,7 +489,8 @@ function renderSetup() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "key-btn";
-      btn.textContent = minorSpelling(getKey(id)).shortName;
+      const quality = applicationKeyQuality(lesson.applicationId);
+      btn.textContent = quality === "major" ? majorSpelling(getKey(id)).shortName : minorSpelling(getKey(id)).shortName;
       btn.setAttribute("aria-pressed", String(id === setupDraft.startKeyId));
       btn.addEventListener("click", () => {
         setupDraft.startKeyId = id;
@@ -518,7 +541,7 @@ function renderSessionChrome() {
   const total = session.cards.length;
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
   els.cardBadge.textContent = CARDS[card].kicker;
-  els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode);
+  els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
   els.sessionCardCount.textContent = `${session.cardIndex + 1}/${total}`;
   els.sessionProgressFill.style.width = `${((session.cardIndex) / total) * 100}%`;
@@ -694,12 +717,14 @@ function applyRhythmSlashes(keepLandingNotes = false) {
   const ns = "http://www.w3.org/2000/svg";
   const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
   const barsOnStaff = lastNotationLayout?.barsPerLine ?? 4;
-  const landingBar = (lastNotationLayout?.phraseStartBar ?? 7) - 1;
+  const landingBars = new Set(
+    (lastNotationLayout?.phraseBars ?? [lastNotationLayout?.phraseStartBar ?? 7]).map((bar) => bar - 1),
+  );
   for (const note of els.notation.querySelectorAll(".abcjs-note")) {
     const head = note.querySelector(".abcjs-notehead")
       ?? [...note.querySelectorAll("ellipse, path")].find((node) => !isCueNode(node));
     if (!head || typeof head.getBBox !== "function") continue;
-    if (keepLandingNotes && barIndexForNote(note, staffs, barsOnStaff) === landingBar) continue;
+    if (keepLandingNotes && landingBars.has(barIndexForNote(note, staffs, barsOnStaff))) continue;
     const box = head.getBBox();
     hideNoteGlyphs(note, true);
     const slash = document.createElementNS(ns, "line");
@@ -889,6 +914,7 @@ function renderFittedAbc(abc, layout, width) {
     staffwidth,
     staffsep,
     phraseStartBar: lastNotationLayout?.phraseStartBar ?? layout.phraseStartBar,
+    phraseBars: lastNotationLayout?.phraseBars ?? layout.phraseBars,
   };
   return rendered;
 }
@@ -921,7 +947,11 @@ function renderNotation() {
     showEntranceCues: view.showEntranceCues,
   });
   const concertKey = getKey(currentKeyId(session));
-  lastNotationLayout = { ...layout, phraseStartBar: view.application?.phraseStartBar ?? 7 };
+  lastNotationLayout = {
+    ...layout,
+    phraseStartBar: view.application?.phraseStartBar ?? 7,
+    phraseBars: phraseSpanBars(lesson.applicationId),
+  };
   const abc = view.showLandingNotation
     ? chorusStaffABC({
       concertKey,
@@ -1001,7 +1031,7 @@ function renderPrimary() {
 
 function renderMeter(snap = transport.snapshot()) {
   if (!session || session.screen !== "session") return;
-  const concert = minorSpelling(getKey(currentKeyId(session)));
+  const concert = { name: displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)) };
   if (snap.inCountIn) {
     els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
     return;
@@ -1036,7 +1066,8 @@ function renderWrapup() {
     if (wrapVinyl) wrapVinyl.dataset.tier = vinylTier(lessonPassedKeys(mastery, lesson.id).length);
   }
   if (els.wrapupSleeveNum) {
-    els.wrapupSleeveNum.textContent = String(LESSONS.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
+    const module = moduleForLesson(lesson.id);
+    els.wrapupSleeveNum.textContent = String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
   }
   if (els.wrapupSleeveTitle) els.wrapupSleeveTitle.textContent = lesson.coverTitle;
   els.resultList.replaceChildren(
@@ -1046,16 +1077,17 @@ function renderWrapup() {
       return item;
     }),
   );
-  const count = mastery.masteredKeys.length;
+  const moduleStats = moduleMastery(mastery, moduleForLesson(lesson.id).id);
+  const count = moduleStats.masteredKeys.length;
   if (els.wrapupMedalMark) {
     els.wrapupMedalMark.textContent = wrapupBanner?.upgraded
-      ? `Medal up · ${displayMedal(wrapupBanner.medal)}`
-      : (count ? displayMedal(mastery.medal) : "Medal");
+      ? `Medal up · ${displayMedal(moduleStats.medal)}`
+      : (count ? displayMedal(moduleStats.medal) : "Medal");
   }
   if (els.wrapupMedal) {
     els.wrapupMedal.hidden = false;
     els.wrapupMedal.textContent = wrapupBanner?.upgraded
-      ? `${displayMedal(wrapupBanner.medal)} unlocked`
+      ? `${displayMedal(moduleStats.medal)} unlocked`
       : (count ? `${count} of 12 keys mastered` : "No medal yet for this module");
   }
   els.nextKey.hidden = !copy.nextKeyLabel;
@@ -1069,7 +1101,8 @@ function render(snap = transport.snapshot()) {
   els.home.setAttribute("aria-hidden", String(screen !== "home"));
   els.session.setAttribute("aria-hidden", String(screen !== "session"));
   els.wrapup.setAttribute("aria-hidden", String(screen !== "wrapup"));
-  document.title = screen === "home" ? `DuoJazz · ${MODULE.name}` : `DuoJazz · ${MODULE.name} session`;
+  const moduleName = session ? moduleForLesson(session.lessonId).name : "DuoJazz";
+  document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
   if (screen === "home") renderHome();
   if (screen === "session") {

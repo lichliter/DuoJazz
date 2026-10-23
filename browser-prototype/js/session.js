@@ -9,7 +9,18 @@ import {
   getKey,
   applicationContext,
   minorSpelling,
+  majorSpelling,
+  applicationKeyQuality,
 } from "./music.js";
+import {
+  LESSONS,
+  MODULES,
+  lessonById as registryLesson,
+  moduleForLesson,
+  moduleById,
+} from "./registry.js";
+
+export { LESSONS, MODULES, moduleForLesson, moduleById };
 import {
   defaultState,
   presentation,
@@ -22,9 +33,9 @@ import {
 export const PREFS_KEY = "duojazz-focused-session-v1";
 
 export const MODULE = {
-  id: "cry-me-a-river",
-  name: "Cry Me a River",
-  lickName: "Cry Me a River cell",
+  id: MODULES[0].id,
+  name: MODULES[0].name,
+  lickName: MODULES[0].name,
   tune: "Autumn Leaves · opening eight bars",
 };
 
@@ -71,41 +82,8 @@ export function sleeveCaption(context, passedCount) {
   return `${context} · ${passedCount}/12 keys`;
 }
 
-export const LESSONS = [
-  {
-    id: "learn-lick",
-    kind: "learn",
-    applicationId: "minor-home",
-    title: "Learn the lick",
-    coverTitle: "Learn the lick",
-    summary: "Hear, play, and recall the Cry Me a River cell in one key.",
-    context: "The cell in this key",
-    sleeve: "amber",
-  },
-  {
-    id: "integrate-minor-home",
-    kind: "integrate",
-    applicationId: "minor-home",
-    title: "Integrate: minor home",
-    coverTitle: "Minor home",
-    summary: "Land the cell on the i6 arrival (bar 7 of Autumn Leaves).",
-    context: "Autumn Leaves · bar 7",
-    sleeve: "teal",
-  },
-  {
-    id: "integrate-altered-dominant",
-    kind: "integrate",
-    applicationId: "altered-dominant",
-    title: "Integrate: altered dominant",
-    coverTitle: "Altered dominant",
-    summary: "Bring the same cell in over V7 (bar 6), then resolve.",
-    context: "Over D7 · bar 6",
-    sleeve: "oxblood",
-  },
-];
-
 export function lessonById(id) {
-  return LESSONS.find((lesson) => lesson.id === id) ?? LESSONS[0];
+  return registryLesson(id);
 }
 
 export function lessonSleeve(lessonId) {
@@ -138,12 +116,20 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
   };
 }
 
-export function lessonPathNodes(prefs, lessonKeys = {}) {
+export function modulePathNodes(module, prefs, lessonKeys = {}) {
   const recommendedId = recommendedLessonId(lessonKeys);
-  return LESSONS.map((lesson, index) => lessonPathNode(lesson, index, {
+  return module.lessons.map((lesson, index) => lessonPathNode({
+    ...lesson,
+    moduleId: module.id,
+    moduleName: module.name,
+  }, index, {
     recommendedId,
     passedKeys: lessonKeys[lesson.id] ?? [],
   }));
+}
+
+export function lessonPathNodes(prefs, lessonKeys = {}) {
+  return MODULES.flatMap((module) => modulePathNodes(module, prefs, lessonKeys));
 }
 
 export function keyModeById(id) {
@@ -217,10 +203,11 @@ export function nextLapQueue(mode, previousQueue, rng = Math.random) {
   return next;
 }
 
-export function defaultLessonPref() {
+export function defaultLessonPref(lessonId) {
+  const lesson = lessonId ? lessonById(lessonId) : null;
   return {
     keyMode: "one",
-    startKeyId: DEFAULT_KEY_ID,
+    startKeyId: lesson?.defaultKeyId ?? DEFAULT_KEY_ID,
     cardSet: "all",
     tempo: 96,
     melodyRegister: 0,
@@ -234,7 +221,7 @@ export function defaultPrefs() {
     swing: true,
     metronome: false,
     guideTones: true,
-    lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, defaultLessonPref()])),
+    lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, defaultLessonPref(lesson.id)])),
     progress: {},
   };
 }
@@ -251,10 +238,10 @@ export function normalizePrefs(raw) {
   for (const lesson of LESSONS) {
     const incoming = raw?.lessons?.[lesson.id] ?? {};
     merged.lessons[lesson.id] = {
-      ...defaultLessonPref(),
+      ...defaultLessonPref(lesson.id),
       ...incoming,
       keyMode: KEY_MODES.some((mode) => mode.id === incoming.keyMode) ? incoming.keyMode : "one",
-      startKeyId: normalizeKeyId(incoming.startKeyId),
+      startKeyId: normalizeKeyId(incoming.startKeyId ?? defaultLessonPref(lesson.id).startKeyId),
       cardSet: incoming.cardSet === "listen-quiz" ? "listen-quiz" : "all",
       tempo: Math.min(160, Math.max(60, Number(incoming.tempo) || 96)),
       melodyRegister: incoming.melodyRegister === -1 || incoming.melodyRegister === 1
@@ -586,8 +573,9 @@ export function sessionChartCopy(session) {
     session.displayMode,
     lesson.applicationId,
   );
+  const formName = ctx.formTitle ?? "the form";
   if (lesson.kind === "learn") {
-    if (card === "learn") return { title: "Cry Me a River cell", meta: `${ctx.cellName} · hear it` };
+    if (card === "learn") return { title: ctx.lickName ?? "The lick", meta: `${ctx.cellName} · hear it` };
     if (card === "play") return { title: "Your turn on the cell", meta: `${ctx.cellName} · with notation` };
     if (card === "listen") {
       return {
@@ -597,7 +585,7 @@ export function sessionChartCopy(session) {
     }
     return { title: "From memory", meta: ctx.cellName };
   }
-  if (card === "learn") return { title: "Hear it in the changes", meta: `Autumn Leaves · ${ctx.tuneName} · 8 bars` };
+  if (card === "learn") return { title: "Hear it in the changes", meta: `${formName} · ${ctx.tuneName}` };
   if (card === "play") return { title: "Play it in the form", meta: ctx.placement };
   if (card === "listen") {
     return {
@@ -605,7 +593,7 @@ export function sessionChartCopy(session) {
       meta: ctx.shapeOver,
     };
   }
-  return { title: "Bring it in cold", meta: `Autumn Leaves · ${ctx.tuneName}` };
+  return { title: "Bring it in cold", meta: `${formName} · ${ctx.tuneName}` };
 }
 
 export function sessionCue(session, snap = {}) {
@@ -647,8 +635,18 @@ export function keyStripIds() {
   return [...TWELVE_KEY_IDS];
 }
 
-export function displayKeyName(keyId, displayMode = "concert") {
-  return minorSpelling(getKey(keyId)).name;
+export function displayKeyName(keyId, displayMode = "concert", quality = "minor") {
+  const key = getKey(keyId);
+  if (quality === "major") {
+    const shown = displayMode === "bb-written" ? getKey(key.id) : key;
+    return majorSpelling(shown).name;
+  }
+  return minorSpelling(key).name;
+}
+
+export function sessionKeyQuality(session) {
+  const lesson = lessonById(session.lessonId);
+  return applicationKeyQuality(lesson.applicationId);
 }
 
 export function peekNextKeyId(session) {
@@ -680,15 +678,15 @@ export function listenStateCopy(session) {
 }
 
 export function wrapupCopy(session) {
-  const keyName = displayKeyName(currentKeyId(session), session.displayMode);
+  const keyName = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   const nextId = peekNextKeyId(session);
   return {
     kicker: "Key complete",
     heading: keyName,
     detail: lessonById(session.lessonId).title,
-    nextKeyName: nextId ? displayKeyName(nextId, session.displayMode) : (hasNextKey(session) ? "Next lap" : null),
+    nextKeyName: nextId ? displayKeyName(nextId, session.displayMode, sessionKeyQuality(session)) : (hasNextKey(session) ? "Next lap" : null),
     nextKeyLabel: nextId
-      ? `Next key · ${displayKeyName(nextId, session.displayMode)}`
+      ? `Next key · ${displayKeyName(nextId, session.displayMode, sessionKeyQuality(session))}`
       : (hasNextKey(session) ? "Next lap" : null),
     results: session.cards.map((cardId) => {
       const row = session.cardResults.find((item) => item.cardId === cardId) ?? { outcome: "completed" };
