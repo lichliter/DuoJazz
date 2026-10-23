@@ -578,3 +578,15 @@ test("GTS eighths beam in beat pairs across the half-bar chord change", () => {
   const abc = phraseABC(getKey("G"), "concert", "gts-learn");
   assert.match(abc, /A,, "E7"/);
 });
+
+test("empty bars draw a whole rest instead of a blank spacer", () => {
+  const integrate = modelABC(getKey("C"), "concert", "cmar-blue-bossa");
+  assert.match(integrate, /"Cm7"yyz8/);
+  assert.match(integrate, /"Dø7"yyz8/);
+  assert.doesNotMatch(integrate, /\bx8\b/);
+  const learn = phraseABC(getKey("D"), "concert", "bo-learn");
+  assert.match(learn, /z8/);
+  assert.doesNotMatch(learn, /\bx8\b/);
+  const emr = landingABC(getKey("G"), "concert", "emr-autumn-leaves-a");
+  assert.match(emr, /z4/);
+});

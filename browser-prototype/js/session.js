@@ -410,6 +410,140 @@ export function skipCard(session) {
   return completeCard(session, skipResult(session));
 }
 
+export function resultForCard(session, cardId = currentCard(session)) {
+  return session.cardResults.find((row) => row.cardId === cardId) ?? null;
+}
+
+export function canGoBack(session) {
+  return Boolean(session && session.screen === "session" && session.cardIndex > 0);
+}
+
+export function canGoNext(session) {
+  return Boolean(
+    session
+    && session.screen === "session"
+    && session.cardIndex + 1 < session.cards.length,
+  );
+}
+
+export function cardCounter(session) {
+  return {
+    index: session.cardIndex + 1,
+    total: session.cards.length,
+  };
+}
+
+/**
+ * Result to store when leaving the current card.
+ * A new take replaces any previous grade. No take keeps the last result,
+ * or Skipped (graded cards) / Completed (Learn) when there is none.
+ */
+export function leaveCardOutcome(session, { hasTake = false, takeResult = null } = {}) {
+  if (hasTake && takeResult) {
+    return { ...takeResult, cardId: currentCard(session) };
+  }
+  const existing = resultForCard(session);
+  if (existing) return existing;
+  const skipped = skipResult(session);
+  return { cardId: currentCard(session), ...skipped };
+}
+
+function withCardResult(session, result) {
+  const cardId = result.cardId ?? currentCard(session);
+  return {
+    ...session,
+    cardResults: [
+      ...session.cardResults.filter((row) => row.cardId !== cardId),
+      { ...result, cardId },
+    ],
+  };
+}
+
+function navigationHalt() {
+  return { stopAudio: true, stopCountIn: true, stopMic: true };
+}
+
+/**
+ * Move one card without wrapping up. Always asks the UI to halt audio,
+ * the count-in, and the mic. No-ops at the first/last card.
+ */
+export function moveCard(session, delta, leave = {}) {
+  const halt = navigationHalt();
+  if (!session || session.screen !== "session" || !delta) {
+    return { session, moved: false, ...halt, stopAudio: false, stopCountIn: false, stopMic: false };
+  }
+  const nextIndex = session.cardIndex + delta;
+  if (nextIndex < 0 || nextIndex >= session.cards.length) {
+    return { session, moved: false, stopAudio: false, stopCountIn: false, stopMic: false };
+  }
+  const left = withCardResult(session, leaveCardOutcome(session, leave));
+  return {
+    session: {
+      ...left,
+      screen: "session",
+      cardIndex: nextIndex,
+      listenStage: "hear",
+    },
+    moved: true,
+    ...halt,
+  };
+}
+
+export function goBack(session, leave = {}) {
+  return moveCard(session, -1, leave);
+}
+
+export function goNext(session, leave = {}) {
+  return moveCard(session, 1, leave);
+}
+
+/** Mark unfinished cards Skipped/Completed when abandoning a session. */
+export function skipRemainingCards(session) {
+  if (!session) return session;
+  let cardResults = [...session.cardResults];
+  for (const [index, cardId] of session.cards.entries()) {
+    if (cardResults.some((row) => row.cardId === cardId)) continue;
+    if (index < session.cardIndex) continue;
+    const ghost = { ...session, cardIndex: index };
+    cardResults.push({ cardId, ...skipResult(ghost) });
+  }
+  return { ...session, cardResults };
+}
+
+export function quickViewData(lessonKeys = {}, masteredByModule = {}) {
+  return MODULES.map((module) => {
+    const mastered = masteredByModule[module.id];
+    const keysMastered = Array.isArray(mastered)
+      ? mastered.length
+      : Number(mastered ?? 0);
+    return {
+      id: module.id,
+      number: module.number,
+      name: module.name,
+      lickName: module.name,
+      keysMastered,
+      records: modulePathNodes(module, {}, lessonKeys).map((node) => ({
+        id: node.id,
+        number: node.number,
+        title: node.title,
+        coverTitle: node.coverTitle,
+        context: node.context,
+        keysPassed: node.passedCount,
+      })),
+    };
+  });
+}
+
+export function resolveQuickViewJump(id) {
+  const module = MODULES.find((item) => item.id === id);
+  if (module) {
+    return { type: "module", id: module.id, targetId: module.id };
+  }
+  const lesson = LESSONS.find((item) => item.id === id);
+  if (!lesson) return null;
+  return { type: "lesson", id: lesson.id, moduleId: moduleForLesson(lesson.id).id };
+}
+
 export function repeatKey(session) {
   return {
     ...session,
