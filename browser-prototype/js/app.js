@@ -15,6 +15,7 @@ import {
   nextEngravingWidth,
   nextStaffsep,
   chorusStaffFit,
+  slashStrokeBox,
 } from "./lesson.js";
 import {
   PREFS_KEY,
@@ -946,56 +947,94 @@ function barIndexForNote(note, staffs, barsOnStaff) {
   return staffIndex * barsOnStaff + barInSystem;
 }
 
-function drawSlashOn(host, box) {
+function elementBox(el) {
+  if (!el || typeof el.getBBox !== "function") return null;
+  try {
+    return el.getBBox();
+  } catch {
+    return null;
+  }
+}
+
+function nearestStaffBox(el, staffs) {
+  const box = elementBox(el);
+  let best = null;
+  let bestDist = Infinity;
+  for (const staff of staffs) {
+    const staffBox = elementBox(staff);
+    if (!staffBox) continue;
+    const cy = (box?.y ?? staffBox.y) + (box?.height ?? staffBox.height) / 2;
+    const dist = Math.abs(cy - (staffBox.y + staffBox.height / 2));
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = staffBox;
+    }
+  }
+  return best;
+}
+
+function isSpacerRest(rest, staffBox) {
+  if (rest.querySelector(".abcjs-chord, .abcjs-annotation")) return true;
+  const glyph = rest.querySelector("path, ellipse");
+  if (!glyph) return true;
+  const box = elementBox(glyph);
+  if (!box) return true;
+  if (box.width < 0.6 && box.height < 0.6) return true;
+  if (staffBox && box.height > staffBox.height * 1.35) return true;
+  return false;
+}
+
+function drawSlashOn(host, glyphBox, staffBox) {
   const ns = "http://www.w3.org/2000/svg";
+  const stroke = slashStrokeBox(glyphBox, staffBox ?? glyphBox);
   const slash = document.createElementNS(ns, "line");
-  slash.setAttribute("x1", String(box.x - 1));
-  slash.setAttribute("y1", String(box.y + box.height + 1));
-  slash.setAttribute("x2", String(box.x + box.width + 5));
-  slash.setAttribute("y2", String(box.y - 3));
+  slash.setAttribute("x1", String(stroke.x1));
+  slash.setAttribute("y1", String(stroke.y1));
+  slash.setAttribute("x2", String(stroke.x2));
+  slash.setAttribute("y2", String(stroke.y2));
   slash.setAttribute("stroke", "#2b211a");
   slash.setAttribute("stroke-width", String(lastNotationLayout?.slashStroke ?? 1.85));
   slash.setAttribute("stroke-linecap", "round");
   slash.setAttribute("opacity", "1");
+  slash.classList.add("rhythm-slash");
   host.append(slash);
+}
+
+function hideRestGlyph(rest) {
+  hideNoteGlyphs(rest, true);
+  for (const glyph of rest.querySelectorAll("path, ellipse")) {
+    if (isCueNode(glyph)) continue;
+    glyph.setAttribute("opacity", "0");
+    glyph.style.display = "none";
+  }
 }
 
 function applyRhythmSlashes(keepLandingNotes = false) {
   const svg = els.notation.querySelector("svg");
   if (!svg) return;
-  if (keepLandingNotes) {
-    for (const rest of els.notation.querySelectorAll(".abcjs-rest")) {
-      const glyph = rest.querySelector("path, ellipse") ?? rest;
-      if (typeof glyph.getBBox !== "function") continue;
-      let box;
-      try {
-        box = glyph.getBBox();
-      } catch {
-        continue;
-      }
-      hideNoteGlyphs(rest, true);
-      drawSlashOn(rest, box);
-    }
-    for (const el of els.notation.querySelectorAll(".abcjs-chord, .abcjs-annotation")) {
-      el.style.opacity = "1";
-      el.removeAttribute("opacity");
-    }
-    restyleAnnotations();
-    return;
-  }
   const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
   const barsOnStaff = lastNotationLayout?.barsPerLine ?? 4;
   const landingBars = new Set(
     (lastNotationLayout?.phraseBars ?? [lastNotationLayout?.phraseStartBar ?? 7]).map((bar) => bar - 1),
   );
+  for (const rest of els.notation.querySelectorAll(".abcjs-rest")) {
+    const staffBox = nearestStaffBox(rest, staffs);
+    if (isSpacerRest(rest, staffBox)) continue;
+    const glyph = rest.querySelector("path, ellipse") ?? rest;
+    const box = elementBox(glyph);
+    if (!box) continue;
+    hideRestGlyph(rest);
+    drawSlashOn(rest, box, staffBox);
+  }
   for (const note of els.notation.querySelectorAll(".abcjs-note")) {
     const head = note.querySelector(".abcjs-notehead")
       ?? [...note.querySelectorAll("ellipse, path")].find((node) => !isCueNode(node));
-    if (!head || typeof head.getBBox !== "function") continue;
+    if (!head) continue;
     if (keepLandingNotes && landingBars.has(barIndexForNote(note, staffs, barsOnStaff))) continue;
-    const box = head.getBBox();
+    const box = elementBox(head);
+    if (!box) continue;
     hideNoteGlyphs(note, true);
-    drawSlashOn(note, box);
+    drawSlashOn(note, box, nearestStaffBox(head, staffs) ?? nearestStaffBox(note, staffs));
   }
   for (const el of els.notation.querySelectorAll(".abcjs-chord, .abcjs-annotation")) {
     el.style.opacity = "1";

@@ -747,8 +747,35 @@ export function sessionAudioConfig(session) {
   return audioConfigFor(practiceStateFor(session));
 }
 
+const BAR_COUNT_WORDS = {
+  8: "eight",
+  9: "nine",
+  12: "twelve",
+  16: "sixteen",
+  24: "twenty-four",
+  32: "thirty-two",
+  36: "thirty-six",
+};
+
+export function hearBarsLabel(barCount) {
+  return `Hear the ${BAR_COUNT_WORDS[barCount] ?? String(barCount)} bars`;
+}
+
 export function sessionPrimaryAction(session, playback) {
-  return primaryAction(practiceStateFor(session), playback);
+  const action = primaryAction(practiceStateFor(session), playback);
+  if (action.id !== "start") return action;
+  const lesson = lessonById(session.lessonId);
+  if (lesson.kind === "learn" || currentCard(session) !== "learn") return action;
+  if (lesson.group === "my-tunes") return { ...action, label: "Hear the tune" };
+  if (lesson.group === "your-tunes") {
+    return { ...action, label: `Hear it in ${lesson.coverTitle ?? lesson.title}` };
+  }
+  const ctx = applicationContext(
+    getKey(currentKeyId(session)),
+    session.displayMode,
+    lesson.applicationId,
+  );
+  return { ...action, label: hearBarsLabel(ctx.formBars) };
 }
 
 export function sessionChartCopy(session) {
@@ -805,7 +832,12 @@ export function sessionCue(session, snap = {}) {
     }
     return "Cold recall. No staff, no model.";
   }
-  if (card === "learn") return `Hear the phrase land in bar ${ctx.enterBar} on ${ctx.targetChord}.`;
+  if (card === "learn") {
+    if (lesson.group === "my-tunes" || lesson.group === "your-tunes") {
+      return `First spot: bar ${ctx.enterBar}, ${ctx.spotLickName} on ${ctx.targetChord}.`;
+    }
+    return `Hear the phrase land in bar ${ctx.enterBar} on ${ctx.targetChord}.`;
+  }
   if (card === "play") return `Get ready in bar ${ctx.readyBar}. Bring the phrase in bar ${ctx.enterBar}.`;
   if (card === "listen") {
     return session.listenStage === "echo"

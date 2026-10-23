@@ -646,6 +646,8 @@ export function applicationContext(concertKey, displayMode, applicationId = DEFA
   const enterBar = app.phraseStartBar;
   const readyBar = prepareBar(applicationId);
   const lick = lickById(app.lickId);
+  const firstSpot = spotsFor(applicationId)[0];
+  const spotLick = lickById(firstSpot?.lickId ?? app.lickId);
   const cellName = cell.minorName;
   const noun = lickNoun(app.id);
   const base = {
@@ -660,6 +662,8 @@ export function applicationContext(concertKey, displayMode, applicationId = DEFA
     tuneShort: shown.shortName,
     enterBar,
     readyBar,
+    formBars: form.bars.length,
+    spotLickName: spotLick.shortName,
     formTitle: form.shortTitle ?? form.title,
     lickName: lick.shortName,
     noun,
@@ -977,7 +981,15 @@ function renderSlashBeats(durationBeats, clef, eighthUnit = true) {
   return Array.from({ length: n }, () => glyph).join(" ");
 }
 
-function formContext(concertKey, displayMode, applicationId, melodyRegister) {
+function sliceHasSoundingNotes(items, start, end) {
+  return items.some((item) => (
+    item.type === "note"
+    && item.beat < end - 1e-6
+    && item.beat + item.beats > start + 1e-6
+  ));
+}
+
+function formContext(concertKey, displayMode, applicationId, melodyRegister, clef = DEFAULT_CLEF) {
   const quality = applicationKeyQuality(applicationId);
   const shownKey = displayKey(concertKey, displayMode, quality);
   return {
@@ -988,6 +1000,7 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister) {
     octaveBase: octaveForApplication(applicationId, concertKey.pc),
     quality,
     shownKey,
+    clef,
     barState: newBarState(shownKey),
   };
 }
@@ -1019,7 +1032,7 @@ function renderFormAbc({
   barsPerLine = 4,
   isolated = false,
 }) {
-  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister);
+  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
   const form = isolated && mode === "phrase"
     ? formForApplication(applicationId)
     : formForApplication(applicationId);
@@ -1048,13 +1061,10 @@ function renderFormAbc({
     ));
     const useNotes = mode === "model" || mode === "phrase" || mode === "landing";
     if (!barChords.length) {
-      if (isolated && mode === "phrase") {
-        abc += renderSlice(items, barStart, barEnd, ctx);
-      } else if (mode === "landing") {
-        abc += renderSlice(items, barStart, barEnd, ctx);
-      } else {
-        abc += renderSlashBeats(4, clef, eighth);
-      }
+      const sounding = sliceHasSoundingNotes(items, barStart, barEnd);
+      if (mode === "landing" && !sounding) abc += renderSlashBeats(4, clef, eighth);
+      else if (useNotes) abc += renderSlice(items, barStart, barEnd, ctx);
+      else abc += renderSlashBeats(4, clef, eighth);
       abc += barAdvance(bar, barCount, barsPerLine);
       continue;
     }
@@ -1065,7 +1075,9 @@ function renderFormAbc({
       abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality, chord.slashIntervalFromTonic, chord.usesFlats)}"`;
       if (index === 0) abc += barCueAnnotation(bar + 1, applicationId, showCues);
       abc += "yy";
-      if (useNotes) abc += renderSlice(items, sliceStart, sliceEnd, ctx);
+      const sounding = sliceHasSoundingNotes(items, sliceStart, sliceEnd);
+      if (mode === "landing" && !sounding) abc += renderSlashBeats(sliceEnd - sliceStart, clef, eighth);
+      else if (useNotes) abc += renderSlice(items, sliceStart, sliceEnd, ctx);
       else abc += renderSlashBeats(sliceEnd - sliceStart, clef, eighth);
     }
     abc += barAdvance(bar, barCount, barsPerLine);
