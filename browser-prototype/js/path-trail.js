@@ -5,6 +5,9 @@
 
 export const PATH_SLOT_PCTS = [28, 50, 72];
 
+const CAPTION_RESUME = 12;
+const CAPTION_CLEAR = 8;
+
 function round(n) {
   return Math.round(n * 10) / 10;
 }
@@ -26,6 +29,67 @@ export function trailExitX(from, to) {
     : Math.max(Math.min(toward, past), to.cx);
 }
 
+export function xClearsCaption(from, x) {
+  if (from.captionLeft == null || from.captionRight == null) return true;
+  return x <= from.captionLeft - CAPTION_CLEAR || x >= from.captionRight + CAPTION_CLEAR;
+}
+
+function sleeveBottom(from) {
+  return from.cy + (from.halfH ?? 0);
+}
+
+function aboveCaption(from) {
+  if (from.captionTop == null) return sleeveBottom(from);
+  return from.captionTop - 6;
+}
+
+function belowCaption(from) {
+  if (from.captionBottom == null) return sleeveBottom(from) + CAPTION_RESUME;
+  return from.captionBottom + CAPTION_RESUME;
+}
+
+function curveTo(fromX, fromY, to) {
+  const midY = (fromY + to.cy) / 2;
+  return { type: "C", x1: fromX, y1: midY, x2: to.cx, y2: midY, x: to.cx, y: to.cy };
+}
+
+/**
+ * Drop to just above the key dots, skip the caption, resume below, then curve.
+ * Used on stacked phone sleeves and for the 03 → end-cap connector.
+ */
+function gappedCurve(segs, from, to) {
+  const topY = Math.min(aboveCaption(from), sleeveBottom(from));
+  const bottomY = belowCaption(from);
+  segs.push({ type: "L", x: from.cx, y: topY });
+  segs.push({ type: "M", x: from.cx, y: bottomY });
+  segs.push(curveTo(from.cx, bottomY, to));
+}
+
+function windingCurve(segs, from, to) {
+  const exitX = trailExitX(from, to);
+  const fromBottom = from.captionBottom ?? sleeveBottom(from);
+  const toTop = to.cy - (to.halfH ?? 0);
+  const room = toTop - fromBottom;
+  const gapY = fromBottom + Math.max(10, room > 0 ? room * 0.4 : 10);
+  const midY = (gapY + to.cy) / 2;
+  segs.push({ type: "L", x: exitX, y: from.cy });
+  segs.push({ type: "L", x: exitX, y: gapY });
+  segs.push({ type: "C", x1: exitX, y1: midY, x2: to.cx, y2: midY, x: to.cx, y: to.cy });
+}
+
+function copyStop(to) {
+  return {
+    cx: to.cx,
+    cy: to.cy,
+    halfW: to.halfW ?? 0,
+    halfH: to.halfH ?? 0,
+    captionLeft: to.captionLeft,
+    captionRight: to.captionRight,
+    captionTop: to.captionTop,
+    captionBottom: to.captionBottom ?? to.cy,
+  };
+}
+
 /**
  * @param {Array<{ cx: number, cy: number, halfW?: number, halfH?: number, captionTop?: number, captionBottom?: number, captionLeft?: number, captionRight?: number }>} sleeves
  * @param {{ cx: number, cy: number } | null} end
@@ -35,26 +99,13 @@ export function trailSegments(sleeves, end = null) {
   const segs = [{ type: "M", x: sleeves[0].cx, y: sleeves[0].cy }];
   const stops = end ? [...sleeves.slice(1), end] : sleeves.slice(1);
   let from = sleeves[0];
-  for (const to of stops) {
+  stops.forEach((to, index) => {
+    const toEndCap = Boolean(end) && index === stops.length - 1;
     const exitX = trailExitX(from, to);
-    const fromBottom = from.captionBottom ?? from.cy + (from.halfH ?? 0);
-    const toTop = to.cy - (to.halfH ?? 0);
-    const room = toTop - fromBottom;
-    const gapY = fromBottom + Math.max(10, room > 0 ? room * 0.4 : 10);
-    const midY = (gapY + to.cy) / 2;
-    segs.push({ type: "L", x: exitX, y: from.cy });
-    segs.push({ type: "L", x: exitX, y: gapY });
-    segs.push({ type: "C", x1: exitX, y1: midY, x2: to.cx, y2: midY, x: to.cx, y: to.cy });
-    from = {
-      cx: to.cx,
-      cy: to.cy,
-      halfW: to.halfW ?? 0,
-      halfH: to.halfH ?? 0,
-      captionLeft: to.captionLeft,
-      captionRight: to.captionRight,
-      captionBottom: to.captionBottom ?? to.cy,
-    };
-  }
+    if (toEndCap || !xClearsCaption(from, exitX)) gappedCurve(segs, from, to);
+    else windingCurve(segs, from, to);
+    from = copyStop(to);
+  });
   return segs;
 }
 
