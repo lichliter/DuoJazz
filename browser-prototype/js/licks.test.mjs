@@ -57,8 +57,9 @@ function midisFor(lick, keyId) {
 test("registry has five modules and 25 always-open lessons", () => {
   assert.deepEqual(LICKS.map((lick) => lick.id), ["cmar", "emr", "gts", "bo", "hsr"]);
   assert.equal(MODULES.length, 5);
-  assert.deepEqual(MODULES.map((module) => module.lessons.length), [7, 5, 4, 4, 5]);
-  assert.equal(LESSONS.length, 25);
+  assert.deepEqual(MODULES.map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length), [7, 5, 4, 4, 5]);
+  assert.deepEqual(MODULES.map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
+  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 25);
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "integrate"));
   for (const lick of LICKS) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);

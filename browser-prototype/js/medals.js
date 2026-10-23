@@ -106,6 +106,16 @@ export function recordQuizPass(mastery, lessonId, keyId) {
   const previousCount = next.modules[moduleId]?.masteredKeys.length ?? next.masteredKeys.length;
   const reconciled = reconcileMastery(next);
   const moduleState = reconciled.modules[moduleId];
+  if (!moduleState) {
+    return {
+      ...reconciled,
+      upgraded: false,
+      previousMedal,
+      previousCount,
+      newlyMastered: false,
+      moduleId,
+    };
+  }
   return {
     ...reconciled,
     upgraded: orderValue(moduleState.medal) > orderValue(previousMedal),

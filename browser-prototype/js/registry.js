@@ -4,6 +4,16 @@
  * Do not store the PDF, page images, or long passages of its text.
  */
 
+import {
+  TUNES,
+  deriveTuneForms,
+  deriveTuneApplications,
+  deriveYourTunesLessons,
+  deriveMyTunesLessons,
+} from "./tunes.js";
+
+export { TUNES };
+
 export const TROMBONE_LOW_MIDI = 40; // E2
 export const TROMBONE_HIGH_MIDI = 67; // G4
 
@@ -482,6 +492,7 @@ export const FORMS = {
       bar([chord(4, "major7")]),
     ],
   },
+  ...deriveTuneForms(TUNES),
 };
 
 const CMAR_LEAD_HOME = [
@@ -1027,6 +1038,7 @@ export const ALL_APPLICATIONS = [
       { bar: 3, fragment: "hsr-altered", anchorInterval: 2 },
     ],
   },
+  ...deriveTuneApplications(TUNES),
 ];
 
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
@@ -1115,6 +1127,7 @@ export const MODULES = [
         context: "Cry Me a River · A, bars 1–8",
         defaultKeyId: "Eb",
       },
+      ...deriveYourTunesLessons("cmar"),
     ], 0),
   },
   {
@@ -1173,6 +1186,7 @@ export const MODULES = [
         context: "Fly Me to the Moon · A, bars 1–8",
         defaultKeyId: "C",
       },
+      ...deriveYourTunesLessons("emr"),
     ], 1),
   },
   {
@@ -1221,6 +1235,7 @@ export const MODULES = [
         context: "Misty · A, bars 1–9",
         defaultKeyId: "Eb",
       },
+      ...deriveYourTunesLessons("gts"),
     ], 0),
   },
   {
@@ -1269,7 +1284,8 @@ export const MODULES = [
         context: "Honeysuckle Rose · bridge",
         defaultKeyId: "F",
       },
-    ], 1),
+      ...deriveYourTunesLessons("bo"),
+    ], 2),
   },
   {
     id: "hsr",
@@ -1327,7 +1343,8 @@ export const MODULES = [
         context: "All the Things You Are · A, bars 1–8",
         defaultKeyId: "Ab",
       },
-    ], 2),
+      ...deriveYourTunesLessons("hsr"),
+    ], 0),
   },
 ];
 
@@ -1335,12 +1352,30 @@ export const APPLICATIONS = ALL_APPLICATIONS.filter((app) => (
   app.id === "minor-home" || app.id === "altered-dominant"
 ));
 
-export const LESSONS = MODULES.flatMap((module) => module.lessons.map((lesson) => ({
+export const TUNE_SECTION = {
+  id: "tunes",
+  number: null,
+  lickId: null,
+  name: "My tunes",
+  lessons: withSleeves(deriveMyTunesLessons(), 1),
+};
+
+export const MODULE_LESSONS = MODULES.flatMap((module) => module.lessons.map((lesson) => ({
   ...lesson,
   moduleId: module.id,
   moduleNumber: module.number,
   moduleName: module.name,
 })));
+
+export const TUNE_LESSONS = TUNE_SECTION.lessons.map((lesson, index) => ({
+  ...lesson,
+  moduleId: "tunes",
+  moduleNumber: null,
+  moduleName: "My tunes",
+  index,
+}));
+
+export const LESSONS = [...MODULE_LESSONS, ...TUNE_LESSONS];
 
 export function lickById(id) {
   return LICKS.find((lick) => lick.id === id) ?? LICKS[0];
@@ -1355,6 +1390,7 @@ export function applicationById(id) {
 }
 
 export function moduleById(id) {
+  if (id === TUNE_SECTION.id) return TUNE_SECTION;
   return MODULES.find((module) => module.id === id) ?? MODULES[0];
 }
 
@@ -1418,6 +1454,7 @@ export function spotsFor(applicationId) {
       fragment: "full",
       anchorInterval: app.cellTonicInterval ?? 0,
       pickup: false,
+      lickId: spot.lickId ?? app.lickId,
       ...spot,
     }));
   }
@@ -1426,11 +1463,12 @@ export function spotsFor(applicationId) {
     fragment: "full",
     anchorInterval: app.cellTonicInterval ?? 0,
     pickup: Boolean(app.includePickup),
+    lickId: app.lickId,
   }];
 }
 
 export function elementsForSpot(app, spot, nextSpot) {
-  const lick = lickById(app.lickId);
+  const lick = lickById(spot.lickId ?? app.lickId);
   const fragmentId = spot.fragment ?? "full";
   if (fragmentId === "full") {
     const pickup = Boolean(spot.pickup);
@@ -1464,4 +1502,20 @@ export function phraseSpanBars(applicationId) {
     for (let bar = firstBar; bar <= lastBar; bar += 1) bars.add(bar);
   });
   return [...bars].sort((a, b) => a - b);
+}
+
+export function spotNoteRange(app, spot, nextSpot) {
+  const { elements, pickupBeats } = elementsForSpot(app, spot, nextSpot);
+  const origin = (spot.bar - 1) * 4 - (pickupBeats || 0);
+  let beat = origin;
+  let start = null;
+  let end = origin;
+  for (const el of elements) {
+    if (el.type === "note") {
+      if (start == null) start = beat;
+      end = beat + el.beats;
+    }
+    beat += el.beats;
+  }
+  return { start: start ?? origin, end };
 }

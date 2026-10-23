@@ -54,6 +54,8 @@ import {
   skipCard,
   sessionSlot,
   modulePathNodes,
+  tunePathNodes,
+  TUNE_SECTION,
   lessonSleeve,
   vinylTier,
   sleeveCaption,
@@ -69,7 +71,16 @@ import {
   quickViewData,
   resolveQuickViewJump,
   cardCounter,
+  persistLessonTempo,
 } from "./session.js";
+import {
+  tuneById,
+  licksInTune,
+  tunesForLick,
+  learnLessonIdForLick,
+  tunePlayLessonId,
+} from "./tunes.js";
+import { lickById } from "./registry.js";
 import { GRADED_CARDS, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import {
   emptyMastery,
@@ -95,6 +106,7 @@ let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
 let lastTune = null;
 let lastNotationLayout = null;
+let lastPlayheadSystem = null;
 let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
@@ -118,6 +130,7 @@ const els = {
   tempoReadout: document.getElementById("tempo-readout"),
   tempoDown: document.getElementById("tempo-down"),
   tempoUp: document.getElementById("tempo-up"),
+  setupLinks: document.getElementById("setup-links"),
   startLesson: document.getElementById("start-lesson"),
   sessionExit: document.getElementById("session-exit"),
   sessionBack: document.getElementById("session-back"),
@@ -263,7 +276,11 @@ function renderQuickView() {
       header.type = "button";
       header.className = "quick-view-module-btn";
       header.dataset.testid = `quick-view-module-${module.id}`;
-      header.innerHTML = `<p class="quick-view-kicker">Module ${module.number}</p><p class="quick-view-name">${module.lickName}</p><p class="quick-view-meta">${module.keysMastered} of 12 keys mastered</p>`;
+      const kicker = module.id === "tunes" ? "Play-through" : `Module ${module.number}`;
+      const meta = module.id === "tunes"
+        ? `${module.records.length} tunes`
+        : `${module.keysMastered} of 12 keys mastered`;
+      header.innerHTML = `<p class="quick-view-kicker">${kicker}</p><p class="quick-view-name">${module.lickName}</p><p class="quick-view-meta">${meta}</p>`;
       header.addEventListener("click", () => jumpFromQuickView(module.id));
 
       const records = document.createElement("div");
@@ -328,6 +345,7 @@ function closeSetup() {
 
 function startFromSetup() {
   prefs.lessons[setupLessonId] = { ...setupDraft };
+  prefs = persistLessonTempo(prefs, setupLessonId, setupDraft.tempo);
   prefs = markLessonStarted(prefs, setupLessonId, setupDraft.startKeyId);
   persist();
   halt();
@@ -468,11 +486,40 @@ function moduleBanner(module, stats) {
   return section;
 }
 
+function groupHeader(title, testId) {
+  const p = document.createElement("p");
+  p.className = "path-group-label";
+  p.dataset.testid = testId;
+  p.textContent = title;
+  return p;
+}
+
 function moduleBlock(module, nodes, stats) {
   const wrap = document.createElement("section");
   wrap.className = "module-block";
   wrap.dataset.module = module.id;
-  wrap.append(moduleBanner(module, stats), ...nodes.map((node) => sleeveButton(node)));
+  wrap.append(moduleBanner(module, stats));
+  let lastGroup = "standards";
+  for (const node of nodes) {
+    const group = node.group ?? "standards";
+    if (group !== lastGroup && group === "your-tunes") {
+      wrap.append(groupHeader("Your tunes", `your-tunes-${module.id}`));
+    }
+    lastGroup = group;
+    wrap.append(sleeveButton(node));
+  }
+  return wrap;
+}
+
+function myTunesBlock(nodes) {
+  const wrap = document.createElement("section");
+  wrap.className = "module-block tunes-block";
+  wrap.dataset.module = TUNE_SECTION.id;
+  const banner = document.createElement("section");
+  banner.className = "module-banner tunes-banner";
+  banner.dataset.testid = `module-banner-${TUNE_SECTION.id}`;
+  banner.innerHTML = `<div class="banner-copy"><p class="banner-kicker">Play-through</p><h2>My tunes</h2></div>`;
+  wrap.append(banner, ...nodes.map((node) => sleeveButton(node)));
   return wrap;
 }
 
@@ -483,7 +530,11 @@ function renderHome() {
     modulePathNodes(module, prefs, keys),
     moduleMastery(mastery, module.id),
   ));
-  els.lessonList.replaceChildren(...blocks, moreLicksSoon());
+  els.lessonList.replaceChildren(
+    ...blocks,
+    myTunesBlock(tunePathNodes(prefs, keys)),
+    moreLicksSoon(),
+  );
   requestAnimationFrame(paintPathTrail);
 }
 
@@ -629,6 +680,59 @@ function renderSetup() {
     renderSetup();
   });
   els.tempoReadout.textContent = String(setupDraft.tempo);
+  renderSetupLinks(lesson);
+}
+
+function renderSetupLinks(lesson) {
+  const host = els.setupLinks;
+  if (!host) return;
+  host.replaceChildren();
+  if (lesson.kind === "learn") {
+    const tunes = tunesForLick(lesson.moduleId === "cmar" ? "cmar" : lesson.moduleId);
+    if (!tunes.length) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    const heading = document.createElement("p");
+    heading.className = "setup-links-heading";
+    heading.textContent = "In your tunes";
+    host.append(heading);
+    for (const tune of tunes) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "setup-link";
+      btn.dataset.testid = `setup-link-tune-${tune.id}`;
+      btn.textContent = tune.title;
+      btn.addEventListener("click", () => openSetup(tunePlayLessonId(tune.id)));
+      host.append(btn);
+    }
+    return;
+  }
+  if (lesson.tuneId) {
+    const tune = tuneById(lesson.tuneId);
+    const lickIds = licksInTune(tune);
+    if (!lickIds.length) {
+      host.hidden = true;
+      return;
+    }
+    host.hidden = false;
+    const heading = document.createElement("p");
+    heading.className = "setup-links-heading";
+    heading.textContent = "Licks in this tune";
+    host.append(heading);
+    for (const lickId of lickIds) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "setup-link";
+      btn.dataset.testid = `setup-link-lick-${lickId}`;
+      btn.textContent = lickById(lickId).name;
+      btn.addEventListener("click", () => openSetup(learnLessonIdForLick(lickId)));
+      host.append(btn);
+    }
+    return;
+  }
+  host.hidden = true;
 }
 
 function renderSessionOctave() {
@@ -842,10 +946,43 @@ function barIndexForNote(note, staffs, barsOnStaff) {
   return staffIndex * barsOnStaff + barInSystem;
 }
 
+function drawSlashOn(host, box) {
+  const ns = "http://www.w3.org/2000/svg";
+  const slash = document.createElementNS(ns, "line");
+  slash.setAttribute("x1", String(box.x - 1));
+  slash.setAttribute("y1", String(box.y + box.height + 1));
+  slash.setAttribute("x2", String(box.x + box.width + 5));
+  slash.setAttribute("y2", String(box.y - 3));
+  slash.setAttribute("stroke", "#2b211a");
+  slash.setAttribute("stroke-width", String(lastNotationLayout?.slashStroke ?? 1.85));
+  slash.setAttribute("stroke-linecap", "round");
+  slash.setAttribute("opacity", "1");
+  host.append(slash);
+}
+
 function applyRhythmSlashes(keepLandingNotes = false) {
   const svg = els.notation.querySelector("svg");
   if (!svg) return;
-  const ns = "http://www.w3.org/2000/svg";
+  if (keepLandingNotes) {
+    for (const rest of els.notation.querySelectorAll(".abcjs-rest")) {
+      const glyph = rest.querySelector("path, ellipse") ?? rest;
+      if (typeof glyph.getBBox !== "function") continue;
+      let box;
+      try {
+        box = glyph.getBBox();
+      } catch {
+        continue;
+      }
+      hideNoteGlyphs(rest, true);
+      drawSlashOn(rest, box);
+    }
+    for (const el of els.notation.querySelectorAll(".abcjs-chord, .abcjs-annotation")) {
+      el.style.opacity = "1";
+      el.removeAttribute("opacity");
+    }
+    restyleAnnotations();
+    return;
+  }
   const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
   const barsOnStaff = lastNotationLayout?.barsPerLine ?? 4;
   const landingBars = new Set(
@@ -858,16 +995,7 @@ function applyRhythmSlashes(keepLandingNotes = false) {
     if (keepLandingNotes && landingBars.has(barIndexForNote(note, staffs, barsOnStaff))) continue;
     const box = head.getBBox();
     hideNoteGlyphs(note, true);
-    const slash = document.createElementNS(ns, "line");
-    slash.setAttribute("x1", String(box.x - 1));
-    slash.setAttribute("y1", String(box.y + box.height + 1));
-    slash.setAttribute("x2", String(box.x + box.width + 5));
-    slash.setAttribute("y2", String(box.y - 3));
-    slash.setAttribute("stroke", "#2b211a");
-    slash.setAttribute("stroke-width", String(lastNotationLayout?.slashStroke ?? 1.85));
-    slash.setAttribute("stroke-linecap", "round");
-    slash.setAttribute("opacity", "1");
-    note.append(slash);
+    drawSlashOn(note, box);
   }
   for (const el of els.notation.querySelectorAll(".abcjs-chord, .abcjs-annotation")) {
     el.style.opacity = "1";
@@ -944,6 +1072,7 @@ function updatePlayhead(snap = transport.snapshot()) {
   if (!active) {
     line.setAttribute("opacity", "0");
     glow.setAttribute("opacity", "0");
+    lastPlayheadSystem = null;
     return;
   }
   const view = sessionPresentation(session);
@@ -966,6 +1095,10 @@ function updatePlayhead(snap = transport.snapshot()) {
   line.setAttribute("y1", String(box.y - 6));
   line.setAttribute("y2", String(box.y + box.height + 18));
   line.setAttribute("opacity", "1");
+  if (lastPlayheadSystem !== system) {
+    lastPlayheadSystem = system;
+    staff.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+  }
 }
 
 function abcRenderOptions(layout, staffwidth, scale) {
@@ -1068,6 +1201,7 @@ function renderNotation() {
   if (hideStaff) {
     els.notation.replaceChildren();
     lastTune = null;
+    lastPlayheadSystem = null;
     return;
   }
   const width = staffWidth();
@@ -1415,10 +1549,14 @@ els.doneSession.addEventListener("click", exitSession);
 
 els.tempoDown.addEventListener("click", () => {
   setupDraft.tempo = Math.max(60, setupDraft.tempo - 4);
+  prefs = persistLessonTempo(prefs, setupLessonId, setupDraft.tempo);
+  persist();
   renderSetup();
 });
 els.tempoUp.addEventListener("click", () => {
   setupDraft.tempo = Math.min(160, setupDraft.tempo + 4);
+  prefs = persistLessonTempo(prefs, setupLessonId, setupDraft.tempo);
+  persist();
   renderSetup();
 });
 

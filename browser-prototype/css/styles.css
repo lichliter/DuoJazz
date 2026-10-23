@@ -1527,6 +1527,25 @@ input[type="checkbox"] {
   padding: 0.15rem 0 1.15rem;
 }
 
+.path-group-label {
+  margin: 0.85rem 0 0.15rem;
+  justify-self: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #f3d2b8;
+  background: var(--bg);
+  padding: 0.12rem 0.7rem;
+  border-radius: 999px;
+  position: relative;
+  z-index: 1;
+}
+
+.tunes-banner {
+  background: color-mix(in srgb, var(--sleeve-teal) 55%, #201712);
+}
+
 .module-banner h1,
 .module-banner h2 {
   margin: 0;
@@ -2043,6 +2062,33 @@ input[type="checkbox"] {
   color: var(--sleeve-ink, var(--text));
   border-color: transparent;
   box-shadow: 0 4px 0 color-mix(in srgb, var(--sleeve, var(--selected)) 55%, #000);
+}
+
+.setup-links {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.7rem;
+}
+
+.setup-links-heading {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.setup-link {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 14px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 0.65rem 0.8rem;
+  cursor: pointer;
 }
 
 .setup-form .play.start {

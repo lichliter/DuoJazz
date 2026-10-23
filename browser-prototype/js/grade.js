@@ -8,6 +8,7 @@ import {
   getKey,
   melodyMidiForInterval,
   octaveForApplication,
+  spotOctavesFor,
   phraseEvents,
   wrapPc,
 } from "./music.js";
@@ -62,19 +63,21 @@ export function expectedNotesFor(session) {
   const isolated = lesson.kind === "learn";
   const events = phraseEvents(lesson.applicationId, isolated);
   const octaveBase = octaveForApplication(lesson.applicationId, key.pc);
+  const octaves = spotOctavesFor(lesson.applicationId, key.pc);
   return events.map((event, index) => {
     const startBeat = event.beat;
     const cellPc = event.cellInterval == null
       ? key.pc
       : wrapPc(key.pc + (event.cellTonicInterval ?? 0));
     const interval = event.cellInterval ?? event.interval;
+    const oct = octaves[event.spotIndex ?? 0] ?? octaveBase;
     return {
       index,
       number: index + 1,
       startBeat,
       beats: event.beats,
       bar: startBeat < 0 ? 1 : Math.floor(startBeat / BEATS_PER_BAR) + 1,
-      midi: melodyMidiForInterval(cellPc, interval, session.melodyRegister, octaveBase),
+      midi: melodyMidiForInterval(cellPc, interval, session.melodyRegister, oct),
       spotIndex: event.spotIndex ?? 0,
     };
   });

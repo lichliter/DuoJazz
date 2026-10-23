@@ -135,6 +135,8 @@ const QUALITY_ASCII = {
   diminished7: "°7",
   dominant9: "9",
   dominant7sus: "7sus",
+  minormaj7: "mΔ7",
+  minor11: "m11",
 };
 
 const QUALITY_ABC = { ...QUALITY_ASCII };
@@ -155,6 +157,8 @@ const QUALITY_INTERVALS = {
   diminished7: [0, 3, 6, 9],
   dominant9: [0, 4, 7, 10, 14],
   dominant7sus: [0, 5, 7, 10],
+  minormaj7: [0, 3, 7, 11],
+  minor11: [0, 3, 7, 10, 14, 17],
 };
 
 const GUIDE_INTERVALS = {
@@ -173,6 +177,8 @@ const GUIDE_INTERVALS = {
   diminished7: [3, 9],
   dominant9: [4, 10],
   dominant7sus: [5, 10],
+  minormaj7: [3, 11],
+  minor11: [3, 10],
 };
 
 const AL_FUNCTION = ["iv-7", "♭VII7", "♭IIImaj7", "♭VImaj7", "iiø7", "V7", "i6", "i6"];
@@ -210,9 +216,14 @@ export function prepareBar(applicationId) {
 }
 
 export function cueCaption(bar, applicationId = DEFAULT_APPLICATION_ID) {
-  const starts = new Set(spotStartBars(applicationId));
-  if (starts.has(bar)) return "HERE";
-  if (starts.has(bar + 1) && !starts.has(bar)) return "Get ready";
+  const app = applicationById(applicationId);
+  const spots = spotsFor(applicationId);
+  const here = spots.find((spot) => spot.bar === bar);
+  if (here) {
+    if (app.copyKind === "tune") return lickById(here.lickId ?? app.lickId).shortName;
+    return "HERE";
+  }
+  if (spots.some((spot) => spot.bar === bar + 1)) return "Get ready";
   return "";
 }
 
@@ -344,6 +355,33 @@ export function lickOctaveForKey(lick, keyPc) {
   return best;
 }
 
+export function octaveForSpot(lick, concertTonicPc, spot, elements) {
+  const notes = (elements ?? lick.elements).filter((el) => el.type === "note");
+  if (!notes.length || lick.id === "cmar") return lick.octave;
+  const tonic = wrapPc(concertTonicPc + (spot.anchorInterval ?? 0));
+  let best = lick.octave;
+  let bestScore = Infinity;
+  for (const oct of [lick.octave - 1, lick.octave, lick.octave + 1]) {
+    const midis = notes.map((note) => midiForInterval(tonic, note.interval, oct));
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
+    if (score < bestScore) {
+      bestScore = score;
+      best = oct;
+    }
+  }
+  return best;
+}
+
+export function spotOctavesFor(applicationId, concertTonicPc) {
+  const app = applicationById(applicationId);
+  const spots = spotsFor(applicationId);
+  return spots.map((spot, index) => {
+    const lick = lickById(spot.lickId ?? app.lickId);
+    const { elements } = elementsForSpot(app, spot, spots[index + 1]);
+    return octaveForSpot(lick, concertTonicPc, spot, elements);
+  });
+}
+
 export function octaveForApplication(applicationId, concertTonicPc) {
   const app = applicationById(applicationId);
   const lick = lickForApplication(applicationId);
@@ -451,15 +489,24 @@ export function phraseTimeline(applicationId, isolated = false) {
 }
 
 function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
+  const oct = event.octaveBase ?? octaveBase;
   if (event?.cellInterval == null) {
-    return melodyMidiForInterval(concertKey.pc, event.interval, melodyRegister, octaveBase);
+    return melodyMidiForInterval(concertKey.pc, event.interval, melodyRegister, oct);
   }
   return melodyMidiForInterval(
     wrapPc(concertKey.pc + (event.cellTonicInterval ?? 0)),
     event.cellInterval,
     melodyRegister,
-    octaveBase,
+    oct,
   );
+}
+
+function withSpotOctaves(items, applicationId, concertTonicPc) {
+  const octaves = spotOctavesFor(applicationId, concertTonicPc);
+  return items.map((item) => ({
+    ...item,
+    octaveBase: octaves[item.spotIndex ?? 0] ?? octaves[0],
+  }));
 }
 
 export function phraseEvents(applicationId, isolated = false) {
@@ -483,7 +530,7 @@ export function phraseNotes(
   const shownKey = displayKey(concertKey, displayMode, quality);
   const concertSpell = quality === "major" ? majorSpelling(concertKey) : minorSpelling(concertKey);
   const octaveBase = octaveForApplication(applicationId, concertKey.pc);
-  return phraseEvents(applicationId).map((event, index) => {
+  return withSpotOctaves(phraseEvents(applicationId), applicationId, concertKey.pc).map((event, index) => {
     const concertMidi = eventMelodyMidi(concertKey, event, melodyRegister, octaveBase);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     const spelled = spellMidi(shownMidi, shownKey.usesFlats);
@@ -836,8 +883,13 @@ function renderSlice(items, start, end, ctx) {
   const restFill = (dur) => {
     let left = dur;
     let out = "";
+    const maxChunk = ctx.maxRestBeats ?? 4;
     while (left > 1e-6) {
-      const chunk = left >= 4 - 1e-6 ? 4 : left >= 2 - 1e-6 ? 2 : left >= 1 - 1e-6 ? 1 : left >= 0.5 - 1e-6 ? 0.5 : left;
+      const chunk = left >= 4 - 1e-6 && maxChunk >= 4 ? 4
+        : left >= 2 - 1e-6 && maxChunk >= 2 ? 2
+        : left >= 1 - 1e-6 && maxChunk >= 1 ? 1
+        : left >= 0.5 - 1e-6 ? 0.5
+        : left;
       out += `z${abcDuration(chunk)}`;
       left -= chunk;
     }
@@ -942,7 +994,14 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister) {
 
 function notesForMode(applicationId, mode, isolated = false) {
   if (mode === "model") return modelSolo(applicationId).map((note) => ({ ...note, type: "note" }));
-  return isolated ? phraseTimeline(applicationId, true) : phraseTimeline(applicationId, false);
+  const items = isolated ? phraseTimeline(applicationId, true) : phraseTimeline(applicationId, false);
+  if (mode === "landing" && !isolated) return items.filter((item) => item.type === "note");
+  return items;
+}
+
+function sectionAnnotation(form, barNumber) {
+  const label = form.sections?.find((section) => section.startBar === barNumber)?.label;
+  return label ? `"^${label}"` : "";
 }
 
 function barHasPhrase(applicationId, barNumber) {
@@ -970,6 +1029,7 @@ function renderFormAbc({
     : form.bars.length;
   const items = notesForMode(applicationId, mode === "phrase" ? "landing" : mode, isolated || mode === "phrase");
   const eighth = true;
+  if (mode === "landing") ctx.maxRestBeats = 1;
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(ctx.shownKey, clef)}\n`;
 
   const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
@@ -986,10 +1046,11 @@ function renderFormAbc({
     const barChords = chords.filter((chord) => (
       chord.startBeat < barEnd - 1e-6 && chord.startBeat + chord.durationBeats > barStart + 1e-6
     ));
-    const useNotes = mode === "model" || mode === "phrase"
-      || (mode === "landing" && barHasPhrase(applicationId, bar + 1));
+    const useNotes = mode === "model" || mode === "phrase" || mode === "landing";
     if (!barChords.length) {
       if (isolated && mode === "phrase") {
+        abc += renderSlice(items, barStart, barEnd, ctx);
+      } else if (mode === "landing") {
         abc += renderSlice(items, barStart, barEnd, ctx);
       } else {
         abc += renderSlashBeats(4, clef, eighth);
@@ -997,6 +1058,7 @@ function renderFormAbc({
       abc += barAdvance(bar, barCount, barsPerLine);
       continue;
     }
+    abc += sectionAnnotation(form, bar + 1);
     for (const [index, chord] of barChords.entries()) {
       const sliceStart = Math.max(barStart, chord.startBeat);
       const sliceEnd = Math.min(barEnd, chord.startBeat + chord.durationBeats);
@@ -1185,6 +1247,9 @@ export function scheduleChorus({
   const phraseStart = isolated ? 0 : phraseStartBeat(applicationId);
   const cuesOn = includeCue ?? false;
   const octaveBase = octaveForApplication(applicationId, concertKey.pc);
+  const melodySource = isolated || modelScope === "phrase"
+    ? withSpotOctaves(phraseEvents(applicationId, isolated), applicationId, concertKey.pc)
+    : withSpotOctaves(modelSolo(applicationId), applicationId, concertKey.pc);
 
   for (const chord of form) {
     if (chord.startBeat >= 0 && chord.startBeat < length) {
@@ -1240,12 +1305,7 @@ export function scheduleChorus({
   }
 
   if (includeModel && variationId !== "skip") {
-    const source = isolated || modelScope === "phrase"
-      ? phraseEvents(applicationId, isolated).map((note) => ({
-        ...note,
-        beat: isolated ? note.beat : note.beat,
-      }))
-      : modelSolo(applicationId);
+    const source = melodySource;
     for (const note of source) {
       if (note.beat < length) {
         events.push({
