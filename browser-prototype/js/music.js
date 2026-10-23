@@ -322,8 +322,9 @@ export function phraseStartBeat(applicationId) {
 export function phraseTimeline(applicationId, isolated = false) {
   const app = applicationById(applicationId);
   const lick = lickById(app.lickId);
-  const pickup = !isolated && app.includePickup ? lick.pickupBeats : 0;
-  const origin = isolated ? 0 : phraseStartBeat(applicationId) - pickup;
+  const usePickup = lick.pickupBeats > 0 && (isolated || app.includePickup);
+  const pickup = usePickup ? lick.pickupBeats : 0;
+  const origin = isolated ? 0 - pickup : phraseStartBeat(applicationId) - pickup;
   let beat = origin;
   const items = [];
   for (const el of lick.elements) {
@@ -332,11 +333,24 @@ export function phraseTimeline(applicationId, isolated = false) {
       beat,
       interval: el.type === "note" ? el.interval + app.cellTonicInterval : null,
       cellInterval: el.interval,
+      cellTonicInterval: app.cellTonicInterval,
       role: "phrase",
     });
     beat += el.beats;
   }
   return items;
+}
+
+function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
+  if (event?.cellInterval == null) {
+    return melodyMidiForInterval(concertKey.pc, event.interval, melodyRegister, octaveBase);
+  }
+  return melodyMidiForInterval(
+    wrapPc(concertKey.pc + (event.cellTonicInterval ?? 0)),
+    event.cellInterval,
+    melodyRegister,
+    octaveBase,
+  );
 }
 
 export function phraseEvents(applicationId, isolated = false) {
@@ -361,7 +375,7 @@ export function phraseNotes(
   const concertSpell = quality === "major" ? majorSpelling(concertKey) : minorSpelling(concertKey);
   const octaveBase = octaveForApplication(applicationId, concertKey.pc);
   return phraseEvents(applicationId).map((event, index) => {
-    const concertMidi = melodyMidiForInterval(concertKey.pc, event.interval, melodyRegister, octaveBase);
+    const concertMidi = eventMelodyMidi(concertKey, event, melodyRegister, octaveBase);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     const spelled = spellMidi(shownMidi, shownKey.usesFlats);
     const concertSpelled = spellMidi(concertMidi, concertSpell.usesFlats);
@@ -662,7 +676,7 @@ function afterNoteSpacing(beat) {
 
 function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor") {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
-  const concertMidi = melodyMidiForInterval(concertKey.pc, item.interval, melodyRegister, octaveBase);
+  const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
   const pitch = abcNote(shownMidi, shownKey.usesFlats);
   const dur = item.tuplet === 3 ? "" : abcDuration(durationBeats);
@@ -808,7 +822,7 @@ function renderFormAbc({
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(ctx.shownKey, clef)}\n`;
 
   const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
-  if (pickupNotes.length && !isolated) {
+  if (pickupNotes.length) {
     abc += renderSlice(items, pickupNotes[0].beat, 0, ctx);
     abc += " |";
   }
@@ -853,21 +867,34 @@ export function phraseABC(
   const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister);
   const items = phraseTimeline(applicationId, true);
   const length = learnBeatsFor(applicationId);
-  const app = applicationById(applicationId);
-  const firstChord = learnChords(concertKey, displayMode, applicationId)[0];
+  const chords = learnChords(concertKey, displayMode, applicationId);
+  const barCount = Math.max(1, Math.ceil(length / BEATS_PER_BAR));
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(ctx.shownKey, clef)}\n`;
-  abc += `"${abcChordName(
-    concertKey,
-    firstChord?.intervalFromTonic ?? app.cellTonicInterval,
-    firstChord?.quality ?? "minor6",
-    displayMode,
-    ctx.quality,
-  )}"`;
-  abc += renderSlice(items, 0, length, ctx);
-  if (!String(abc).includes("|]")) {
-    if (!abc.trimEnd().endsWith("|")) abc += " |]";
-    abc += "\n";
-  } else if (!abc.endsWith("\n")) abc += "\n";
+
+  const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
+  if (pickupNotes.length) {
+    abc += renderSlice(items, pickupNotes[0].beat, 0, ctx);
+    abc += " |";
+  }
+
+  for (let bar = 0; bar < barCount; bar += 1) {
+    const barStart = bar * BEATS_PER_BAR;
+    const barEnd = Math.min(length, barStart + BEATS_PER_BAR);
+    const barChords = chords.filter((chord) => (
+      chord.startBeat < barEnd - 1e-6 && chord.startBeat + chord.durationBeats > barStart + 1e-6
+    ));
+    if (!barChords.length) {
+      abc += renderSlice(items, barStart, barEnd, ctx);
+    } else {
+      for (const chord of barChords) {
+        const sliceStart = Math.max(barStart, chord.startBeat);
+        const sliceEnd = Math.min(barEnd, chord.startBeat + chord.durationBeats);
+        abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality)}"`;
+        abc += renderSlice(items, sliceStart, sliceEnd, ctx);
+      }
+    }
+    abc += barAdvance(bar, barCount, 4);
+  }
   return abc;
 }
 
@@ -1058,11 +1085,11 @@ export function scheduleChorus({
       }))
       : modelSolo(applicationId);
     for (const note of source) {
-      if (note.beat < length && (isolated ? note.beat >= -1e-6 : true)) {
+      if (note.beat < length) {
         events.push({
           type: "melody",
           beat: note.beat,
-          midi: melodyMidiForInterval(concertKey.pc, note.interval, melodyRegister, octaveBase),
+          midi: eventMelodyMidi(concertKey, note, melodyRegister, octaveBase),
           durationBeats: note.beats,
           role: note.role,
           swing: note.tuplet ? false : undefined,
