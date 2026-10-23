@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=64">
+  <link rel="stylesheet" href="./css/styles.css?v=65">
   <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
-  <script type="module" src="./js/app.js?v=64"></script>
+  <script type="module" src="./js/app.js?v=65"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -20,7 +20,10 @@
       <div class="brand">
         <p class="logo">duojazz</p>
       </div>
-      <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Concert · Bass clef</button>
+      <div class="masthead-actions">
+        <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view">Quick view</button>
+        <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Concert · Bass clef</button>
+      </div>
     </header>
 
     <main id="main" class="workspace">
@@ -38,10 +41,15 @@
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
           <button type="button" class="icon-btn" id="session-exit" aria-label="Exit session">×</button>
-          <div class="session-progress" aria-hidden="true"><span id="session-progress-fill"></span></div>
+          <div class="session-nav">
+            <button type="button" class="session-nav-btn" id="session-back" data-testid="session-back">Back</button>
+            <div class="session-progress" aria-hidden="true"><span id="session-progress-fill"></span></div>
+            <button type="button" class="session-nav-btn" id="session-next" data-testid="session-next">Next</button>
+          </div>
           <p class="session-meta" id="session-key">G minor</p>
           <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
           <p class="session-meta muted" id="session-card-count">1/4</p>
+          <button type="button" class="quiet session-jump" id="session-quick-view" data-testid="session-quick-view" aria-haspopup="dialog" aria-controls="quick-view">Jump</button>
         </header>
         <p class="card-badge" id="card-badge">LEARN</p>
         <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
@@ -96,6 +104,27 @@
       </section>
     </main>
   </div>
+
+  <dialog id="leave-confirm" class="setup-sheet" data-testid="leave-confirm" aria-labelledby="leave-confirm-title">
+    <form method="dialog" class="settings-form setup-form">
+      <p class="setup-handle" aria-hidden="true"></p>
+      <h2 id="leave-confirm-title">Leave this session?</h2>
+      <p class="help">Unfinished cards will be marked Skipped.</p>
+      <div class="setup-actions">
+        <button type="submit" class="play start" id="leave-confirm-leave" value="leave">Leave</button>
+        <button type="submit" class="text-link" value="stay">Stay</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="quick-view" class="setup-sheet quick-view-sheet" data-testid="quick-view" aria-labelledby="quick-view-title">
+    <form method="dialog" class="settings-form setup-form">
+      <p class="setup-handle" aria-hidden="true"></p>
+      <h2 id="quick-view-title">Quick view</h2>
+      <div class="quick-view-list" id="quick-view-list"></div>
+      <button type="submit" class="text-link" value="close">Close</button>
+    </form>
+  </dialog>
 
   <dialog id="setup" class="setup-sheet" data-testid="setup-sheet" data-sleeve="amber">
     <form method="dialog" class="settings-form setup-form">

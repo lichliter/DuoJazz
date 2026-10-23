@@ -107,6 +107,18 @@ html:has(.app-shell[data-screen="home"]) body {
   border-bottom: 1px solid var(--line);
 }
 
+.masthead-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.masthead-actions .quiet {
+  white-space: nowrap;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -1042,6 +1054,7 @@ input[type="checkbox"] {
   gap: 0.55rem;
   min-height: var(--tap);
   flex: 0 0 auto;
+  min-width: 0;
 }
 
 .icon-btn {
@@ -1055,8 +1068,41 @@ input[type="checkbox"] {
   cursor: pointer;
 }
 
+.session-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.session-nav-btn {
+  flex: 0 0 auto;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+}
+
+.session-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.session-jump {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .session-progress {
   flex: 1 1 auto;
+  min-width: 2.5rem;
   height: 8px;
   background: var(--surface);
   border-radius: 99px;
@@ -1239,6 +1285,26 @@ input[type="checkbox"] {
   font-size: 0.9rem;
 }
 
+@media (max-width: 420px) {
+  .masthead {
+    gap: 0.45rem;
+  }
+
+  .masthead-actions .quiet {
+    font-size: 0.82rem;
+    padding-inline: 0.25rem;
+  }
+
+  .session-nav-btn {
+    font-size: 0.8rem;
+    padding-inline: 0.5rem;
+  }
+
+  .session-meta {
+    white-space: normal;
+  }
+}
+
 @media (max-width: 720px) {
   .key-strip {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1263,7 +1329,7 @@ input[type="checkbox"] {
     padding-bottom: 0.15rem;
   }
 
-  .session-progress {
+  .session-nav {
     order: 5;
     flex: 1 1 100%;
     margin: 0.05rem 0 0.2rem;
@@ -1864,6 +1930,83 @@ input[type="checkbox"] {
   color: var(--text);
   padding: 0.7rem 1.2rem calc(1.15rem + env(safe-area-inset-bottom));
   box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.quick-view-sheet {
+  width: min(42rem, 100%);
+  max-width: 100%;
+  max-height: min(92dvh, 52rem);
+  overflow-x: hidden;
+}
+
+.quick-view-list {
+  display: grid;
+  gap: 1rem;
+  max-height: min(68dvh, 38rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0.35rem 0 0.85rem;
+  padding-right: 0.15rem;
+}
+
+.quick-view-module {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.quick-view-module-btn,
+.quick-view-record {
+  display: grid;
+  gap: 0.12rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.7rem 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.quick-view-module-btn {
+  background: color-mix(in srgb, var(--sleeve, var(--accent)) 16%, var(--bg));
+}
+
+.quick-view-kicker,
+.quick-view-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.quick-view-name,
+.quick-view-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.quick-view-records {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.quick-view-record {
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.65rem;
+}
+
+.quick-view-num {
+  margin: 0;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 1.05rem;
+  color: var(--accent);
 }
 
 .setup-sheet::backdrop {

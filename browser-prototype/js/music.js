@@ -832,8 +832,7 @@ function renderSlice(items, start, end, ctx) {
     let out = "";
     while (left > 1e-6) {
       const chunk = left >= 4 - 1e-6 ? 4 : left >= 2 - 1e-6 ? 2 : left >= 1 - 1e-6 ? 1 : left >= 0.5 - 1e-6 ? 0.5 : left;
-      const glyph = chunk >= 4 - 1e-6 ? "x" : "z";
-      out += `${glyph}${abcDuration(chunk)}`;
+      out += `z${abcDuration(chunk)}`;
       left -= chunk;
     }
     return out;

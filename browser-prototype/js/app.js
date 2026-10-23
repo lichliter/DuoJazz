@@ -59,8 +59,18 @@ import {
   sleeveCaption,
   moduleForLesson,
   sessionKeyQuality,
+  canGoBack,
+  canGoNext,
+  goBack,
+  goNext,
+  resultForCard,
+  leaveCardOutcome,
+  skipRemainingCards,
+  quickViewData,
+  resolveQuickViewJump,
+  cardCounter,
 } from "./session.js";
-import { GRADED_CARDS, finishCard, gradeSession } from "./grade.js";
+import { GRADED_CARDS, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import {
   emptyMastery,
   displayMedal,
@@ -110,6 +120,13 @@ const els = {
   tempoUp: document.getElementById("tempo-up"),
   startLesson: document.getElementById("start-lesson"),
   sessionExit: document.getElementById("session-exit"),
+  sessionBack: document.getElementById("session-back"),
+  sessionNext: document.getElementById("session-next"),
+  sessionQuickView: document.getElementById("session-quick-view"),
+  quickViewBtn: document.getElementById("quick-view-btn"),
+  quickView: document.getElementById("quick-view"),
+  quickViewList: document.getElementById("quick-view-list"),
+  leaveConfirm: document.getElementById("leave-confirm"),
   sessionKey: document.getElementById("session-key"),
   sessionKeyCount: document.getElementById("session-key-count"),
   sessionCardCount: document.getElementById("session-card-count"),
@@ -230,6 +247,81 @@ function openSetup(lessonId) {
   if (!els.setup.open) els.setup.showModal();
 }
 
+function renderQuickView() {
+  if (!els.quickViewList) return;
+  const mastered = Object.fromEntries(
+    MODULES.map((module) => [module.id, moduleMastery(mastery, module.id).masteredKeys]),
+  );
+  const modules = quickViewData(keysByLesson(), mastered);
+  els.quickViewList.replaceChildren(
+    ...modules.map((module) => {
+      const section = document.createElement("section");
+      section.className = "quick-view-module";
+      section.dataset.module = module.id;
+
+      const header = document.createElement("button");
+      header.type = "button";
+      header.className = "quick-view-module-btn";
+      header.dataset.testid = `quick-view-module-${module.id}`;
+      header.innerHTML = `<p class="quick-view-kicker">Module ${module.number}</p><p class="quick-view-name">${module.lickName}</p><p class="quick-view-meta">${module.keysMastered} of 12 keys mastered</p>`;
+      header.addEventListener("click", () => jumpFromQuickView(module.id));
+
+      const records = document.createElement("div");
+      records.className = "quick-view-records";
+      for (const record of module.records) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "quick-view-record";
+        btn.dataset.testid = `quick-view-lesson-${record.id}`;
+        btn.innerHTML = `<p class="quick-view-num">${record.number}</p><span><p class="quick-view-title">${record.title}</p><p class="quick-view-meta">${record.context} · ${record.keysPassed}/12 keys</p></span>`;
+        btn.addEventListener("click", () => jumpFromQuickView(record.id));
+        records.append(btn);
+      }
+      section.append(header, records);
+      return section;
+    }),
+  );
+}
+
+function openQuickView() {
+  renderQuickView();
+  if (els.quickView && !els.quickView.open) els.quickView.showModal();
+}
+
+function closeQuickView() {
+  if (els.quickView?.open) els.quickView.close();
+}
+
+function requestQuickView() {
+  if (session?.screen === "session" || session?.screen === "wrapup") {
+    if (els.leaveConfirm && !els.leaveConfirm.open) els.leaveConfirm.showModal();
+    return;
+  }
+  openQuickView();
+}
+
+function abandonToQuickView() {
+  if (session?.screen === "session") {
+    session = skipRemainingCards(session);
+  }
+  exitSession();
+  openQuickView();
+}
+
+function jumpFromQuickView(id) {
+  const target = resolveQuickViewJump(id);
+  closeQuickView();
+  if (!target) return;
+  if (target.type === "module") {
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-testid="module-banner-${target.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return;
+  }
+  openSetup(target.id);
+}
+
 function closeSetup() {
   if (els.setup.open) els.setup.close();
 }
@@ -310,9 +402,42 @@ function gradeCurrentCard() {
 
 function goContinue() {
   if (!session || session.screen !== "session") return;
-  const result = gradeCurrentCard();
+  const result = leaveOutcomeFromTake();
   halt();
   applySession(completeCard(session, result));
+}
+
+function leaveOutcomeFromTake() {
+  const observations = monitor.observations;
+  const hasTake = hasPitchTake(observations);
+  const takeResult = hasTake ? finishCard(session, observations) : null;
+  if (takeResult?.graded) recordPassIfNeeded(takeResult);
+  return leaveCardOutcome(session, { hasTake, takeResult });
+}
+
+function navigateCard(delta) {
+  if (!session || session.screen !== "session" || anyDialogOpen()) return;
+  if (delta < 0 && !canGoBack(session)) return;
+  if (delta > 0 && !canGoNext(session)) return;
+  const observations = monitor.observations;
+  const hasTake = hasPitchTake(observations);
+  const takeResult = hasTake ? finishCard(session, observations) : null;
+  if (takeResult?.graded) recordPassIfNeeded(takeResult);
+  const moved = delta < 0
+    ? goBack(session, { hasTake, takeResult })
+    : goNext(session, { hasTake, takeResult });
+  if (!moved.moved) return;
+  halt();
+  applySession(moved.session);
+}
+
+function anyDialogOpen() {
+  return Boolean(
+    els.setup?.open
+    || els.settings?.open
+    || els.quickView?.open
+    || els.leaveConfirm?.open,
+  );
 }
 
 function keysByLesson(current = mastery) {
@@ -538,13 +663,19 @@ function applyMelodyOctave(register) {
 function renderSessionChrome() {
   const card = currentCard(session);
   const ordinal = keyOrdinal(session);
-  const total = session.cards.length;
+  const cards = cardCounter(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
   els.cardBadge.textContent = CARDS[card].kicker;
   els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
-  els.sessionCardCount.textContent = `${session.cardIndex + 1}/${total}`;
-  els.sessionProgressFill.style.width = `${((session.cardIndex) / total) * 100}%`;
+  els.sessionCardCount.textContent = `${cards.index}/${cards.total}`;
+  els.sessionProgressFill.style.width = `${((session.cardIndex) / cards.total) * 100}%`;
+  if (els.sessionBack) {
+    els.sessionBack.disabled = !canGoBack(session);
+  }
+  if (els.sessionNext) {
+    els.sessionNext.disabled = !canGoNext(session);
+  }
 }
 
 function staffWidth() {
@@ -1113,7 +1244,7 @@ function render(snap = transport.snapshot()) {
     renderPrimary();
     renderMeter(snap);
     renderMic();
-    if (!liveGrade) showGrade(null);
+    if (!liveGrade) restoreStoredGrade();
   }
   if (screen === "wrapup") renderWrapup();
 }
@@ -1214,18 +1345,32 @@ transport.onUpdate = (snap) => {
 };
 
 function showGrade(result) {
-  liveGrade = result?.graded ? result : null;
-  fillListenState(liveGrade);
+  liveGrade = result ?? null;
+  fillListenState(result?.graded ? result : null);
   if (!els.gradeLine) return;
-  if (!liveGrade) {
-    els.gradeLine.hidden = true;
-    els.gradeLine.textContent = "";
+  if (result?.graded) {
+    els.gradeLine.hidden = false;
+    const bits = [`${result.percent}%`, result.passed ? "pass" : "not yet"];
+    if (result.correction) bits.push(result.correction);
+    els.gradeLine.textContent = bits.join(" · ");
     return;
   }
-  els.gradeLine.hidden = false;
-  const bits = [`${liveGrade.percent}%`, liveGrade.passed ? "pass" : "not yet"];
-  if (liveGrade.correction) bits.push(liveGrade.correction);
-  els.gradeLine.textContent = bits.join(" · ");
+  if (result?.outcome === "skipped") {
+    els.gradeLine.hidden = false;
+    els.gradeLine.textContent = "Skipped";
+    return;
+  }
+  els.gradeLine.hidden = true;
+  els.gradeLine.textContent = "";
+}
+
+function restoreStoredGrade() {
+  if (!session || session.screen !== "session") {
+    showGrade(null);
+    return;
+  }
+  if (hasPitchTake(monitor.observations) || playback.playing || playback.paused) return;
+  showGrade(resultForCard(session));
 }
 
 transport.onEnded = () => {
@@ -1247,6 +1392,13 @@ els.startLesson.addEventListener("click", (event) => {
   startFromSetup();
 });
 els.sessionExit.addEventListener("click", exitSession);
+els.sessionBack?.addEventListener("click", () => navigateCard(-1));
+els.sessionNext?.addEventListener("click", () => navigateCard(1));
+els.quickViewBtn?.addEventListener("click", requestQuickView);
+els.sessionQuickView?.addEventListener("click", requestQuickView);
+els.leaveConfirm?.addEventListener("close", () => {
+  if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
+});
 els.primary.addEventListener("click", runPrimary);
 els.continueBtn.addEventListener("click", goContinue);
 els.nextKey.addEventListener("click", () => {
@@ -1306,6 +1458,10 @@ for (const [id, key] of [
 document.addEventListener("keydown", (event) => {
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+  if (anyDialogOpen()) {
+    if (event.key === "Escape") return;
+    return;
+  }
   if (event.code === "Space") {
     event.preventDefault();
     runPrimary();
@@ -1315,10 +1471,37 @@ document.addEventListener("keydown", (event) => {
     halt();
     start(false);
   }
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigateCard(-1);
+  }
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigateCard(1);
+  }
   if (event.key === "Escape" && session) {
     exitSession();
   }
 });
+
+let swipeOrigin = null;
+els.session?.addEventListener("touchstart", (event) => {
+  const touch = event.changedTouches[0];
+  if (!touch) return;
+  swipeOrigin = { x: touch.clientX, y: touch.clientY };
+}, { passive: true });
+els.session?.addEventListener("touchend", (event) => {
+  if (!swipeOrigin || anyDialogOpen()) {
+    swipeOrigin = null;
+    return;
+  }
+  const touch = event.changedTouches[0];
+  const dx = (touch?.clientX ?? 0) - swipeOrigin.x;
+  const dy = (touch?.clientY ?? 0) - swipeOrigin.y;
+  swipeOrigin = null;
+  if (Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+  navigateCard(dx < 0 ? 1 : -1);
+}, { passive: true });
 
 window.addEventListener("resize", () => {
   if (session?.screen === "session") renderNotation();
@@ -1374,6 +1557,16 @@ window.__DUOJAZZ__ = {
     applySession(skipCard(session));
     return session;
   },
+  goBack() {
+    navigateCard(-1);
+    return session;
+  },
+  goNext() {
+    navigateCard(1);
+    return session;
+  },
+  openQuickView,
+  requestQuickView,
   setMelodyOctave(register) {
     applyMelodyOctave(register);
     return session;
