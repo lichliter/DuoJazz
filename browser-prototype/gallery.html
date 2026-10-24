@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DuoJazz gallery · engraving</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/abcjs@6.5.2/dist/abcjs-basic-min.js" defer></script>
+  <script type="module" src="./js/gallery.js"></script>
+  <style>
+    :root {
+      --bg: #201712;
+      --text: #f5e9d5;
+      --muted: #cbb9a3;
+      --paper: #f3e6ce;
+      --paper-ink: #2b211a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+    }
+    body.solo { background: var(--paper); color: var(--paper-ink); }
+    .kicker {
+      margin: 0;
+      padding: 1rem 1.25rem 0;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    h1 {
+      margin: 0.2rem 1.25rem 1rem;
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      font-size: 1.8rem;
+    }
+    body.solo .mast { display: none; }
+    .shot {
+      width: 1024px;
+      min-height: 1366px;
+      margin: 0 auto 2rem;
+      background: var(--paper);
+      color: var(--paper-ink);
+      padding: 1.25rem 1.5rem 2rem;
+    }
+    body.solo .shot {
+      margin: 0;
+      min-height: 1366px;
+    }
+    .shot header h2 {
+      margin: 0;
+      font-family: Oswald, "Arial Narrow", sans-serif;
+      font-size: 1.35rem;
+    }
+    .shot header p {
+      margin: 0.15rem 0 0.85rem;
+      color: #6d5c4d;
+      font-size: 0.85rem;
+    }
+    .paper {
+      width: 100%;
+      min-height: 220px;
+      color: var(--paper-ink);
+    }
+    .paper .abcjs-container,
+    .paper svg {
+      width: 100% !important;
+      max-width: 100%;
+      height: auto !important;
+      display: block;
+    }
+    .paper .abcjs-chord,
+    .paper .abcjs-chord-root {
+      font-family: "Noto Sans", "Source Sans 3", sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <header class="mast">
+    <p class="kicker">Dev only · not linked from the app</p>
+    <h1>Engraving gallery</h1>
+  </header>
+  <main id="gallery"></main>
+</body>
+</html>
