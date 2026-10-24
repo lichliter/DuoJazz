@@ -74,8 +74,9 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     pageMarginBottom: Math.max(cue ? 80 : 28, Math.round(layout.paddingbottom ?? 16)),
     pageMarginLeft: 18,
     pageMarginRight: 18,
-    harmDist: 3.2,
-    topMarginHarm: 2.0,
+    harmDist: 2.4,
+    topMarginHarm: 1.2,
+    lyricSize: shortFill ? 3.0 : 2.35,
     leftMarginAccid: 1.25,
     rightMarginAccid: 0.7,
     xmlIdSeed: 1,
@@ -94,7 +95,11 @@ function recolor(svg) {
 
 const SMUFL_PUA = /[\uE000-\uF8FF]/;
 
-function restyleText(svg) {
+function restyleText(svg, layout = {}) {
+  const phrase = layout.fillAxis === "width";
+  const shortFill = phrase && (layout.barsPerLine ?? 2) <= 2;
+  const chordVU = shortFill ? 340 : 270;
+  const cueVU = Math.round(chordVU * 0.88);
   for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
     el.setAttribute("fill", INK);
   }
@@ -102,10 +107,14 @@ function restyleText(svg) {
     if (SMUFL_PUA.test(el.textContent ?? "")) continue;
     el.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
+    const size = parseFloat(el.getAttribute("font-size") || "0");
+    if (size > chordVU) el.setAttribute("font-size", `${chordVU}px`);
   }
   for (const el of svg.querySelectorAll(".dir text, .dir tspan")) {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
+    const size = parseFloat(el.getAttribute("font-size") || "0");
+    if (size > cueVU) el.setAttribute("font-size", `${cueVU}px`);
   }
 }
 
@@ -166,7 +175,7 @@ export async function engraveMei(target, mei, options = {}) {
   const svg = mountSvg(target, parts.join(""));
   if (svg) {
     recolor(svg);
-    restyleText(svg);
+    restyleText(svg, layout);
     if (options.fitChorus || layout.fillAxis === "fit") fitStaff(target, svg, layout);
   }
   return {
