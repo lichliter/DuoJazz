@@ -119,10 +119,39 @@ export function restyleAnnotations(target, layout = {}) {
 function elementBox(el) {
   if (!el || typeof el.getBBox !== "function") return null;
   try {
-    return el.getBBox();
+    const box = el.getBBox();
+    if (!box || (!box.width && !box.height && !box.x && !box.y)) return null;
+    return box;
   } catch {
     return null;
   }
+}
+
+function classToken(el, prefix) {
+  const cls = el?.getAttribute?.("class") || el?.className?.baseVal || "";
+  const match = cls.match(new RegExp(`${prefix}(\\d+)`));
+  return match ? match[1] : null;
+}
+
+function lineIndex(el) {
+  return classToken(el, "abcjs-l");
+}
+
+function measureIndex(el) {
+  return classToken(el, "abcjs-m");
+}
+
+function barsPerLineCount(layout, fallback = 4) {
+  const n = Number(layout?.barsPerLine);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function restBeatsFromClass(rest) {
+  const cls = rest?.getAttribute?.("class") || "";
+  const match = cls.match(/abcjs-d(\d+)(?:-(\d+))?/);
+  if (!match) return 1;
+  const frac = match[2] ? Number(match[2]) / 10 ** match[2].length : 0;
+  return (Number(match[1]) + frac) * 4;
 }
 
 function nearestStaffBox(el, staffs) {
@@ -143,13 +172,12 @@ function nearestStaffBox(el, staffs) {
 }
 
 function isSpacerRest(rest, staffBox) {
-  if (rest.querySelector(".abcjs-chord, .abcjs-annotation")) return true;
   const glyph = rest.querySelector("path, ellipse");
   if (!glyph) return true;
   const box = elementBox(glyph);
   if (!box) return true;
   if (box.width < 0.6 && box.height < 0.6) return true;
-  if (staffBox && box.height > staffBox.height * 1.35) return true;
+  if (staffBox?.height > 4 && box.height > staffBox.height * 1.35) return true;
   return false;
 }
 
@@ -228,7 +256,7 @@ export function applyRhythmSlashes(target, keepLandingNotes = false, layout = {}
   const svg = target.querySelector("svg");
   if (!svg) return;
   const staffs = [...target.querySelectorAll(".abcjs-staff")];
-  const barsPerLine = layout.barsPerLine ?? 4;
+  const barsPerLine = barsPerLineCount(layout);
   const used = new Set();
   visitTuneElems(tune, (el) => {
     if (!el.rest || el.rest.type === "spacer") return;
@@ -243,13 +271,21 @@ export function applyRhythmSlashes(target, keepLandingNotes = false, layout = {}
   });
   for (const rest of target.querySelectorAll(".abcjs-rest")) {
     if (used.has(rest)) continue;
-    const staffBox = nearestStaffBox(rest, staffs);
+    const staffBox = nearestStaffBox(rest, staffs)
+      || elementBox(target.querySelector(`.abcjs-staff.abcjs-l${lineIndex(rest) ?? "0"}`));
     if (isSpacerRest(rest, staffBox)) continue;
     const glyph = rest.querySelector("path, ellipse") ?? rest;
     const box = elementBox(glyph);
-    if (!box) continue;
+    if (!box || !staffBox) continue;
     hideRestGlyph(rest);
-    drawSlashOn(rest, box, staffBox, layout);
+    const beats = restBeatsFromClass(rest);
+    if (beats >= 1.5) {
+      const lane = slashLane({ x: box.x, w: box.width }, beats, staffBox, barsPerLine);
+      drawBeatSlashes(rest, lane, staffBox, layout);
+    } else {
+      drawSlashOn(rest, box, staffBox, layout);
+    }
+    used.add(rest);
   }
   if (!keepLandingNotes) {
     for (const note of target.querySelectorAll(".abcjs-note")) {
@@ -271,7 +307,7 @@ export function applyRhythmSlashes(target, keepLandingNotes = false, layout = {}
 }
 
 function hideOrphanBeams(target) {
-  for (const beam of target.querySelectorAll(".abcjs-beam")) {
+  for (const beam of target.querySelectorAll(".abcjs-beam, .abcjs-beam-elem")) {
     const host = beam.closest("g") ?? beam.parentElement;
     const heads = [...(host?.querySelectorAll(".abcjs-notehead") ?? [])];
     const visible = heads.filter((head) => (
@@ -318,8 +354,11 @@ function alignChordBaseline(target) {
   const staffs = [...target.querySelectorAll(".abcjs-staff")];
   const groups = new Map();
   for (const chord of target.querySelectorAll(".abcjs-chord")) {
-    const staff = nearestStaffBox(chord, staffs);
-    const key = staff ? `${Math.round(staff.y)}` : "none";
+    const line = lineIndex(chord);
+    const staff = line != null
+      ? elementBox(target.querySelector(`.abcjs-staff.abcjs-l${line}`))
+      : nearestStaffBox(chord, staffs);
+    const key = line ?? (staff ? `${Math.round(staff.y)}` : "none");
     const list = groups.get(key) ?? [];
     list.push(chord);
     groups.set(key, list);
@@ -338,42 +377,64 @@ function layoutCueLane(target, layout = {}) {
   const svg = target.querySelector("svg");
   if (!svg) return;
   const staffs = [...target.querySelectorAll(".abcjs-staff")];
-  const barsPerLine = layout.barsPerLine ?? 4;
+  const barsPerLine = barsPerLineCount(layout);
   const cues = [...target.querySelectorAll(".abcjs-annotation")];
   const grouped = new Map();
   for (const cue of cues) {
-    const staffBox = nearestStaffBox(cue, staffs);
-    if (!staffBox) continue;
-    const key = `${Math.round(staffBox.y)}`;
+    const line = lineIndex(cue);
+    const staffBox = line != null
+      ? elementBox(target.querySelector(`.abcjs-staff.abcjs-l${line}`))
+      : nearestStaffBox(cue, staffs);
+    if (!staffBox?.width) continue;
+    const key = line ?? `${Math.round(staffBox.y)}`;
     const list = grouped.get(key) ?? [];
-    list.push({ cue, staffBox });
+    list.push({ cue, staffBox, measure: measureIndex(cue) });
     grouped.set(key, list);
   }
   const ns = "http://www.w3.org/2000/svg";
   for (const list of grouped.values()) {
     const staffBox = list[0].staffBox;
-    const barWidth = staffBox.width / Math.max(1, barsPerLine);
+    const measureCount = Math.max(
+      barsPerLine,
+      ...list.map((item) => (item.measure == null ? 0 : Number(item.measure) + 1)),
+    );
+    const barWidth = staffBox.width / Math.max(1, measureCount);
+    if (!Number.isFinite(barWidth) || barWidth < 8) continue;
     const cueBoxes = list.map((item) => ({ ...item, box: elementBox(item.cue) }));
-    const maxBottom = Math.max(...cueBoxes.map((item) => (item.box?.y ?? 0) + (item.box?.height ?? 0)));
-    const baseline = Math.max(staffBox.y + staffBox.height + 12, maxBottom);
     for (const item of cueBoxes) {
       if (!item.box) continue;
-      const rel = item.box.x - staffBox.x;
-      const barIndex = Math.min(barsPerLine - 1, Math.max(0, Math.floor(rel / barWidth + 1e-6)));
-      const barLeft = staffBox.x + barIndex * barWidth + 2;
-      const dx = barLeft - item.box.x;
-      const dy = baseline - (item.box.y + item.box.height);
-      item.cue.style.transform = `translate(${dx}px, ${dy}px)`;
-      const fontPx = Number.parseFloat(window.getComputedStyle(item.cue).fontSize) || 14;
-      const next = capCueText(item.cue.textContent ?? "", barWidth - 6, fontPx);
+      const measure = item.measure != null ? Number(item.measure) : Math.max(
+        0,
+        Math.min(measureCount - 1, Math.floor((item.box.x - staffBox.x) / barWidth + 1e-6)),
+      );
+      const barLeft = staffBox.x + measure * barWidth + 2;
+      item.cue.style.transform = "";
+      item.cue.removeAttribute("transform");
+      for (const tspan of item.cue.querySelectorAll("tspan")) {
+        tspan.removeAttribute("dy");
+        tspan.removeAttribute("dx");
+      }
+      const cueFontPx = Number.parseFloat(window.getComputedStyle(item.cue).fontSize) || 14;
+      item.cue.setAttribute("dominant-baseline", "alphabetic");
+      item.cue.setAttribute("text-anchor", "start");
+      item.cue.setAttribute("x", String(barLeft));
+      item.cue.setAttribute("y", String(staffBox.y + staffBox.height + 12));
+      const placed = elementBox(item.cue);
+      if (placed) {
+        const overlap = staffBox.y + staffBox.height + 6 - placed.y;
+        if (overlap > 0) {
+          item.cue.setAttribute("y", String(Number(item.cue.getAttribute("y")) + overlap));
+        }
+      }
+      const next = capCueText(item.cue.textContent ?? "", barWidth - 6, cueFontPx);
       if (next !== item.cue.textContent) {
         const tspan = item.cue.querySelector("tspan") ?? item.cue;
         tspan.textContent = next;
       }
       const clipped = elementBox(item.cue);
-      if (clipped && clipped.width > barWidth - 4) {
-        const id = `cue-clip-${barIndex}-${Math.round(staffBox.y)}`;
-        let clip = svg.querySelector(`#${id}`);
+      if (clipped && Number.isFinite(measure) && clipped.width > barWidth - 4) {
+        const id = `cue-clip-${lineIndex(item.cue) ?? "x"}-${measure}`;
+        let clip = svg.querySelector(`[id="${id}"]`);
         if (!clip) {
           clip = document.createElementNS(ns, "clipPath");
           clip.setAttribute("id", id);
@@ -386,6 +447,8 @@ function layoutCueLane(target, layout = {}) {
           svg.append(clip);
         }
         item.cue.setAttribute("clip-path", `url(#${id})`);
+      } else {
+        item.cue.removeAttribute("clip-path");
       }
     }
   }
@@ -406,7 +469,7 @@ function placeArticulations(target) {
     const head = note.querySelector(".abcjs-notehead");
     const stem = note.querySelector(".abcjs-stem");
     if (!head) continue;
-    const marks = [...note.querySelectorAll(".abcjs-decoration, .abcjs-articulation")];
+    const marks = [...note.querySelectorAll(".abcjs-decoration, .abcjs-articulation, .abcjs-script")];
     if (!marks.length) continue;
     const headBox = elementBox(head);
     const stemBox = stem ? elementBox(stem) : null;

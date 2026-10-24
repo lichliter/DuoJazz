@@ -202,11 +202,14 @@ function boot() {
     play: sectionEl("play-card", "Play card"),
     tunes: sectionEl("tune-pages", "Tune pages"),
   };
+  const papers = [];
   for (const panel of panels) {
-    const paper = mountPanel(panel, sections[panel.section]);
-    renderPanel(panel, paper);
+    papers.push([panel, mountPanel(panel, sections[panel.section])]);
   }
+  // Engrave after insert so SVG getBBox has real geometry (slashes, cues, chords).
   root.replaceChildren(sections.learn, sections.standards, sections.play, sections.tunes);
+  void root.offsetWidth;
+  for (const [panel, paper] of papers) renderPanel(panel, paper);
 }
 
 if (typeof document !== "undefined") {
