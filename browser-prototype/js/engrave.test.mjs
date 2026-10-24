@@ -35,3 +35,14 @@ test("cue cap helper and bowing detector still work without abcjs", () => {
   assert.equal(svgHasBowingMarks("artic=\"stacc\""), false);
   assert.equal(svgHasBowingMarks('artic="upbow"'), true);
 });
+
+test("Verovio options leave room for a cue lane under the staff", () => {
+  const chorus = verovioOptions({
+    fillAxis: "fit",
+    barsPerLine: 4,
+    annotationPx: 22,
+    paddingbottom: 48,
+  }, 980, { hasSb: true });
+  assert.ok(chorus.pageMarginBottom >= 48);
+  assert.ok(chorus.harmDist >= 3);
+});

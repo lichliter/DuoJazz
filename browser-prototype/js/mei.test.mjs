@@ -11,14 +11,26 @@ import {
   modelMEI,
   phraseMEI,
   slashMEI,
+  wrapCueLines,
 } from "./mei.js";
 
+function stripTags(xml) {
+  return String(xml).replace(/<[^>]+>/g, "");
+}
+
 function harms(mei) {
-  return [...String(mei).matchAll(/<harm\b[^>]*>([^<]*)<\/harm>/g)].map((m) => m[1]);
+  return [...String(mei).matchAll(/<harm\b[^>]*>([\s\S]*?)<\/harm>/g)].map((m) => stripTags(m[1]));
+}
+
+function harmAttrs(mei) {
+  return [...String(mei).matchAll(/<harm\b([^>]*)>([\s\S]*?)<\/harm>/g)].map((m) => ({
+    attrs: m[1],
+    text: stripTags(m[2]),
+  }));
 }
 
 function dirs(mei) {
-  return [...String(mei).matchAll(/<dir\b[^>]*>([^<]*)<\/dir>/g)].map((m) => m[1]);
+  return [...String(mei).matchAll(/<dir\b[^>]*>([\s\S]*?)<\/dir>/g)].map((m) => stripTags(m[1]));
 }
 
 function keysig(mei) {
@@ -33,7 +45,7 @@ test("phrase MEI is bass clef with the Learn chord and the cell pitches", () => 
   const mei = phraseMEI(getKey("G"), "concert", "minor-home");
   assert.equal(clefShape(mei), "F");
   assert.equal(keysig(mei), "2f");
-  assert.match(mei, /<harm[^>]*>Gm6<\/harm>/);
+  assert.ok(harms(mei).includes("Gm6"));
   assert.match(mei, /pname="a" oct="3"/);
   assert.match(mei, /<tuplet num="3" numbase="2"/);
   assert.equal(meiHasBowing(mei), false);
@@ -53,12 +65,15 @@ test("clef and B-flat names do not change concert spelling in MEI", () => {
 
 test("a two-chord bar places the second harm on beat 3", () => {
   const gts = phraseMEI(getKey("G"), "concert", "gts-learn");
-  assert.match(gts, /<harm[^>]*tstamp="1">Bm7<\/harm>/);
-  assert.match(gts, /<harm[^>]*tstamp="3">E7<\/harm>/);
+  const gtsHarms = harmAttrs(gts);
+  assert.ok(gtsHarms.some((harm) => harm.text === "Bm7" && /tstamp="1"/.test(harm.attrs)));
+  assert.ok(gtsHarms.some((harm) => harm.text === "E7" && /tstamp="3"/.test(harm.attrs)));
   const st = landingMEI(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
-  assert.match(st, /<harm[^>]*>Cmaj7<\/harm>/);
-  assert.match(st, /<harm[^>]*>F7<\/harm>/);
-  assert.match(st, /<harm[^>]*>C7\/E<\/harm>/);
+  assert.ok(harms(st).includes("Cmaj7"));
+  assert.ok(harms(st).includes("F7"));
+  assert.ok(harms(st).includes("C7/E"));
+  assert.match(st, /<rend fontfam="sans-serif"/);
+  assert.match(st, /<space dur="4"\/>/);
 });
 
 test("empty bars are a single mRest; partial bars never hide beat 3", () => {
@@ -74,10 +89,10 @@ test("empty bars are a single mRest; partial bars never hide beat 3", () => {
 
 test("landing MEI keeps lick notes and slashes empty bars", () => {
   const mei = landingMEI(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
-  assert.match(mei, /<harm[^>]*>Cm7<\/harm>/);
+  assert.ok(harms(mei).includes("Cm7"));
   assert.match(mei, /head\.shape="slash"/);
-  assert.match(mei, /<dir[^>]*>HERE<\/dir>/);
-  assert.match(mei, /<dir[^>]*>Get ready<\/dir>/);
+  assert.ok(dirs(mei).includes("HERE"));
+  assert.ok(dirs(mei).includes("Get ready"));
   assert.match(mei, /pname="a" oct="3"/);
   const slashes = slashMEI(getKey("G"), "concert", "minor-home", "bass");
   assert.match(slashes, /head\.shape="slash"/);
@@ -158,4 +173,21 @@ test("staccato and tenuto encode as artic, never bowing", () => {
   if (mei.includes("artic=")) {
     assert.match(mei, /artic="(?:stacc|ten)"/);
   }
+});
+
+test("flat and sharp chord names stay as literal Unicode in harm", () => {
+  const gts = phraseMEI(getKey("Bb"), "concert", "gts-learn");
+  assert.ok(harms(gts).includes("B♭maj7"));
+  assert.match(gts, /<rend fontfam="sans-serif"[^>]*>B♭maj7<\/rend>/);
+  const billies = landingMEI(getKey("F"), "concert", "bo-billies");
+  assert.ok(harms(billies).some((name) => name.includes("B♭") || name.includes("°")));
+});
+
+test("long cue labels wrap at a word instead of overflowing the next bar", () => {
+  assert.equal(wrapCueLines("HERE"), "HERE");
+  assert.equal(wrapCueLines("Get ready"), "Get ready");
+  assert.equal(wrapCueLines("Guide tone sequence"), "Guide tone<lb/>sequence");
+  const st = landingMEI(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
+  assert.match(st, /Guide tone<lb\/>sequence/);
+  assert.doesNotMatch(st, /Get ready<lb\/>/);
 });

@@ -92,11 +92,14 @@ function recolor(svg) {
   }
 }
 
+const SMUFL_PUA = /[\uE000-\uF8FF]/;
+
 function restyleText(svg) {
   for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
     el.setAttribute("fill", INK);
   }
   for (const el of svg.querySelectorAll(".harm text, .harm tspan")) {
+    if (SMUFL_PUA.test(el.textContent ?? "")) continue;
     el.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
   }

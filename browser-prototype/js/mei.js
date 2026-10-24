@@ -292,6 +292,29 @@ function emitLayer(tokens) {
   return out.join("");
 }
 
+function literalRend(text) {
+  return `<rend fontfam="sans-serif" fontweight="bold">${esc(text)}</rend>`;
+}
+
+export function wrapCueLines(text, width = 16) {
+  const value = String(text).trim();
+  const words = value.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || value.length <= width) return esc(value);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && next.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.map(esc).join("<lb/>");
+}
+
 function harmXml(ctx, chord, tstamp) {
   const id = nextId(ctx, "h");
   const name = chordSymbolName(
@@ -303,18 +326,22 @@ function harmXml(ctx, chord, tstamp) {
     chord.slashIntervalFromTonic,
     chord.usesFlats,
   );
-  return `<harm xml:id="${id}" place="above" staff="1" tstamp="${tstamp}">${esc(name)}</harm>`;
+  return `<harm xml:id="${id}" place="above" staff="1" tstamp="${tstamp}">${literalRend(name)}</harm>`;
 }
 
 function dirXml(ctx, text, tstamp) {
   const id = nextId(ctx, "d");
-  return `<dir xml:id="${id}" type="cue" place="below" staff="1" tstamp="${tstamp}" vgrp="1">${esc(text)}</dir>`;
+  return `<dir xml:id="${id}" type="cue" place="below" staff="1" tstamp="${tstamp}" vgrp="1">${wrapCueLines(text)}</dir>`;
 }
 
 function sectionXml(ctx, label) {
   if (!label) return "";
   const id = nextId(ctx, "d");
-  return `<dir xml:id="${id}" type="section" place="above" staff="1" tstamp="1">${esc(label)}</dir>`;
+  return `<dir xml:id="${id}" type="section" place="above" staff="1" tstamp="1">${wrapCueLines(label)}</dir>`;
+}
+
+function beatGridLayer() {
+  return `<layer n="2">${'<space dur="4"/>'.repeat(BEATS_PER_BAR)}</layer>`;
 }
 
 function tstampAt(beat, barStart) {
@@ -340,7 +367,8 @@ function measureXml({
   if (cue) dirs.push(dirXml(ctx, cue, "1"));
   const right = rightBar === "end" ? ' right="end"' : "";
   const meter = metcon ? "" : ' metcon="false"';
-  return `<measure n="${n}"${meter}${right}><staff n="1"><layer n="1">${layer}</layer></staff>${harms.join("")}${dirs.join("")}</measure>`;
+  const grid = metcon ? beatGridLayer() : "";
+  return `<measure n="${n}"${meter}${right}><staff n="1"><layer n="1">${layer}</layer>${grid}</staff>${harms.join("")}${dirs.join("")}</measure>`;
 }
 
 function staffDefXml(ctx) {
