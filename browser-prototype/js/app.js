@@ -941,9 +941,6 @@ function renderNotation() {
   }).catch(() => {
     if (gen !== notationGen) return;
     els.notation.replaceChildren();
-    const pre = document.createElement("pre");
-    pre.textContent = mei;
-    els.notation.append(pre);
   });
 }
 
@@ -1416,3 +1413,6 @@ window.__DUOJAZZ__ = {
 applyDeepLink();
 renderSetup();
 render();
+whenVerovioReady().then(() => {
+  if (session?.screen === "session") renderNotation();
+});

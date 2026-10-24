@@ -7,39 +7,117 @@ import { chorusStaffFit } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
 
 const INK = "#2b211a";
+const READY_TIMEOUT_MS = 20000;
 
 let toolkit = null;
 let toolkitPromise = null;
 
+export function verovioModuleIsReady(vrv = globalThis.verovio) {
+  const mod = vrv?.module;
+  if (!mod) return false;
+  if (vrv.__duojazzReady || mod.calledRun || mod.runtimeInitialized) return true;
+  return typeof mod._vrvToolkit_constructor === "function";
+}
+
+function bindRuntimeHook(vrv) {
+  if (!vrv?.module || vrv.__duojazzBound) return;
+  vrv.__duojazzBound = true;
+  const prev = vrv.module.onRuntimeInitialized;
+  vrv.module.onRuntimeInitialized = () => {
+    if (typeof prev === "function") prev();
+    vrv.__duojazzReady = true;
+    if (typeof document !== "undefined") {
+      document.dispatchEvent(new Event("verovio-ready"));
+    }
+  };
+  if (verovioModuleIsReady(vrv)) vrv.__duojazzReady = true;
+}
+
+function waitForVerovioScript() {
+  if (globalThis.verovio) return Promise.resolve(globalThis.verovio);
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const tick = () => {
+      if (globalThis.verovio) {
+        resolve(globalThis.verovio);
+        return;
+      }
+      if (Date.now() - started > READY_TIMEOUT_MS) {
+        reject(new Error("Verovio toolkit is not loaded"));
+        return;
+      }
+      setTimeout(tick, 40);
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("load", tick, { once: true });
+      document.addEventListener("DOMContentLoaded", tick, { once: true });
+      document.addEventListener("verovio-ready", tick);
+    }
+    tick();
+  });
+}
+
+function waitForVerovioRuntime(vrv) {
+  bindRuntimeHook(vrv);
+  if (verovioModuleIsReady(vrv)) return Promise.resolve(vrv);
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      vrv.__duojazzReady = true;
+      settled = true;
+      resolve(vrv);
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("verovio-ready", done, { once: true });
+    }
+    const poll = () => {
+      if (settled) return;
+      bindRuntimeHook(vrv);
+      if (verovioModuleIsReady(vrv)) {
+        done();
+        return;
+      }
+      try {
+        const probe = new vrv.toolkit();
+        probe.destroy?.();
+        done();
+        return;
+      } catch {
+        // WASM is present but not callable yet.
+      }
+      if (Date.now() - started > READY_TIMEOUT_MS) {
+        settled = true;
+        reject(new Error("Verovio WASM timed out"));
+        return;
+      }
+      setTimeout(poll, 40);
+    };
+    poll();
+  });
+}
+
 export function whenVerovioReady() {
   if (toolkit) return Promise.resolve(toolkit);
   if (toolkitPromise) return toolkitPromise;
-  toolkitPromise = new Promise((resolve, reject) => {
-    const vrv = globalThis.verovio;
-    if (!vrv) {
-      reject(new Error("Verovio toolkit is not loaded"));
-      return;
-    }
-    const boot = () => {
+  toolkitPromise = waitForVerovioScript()
+    .then(waitForVerovioRuntime)
+    .then((vrv) => {
       toolkit = new vrv.toolkit();
-      resolve(toolkit);
-    };
-    if (vrv.module?.calledRun) {
-      boot();
-      return;
-    }
-    if (typeof vrv.module?.onRuntimeInitialized === "object" || typeof vrv.module?.onRuntimeInitialized === "function" || vrv.module) {
-      const prev = vrv.module.onRuntimeInitialized;
-      vrv.module.onRuntimeInitialized = () => {
-        if (typeof prev === "function") prev();
-        boot();
-      };
-      if (vrv.module.calledRun) boot();
-      return;
-    }
-    boot();
-  });
+      vrv.__duojazzReady = true;
+      return toolkit;
+    })
+    .catch((err) => {
+      toolkitPromise = null;
+      throw err;
+    });
   return toolkitPromise;
+}
+
+export function resetVerovioForTests() {
+  toolkit = null;
+  toolkitPromise = null;
 }
 
 export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = {}) {
@@ -74,13 +152,13 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     pageMarginBottom: Math.max(cue ? 80 : 28, Math.round(layout.paddingbottom ?? 16)),
     pageMarginLeft: 18,
     pageMarginRight: 18,
-    harmDist: 2.4,
-    topMarginHarm: 1.2,
-    lyricSize: shortFill ? 3.0 : 2.35,
+    harmDist: 2.2,
+    topMarginHarm: 1.0,
+    lyricSize: shortFill ? 4.2 : 3.4,
     leftMarginAccid: 1.25,
     rightMarginAccid: 0.7,
     xmlIdSeed: 1,
-    svgCss: `.harm, .harm text { font-family: "Noto Sans", "Source Sans 3", sans-serif; font-weight: 700; fill: ${INK}; } .dir, .dir text { font-family: "Source Sans 3", sans-serif; font-weight: 700; fill: ${INK}; }`,
+    svgCss: `.harm, .harm text, .harm tspan { font-family: "Noto Sans", "Source Sans 3", sans-serif; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text { font-family: "Source Sans 3", sans-serif; font-weight: 700; fill: ${INK}; }`,
   };
 }
 
@@ -93,34 +171,60 @@ function recolor(svg) {
   }
 }
 
-function decodeFigbass(el) {
-  if (el.children.length) return false;
-  const text = el.textContent ?? "";
-  if (!/[\uEA63-\uEA67]/.test(text)) return /[\uE000-\uF8FF]/.test(text);
-  el.textContent = text
+function decodeFigbassText(text) {
+  return String(text)
     .replaceAll("\uEA63", "𝄫")
     .replaceAll("\uEA64", "♭")
     .replaceAll("\uEA65", "♮")
     .replaceAll("\uEA66", "♯")
     .replaceAll("\uEA67", "𝄪");
-  return false;
+}
+
+export function compactChordSymbol(text) {
+  return decodeFigbassText(text).replace(/\s+/g, "");
+}
+
+function leafTspans(textEl) {
+  return [...textEl.querySelectorAll("tspan")].filter((el) => !el.children.length);
 }
 
 function restyleText(svg, layout = {}) {
   const phrase = layout.fillAxis === "width";
   const shortFill = phrase && (layout.barsPerLine ?? 2) <= 2;
-  const chordVU = shortFill ? 340 : 250;
-  const cueVU = Math.round(chordVU * 0.88);
+  const cueVU = Math.round((shortFill ? 340 : 250) * 0.88);
   for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
     el.setAttribute("fill", INK);
   }
-  for (const el of svg.querySelectorAll(".harm text, .harm tspan")) {
-    if (decodeFigbass(el)) continue;
-    el.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
-    el.setAttribute("font-weight", "700");
-    if (el.children.length) continue;
-    const size = parseFloat(el.getAttribute("font-size") || "0");
-    if (size > chordVU) el.setAttribute("font-size", `${chordVU}px`);
+  for (const text of svg.querySelectorAll(".harm text")) {
+    const leaves = leafTspans(text);
+    const raw = leaves.length
+      ? leaves.map((el) => el.textContent ?? "").join("")
+      : (text.textContent ?? "");
+    const compact = compactChordSymbol(raw);
+    if (!compact) continue;
+    const anchor = leaves[0] ?? text;
+    const size = parseFloat(anchor.getAttribute("font-size") || text.getAttribute("font-size") || "0");
+    const minVU = shortFill ? 420 : 310;
+    const maxVU = shortFill ? 520 : 400;
+    const target = Math.min(maxVU, Math.max(minVU, size > 0 ? size * 1.4 : minVU));
+    const x = anchor.getAttribute("x") ?? text.getAttribute("x");
+    const y = anchor.getAttribute("y") ?? text.getAttribute("y");
+    text.replaceChildren();
+    const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+    tspan.textContent = compact;
+    tspan.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
+    tspan.setAttribute("font-weight", "700");
+    tspan.setAttribute("font-size", `${Math.round(target)}px`);
+    tspan.setAttribute("fill", INK);
+    tspan.setAttribute("letter-spacing", "0");
+    if (x != null) tspan.setAttribute("x", x);
+    if (y != null) tspan.setAttribute("y", y);
+    text.append(tspan);
+    text.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
+    text.setAttribute("font-weight", "700");
+    text.setAttribute("font-size", `${Math.round(target)}px`);
+    text.setAttribute("letter-spacing", "0");
+    text.setAttribute("fill", INK);
   }
   for (const el of svg.querySelectorAll(".dir text, .dir tspan")) {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
@@ -128,6 +232,50 @@ function restyleText(svg, layout = {}) {
     if (el.children.length) continue;
     const size = parseFloat(el.getAttribute("font-size") || "0");
     if (size > cueVU) el.setAttribute("font-size", `${cueVU}px`);
+  }
+}
+
+function isSlashHead(el) {
+  const cls = `${el.getAttribute("class") || ""} ${el.closest("[class]")?.getAttribute("class") || ""}`;
+  if (/\bslash\b/i.test(cls)) return true;
+  const hrefs = [el.getAttribute("href"), el.getAttribute("xlink:href")];
+  for (const use of el.querySelectorAll?.("use") ?? []) {
+    hrefs.push(use.getAttribute("href"), use.getAttribute("xlink:href"));
+  }
+  return hrefs.some((href) => /E10[0-4]/i.test(href || ""));
+}
+
+export function centerSlashNoteheads(svg) {
+  if (!svg?.querySelectorAll) return;
+  for (const staff of svg.querySelectorAll(".staff")) {
+    let staffBox;
+    try {
+      staffBox = staff.getBBox();
+    } catch {
+      continue;
+    }
+    if (!staffBox?.height) continue;
+    const mid = staffBox.y + staffBox.height / 2;
+    const heads = [...staff.querySelectorAll(".notehead, .note, [class*='slash']")].filter(isSlashHead);
+    const seen = new Set();
+    for (const head of heads) {
+      const target = head.classList?.contains("notehead") || head.classList?.contains("slash")
+        ? head
+        : head.closest(".notehead") ?? head;
+      if (seen.has(target)) continue;
+      seen.add(target);
+      let box;
+      try {
+        box = target.getBBox();
+      } catch {
+        continue;
+      }
+      if (!box.height) continue;
+      const dy = mid - (box.y + box.height / 2);
+      if (Math.abs(dy) < 0.35) continue;
+      const prev = target.getAttribute("transform") || "";
+      target.setAttribute("transform", `${prev} translate(0 ${dy})`.trim());
+    }
   }
 }
 
@@ -189,6 +337,7 @@ export async function engraveMei(target, mei, options = {}) {
   if (svg) {
     recolor(svg);
     restyleText(svg, layout);
+    centerSlashNoteheads(svg);
     if (options.fitChorus || layout.fillAxis === "fit") fitStaff(target, svg, layout);
   }
   return {
