@@ -12,13 +12,25 @@ import {
   applicationKeyQuality,
 } from "./music.js";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
-import { notationLayout } from "./lesson.js";
+import {
+  NOTATION_SCALE_LABELS,
+  NOTATION_SCALE_VALUES,
+  notationLayout,
+  persistNotationScale,
+  resolveNotationScale,
+} from "./lesson.js";
 import { MODULES } from "./registry.js";
 import { TUNES, tuneById } from "./tunes.js";
-import { engraveMei, whenVerovioReady } from "./engrave.js";
+import { engraveMei, measureEngraving, whenVerovioReady } from "./engrave.js";
 
 const LEARN_KEYS = ["C", "G", "Bb", "F#"];
 const VIEWPORT = { width: 1024, height: 1366, staffWidth: 980 };
+const COMPARE_PIECES = [
+  { id: "st-thomas", title: "St. Thomas", kind: "tune", applicationId: "tune-st-thomas", keyId: "C", showCues: true, phrase: false },
+  { id: "gts-learn-bb", title: "GTS Learn in B♭", kind: "learn", applicationId: "gts-learn", keyId: "Bb", showCues: false, phrase: true },
+];
+
+let galleryScale = 1;
 
 const TUNE_PAGES = [
   { id: "st-thomas", shotId: "st-thomas" },
@@ -116,6 +128,22 @@ export function galleryPanels() {
   return panels;
 }
 
+export function comparePanels() {
+  return COMPARE_PIECES.flatMap((piece) => NOTATION_SCALE_VALUES.map((notationScale) => ({
+    id: `compare-${piece.id}-${String(notationScale).replace(".", "p")}`,
+    section: "compare",
+    kind: piece.kind,
+    title: `${piece.title} · ${NOTATION_SCALE_LABELS[notationScale]}`,
+    subtitle: keyLabel(piece.keyId, piece.applicationId),
+    applicationId: piece.applicationId,
+    keyId: piece.keyId,
+    showCues: piece.showCues,
+    phrase: piece.phrase,
+    notationScale,
+    shot: false,
+  })));
+}
+
 function keyLabel(keyId, applicationId) {
   const shown = displayKey(getKey(keyId), "concert", applicationKeyQuality(applicationId));
   return shown.name;
@@ -169,6 +197,7 @@ function layoutForPanel(panel, staffWidth = VIEWPORT.staffWidth) {
     showPhraseNotation: Boolean(panel.phrase),
     showEntranceCues: Boolean(panel.showCues),
     phraseBars: panel.phrase ? phraseMeasureCount(panel.applicationId) : undefined,
+    notationScale: panel.notationScale ?? galleryScale,
   });
 }
 
@@ -178,6 +207,15 @@ function renderPanel(panel, paper) {
   return engraveMei(paper, meiForPanel(panel), {
     layout,
     width: paper.clientWidth || VIEWPORT.staffWidth,
+  }).then((engraved) => {
+    if (panel.section === "compare") {
+      const measured = measureEngraving(paper);
+      const meta = paper.closest("article")?.querySelector("header p");
+      if (meta && measured?.staffMean) {
+        meta.textContent = `${panel.subtitle} · staff ${Math.round(measured.staffMean)}px`;
+      }
+    }
+    return engraved;
   });
 }
 
@@ -196,6 +234,7 @@ function mountPanel(panel, parent) {
   article.id = panel.id;
   article.className = panel.shot ? "gallery-card shot" : "gallery-card";
   article.dataset.kind = panel.kind;
+  if (panel.notationScale) article.dataset.notation = String(panel.notationScale);
   const head = document.createElement("header");
   const title = document.createElement("h3");
   title.textContent = panel.title;
@@ -213,26 +252,65 @@ function mountPanel(panel, parent) {
   return paper;
 }
 
+let mainPapers = [];
+
+function bindSizeSwitcher() {
+  const group = document.getElementById("gallery-size");
+  if (!group) return;
+  const buttons = [...group.querySelectorAll("[data-notation]")];
+  const paint = () => {
+    for (const btn of buttons) {
+      const value = Number(btn.dataset.notation);
+      btn.setAttribute("aria-pressed", String(value === galleryScale));
+    }
+  };
+  group.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-notation]");
+    if (!btn) return;
+    const next = persistNotationScale(btn.dataset.notation);
+    if (next == null || next === galleryScale) return;
+    galleryScale = next;
+    paint();
+    for (const [panel, paper] of mainPapers) renderPanel(panel, paper);
+  });
+  paint();
+}
+
 function boot() {
   if (typeof document === "undefined") return;
   const root = document.getElementById("gallery");
   if (!root) return;
+  galleryScale = resolveNotationScale();
+  bindSizeSwitcher();
   const panels = galleryPanels();
+  const compared = comparePanels();
   const sections = {
+    compare: sectionEl("compare", "Size compare · St. Thomas and GTS Learn in B♭"),
     learn: sectionEl("learn-licks", "Learn cards · C, G, B♭, F♯"),
     standards: sectionEl("standards", "One standards lesson per module"),
     play: sectionEl("play-card", "Play card"),
     tunes: sectionEl("tune-pages", "Tune pages"),
   };
-  const papers = [];
+  mainPapers = [];
+  const comparePapers = [];
+  for (const panel of compared) {
+    comparePapers.push([panel, mountPanel(panel, sections.compare)]);
+  }
   for (const panel of panels) {
-    papers.push([panel, mountPanel(panel, sections[panel.section])]);
+    mainPapers.push([panel, mountPanel(panel, sections[panel.section])]);
   }
   // Engrave after insert so SVG getBBox has real geometry.
-  root.replaceChildren(sections.learn, sections.standards, sections.play, sections.tunes);
+  root.replaceChildren(
+    sections.compare,
+    sections.learn,
+    sections.standards,
+    sections.play,
+    sections.tunes,
+  );
   void root.offsetWidth;
   whenVerovioReady().then(() => {
-    for (const [panel, paper] of papers) renderPanel(panel, paper);
+    for (const [panel, paper] of comparePapers) renderPanel(panel, paper);
+    for (const [panel, paper] of mainPapers) renderPanel(panel, paper);
   }).catch((err) => {
     root.textContent = `Verovio failed to load: ${err.message}`;
   });
@@ -250,4 +328,4 @@ if (typeof document !== "undefined") {
   }
 }
 
-export { LEARN_KEYS, TUNE_PAGES, TUNES, VIEWPORT };
+export { COMPARE_PIECES, LEARN_KEYS, TUNE_PAGES, TUNES, VIEWPORT };

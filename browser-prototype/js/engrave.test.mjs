@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   capCueText,
+  CHORD_FONT_VU,
   compactChordSymbol,
+  CUE_FONT_VU,
+  chordFontVU,
+  cueFontVU,
   resetVerovioForTests,
+  smuflChordChar,
   staffCssFromPage,
   STAFF_USER_UNITS,
   svgHasBowingMarks,
@@ -12,7 +17,7 @@ import {
   verovioOptions,
   whenVerovioReady,
 } from "./engrave.js";
-import { STAFF_PX } from "./lesson.js";
+import { notationLayout, STAFF_PX } from "./lesson.js";
 
 test("Verovio options use encoded breaks and justify every system, including the last", () => {
   const chorus = verovioOptions({
@@ -65,6 +70,8 @@ test("index and gallery load Verovio instead of abcjs", async () => {
   const gallery = await readFile(new URL("../gallery.html", import.meta.url), "utf8");
   assert.match(index, /verovio-toolkit-wasm/);
   assert.match(gallery, /verovio-toolkit-wasm/);
+  assert.match(gallery, /id="gallery-size"/);
+  assert.match(gallery, /href="#compare"/);
   assert.doesNotMatch(index, /abcjs/);
   assert.doesNotMatch(gallery, /abcjs/);
 });
@@ -117,6 +124,19 @@ test("chord symbols compact figbass and internal gaps", () => {
   assert.equal(compactChordSymbol("B♭  maj7"), "B♭maj7");
   assert.equal(compactChordSymbol("B\uEA64 maj7"), "B♭maj7");
   assert.equal(compactChordSymbol("C7/E"), "C7/E");
+  assert.equal(compactChordSymbol("A7 ♭9"), "A7♭9");
+  assert.equal(compactChordSymbol("F ♯ °7"), "F♯°7");
+  assert.equal(compactChordSymbol("F\u00A0♯\u202F°7"), "F♯°7");
+  assert.equal(smuflChordChar("#E260"), "♭");
+  assert.equal(smuflChordChar("E870"), "°");
+});
+
+test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {
+  assert.equal(CUE_FONT_VU, 330);
+  assert.equal(cueFontVU(), 330);
+  assert.equal(CHORD_FONT_VU, 400);
+  assert.equal(chordFontVU(), 400);
+  assert.ok(CUE_FONT_VU > 280, "cues must outgrow the 230 VU (~9px) round-2 size");
 });
 
 test("engraving restyles chords then separates overlapping symbols", async () => {
@@ -124,6 +144,8 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   assert.match(src, /separateChordSymbols\(svg\)/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
   assert.match(src, /applyFixedStaffSize\(/);
+  assert.match(src, /restyleHarms\(/);
+  assert.match(src, /harmRawText\(/);
   assert.doesNotMatch(src, /chorusStaffFit\(/);
   assert.doesNotMatch(src, /fitChorus/);
 });
@@ -132,6 +154,8 @@ test("session paper re-renders once Verovio is ready", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   assert.match(app, /whenVerovioReady\(\)\.then\(\(\) => \{/);
   assert.match(app, /screen === "session"\) renderNotation\(\)/);
+  assert.match(app, /resolveNotationScale\(\)/);
+  assert.match(app, /notationScale: resolveNotationScale\(\)/);
 });
 
 test("cue cap helper and bowing detector still work without abcjs", () => {
@@ -154,4 +178,24 @@ test("Verovio options leave a tight cue lane under the staff", () => {
   assert.ok(chorus.spacingSystem <= 12);
   assert.ok(chorus.lyricSize >= 2.0);
   assert.ok(chorus.lyricSize <= 3.5);
+  assert.equal(chorus.leftMarginAccid, 2);
+  assert.ok(chorus.rightMarginAccid >= 1.0);
+});
+
+test("notation size presets keep four bars per line and scale the staff together", () => {
+  for (const size of [1, 1.2, 1.4, 1.6]) {
+    const layout = notationLayout({
+      staffWidth: 980,
+      viewportWidth: 1024,
+      viewportHeight: 1366,
+      showPhraseNotation: false,
+      showEntranceCues: true,
+      notationScale: size,
+    });
+    assert.equal(layout.barsPerLine, 4, `${size} bars`);
+    assert.equal(layout.notationScale, size);
+    assert.equal(layout.minStaffPx, Math.round(STAFF_PX * size));
+    const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);
+    assert.ok(Math.abs(staff - STAFF_PX * size) < 1.5, `${size} staff ${staff}`);
+  }
 });

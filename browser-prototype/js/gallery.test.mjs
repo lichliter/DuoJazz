@@ -2,12 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   abcForPanel,
+  comparePanels,
   galleryPanels,
   learnLessons,
   meiForPanel,
   standardLessons,
   LEARN_KEYS,
 } from "./gallery.js";
+import { compactChordSymbol } from "./engrave.js";
+import { NOTATION_SCALE_VALUES } from "./lesson.js";
 import { capCueText, svgHasBowingMarks } from "./engrave.js";
 import { MODULES } from "./registry.js";
 
@@ -79,5 +82,37 @@ test("gallery engraves after the cards are in the document", async () => {
   const renderAt = src.lastIndexOf("renderPanel(panel, paper)");
   assert.ok(insertAt > 0 && renderAt > insertAt);
   assert.match(src, /whenVerovioReady/);
+  assert.match(src, /gallery-size/);
+  assert.match(src, /comparePanels/);
   assert.doesNotMatch(src, /ABCJS/);
+});
+
+test("compare view shows St. Thomas and GTS Learn in B♭ at all four sizes", () => {
+  const panels = comparePanels();
+  assert.equal(panels.length, 8);
+  assert.deepEqual(
+    [...new Set(panels.map((panel) => panel.notationScale))],
+    NOTATION_SCALE_VALUES,
+  );
+  assert.ok(panels.some((panel) => panel.id === "compare-st-thomas-1" && panel.applicationId === "tune-st-thomas"));
+  assert.ok(panels.some((panel) => panel.id === "compare-gts-learn-bb-1p4" && panel.keyId === "Bb"));
+  assert.ok(panels.every((panel) => /1\.0×|1\.2×|1\.4×|1\.6×/.test(panel.title)));
+});
+
+test("gallery chord symbols have no internal gaps around accidentals or alterations", () => {
+  const samples = [
+    galleryPanels().find((panel) => panel.id === "st-thomas"),
+    galleryPanels().find((panel) => panel.id === "gts-learn-bb"),
+    galleryPanels().find((panel) => panel.id === "billies-bounce-play"),
+    galleryPanels().find((panel) => panel.id === "attya"),
+  ];
+  for (const panel of samples) {
+    const mei = meiForPanel(panel);
+    for (const match of mei.matchAll(/<rend[^>]*>([^<]*)<\/rend>/g)) {
+      const name = match[1];
+      assert.equal(compactChordSymbol(name), name, `${panel.id} ${name}`);
+      assert.doesNotMatch(name, /[A-G]\s+[♭♯°ø]/);
+      assert.doesNotMatch(name, /[7mø°]\s+[♭♯]/);
+    }
+  }
 });

@@ -26,6 +26,12 @@ import {
   slashFitsStaff,
   STAFF_PX,
   STAFF_PX_NARROW,
+  parseNotationScale,
+  persistNotationScale,
+  resolveNotationScale,
+  staffPxForScale,
+  NOTATION_SCALE_KEY,
+  NOTATION_SCALE_VALUES,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -489,4 +495,25 @@ test("echo cell keeps the pad only; helped slash staff still uses the register",
   assert.equal(tryConfig.includeModel, false);
   assert.equal(tryConfig.melodyRegister, 1);
   assert.equal(presentation(helpState).showSlashNotation, true);
+});
+
+test("notation URL param accepts the four presets and persists them", () => {
+  assert.deepEqual(NOTATION_SCALE_VALUES, [1, 1.2, 1.4, 1.6]);
+  assert.equal(parseNotationScale("1"), 1);
+  assert.equal(parseNotationScale("1.0"), 1);
+  assert.equal(parseNotationScale("1.4"), 1.4);
+  assert.equal(parseNotationScale("2"), null);
+  assert.equal(staffPxForScale(1), STAFF_PX);
+  assert.equal(staffPxForScale(1.4), 56);
+  assert.equal(staffPxForScale(1.6), 64);
+  const memory = new Map();
+  const storage = {
+    getItem: (key) => memory.get(key) ?? null,
+    setItem: (key, value) => memory.set(key, String(value)),
+  };
+  assert.equal(resolveNotationScale({ search: "?notation=1.2", storage }), 1.2);
+  assert.equal(memory.get(NOTATION_SCALE_KEY), "1.2");
+  assert.equal(resolveNotationScale({ search: "", storage }), 1.2);
+  assert.equal(persistNotationScale(1.6, storage), 1.6);
+  assert.equal(resolveNotationScale({ search: "screen=session", storage }), 1.6);
 });
