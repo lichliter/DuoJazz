@@ -45,3 +45,10 @@ test("cue labels cap to the bar they belong to", () => {
   assert.ok(long.endsWith("…"));
   assert.ok(long.length < "Embellished minor resolution".length);
 });
+
+test("gallery engraves after the cards are in the document", async () => {
+  const src = await (await import("node:fs/promises")).readFile(new URL("./gallery.js", import.meta.url), "utf8");
+  const insertAt = src.indexOf("root.replaceChildren");
+  const renderAt = src.lastIndexOf("renderPanel(panel, paper)");
+  assert.ok(insertAt > 0 && renderAt > insertAt);
+});

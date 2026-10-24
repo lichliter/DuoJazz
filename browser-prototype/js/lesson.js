@@ -458,7 +458,7 @@ export function notationLayout({
     scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
     paddingtop: stand ? 6 : landscape ? 8 : short ? 8 : 16,
     paddingbottom: showEntranceCues
-      ? (stand ? 16 : landscape ? 16 : short ? 14 : 20)
+      ? (stand ? 28 : landscape ? 24 : short ? 20 : 26)
       : (stand ? 10 : 12),
     wrap: null,
     flatbeams: true,
@@ -479,8 +479,12 @@ export function notationLayout({
     slashStroke: stand ? 1.45 : 1.85,
     fitToPaper: false,
     fillAxis: "fit",
-    staffsep: stand ? 52 : landscape ? 48 : 46,
-    maxStaffsep: stand ? 60 : 56,
+    staffsep: showEntranceCues
+      ? (stand ? 86 : landscape ? 78 : 72)
+      : (stand ? 52 : landscape ? 48 : 46),
+    maxStaffsep: showEntranceCues
+      ? (stand ? 100 : 92)
+      : (stand ? 60 : 56),
     fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
     minStaffPx: stand ? 83 : landscape ? 64 : 0,
   };
