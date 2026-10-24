@@ -8,11 +8,42 @@ html.gallery-page body {
 
 .gallery-head {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   align-items: baseline;
   padding: 1rem 1.25rem 0.5rem;
   max-width: 1024px;
   margin-inline: auto;
+}
+
+.gallery-size {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.gallery-size-label {
+  color: var(--muted);
+  margin-right: 0.25rem;
+}
+
+.gallery-size button {
+  min-height: var(--tap);
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.gallery-size button[aria-pressed="true"] {
+  background: var(--selected);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .gallery-head h1 {
@@ -97,6 +128,12 @@ html.gallery-page body {
   width: 1024px;
   max-width: 100%;
   min-height: 1366px;
+  box-sizing: border-box;
+}
+
+#compare .gallery-card {
+  width: 1024px;
+  max-width: 100%;
   box-sizing: border-box;
 }
 
