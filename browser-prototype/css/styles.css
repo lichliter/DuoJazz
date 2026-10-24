@@ -368,6 +368,13 @@ h1 {
   display: block;
 }
 
+.paper.notation-natural .vrv-container,
+.paper.notation-natural svg {
+  width: auto !important;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
 .paper .vrv-container {
   overflow: visible;
 }
@@ -566,10 +573,12 @@ input[type="checkbox"] {
 }
 
 .paper .dir,
-.paper .dir text {
+.paper .dir text,
+.paper .dir tspan {
   fill: var(--paper-ink);
   font-family: "Source Sans 3", sans-serif;
-  font-weight: 700;
+  font-weight: 400;
+  font-style: italic;
 }
 
 @media (max-width: 900px) {

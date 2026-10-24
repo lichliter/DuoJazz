@@ -3,11 +3,13 @@
  * Layout numbers come from lesson.notationLayout; MEI comes from mei.js.
  */
 
-import { chorusStaffFit } from "./lesson.js";
+import { CUE_PX, STAFF_PX } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
 
 const INK = "#2b211a";
 const READY_TIMEOUT_MS = 20000;
+export const VEROVIO_UNIT = 12;
+export const STAFF_USER_UNITS = 8 * VEROVIO_UNIT;
 
 let toolkit = null;
 let toolkitPromise = null;
@@ -120,16 +122,27 @@ export function resetVerovioForTests() {
   toolkitPromise = null;
 }
 
+export function staffPxOf(layout = {}) {
+  return layout.minStaffPx || STAFF_PX;
+}
+
+export function isNaturalWidth(layout = {}) {
+  return Boolean(layout.naturalWidth);
+}
+
+/** CSS px of a 5-line staff when the SVG is drawn at `cssWidth`. */
+export function staffCssFromPage(pageWidth, cssWidth) {
+  if (!pageWidth || !cssWidth) return STAFF_PX;
+  return STAFF_USER_UNITS * cssWidth / pageWidth;
+}
+
 export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = {}) {
-  const unit = 12;
-  const staffVU = 8 * unit;
-  const phrase = layout.fillAxis === "width";
-  const shortFill = phrase && (layout.barsPerLine ?? 2) <= 2;
-  const targetStaff = layout.minStaffPx
-    || (shortFill ? 132 : phrase ? 78 : 72);
+  const unit = VEROVIO_UNIT;
+  const staffVU = STAFF_USER_UNITS;
+  const targetStaff = staffPxOf(layout);
   const width = Math.max(280, cssWidth);
-  const pageWidth = Math.round(staffVU * width / Math.max(48, targetStaff));
-  const cue = (layout.annotationPx ?? 0) > 16 || (layout.paddingbottom ?? 0) > 30;
+  const pageWidth = Math.round(staffVU * width / Math.max(36, targetStaff));
+  const cue = (layout.annotationPx ?? 0) > 12 || (layout.paddingbottom ?? 0) > 20;
   return {
     font: "Leipzig",
     scale: 100,
@@ -137,7 +150,7 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     pageWidth: Math.max(400, Math.min(8000, pageWidth)),
     pageHeight: 24000,
     adjustPageHeight: true,
-    adjustPageWidth: shortFill,
+    adjustPageWidth: isNaturalWidth(layout),
     breaks: hasSb ? "encoded" : "none",
     minLastJustification: 0.88,
     justifyVertically: false,
@@ -146,19 +159,20 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     svgViewBox: true,
     svgHtml5: true,
     beamMaxSlope: 4,
-    spacingSystem: cue ? 16 : 8,
+    spacingSystem: cue ? 10 : 6,
     spacingStaff: 8,
-    pageMarginTop: Math.max(48, Math.round((layout.paddingtop ?? 12) + 32)),
-    pageMarginBottom: Math.max(cue ? 80 : 28, Math.round(layout.paddingbottom ?? 16)),
-    pageMarginLeft: 18,
-    pageMarginRight: 18,
-    harmDist: 2.2,
-    topMarginHarm: 1.0,
-    lyricSize: shortFill ? 3.9 : 3.05,
+    pageMarginTop: 24,
+    pageMarginBottom: cue ? 36 : 16,
+    pageMarginLeft: 16,
+    pageMarginRight: 16,
+    harmDist: 1.05,
+    topMarginHarm: 0.7,
+    lyricSize: 2.6,
+    lyricTopMinMargin: 1.2,
     leftMarginAccid: 1.25,
     rightMarginAccid: 0.7,
     xmlIdSeed: 1,
-    svgCss: `.harm, .harm text, .harm tspan { font-family: "Noto Sans", "Source Sans 3", sans-serif; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text { font-family: "Source Sans 3", sans-serif; font-weight: 700; fill: ${INK}; }`,
+    svgCss: `.harm, .harm text, .harm tspan { font-family: "Noto Sans", "Source Sans 3", sans-serif; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
   };
 }
 
@@ -188,10 +202,23 @@ function leafTspans(textEl) {
   return [...textEl.querySelectorAll("tspan")].filter((el) => !el.children.length);
 }
 
+function chordFontVU(layout = {}) {
+  const staffPx = staffPxOf(layout);
+  const capPx = layout.chordCssPx || Math.round(staffPx * 0.42);
+  // Noto Sans cap height is ~0.71em, so font-size ≈ cap / 0.71.
+  const fontPx = capPx / 0.71;
+  return Math.round(fontPx * STAFF_USER_UNITS / staffPx);
+}
+
+function cueFontVU(layout = {}) {
+  const staffPx = staffPxOf(layout);
+  const cuePx = layout.annotationPx || CUE_PX;
+  return Math.round(cuePx * STAFF_USER_UNITS / staffPx);
+}
+
 function restyleText(svg, layout = {}) {
-  const phrase = layout.fillAxis === "width";
-  const shortFill = phrase && (layout.barsPerLine ?? 2) <= 2;
-  const cueVU = Math.round((shortFill ? 340 : 250) * 0.88);
+  const chordVU = chordFontVU(layout);
+  const cueVU = cueFontVU(layout);
   for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
     el.setAttribute("fill", INK);
   }
@@ -203,10 +230,6 @@ function restyleText(svg, layout = {}) {
     const compact = compactChordSymbol(raw);
     if (!compact) continue;
     const anchor = leaves[0] ?? text;
-    const size = parseFloat(anchor.getAttribute("font-size") || text.getAttribute("font-size") || "0");
-    const minVU = shortFill ? 360 : 240;
-    const maxVU = shortFill ? 480 : 330;
-    const target = Math.min(maxVU, Math.max(minVU, size > 0 ? size * 1.35 : minVU));
     const x = anchor.getAttribute("x") ?? text.getAttribute("x");
     const y = anchor.getAttribute("y") ?? text.getAttribute("y");
     text.replaceChildren();
@@ -214,7 +237,7 @@ function restyleText(svg, layout = {}) {
     tspan.textContent = compact;
     tspan.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     tspan.setAttribute("font-weight", "700");
-    tspan.setAttribute("font-size", `${Math.round(target)}px`);
+    tspan.setAttribute("font-size", `${chordVU}px`);
     tspan.setAttribute("fill", INK);
     tspan.setAttribute("letter-spacing", "0");
     if (x != null) tspan.setAttribute("x", x);
@@ -222,16 +245,16 @@ function restyleText(svg, layout = {}) {
     text.append(tspan);
     text.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     text.setAttribute("font-weight", "700");
-    text.setAttribute("font-size", `${Math.round(target)}px`);
+    text.setAttribute("font-size", `${chordVU}px`);
     text.setAttribute("letter-spacing", "0");
     text.setAttribute("fill", INK);
   }
   for (const el of svg.querySelectorAll(".dir text, .dir tspan")) {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
-    el.setAttribute("font-weight", "700");
+    el.setAttribute("font-weight", "400");
+    el.setAttribute("font-style", "italic");
     if (el.children.length) continue;
-    const size = parseFloat(el.getAttribute("font-size") || "0");
-    if (size > cueVU) el.setAttribute("font-size", `${cueVU}px`);
+    el.setAttribute("font-size", `${cueVU}px`);
   }
 }
 
@@ -296,13 +319,14 @@ export function separateChordSymbols(svg) {
       }
       const xA = harmAnchorX(harms[i]);
       const xB = harmAnchorX(harms[i + 1]);
-      const overlap = xA + harmTextWidth(harms[i]) + 36 - xB;
+      const overlap = xA + harmTextWidth(harms[i]) + 20 - xB;
       if (overlap <= 0) continue;
+      const floor = Math.round(STAFF_USER_UNITS * 0.48);
       for (const harm of [harms[i], harms[i + 1]]) {
         for (const el of harm.querySelectorAll("text, tspan")) {
           const size = parseFloat(el.getAttribute("font-size") || "0");
-          if (size <= 200) continue;
-          el.setAttribute("font-size", `${Math.max(200, size * 0.84)}px`);
+          if (size <= floor) continue;
+          el.setAttribute("font-size", `${Math.max(floor, size * 0.9)}px`);
           moved = true;
         }
       }
@@ -345,30 +369,25 @@ export function centerSlashNoteheads(svg) {
   }
 }
 
-function fitStaff(target, svg, layout) {
-  const minStaffPx = layout?.minStaffPx ?? 0;
+function applyFixedStaffSize(target, svg, layout) {
+  const staffPx = staffPxOf(layout);
   const wrap = target.parentElement;
-  const staff = svg?.querySelector(".staff");
-  if (!svg || !wrap || !staff || minStaffPx < 40 || typeof staff.getBBox !== "function") return;
-  if (svg.querySelector("[data-staff-fit]")) return;
-  const vb = svg.viewBox?.baseVal;
-  if (!vb?.width) return;
-  let staffUserH = 0;
-  try {
-    staffUserH = staff.getBBox().height;
-  } catch {
+  const vb = svg?.viewBox?.baseVal;
+  if (!svg || !vb?.width) return;
+  target.classList.toggle("notation-natural", isNaturalWidth(layout));
+  if (!isNaturalWidth(layout)) {
+    svg.style.setProperty("width", "100%", "important");
+    svg.style.setProperty("height", "auto", "important");
+    svg.style.removeProperty("margin-inline");
     return;
   }
-  const fit = chorusStaffFit(vb.width, staffUserH, wrap.clientWidth, minStaffPx);
-  if (fit.scaleX >= 0.98) return;
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  g.setAttribute("data-staff-fit", "1");
-  g.setAttribute("transform", `scale(${fit.scaleX} 1)`);
-  while (svg.firstChild) g.appendChild(svg.firstChild);
-  svg.append(g);
-  svg.setAttribute("viewBox", `0 0 ${fit.viewBoxWidth} ${vb.height}`);
-  svg.style.setProperty("width", "100%", "important");
-  svg.style.setProperty("height", `${Math.round(wrap.clientWidth * vb.height / fit.viewBoxWidth)}px`, "important");
+  const cssW = vb.width * staffPx / STAFF_USER_UNITS;
+  const maxW = wrap?.clientWidth || cssW;
+  const width = Math.min(cssW, maxW);
+  svg.style.setProperty("width", `${Math.round(width)}px`, "important");
+  svg.style.setProperty("max-width", "100%", "important");
+  svg.style.setProperty("height", "auto", "important");
+  svg.style.setProperty("margin-inline", "auto", "important");
 }
 
 function mountSvg(target, svgText) {
@@ -405,13 +424,82 @@ export async function engraveMei(target, mei, options = {}) {
     restyleText(svg, layout);
     separateChordSymbols(svg);
     centerSlashNoteheads(svg);
-    if (options.fitChorus || layout.fillAxis === "fit") fitStaff(target, svg, layout);
+    applyFixedStaffSize(target, svg, layout);
   }
   return {
     svg,
     layout: { ...layout, staffwidth: width },
     elapsedMs: performance.now() - started,
     pageCount: pages,
+  };
+}
+
+export function fiveLineStaffHeight(staff) {
+  if (!staff || typeof staff.getBBox !== "function") return 0;
+  const paths = [...staff.querySelectorAll(":scope > path")];
+  if (!paths.length) {
+    try {
+      return staff.getBBox().height;
+    } catch {
+      return 0;
+    }
+  }
+  let best = 0;
+  let bestDelta = Infinity;
+  for (const path of paths) {
+    let box;
+    try {
+      box = path.getBBox();
+    } catch {
+      continue;
+    }
+    const delta = Math.abs(box.height - STAFF_USER_UNITS);
+    if (delta < bestDelta) {
+      best = box.height;
+      bestDelta = delta;
+    }
+  }
+  return best;
+}
+
+export function measureEngraving(root) {
+  const svg = root?.querySelector?.("svg");
+  if (!svg) return null;
+  const svgBox = svg.getBoundingClientRect();
+  const vb = svg.viewBox?.baseVal;
+  const scale = vb?.width && svgBox.width ? svgBox.width / vb.width : 1;
+  const staffs = [...svg.querySelectorAll(".staff")];
+  const staffPx = staffs.map((staff) => fiveLineStaffHeight(staff) * scale);
+  const systemPitch = [];
+  for (let i = 1; i < staffs.length; i += 1) {
+    try {
+      systemPitch.push((staffs[i].getBBox().y - staffs[i - 1].getBBox().y) * scale);
+    } catch {
+      // skip
+    }
+  }
+  const chord = svg.querySelector(".harm text, .harm tspan");
+  const cue = svg.querySelector(".dir text, .dir tspan");
+  let chordPx = 0;
+  let cuePx = 0;
+  try {
+    if (chord) chordPx = chord.getBBox().height * scale;
+  } catch {
+    chordPx = 0;
+  }
+  try {
+    if (cue) cuePx = cue.getBBox().height * scale;
+  } catch {
+    cuePx = 0;
+  }
+  return {
+    staffPx,
+    staffMean: staffPx.length ? staffPx.reduce((a, b) => a + b, 0) / staffPx.length : 0,
+    systemPitch,
+    chordPx,
+    cuePx,
+    svgWidth: svgBox.width,
+    viewBoxWidth: vb?.width ?? 0,
   };
 }
 

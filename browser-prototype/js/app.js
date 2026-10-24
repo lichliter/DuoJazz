@@ -10,7 +10,7 @@ import {
 import { Transport } from "./audio.js";
 import { notationLayout } from "./lesson.js";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
-import { engraveMei, whenVerovioReady } from "./engrave.js";
+import { engraveMei, measureEngraving, whenVerovioReady } from "./engrave.js";
 import {
   PREFS_KEY,
   MODULE,
@@ -927,7 +927,6 @@ function renderNotation() {
     return engraveMei(els.notation, mei, {
       layout,
       width,
-      fitChorus: layout.fillAxis === "fit",
     });
   }).then((engraved) => {
     if (!engraved || gen !== notationGen) return;
@@ -1336,6 +1335,7 @@ window.__DUOJAZZ__ = {
   getPrefs: () => prefs,
   getSession: () => session,
   lastEngraveMs: () => lastEngraveMs,
+  measureNotation: () => measureEngraving(els.notation),
   openSetup,
   startFromSetup,
   createAndShow(options) {
