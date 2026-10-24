@@ -94,6 +94,7 @@ function recolor(svg) {
 }
 
 function decodeFigbass(el) {
+  if (el.children.length) return false;
   const text = el.textContent ?? "";
   if (!/[\uEA63-\uEA67]/.test(text)) return /[\uE000-\uF8FF]/.test(text);
   el.textContent = text
@@ -117,12 +118,14 @@ function restyleText(svg, layout = {}) {
     if (decodeFigbass(el)) continue;
     el.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
+    if (el.children.length) continue;
     const size = parseFloat(el.getAttribute("font-size") || "0");
     if (size > chordVU) el.setAttribute("font-size", `${chordVU}px`);
   }
   for (const el of svg.querySelectorAll(".dir text, .dir tspan")) {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
+    if (el.children.length) continue;
     const size = parseFloat(el.getAttribute("font-size") || "0");
     if (size > cueVU) el.setAttribute("font-size", `${cueVU}px`);
   }
