@@ -359,10 +359,10 @@ test("Play-card landing for Billie's Bounce does not put a half rest in the firs
   assert.equal(/z2/.test(firstSpot), false, firstSpot);
   assert.match(firstSpot, /F,2/);
   const ready = measures.find((measure) => measure.includes("Get ready")) ?? "";
-  assert.equal(/z4/.test(ready), false, ready);
+  assert.match(ready, /z4z2zC,/);
   const empty = measures.find((measure) => measure.includes("B♭7") && !measure.includes("HERE") && !measure.includes("Get ready")) ?? "";
-  assert.match(empty, /z2z2z2z2/);
-  assert.doesNotMatch(empty, /z8|z4/);
+  assert.match(empty, /z8/);
+  assert.doesNotMatch(empty, /z2z2z2z2/);
 });
 
 test("tune-page and Your-tunes copy names the first spot instead of eight bars", () => {
