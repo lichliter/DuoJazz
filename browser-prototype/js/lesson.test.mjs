@@ -24,6 +24,10 @@ import {
   chorusStaffFit,
   slashStrokeBox,
   slashFitsStaff,
+  cueLaneY,
+  fullSystemScaleX,
+  accidentalMinGap,
+  CUE_LANE_GAP,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -330,8 +334,9 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
-  assert.ok(stand.staffsep >= 120);
-  assert.ok(stand.staffsep <= 180);
+  assert.ok(stand.staffsep >= 60);
+  assert.ok(stand.staffsep <= 90);
+  assert.equal(stand.expandToWidest, false);
   assert.equal(stand.minStaffPx, 83);
   assert.ok(stand.fillRatio >= 0.7);
   assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
@@ -420,6 +425,9 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
   });
   assert.equal(gts.barsPerLine, 3);
   assert.equal(gts.stretchlast, false);
+  assert.equal(gts.fitToPaper, false);
+  assert.equal(gts.engravingRatio, phrase.engravingRatio);
+  assert.ok(estimatedStaffHeightCss(gts, 980) >= 90);
   const five = notationLayout({
     staffWidth: 980,
     viewportWidth: 1024,
@@ -429,6 +437,18 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
     phraseBars: 5,
   });
   assert.equal(five.barsPerLine, 5);
+  assert.equal(five.engravingRatio, phrase.engravingRatio);
+  assert.ok(estimatedStaffHeightCss(five, 980) >= 90);
+});
+
+test("cue lane sits just under stems and full systems share one right edge", () => {
+  const staff = { x: 40, y: 20, width: 400, height: 32 };
+  assert.equal(cueLaneY(staff, staff.y + staff.height, CUE_LANE_GAP), staff.y + staff.height + CUE_LANE_GAP);
+  const detached = cueLaneY(staff, staff.y + 120, CUE_LANE_GAP);
+  assert.ok(detached < staff.y + staff.height + 70);
+  assert.equal(fullSystemScaleX(40, 300, 420), (420 - 40) / (300 - 40));
+  assert.equal(fullSystemScaleX(40, 420, 420), 1);
+  assert.ok(accidentalMinGap(32) >= 3);
 });
 
 test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {

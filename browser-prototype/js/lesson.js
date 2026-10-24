@@ -422,34 +422,35 @@ export function notationLayout({
   const short = viewportHeight <= 860;
 
   if (showPhraseNotation) {
-    // Two-bar cells stay large and full-width. Three-to-five-bar Learn
-    // licks pack onto one system at iPad width instead of wrapping a
-    // leftover bar and stretching it.
+    // Keep the pre-engraving staff size for every Learn lick. Pack 3–5 bars
+    // on one system so a leftover bar is not stretched, but do not shrink
+    // the staff to fit — the line fills the paper at the same size as a
+    // two-bar cell.
     const requested = Number(phraseBars);
     const barsPerLine = narrow
       ? 2
       : Math.min(5, Math.max(2, Number.isFinite(requested) && requested > 0 ? requested : 2));
-    const longPhrase = barsPerLine >= 3;
     return {
-      scale: stand ? (longPhrase ? 1.4 : 2.7) : landscape ? (longPhrase ? 1.2 : 1.85) : narrow ? 1.22 : 1.45,
+      scale: stand ? 2.7 : landscape ? 1.85 : narrow ? 1.22 : 1.45,
       paddingtop: stand ? 16 : 10,
-      paddingbottom: stand ? (longPhrase ? 36 : 24) : 14,
+      paddingbottom: stand ? 24 : 14,
       wrap: null,
       flatbeams: true,
       stretchlast: false,
-      minPadding: longPhrase ? 6 : 5,
-      timeBasedLayout: { minPadding: longPhrase ? 9 : 7, align: "left" },
+      expandToWidest: false,
+      minPadding: 5,
+      timeBasedLayout: { minPadding: 8, align: "left" },
       barsPerLine,
-      chordfont: stand ? (longPhrase ? "Noto Sans 22" : "Noto Sans 30") : landscape ? "Noto Sans 20" : "Noto Sans 16",
+      chordfont: stand ? "Noto Sans 30" : landscape ? "Noto Sans 20" : "Noto Sans 16",
       annotationfont: stand ? "Source Sans 3 22" : "Source Sans 3 14",
       annotationPx: stand ? 26 : landscape ? 18 : 15,
-      chordCssPx: stand ? (longPhrase ? 28 : 36) : landscape ? 24 : 16,
+      chordCssPx: stand ? 36 : landscape ? 24 : 16,
       slashStroke: stand ? 3.4 : 2,
-      engravingRatio: stand ? (longPhrase ? 0.9 : 0.28) : landscape ? (longPhrase ? 0.8 : 0.48) : 1,
-      minEngravingRatio: stand ? (longPhrase ? 0.72 : 0.16) : 0.32,
-      fitToPaper: stand || landscape,
+      engravingRatio: stand ? 0.28 : landscape ? 0.48 : 1,
+      minEngravingRatio: stand ? 0.16 : 0.32,
+      fitToPaper: (stand || landscape) && barsPerLine <= 2,
       fillAxis: "width",
-      staffsep: stand ? (longPhrase ? 96 : 70) : 55,
+      staffsep: stand ? 70 : 55,
       fillRatio: stand ? 0.58 : 0.9,
     };
   }
@@ -466,18 +467,19 @@ export function notationLayout({
     scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
     paddingtop: stand ? 6 : landscape ? 8 : short ? 8 : 16,
     paddingbottom: showEntranceCues
-      ? (stand ? 48 : landscape ? 40 : short ? 32 : 36)
-      : (stand ? 14 : 16),
+      ? (stand ? 22 : landscape ? 20 : short ? 16 : 20)
+      : (stand ? 10 : 12),
     wrap: null,
     flatbeams: true,
     stretchlast: false,
-    minPadding: 5,
-    timeBasedLayout: { minPadding: 7, align: "left" },
+    expandToWidest: false,
+    minPadding: 6,
+    timeBasedLayout: { minPadding: 10, align: "left" },
     barsPerLine,
     // Four bars will not engrave narrower than ~450px, so width-only upscale
     // caps the 5-line staff around 67px. After render we scaleX the chorus
-    // to hit minStaffPx. staffsep leaves a cue lane plus a line of chord
-    // clearance between systems.
+    // to hit minStaffPx. staffsep only clears stems plus a tight cue lane;
+    // extra space above the next chord row is added after layout.
     engravingRatio: stand ? 0.5 : landscape ? 0.7 : 1,
     minEngravingRatio: stand ? 0.48 : landscape ? 0.55 : 0.4,
     chordfont: stand ? "Noto Sans 16" : landscape ? "Noto Sans 15" : "Noto Sans 15",
@@ -488,14 +490,40 @@ export function notationLayout({
     fitToPaper: false,
     fillAxis: "fit",
     staffsep: showEntranceCues
-      ? (stand ? 140 : landscape ? 124 : 110)
-      : (stand ? 68 : landscape ? 58 : 52),
+      ? (stand ? 72 : landscape ? 64 : 58)
+      : (stand ? 52 : landscape ? 48 : 46),
     maxStaffsep: showEntranceCues
-      ? (stand ? 170 : 150)
-      : (stand ? 80 : 70),
+      ? (stand ? 88 : 80)
+      : (stand ? 60 : 56),
     fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
     minStaffPx: stand ? 83 : landscape ? 64 : 0,
   };
+}
+
+/** Small gap between a system's lowest stem/beam and its cue labels. */
+export const CUE_LANE_GAP = 8;
+
+/**
+ * Cue-lane y just under this system's stems, capped so spacer rests cannot
+ * drop labels toward the next system's chords.
+ */
+export function cueLaneY(staffBox, lowestStemY, gap = CUE_LANE_GAP) {
+  const height = Math.max(8, staffBox?.height ?? 20);
+  const staffBottom = (staffBox?.y ?? 0) + height;
+  const cap = staffBottom + height * 1.85;
+  const low = Math.min(Math.max(Number(lowestStemY) || staffBottom, staffBottom), cap);
+  return low + gap;
+}
+
+/** Scale a full-width system so its right barline meets a shared edge. */
+export function fullSystemScaleX(staffLeft, staffRight, targetRight) {
+  const span = staffRight - staffLeft;
+  if (!(span > 8) || !(targetRight - staffLeft > 8)) return 1;
+  return (targetRight - staffLeft) / span;
+}
+
+export function accidentalMinGap(staffHeight) {
+  return Math.max(8, (Number(staffHeight) || 20) * 0.28);
 }
 
 /**
