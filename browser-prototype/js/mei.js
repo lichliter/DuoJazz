@@ -293,7 +293,8 @@ function emitLayer(tokens) {
 }
 
 function literalRend(text) {
-  return `<rend fontfam="sans-serif" fontweight="bold">${esc(text)}</rend>`;
+  const name = String(text).replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "");
+  return `<rend fontfam="sans-serif" fontname="Noto Sans" fontweight="bold">${esc(name)}</rend>`;
 }
 
 export function wrapCueLines(text, width = 16) {

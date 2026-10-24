@@ -3,7 +3,7 @@
  * Layout numbers come from lesson.notationLayout; MEI comes from mei.js.
  */
 
-import { CUE_PX, STAFF_PX } from "./lesson.js";
+import { STAFF_PX } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
 
 const INK = "#2b211a";
@@ -169,8 +169,8 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     topMarginHarm: 0.7,
     lyricSize: 2.6,
     lyricTopMinMargin: 1.2,
-    leftMarginAccid: 1.25,
-    rightMarginAccid: 0.7,
+    leftMarginAccid: 2,
+    rightMarginAccid: 1.2,
     xmlIdSeed: 1,
     svgCss: `.harm, .harm text, .harm tspan { font-family: "Noto Sans", "Source Sans 3", sans-serif; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
   };
@@ -194,66 +194,135 @@ function decodeFigbassText(text) {
     .replaceAll("\uEA67", "𝄪");
 }
 
+const SMUFL_CHORD = {
+  E260: "♭",
+  E261: "♮",
+  E262: "♯",
+  E263: "𝄪",
+  E264: "𝄫",
+  E26A: "♭",
+  E26B: "♮",
+  E26C: "♯",
+  E870: "°",
+  E871: "ø",
+  E872: "+",
+  E873: "Δ",
+  EA63: "𝄫",
+  EA64: "♭",
+  EA65: "♮",
+  EA66: "♯",
+  EA67: "𝄪",
+};
+
+export function smuflChordChar(href) {
+  const code = String(href ?? "").replace(/^.*#/, "").toUpperCase();
+  return SMUFL_CHORD[code] ?? "";
+}
+
 export function compactChordSymbol(text) {
-  return decodeFigbassText(text).replace(/\s+/g, "");
+  return decodeFigbassText(text)
+    .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "");
 }
 
-function leafTspans(textEl) {
-  return [...textEl.querySelectorAll("tspan")].filter((el) => !el.children.length);
+export function harmRawText(harm) {
+  let out = "";
+  const walk = (node) => {
+    if (!node) return;
+    if (node.nodeType === 3) {
+      out += node.textContent ?? "";
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    const tag = (node.localName || node.tagName || "").toLowerCase();
+    if (tag === "use") {
+      out += smuflChordChar(node.getAttribute("href") || node.getAttribute("xlink:href"));
+      return;
+    }
+    for (const child of node.childNodes ?? []) walk(child);
+  };
+  walk(harm);
+  return out;
 }
 
-function chordFontVU(layout = {}) {
-  // Verovio draws text in definition-factor coordinates, not viewBox CSS px.
-  // 400 VU ≈ 16–18px cap height at a 40px staff (1024×1366).
-  const staffPx = staffPxOf(layout);
-  return Math.round(400 * staffPx / STAFF_PX);
+/** Verovio definition-factor font size. 400 VU ≈ 16–18px cap at a 40px staff. */
+export const CHORD_FONT_VU = 400;
+/** ~13–14px italic at a 40px staff (230 VU read as ~9px in round 2). */
+export const CUE_FONT_VU = 330;
+
+export function chordFontVU(_layout = {}) {
+  return CHORD_FONT_VU;
 }
 
-function cueFontVU(layout = {}) {
-  const staffPx = staffPxOf(layout);
-  const cuePx = layout.annotationPx || CUE_PX;
-  return Math.round(230 * cuePx / CUE_PX * staffPx / STAFF_PX);
+export function cueFontVU(_layout = {}) {
+  return CUE_FONT_VU;
 }
 
-function restyleText(svg, layout = {}) {
-  const chordVU = chordFontVU(layout);
-  const cueVU = cueFontVU(layout);
-  for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
-    el.setAttribute("fill", INK);
-  }
-  for (const text of svg.querySelectorAll(".harm text")) {
-    const leaves = leafTspans(text);
-    const raw = leaves.length
-      ? leaves.map((el) => el.textContent ?? "").join("")
-      : (text.textContent ?? "");
-    const compact = compactChordSymbol(raw);
+function isSvgText(el) {
+  return (el?.localName || el?.tagName || "").toLowerCase() === "text";
+}
+
+function textAnchor(el) {
+  const tspan = el?.querySelector?.("tspan");
+  return {
+    x: tspan?.getAttribute("x") ?? el?.getAttribute?.("x"),
+    y: tspan?.getAttribute("y") ?? el?.getAttribute?.("y"),
+  };
+}
+
+function paintChordText(text, compact, chordVU, x, y) {
+  text.replaceChildren();
+  const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+  tspan.textContent = compact;
+  tspan.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
+  tspan.setAttribute("font-weight", "700");
+  tspan.setAttribute("font-size", `${chordVU}px`);
+  tspan.setAttribute("fill", INK);
+  tspan.setAttribute("letter-spacing", "0");
+  tspan.setAttribute("kerning", "0");
+  if (x != null) tspan.setAttribute("x", x);
+  if (y != null) tspan.setAttribute("y", y);
+  text.append(tspan);
+  text.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
+  text.setAttribute("font-weight", "700");
+  text.setAttribute("font-size", `${chordVU}px`);
+  text.setAttribute("letter-spacing", "0");
+  text.setAttribute("kerning", "0");
+  text.setAttribute("fill", INK);
+}
+
+function restyleHarms(svg, chordVU) {
+  for (const harm of svg.querySelectorAll(".harm")) {
+    const compact = compactChordSymbol(harmRawText(harm));
     if (!compact) continue;
-    const anchor = leaves[0] ?? text;
-    const x = anchor.getAttribute("x") ?? text.getAttribute("x");
-    const y = anchor.getAttribute("y") ?? text.getAttribute("y");
-    text.replaceChildren();
-    const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-    tspan.textContent = compact;
-    tspan.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
-    tspan.setAttribute("font-weight", "700");
-    tspan.setAttribute("font-size", `${chordVU}px`);
-    tspan.setAttribute("fill", INK);
-    tspan.setAttribute("letter-spacing", "0");
-    if (x != null) tspan.setAttribute("x", x);
-    if (y != null) tspan.setAttribute("y", y);
-    text.append(tspan);
-    text.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
-    text.setAttribute("font-weight", "700");
-    text.setAttribute("font-size", `${chordVU}px`);
-    text.setAttribute("letter-spacing", "0");
-    text.setAttribute("fill", INK);
+    const texts = [...harm.querySelectorAll("text")];
+    const target = isSvgText(harm) ? harm : texts[0];
+    if (!target) continue;
+    const { x, y } = textAnchor(target);
+    if (!isSvgText(harm)) {
+      for (const extra of texts.slice(1)) extra.remove();
+      for (const use of harm.querySelectorAll(":scope > use, use")) use.remove();
+    }
+    paintChordText(target, compact, chordVU, x, y);
   }
-  for (const el of svg.querySelectorAll(".dir text, .dir tspan")) {
+}
+
+function restyleDirs(svg, cueVU) {
+  const paint = (el) => {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "400");
     el.setAttribute("font-style", "italic");
     el.setAttribute("font-size", `${cueVU}px`);
+    el.setAttribute("fill", INK);
+  };
+  for (const dir of svg.querySelectorAll(".dir")) {
+    if (isSvgText(dir)) paint(dir);
+    for (const el of dir.querySelectorAll("text, tspan")) paint(el);
   }
+}
+
+function restyleText(svg, layout = {}) {
+  restyleHarms(svg, chordFontVU(layout));
+  restyleDirs(svg, cueFontVU(layout));
 }
 
 function isSlashHead(el) {
