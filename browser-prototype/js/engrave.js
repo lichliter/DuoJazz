@@ -42,7 +42,7 @@ export function whenVerovioReady() {
   return toolkitPromise;
 }
 
-export function verovioOptions(layout = {}, cssWidth = 760) {
+export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = {}) {
   const unit = 12;
   const staffVU = 8 * unit;
   const phrase = layout.fillAxis === "width";
@@ -60,7 +60,7 @@ export function verovioOptions(layout = {}, cssWidth = 760) {
     pageHeight: 24000,
     adjustPageHeight: true,
     adjustPageWidth: shortFill,
-    breaks: "encoded",
+    breaks: hasSb ? "encoded" : "none",
     minLastJustification: 0.88,
     justifyVertically: false,
     header: "none",
@@ -68,14 +68,14 @@ export function verovioOptions(layout = {}, cssWidth = 760) {
     svgViewBox: true,
     svgHtml5: true,
     beamMaxSlope: 4,
-    spacingSystem: cue ? 14 : 8,
+    spacingSystem: cue ? 16 : 8,
     spacingStaff: 8,
-    pageMarginTop: Math.max(36, Math.round((layout.paddingtop ?? 12) + 24)),
-    pageMarginBottom: Math.max(cue ? 72 : 28, Math.round(layout.paddingbottom ?? 16)),
+    pageMarginTop: Math.max(48, Math.round((layout.paddingtop ?? 12) + 32)),
+    pageMarginBottom: Math.max(cue ? 80 : 28, Math.round(layout.paddingbottom ?? 16)),
     pageMarginLeft: 18,
     pageMarginRight: 18,
-    harmDist: 2.6,
-    topMarginHarm: 1.5,
+    harmDist: 3.2,
+    topMarginHarm: 2.0,
     leftMarginAccid: 1.25,
     rightMarginAccid: 0.7,
     xmlIdSeed: 1,
@@ -92,18 +92,17 @@ function recolor(svg) {
   }
 }
 
-function restyleText(svg, layout = {}) {
-  const chord = layout.chordCssPx ?? 18;
-  const cue = layout.annotationPx ?? 15;
+function restyleText(svg) {
+  for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
+    el.setAttribute("fill", INK);
+  }
   for (const el of svg.querySelectorAll(".harm text, .harm tspan")) {
     el.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
-    el.setAttribute("font-size", String(Math.max(14, chord * 0.72)));
   }
   for (const el of svg.querySelectorAll(".dir text, .dir tspan")) {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
-    el.setAttribute("font-size", String(Math.max(12, cue * 0.7)));
   }
 }
 
@@ -156,7 +155,7 @@ export async function engraveMei(target, mei, options = {}) {
   const tk = await whenVerovioReady();
   const layout = options.layout ?? {};
   const width = options.width ?? Math.max(320, target.clientWidth || 760);
-  tk.setOptions(verovioOptions(layout, width));
+  tk.setOptions(verovioOptions(layout, width, { hasSb: /<sb\/>/.test(mei) }));
   tk.loadData(mei);
   const pages = tk.getPageCount();
   const parts = [];
@@ -164,7 +163,7 @@ export async function engraveMei(target, mei, options = {}) {
   const svg = mountSvg(target, parts.join(""));
   if (svg) {
     recolor(svg);
-    restyleText(svg, layout);
+    restyleText(svg);
     if (options.fitChorus || layout.fillAxis === "fit") fitStaff(target, svg, layout);
   }
   return {
