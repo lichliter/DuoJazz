@@ -44,5 +44,6 @@ test("Verovio options leave room for a cue lane under the staff", () => {
     paddingbottom: 48,
   }, 980, { hasSb: true });
   assert.ok(chorus.pageMarginBottom >= 48);
-  assert.ok(chorus.harmDist >= 3);
+  assert.ok(chorus.lyricSize <= 3);
+  assert.ok(chorus.lyricSize >= 2);
 });
