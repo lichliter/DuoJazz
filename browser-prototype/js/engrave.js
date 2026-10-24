@@ -154,7 +154,7 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     pageMarginRight: 18,
     harmDist: 2.2,
     topMarginHarm: 1.0,
-    lyricSize: shortFill ? 4.2 : 3.4,
+    lyricSize: shortFill ? 3.9 : 3.05,
     leftMarginAccid: 1.25,
     rightMarginAccid: 0.7,
     xmlIdSeed: 1,
@@ -204,9 +204,9 @@ function restyleText(svg, layout = {}) {
     if (!compact) continue;
     const anchor = leaves[0] ?? text;
     const size = parseFloat(anchor.getAttribute("font-size") || text.getAttribute("font-size") || "0");
-    const minVU = shortFill ? 420 : 310;
-    const maxVU = shortFill ? 520 : 400;
-    const target = Math.min(maxVU, Math.max(minVU, size > 0 ? size * 1.4 : minVU));
+    const minVU = shortFill ? 360 : 240;
+    const maxVU = shortFill ? 480 : 330;
+    const target = Math.min(maxVU, Math.max(minVU, size > 0 ? size * 1.35 : minVU));
     const x = anchor.getAttribute("x") ?? text.getAttribute("x");
     const y = anchor.getAttribute("y") ?? text.getAttribute("y");
     text.replaceChildren();
@@ -243,6 +243,38 @@ function isSlashHead(el) {
     hrefs.push(use.getAttribute("href"), use.getAttribute("xlink:href"));
   }
   return hrefs.some((href) => /E10[0-4]/i.test(href || ""));
+}
+
+export function separateChordSymbols(svg) {
+  if (!svg?.querySelectorAll) return;
+  const harms = [...svg.querySelectorAll(".harm")];
+  for (let pass = 0; pass < 6; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < harms.length - 1; i += 1) {
+      let boxA;
+      let boxB;
+      try {
+        boxA = harms[i].getBBox();
+        boxB = harms[i + 1].getBBox();
+      } catch {
+        continue;
+      }
+      if (Math.abs((boxA.y + boxA.height / 2) - (boxB.y + boxB.height / 2)) > Math.max(boxA.height, boxB.height) * 0.8) {
+        continue;
+      }
+      const overlap = boxA.x + boxA.width + 12 - boxB.x;
+      if (overlap <= 0) continue;
+      for (const harm of [harms[i], harms[i + 1]]) {
+        for (const el of harm.querySelectorAll("text, tspan")) {
+          const size = parseFloat(el.getAttribute("font-size") || "0");
+          if (size <= 220) continue;
+          el.setAttribute("font-size", `${Math.max(220, size * 0.88)}px`);
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
 }
 
 export function centerSlashNoteheads(svg) {
@@ -337,6 +369,7 @@ export async function engraveMei(target, mei, options = {}) {
   if (svg) {
     recolor(svg);
     restyleText(svg, layout);
+    separateChordSymbols(svg);
     centerSlashNoteheads(svg);
     if (options.fitChorus || layout.fillAxis === "fit") fitStaff(target, svg, layout);
   }

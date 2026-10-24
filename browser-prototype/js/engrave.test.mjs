@@ -88,6 +88,12 @@ test("chord symbols compact figbass and internal gaps", () => {
   assert.equal(compactChordSymbol("C7/E"), "C7/E");
 });
 
+test("engraving restyles chords then separates overlapping symbols", async () => {
+  const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
+  assert.match(src, /separateChordSymbols\(svg\)/);
+  assert.match(src, /centerSlashNoteheads\(svg\)/);
+});
+
 test("session paper re-renders once Verovio is ready", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   assert.match(app, /whenVerovioReady\(\)\.then\(\(\) => \{/);
@@ -108,6 +114,6 @@ test("Verovio options leave room for a cue lane under the staff", () => {
     paddingbottom: 48,
   }, 980, { hasSb: true });
   assert.ok(chorus.pageMarginBottom >= 48);
-  assert.ok(chorus.lyricSize >= 3.2);
-  assert.ok(chorus.lyricSize <= 4.5);
+  assert.ok(chorus.lyricSize >= 2.9);
+  assert.ok(chorus.lyricSize <= 4.2);
 });
