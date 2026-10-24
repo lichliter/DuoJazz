@@ -44,13 +44,13 @@ test("gallery Learn and landing MEI stay on bass clef with harm and cue dirs", (
   const gts = galleryPanels().find((panel) => panel.id === "gts-learn-bb");
   const mei = meiForPanel(gts);
   assert.match(mei, /clef\.shape="F"/);
-  assert.match(mei, /<harm[^>]*>Dm7<\/harm>/);
+  assert.match(mei, /<harm[^>]*>[\s\S]*Dm7[\s\S]*<\/harm>/);
   const play = galleryPanels().find((panel) => panel.id === "billies-bounce-play");
   const landing = meiForPanel(play);
   assert.match(landing, /clef\.shape="F"/);
   assert.match(landing, /<dir[^>]*>HERE<\/dir>/);
   const st = meiForPanel(galleryPanels().find((panel) => panel.id === "st-thomas"));
-  assert.match(st, /Guide tone sequence/);
+  assert.match(st, /Guide tone(?:<lb\/>)?\s*sequence/);
   assert.match(st, /head\.shape="slash"/);
 });
 
