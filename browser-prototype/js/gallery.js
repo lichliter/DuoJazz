@@ -11,10 +11,11 @@ import {
   phraseMeasureCount,
   applicationKeyQuality,
 } from "./music.js";
+import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import { notationLayout } from "./lesson.js";
 import { MODULES } from "./registry.js";
 import { TUNES, tuneById } from "./tunes.js";
-import { engraveAbc } from "./engrave.js";
+import { engraveMei, whenVerovioReady } from "./engrave.js";
 
 const LEARN_KEYS = ["C", "G", "Bb", "F#"];
 const VIEWPORT = { width: 1024, height: 1366, staffWidth: 980 };
@@ -140,6 +141,26 @@ export function abcForPanel(panel) {
   });
 }
 
+export function meiForPanel(panel) {
+  const concertKey = getKey(panel.keyId);
+  const layout = layoutForPanel(panel);
+  if (panel.phrase) {
+    return phraseMEI(concertKey, "concert", panel.applicationId, "bass", 0, {
+      barsPerLine: layout.barsPerLine,
+    });
+  }
+  return chorusStaffMEI({
+    concertKey,
+    displayMode: "concert",
+    applicationId: panel.applicationId,
+    clef: "bass",
+    melodyRegister: 0,
+    mode: panel.kind === "play" || panel.kind === "landing" || panel.kind === "tune" ? "landing" : "model",
+    showCues: panel.showCues,
+    barsPerLine: layout.barsPerLine,
+  });
+}
+
 function layoutForPanel(panel, staffWidth = VIEWPORT.staffWidth) {
   return notationLayout({
     staffWidth,
@@ -153,13 +174,10 @@ function layoutForPanel(panel, staffWidth = VIEWPORT.staffWidth) {
 
 function renderPanel(panel, paper) {
   const layout = layoutForPanel(panel, paper.clientWidth || VIEWPORT.staffWidth);
-  const playLike = panel.kind === "play" || panel.kind === "landing" || panel.kind === "tune";
   paper.classList.toggle("slash", false);
-  engraveAbc(paper, abcForPanel(panel), {
+  return engraveMei(paper, meiForPanel(panel), {
     layout,
     width: paper.clientWidth || VIEWPORT.staffWidth,
-    applySlashes: playLike,
-    keepLandingNotes: playLike,
     fitChorus: layout.fillAxis === "fit",
   });
 }
@@ -197,7 +215,7 @@ function mountPanel(panel, parent) {
 }
 
 function boot() {
-  if (typeof document === "undefined" || !window.ABCJS) return;
+  if (typeof document === "undefined") return;
   const root = document.getElementById("gallery");
   if (!root) return;
   const panels = galleryPanels();
@@ -211,20 +229,26 @@ function boot() {
   for (const panel of panels) {
     papers.push([panel, mountPanel(panel, sections[panel.section])]);
   }
-  // Engrave after insert so SVG getBBox has real geometry (slashes, cues, chords).
+  // Engrave after insert so SVG getBBox has real geometry.
   root.replaceChildren(sections.learn, sections.standards, sections.play, sections.tunes);
   void root.offsetWidth;
-  for (const [panel, paper] of papers) renderPanel(panel, paper);
+  whenVerovioReady().then(() => {
+    for (const [panel, paper] of papers) renderPanel(panel, paper);
+  }).catch((err) => {
+    root.textContent = `Verovio failed to load: ${err.message}`;
+  });
 }
 
 if (typeof document !== "undefined") {
+  const start = () => {
+    if (globalThis.verovio) boot();
+    else window.addEventListener("load", boot, { once: true });
+  };
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      if (window.ABCJS) boot();
-      else window.addEventListener("load", boot, { once: true });
-    });
-  } else if (window.ABCJS) boot();
-  else window.addEventListener("load", boot, { once: true });
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
 }
 
 export { LEARN_KEYS, TUNE_PAGES, TUNES, VIEWPORT };

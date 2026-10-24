@@ -4,6 +4,7 @@ import {
   abcForPanel,
   galleryPanels,
   learnLessons,
+  meiForPanel,
   standardLessons,
   LEARN_KEYS,
 } from "./gallery.js";
@@ -39,6 +40,20 @@ test("gallery Learn and landing ABC stay on bass clef without changing pitches",
   assert.match(abcForPanel(st), /Guide tone sequence/);
 });
 
+test("gallery Learn and landing MEI stay on bass clef with harm and cue dirs", () => {
+  const gts = galleryPanels().find((panel) => panel.id === "gts-learn-bb");
+  const mei = meiForPanel(gts);
+  assert.match(mei, /clef\.shape="F"/);
+  assert.match(mei, /<harm[^>]*>Dm7<\/harm>/);
+  const play = galleryPanels().find((panel) => panel.id === "billies-bounce-play");
+  const landing = meiForPanel(play);
+  assert.match(landing, /clef\.shape="F"/);
+  assert.match(landing, /<dir[^>]*>HERE<\/dir>/);
+  const st = meiForPanel(galleryPanels().find((panel) => panel.id === "st-thomas"));
+  assert.match(st, /Guide tone sequence/);
+  assert.match(st, /head\.shape="slash"/);
+});
+
 test("cue labels cap only when they cannot use following unlabeled bars", () => {
   assert.equal(capCueText("HERE", 120, 14), "HERE");
   const oneBar = capCueText("Guide tone sequence", 72, 16);
@@ -63,4 +78,6 @@ test("gallery engraves after the cards are in the document", async () => {
   const insertAt = src.indexOf("root.replaceChildren");
   const renderAt = src.lastIndexOf("renderPanel(panel, paper)");
   assert.ok(insertAt > 0 && renderAt > insertAt);
+  assert.match(src, /whenVerovioReady/);
+  assert.doesNotMatch(src, /ABCJS/);
 });
