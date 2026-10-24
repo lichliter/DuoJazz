@@ -152,7 +152,7 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     adjustPageHeight: true,
     adjustPageWidth: isNaturalWidth(layout),
     breaks: hasSb ? "encoded" : "none",
-    minLastJustification: 0.88,
+    minLastJustification: 0,
     justifyVertically: false,
     header: "none",
     footer: "none",
@@ -203,17 +203,16 @@ function leafTspans(textEl) {
 }
 
 function chordFontVU(layout = {}) {
+  // Verovio draws text in definition-factor coordinates, not viewBox CSS px.
+  // 400 VU ≈ 16–18px cap height at a 40px staff (1024×1366).
   const staffPx = staffPxOf(layout);
-  const capPx = layout.chordCssPx || Math.round(staffPx * 0.42);
-  // Noto Sans cap height is ~0.71em, so font-size ≈ cap / 0.71.
-  const fontPx = capPx / 0.71;
-  return Math.round(fontPx * STAFF_USER_UNITS / staffPx);
+  return Math.round(400 * staffPx / STAFF_PX);
 }
 
 function cueFontVU(layout = {}) {
   const staffPx = staffPxOf(layout);
   const cuePx = layout.annotationPx || CUE_PX;
-  return Math.round(cuePx * STAFF_USER_UNITS / staffPx);
+  return Math.round(230 * cuePx / CUE_PX * staffPx / STAFF_PX);
 }
 
 function restyleText(svg, layout = {}) {
@@ -253,7 +252,6 @@ function restyleText(svg, layout = {}) {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "400");
     el.setAttribute("font-style", "italic");
-    if (el.children.length) continue;
     el.setAttribute("font-size", `${cueVU}px`);
   }
 }
@@ -319,9 +317,9 @@ export function separateChordSymbols(svg) {
       }
       const xA = harmAnchorX(harms[i]);
       const xB = harmAnchorX(harms[i + 1]);
-      const overlap = xA + harmTextWidth(harms[i]) + 20 - xB;
+      const overlap = xA + harmTextWidth(harms[i]) + 48 - xB;
       if (overlap <= 0) continue;
-      const floor = Math.round(STAFF_USER_UNITS * 0.48);
+      const floor = 240;
       for (const harm of [harms[i], harms[i + 1]]) {
         for (const el of harm.querySelectorAll("text, tspan")) {
           const size = parseFloat(el.getAttribute("font-size") || "0");

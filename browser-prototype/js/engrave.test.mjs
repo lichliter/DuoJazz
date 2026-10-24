@@ -14,7 +14,7 @@ import {
 } from "./engrave.js";
 import { STAFF_PX } from "./lesson.js";
 
-test("Verovio options use encoded breaks and do not stretch leftover systems", () => {
+test("Verovio options use encoded breaks and justify every system, including the last", () => {
   const chorus = verovioOptions({
     fillAxis: "fit",
     barsPerLine: 4,
@@ -24,7 +24,7 @@ test("Verovio options use encoded breaks and do not stretch leftover systems", (
   }, 980, { hasSb: true });
   assert.equal(chorus.breaks, "encoded");
   assert.equal(chorus.adjustPageWidth, false);
-  assert.ok(chorus.minLastJustification >= 0.8);
+  assert.equal(chorus.minLastJustification, 0);
   assert.equal(chorus.header, "none");
   assert.equal(chorus.font, "Leipzig");
   const cell = verovioOptions({

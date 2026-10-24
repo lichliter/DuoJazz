@@ -368,7 +368,12 @@ h1 {
   display: block;
 }
 
-.paper.notation-natural .vrv-container,
+.paper.notation-natural .vrv-container {
+  width: 100% !important;
+  display: flex;
+  justify-content: center;
+}
+
 .paper.notation-natural svg {
   width: auto !important;
   max-width: 100%;

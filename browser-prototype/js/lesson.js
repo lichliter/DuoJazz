@@ -467,8 +467,8 @@ export function notationLayout({
 
   // Keep bars intact at every viewport: 4 per line wherever the paper is
   // wide enough (8-bar chart → 2 systems). Phones drop to 2 bars per line.
-  // Line breaks come from encoded <sb/> in MEI. A leftover last system
-  // stays at proportional width (Verovio minLastJustification).
+  // Line breaks come from encoded <sb/> in MEI. Full 4-bar systems,
+  // including a rest-heavy last line, justify to the card width.
   const barsPerLine = narrow ? 2 : 4;
 
   return {
