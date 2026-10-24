@@ -7,6 +7,7 @@ import {
   standardLessons,
   LEARN_KEYS,
 } from "./gallery.js";
+import { capCueText } from "./engrave.js";
 import { MODULES } from "./registry.js";
 
 test("gallery is a catalog of Learn keys, one standard per module, one Play card, and three tunes", () => {
@@ -36,4 +37,11 @@ test("gallery Learn and landing ABC stay on bass clef without changing pitches",
   assert.match(landing, /"_HERE"/);
   const st = galleryPanels().find((panel) => panel.id === "st-thomas");
   assert.match(abcForPanel(st), /Guide tone sequence/);
+});
+
+test("cue labels cap to the bar they belong to", () => {
+  assert.equal(capCueText("HERE", 120, 14), "HERE");
+  const long = capCueText("Embellished minor resolution", 72, 16);
+  assert.ok(long.endsWith("…"));
+  assert.ok(long.length < "Embellished minor resolution".length);
 });

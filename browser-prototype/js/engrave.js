@@ -98,33 +98,6 @@ function tightenChordSymbols(target) {
   }
 }
 
-function boxesOverlap(a, b, pad = 0) {
-  return a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad;
-}
-
-function clearCueCollisions(target) {
-  const notes = [...target.querySelectorAll(".abcjs-notehead, .abcjs-stem, .abcjs-beam, .abcjs-flag")];
-  const blockers = [...target.querySelectorAll(".abcjs-chord, .abcjs-staff")];
-  for (const cue of target.querySelectorAll(".abcjs-annotation")) {
-    cue.style.transform = "";
-    let shift = 0;
-    for (let i = 0; i < 16; i += 1) {
-      const cueBox = cue.getBoundingClientRect();
-      const hitsNote = notes.some((node) => boxesOverlap(cueBox, node.getBoundingClientRect(), 5));
-      if (!hitsNote) break;
-      const next = shift + 6;
-      cue.style.transform = `translateY(${next}px)`;
-      const moved = cue.getBoundingClientRect();
-      const hitsNextSystem = blockers.some((node) => boxesOverlap(moved, node.getBoundingClientRect(), 3));
-      if (hitsNextSystem) {
-        cue.style.transform = shift ? `translateY(${shift}px)` : "";
-        break;
-      }
-      shift = next;
-    }
-  }
-}
-
 export function restyleAnnotations(target, layout = {}) {
   const svg = target.querySelector("svg");
   const annUser = svgCssToUser(svg, layout.annotationPx ?? 15);
@@ -141,7 +114,6 @@ export function restyleAnnotations(target, layout = {}) {
     el.style.fontFamily = '"Noto Sans", "Source Sans 3", sans-serif';
   }
   tightenChordSymbols(target);
-  clearCueCollisions(target);
 }
 
 function elementBox(el) {
@@ -294,7 +266,167 @@ export function applyRhythmSlashes(target, keepLandingNotes = false, layout = {}
     el.style.opacity = "1";
     el.removeAttribute("opacity");
   }
+  if (keepLandingNotes) hideOrphanBeams(target);
   restyleAnnotations(target, layout);
+}
+
+function hideOrphanBeams(target) {
+  for (const beam of target.querySelectorAll(".abcjs-beam")) {
+    const host = beam.closest("g") ?? beam.parentElement;
+    const heads = [...(host?.querySelectorAll(".abcjs-notehead") ?? [])];
+    const visible = heads.filter((head) => (
+      head.getAttribute("opacity") !== "0"
+      && head.style.display !== "none"
+      && head.closest("[opacity='0']") == null
+    ));
+    if (visible.length >= 2) continue;
+    beam.setAttribute("opacity", "0");
+    beam.style.display = "none";
+  }
+  for (const note of target.querySelectorAll(".abcjs-note")) {
+    const hidden = note.getAttribute("opacity") === "0"
+      || note.querySelector(".abcjs-notehead[opacity='0']");
+    if (!hidden) continue;
+    for (const el of note.querySelectorAll(".abcjs-stem, .abcjs-beam, .abcjs-flag")) {
+      el.setAttribute("opacity", "0");
+      el.style.display = "none";
+    }
+  }
+}
+
+export function capCueText(text, barWidth, fontPx) {
+  const width = Number(barWidth) || 0;
+  const px = Number(fontPx) || 14;
+  const maxChars = Math.max(4, Math.floor(width / Math.max(6, px * 0.58)));
+  const value = String(text);
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, Math.max(1, maxChars - 1))}…`;
+}
+
+function normalizeSlashChords(target) {
+  for (const chord of target.querySelectorAll(".abcjs-chord")) {
+    if (!(chord.textContent ?? "").includes("/")) continue;
+    for (const tspan of chord.querySelectorAll("tspan")) {
+      tspan.removeAttribute("dy");
+      tspan.style.fontSize = "1em";
+      tspan.style.baselineShift = "baseline";
+    }
+  }
+}
+
+function alignChordBaseline(target) {
+  const staffs = [...target.querySelectorAll(".abcjs-staff")];
+  const groups = new Map();
+  for (const chord of target.querySelectorAll(".abcjs-chord")) {
+    const staff = nearestStaffBox(chord, staffs);
+    const key = staff ? `${Math.round(staff.y)}` : "none";
+    const list = groups.get(key) ?? [];
+    list.push(chord);
+    groups.set(key, list);
+  }
+  for (const list of groups.values()) {
+    const ys = list
+      .map((chord) => Number.parseFloat(chord.getAttribute("y") || ""))
+      .filter((y) => Number.isFinite(y));
+    if (!ys.length) continue;
+    const y = Math.min(...ys);
+    for (const chord of list) chord.setAttribute("y", String(y));
+  }
+}
+
+function layoutCueLane(target, layout = {}) {
+  const svg = target.querySelector("svg");
+  if (!svg) return;
+  const staffs = [...target.querySelectorAll(".abcjs-staff")];
+  const barsPerLine = layout.barsPerLine ?? 4;
+  const cues = [...target.querySelectorAll(".abcjs-annotation")];
+  const grouped = new Map();
+  for (const cue of cues) {
+    const staffBox = nearestStaffBox(cue, staffs);
+    if (!staffBox) continue;
+    const key = `${Math.round(staffBox.y)}`;
+    const list = grouped.get(key) ?? [];
+    list.push({ cue, staffBox });
+    grouped.set(key, list);
+  }
+  const ns = "http://www.w3.org/2000/svg";
+  for (const list of grouped.values()) {
+    const staffBox = list[0].staffBox;
+    const barWidth = staffBox.width / Math.max(1, barsPerLine);
+    const cueBoxes = list.map((item) => ({ ...item, box: elementBox(item.cue) }));
+    const maxBottom = Math.max(...cueBoxes.map((item) => (item.box?.y ?? 0) + (item.box?.height ?? 0)));
+    const baseline = Math.max(staffBox.y + staffBox.height + 12, maxBottom);
+    for (const item of cueBoxes) {
+      if (!item.box) continue;
+      const rel = item.box.x - staffBox.x;
+      const barIndex = Math.min(barsPerLine - 1, Math.max(0, Math.floor(rel / barWidth + 1e-6)));
+      const barLeft = staffBox.x + barIndex * barWidth + 2;
+      const dx = barLeft - item.box.x;
+      const dy = baseline - (item.box.y + item.box.height);
+      item.cue.style.transform = `translate(${dx}px, ${dy}px)`;
+      const fontPx = Number.parseFloat(window.getComputedStyle(item.cue).fontSize) || 14;
+      const next = capCueText(item.cue.textContent ?? "", barWidth - 6, fontPx);
+      if (next !== item.cue.textContent) {
+        const tspan = item.cue.querySelector("tspan") ?? item.cue;
+        tspan.textContent = next;
+      }
+      const clipped = elementBox(item.cue);
+      if (clipped && clipped.width > barWidth - 4) {
+        const id = `cue-clip-${barIndex}-${Math.round(staffBox.y)}`;
+        let clip = svg.querySelector(`#${id}`);
+        if (!clip) {
+          clip = document.createElementNS(ns, "clipPath");
+          clip.setAttribute("id", id);
+          const rect = document.createElementNS(ns, "rect");
+          rect.setAttribute("x", String(barLeft));
+          rect.setAttribute("y", String(staffBox.y + staffBox.height));
+          rect.setAttribute("width", String(barWidth - 4));
+          rect.setAttribute("height", "48");
+          clip.append(rect);
+          svg.append(clip);
+        }
+        item.cue.setAttribute("clip-path", `url(#${id})`);
+      }
+    }
+  }
+}
+
+function flattenTies(target) {
+  for (const tie of target.querySelectorAll(".abcjs-slur, .abcjs-tie")) {
+    const box = elementBox(tie);
+    if (!box || box.height < 4) continue;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height;
+    tie.setAttribute("transform", `translate(${cx} ${cy}) scale(1 0.42) translate(${-cx} ${-cy})`);
+  }
+}
+
+function placeArticulations(target) {
+  for (const note of target.querySelectorAll(".abcjs-note")) {
+    const head = note.querySelector(".abcjs-notehead");
+    const stem = note.querySelector(".abcjs-stem");
+    if (!head) continue;
+    const marks = [...note.querySelectorAll(".abcjs-decoration, .abcjs-articulation")];
+    if (!marks.length) continue;
+    const headBox = elementBox(head);
+    const stemBox = stem ? elementBox(stem) : null;
+    if (!headBox) continue;
+    const stemUp = stemBox ? (stemBox.y + stemBox.height / 2) < (headBox.y + headBox.height / 2) : true;
+    for (const mark of marks) {
+      const box = elementBox(mark);
+      if (!box) continue;
+      const y = stemUp ? headBox.y + headBox.height + 1 : headBox.y - box.height - 1;
+      mark.style.transform = `translateY(${y - box.y}px)`;
+    }
+  }
+}
+
+function polishEngraving(target, layout = {}) {
+  normalizeSlashChords(target);
+  placeArticulations(target);
+  alignChordBaseline(target);
+  layoutCueLane(target, layout);
+  flattenTies(target);
 }
 
 function fitChorusStaffSvg(target, svg, layout) {
@@ -448,7 +580,9 @@ export function engraveAbc(target, abc, options = {}) {
   } else {
     restyleAnnotations(target, fitted.layout);
   }
+  polishEngraving(target, fitted.layout);
   const svg = target.querySelector("svg");
   if (svg && (options.fitChorus || layout.fillAxis === "fit")) fitChorusStaffSvg(target, svg, fitted.layout);
+  if (svg && (options.fitChorus || layout.fillAxis === "fit")) polishEngraving(target, fitted.layout);
   return { ...fitted, svg };
 }
