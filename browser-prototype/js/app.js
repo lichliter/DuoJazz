@@ -8,7 +8,7 @@ import {
   phraseSpanBars,
 } from "./music.js";
 import { Transport } from "./audio.js";
-import { notationLayout } from "./lesson.js";
+import { notationLayout, resolveNotationScale } from "./lesson.js";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import { engraveMei, measureEngraving, whenVerovioReady } from "./engrave.js";
 import {
@@ -874,6 +874,7 @@ function renderNotation() {
     showPhraseNotation: view.showPhraseNotation,
     showEntranceCues: view.showEntranceCues,
     phraseBars: view.showPhraseNotation ? phraseMeasureCount(lesson.applicationId) : undefined,
+    notationScale: resolveNotationScale(),
   });
   const concertKey = getKey(currentKeyId(session));
   lastNotationLayout = {
@@ -1410,6 +1411,7 @@ window.__DUOJAZZ__ = {
   },
 };
 
+resolveNotationScale();
 applyDeepLink();
 renderSetup();
 render();

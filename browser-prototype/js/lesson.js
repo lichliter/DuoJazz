@@ -398,14 +398,72 @@ export function afterRoundActions(stateOrGoal) {
   return actions;
 }
 
-/** 5-line staff height in CSS px (top line to bottom line) at 1024×1366. */
+/** 5-line staff height in CSS px (top line to bottom line) at 1024×1366, 1.0×. */
 export const STAFF_PX = 40;
 /** Slightly larger on a phone so two-bar lines stay readable. */
 export const STAFF_PX_NARROW = 46;
 /** Chord cap height as a fraction of staff height (~16–18px at STAFF_PX). */
 export const CHORD_CAP_RATIO = 0.42;
-/** Cue labels sit just under the lowest stem, in CSS px. */
+/** Cue labels sit just under the lowest stem, in CSS px at 1.0×. */
 export const CUE_PX = 14;
+
+/** Sheet-music 1.0× plus the three larger try-on presets. */
+export const NOTATION_SCALE_VALUES = Object.freeze([1, 1.2, 1.4, 1.6]);
+export const NOTATION_SCALE_KEY = "duojazz.notationScale";
+export const NOTATION_SCALE_LABELS = Object.freeze({
+  1: "Sheet music (1.0×)",
+  1.2: "1.2×",
+  1.4: "1.4×",
+  1.6: "1.6×",
+});
+
+export function parseNotationScale(value) {
+  if (value == null || value === "") return null;
+  const raw = String(value).trim();
+  if (raw === "1.0" || raw === "1") return 1;
+  const n = Number(raw);
+  return NOTATION_SCALE_VALUES.includes(n) ? n : null;
+}
+
+export function notationScaleFromSearch(search) {
+  const query = String(search ?? "").replace(/^\?/, "");
+  return parseNotationScale(new URLSearchParams(query).get("notation"));
+}
+
+export function readStoredNotationScale(storage) {
+  try {
+    const store = storage ?? globalThis.localStorage;
+    return parseNotationScale(store?.getItem?.(NOTATION_SCALE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function persistNotationScale(scale, storage) {
+  const value = parseNotationScale(scale);
+  if (value == null) return null;
+  try {
+    const store = storage ?? globalThis.localStorage;
+    store?.setItem?.(NOTATION_SCALE_KEY, String(value));
+  } catch {
+    // Safari private mode, Node tests without a store.
+  }
+  return value;
+}
+
+/** URL ?notation= wins and is persisted; otherwise localStorage; otherwise 1.0×. */
+export function resolveNotationScale({ search, storage } = {}) {
+  const fromUrl = notationScaleFromSearch(
+    search ?? (typeof location === "undefined" ? "" : location.search),
+  );
+  if (fromUrl != null) return persistNotationScale(fromUrl, storage) ?? fromUrl;
+  return readStoredNotationScale(storage) ?? 1;
+}
+
+export function staffPxForScale(scale = 1, { narrow = false } = {}) {
+  const base = narrow ? STAFF_PX_NARROW : STAFF_PX;
+  return Math.round(base * (parseNotationScale(scale) ?? 1));
+}
 
 /** iPad Pro 12.9" portrait CSS px is 1024×1366. That is the primary lesson-1 target. */
 export function isStandPortrait(viewportWidth, viewportHeight) {
@@ -424,10 +482,13 @@ export function notationLayout({
   showPhraseNotation,
   showEntranceCues,
   phraseBars,
+  notationScale = 1,
 }) {
+  const size = parseNotationScale(notationScale) ?? 1;
   const narrow = staffWidth < 520;
-  const staffPx = narrow ? STAFF_PX_NARROW : STAFF_PX;
+  const staffPx = staffPxForScale(size, { narrow });
   const chordCssPx = Math.round(staffPx * CHORD_CAP_RATIO);
+  const annotationPx = Math.round(CUE_PX * size);
 
   if (showPhraseNotation) {
     // Same staff size as chorus/tune pages. Short 2–3 bar Learn cells stay
@@ -441,6 +502,7 @@ export function notationLayout({
     const longPhrase = barsPerLine >= 4;
     return {
       scale: 1,
+      notationScale: size,
       paddingtop: 8,
       paddingbottom: 16,
       wrap: null,
@@ -451,7 +513,7 @@ export function notationLayout({
       barsPerLine,
       chordfont: "Noto Sans 16",
       annotationfont: "Source Sans 3 13",
-      annotationPx: CUE_PX,
+      annotationPx,
       chordCssPx,
       slashStroke: 2,
       engravingRatio: 1,
@@ -459,7 +521,7 @@ export function notationLayout({
       fitToPaper: false,
       fillAxis: "width",
       naturalWidth: !narrow && !longPhrase,
-      staffsep: 96,
+      staffsep: Math.round(96 * size),
       fillRatio: 1,
       minStaffPx: staffPx,
     };
@@ -473,6 +535,7 @@ export function notationLayout({
 
   return {
     scale: 1,
+    notationScale: size,
     paddingtop: 8,
     paddingbottom: showEntranceCues ? 28 : 14,
     wrap: null,
@@ -485,14 +548,14 @@ export function notationLayout({
     minEngravingRatio: 1,
     chordfont: "Noto Sans 16",
     annotationfont: "Source Sans 3 13",
-    annotationPx: CUE_PX,
+    annotationPx,
     chordCssPx,
     slashStroke: 1.45,
     fitToPaper: false,
     fillAxis: "fit",
     naturalWidth: false,
-    staffsep: showEntranceCues ? 160 : 96,
-    maxStaffsep: showEntranceCues ? 170 : 110,
+    staffsep: Math.round((showEntranceCues ? 160 : 96) * size),
+    maxStaffsep: Math.round((showEntranceCues ? 170 : 110) * size),
     fillRatio: 1,
     minStaffPx: staffPx,
   };
