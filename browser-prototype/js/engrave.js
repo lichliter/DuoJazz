@@ -330,6 +330,15 @@ function hideOrphanBeams(target) {
   }
 }
 
+export function svgHasBowingMarks(target) {
+  if (!target?.querySelectorAll) return false;
+  for (const el of target.querySelectorAll("[class]")) {
+    const cls = el.getAttribute("class") || "";
+    if (/upbow|downbow|bowing/i.test(cls)) return true;
+  }
+  return false;
+}
+
 export function capCueText(text, barWidth, fontPx) {
   const width = Number(barWidth) || 0;
   const px = Number(fontPx) || 14;
@@ -373,6 +382,121 @@ function alignChordBaseline(target) {
   }
 }
 
+function addTranslateY(el, dy) {
+  if (!el || !Number.isFinite(dy) || Math.abs(dy) < 0.5) return;
+  const prev = el.getAttribute("transform") || "";
+  el.setAttribute("transform", `translate(0 ${dy})${prev ? ` ${prev}` : ""}`);
+}
+
+function engravingRoots(svg) {
+  const fit = svg.querySelector("[data-staff-fit]");
+  const host = fit ?? svg;
+  return [...host.children].filter((el) => {
+    const tag = el.tagName?.toLowerCase();
+    return tag !== "defs" && tag !== "clippath" && tag !== "title";
+  });
+}
+
+function expandViewBox(svg, extraBottom) {
+  if (!svg || extraBottom < 1) return;
+  const vb = svg.viewBox?.baseVal;
+  if (!vb?.width) return;
+  svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.width} ${vb.height + extraBottom}`);
+}
+
+function systemLowestY(target, staffBox, line) {
+  let bottom = staffBox.y + staffBox.height;
+  const nodes = target.querySelectorAll(
+    ".abcjs-stem, .abcjs-beam, .abcjs-beam-elem, .abcjs-notehead, .abcjs-flag, .abcjs-rest",
+  );
+  for (const el of nodes) {
+    const elLine = lineIndex(el);
+    const box = elementBox(el);
+    if (!box) continue;
+    if (elLine != null && line != null && String(elLine) !== String(line)) continue;
+    if (elLine == null) {
+      if (box.y > staffBox.y + staffBox.height + 48) continue;
+      if (box.y + box.height < staffBox.y - 24) continue;
+    }
+    bottom = Math.max(bottom, box.y + box.height);
+  }
+  return bottom;
+}
+
+function systemChordTop(target, line, staffBox) {
+  let top = staffBox.y;
+  for (const chord of target.querySelectorAll(".abcjs-chord")) {
+    const chordLine = lineIndex(chord);
+    if (chordLine != null && line != null && String(chordLine) !== String(line)) continue;
+    const box = elementBox(chord);
+    if (!box) continue;
+    if (chordLine == null && Math.abs(box.y + box.height - staffBox.y) > 48) continue;
+    top = Math.min(top, box.y);
+  }
+  return top;
+}
+
+function cueBottom(target, line) {
+  let bottom = -Infinity;
+  for (const cue of target.querySelectorAll(".abcjs-annotation")) {
+    if (line != null && String(lineIndex(cue)) !== String(line)) continue;
+    const box = elementBox(cue);
+    if (box) bottom = Math.max(bottom, box.y + box.height);
+  }
+  return Number.isFinite(bottom) ? bottom : null;
+}
+
+function shiftElementsFrom(svg, y0, dy) {
+  for (const el of engravingRoots(svg)) {
+    const box = elementBox(el);
+    if (!box) continue;
+    if (box.y + box.height / 2 < y0) continue;
+    addTranslateY(el, dy);
+  }
+}
+
+function ensureSystemGap(target, layout = {}) {
+  const svg = target.querySelector("svg");
+  const staffs = [...target.querySelectorAll(".abcjs-staff")];
+  if (!svg || staffs.length < 2) return;
+  const lineHeight = Math.max(16, layout.annotationPx ?? 18);
+  const systems = staffs
+    .map((staff, index) => ({
+      staff,
+      box: elementBox(staff),
+      line: lineIndex(staff) ?? String(index),
+    }))
+    .filter((item) => item.box)
+    .sort((a, b) => a.box.y - b.box.y);
+  let extra = 0;
+  for (let i = 1; i < systems.length; i += 1) {
+    const prev = systems[i - 1];
+    const cur = systems[i];
+    const laneBottom = cueBottom(target, prev.line)
+      ?? systemLowestY(target, prev.box, prev.line);
+    const chordTop = systemChordTop(target, cur.line, cur.box);
+    const gap = chordTop - laneBottom;
+    const missing = lineHeight - gap;
+    if (missing <= 1) continue;
+    shiftElementsFrom(svg, cur.box.y - 40, missing);
+    extra += missing;
+    cur.box = elementBox(cur.staff) ?? cur.box;
+  }
+  if (extra > 0) expandViewBox(svg, extra + 8);
+}
+
+function ensureCuesInView(svg, cues) {
+  let maxBottom = 0;
+  for (const cue of cues) {
+    const box = elementBox(cue);
+    if (box) maxBottom = Math.max(maxBottom, box.y + box.height);
+  }
+  const vb = svg?.viewBox?.baseVal;
+  if (!vb || maxBottom <= 0) return;
+  const overflow = maxBottom - (vb.y + vb.height) + 10;
+  if (overflow > 0) expandViewBox(svg, overflow);
+}
+
 function layoutCueLane(target, layout = {}) {
   const svg = target.querySelector("svg");
   if (!svg) return;
@@ -388,70 +512,88 @@ function layoutCueLane(target, layout = {}) {
     if (!staffBox?.width) continue;
     const key = line ?? `${Math.round(staffBox.y)}`;
     const list = grouped.get(key) ?? [];
-    list.push({ cue, staffBox, measure: measureIndex(cue) });
+    list.push({ cue, staffBox, measure: measureIndex(cue), line });
     grouped.set(key, list);
   }
   const ns = "http://www.w3.org/2000/svg";
   for (const list of grouped.values()) {
     const staffBox = list[0].staffBox;
+    const line = list[0].line;
     const measureCount = Math.max(
       barsPerLine,
       ...list.map((item) => (item.measure == null ? 0 : Number(item.measure) + 1)),
     );
     const barWidth = staffBox.width / Math.max(1, measureCount);
     if (!Number.isFinite(barWidth) || barWidth < 8) continue;
-    const cueBoxes = list.map((item) => ({ ...item, box: elementBox(item.cue) }));
-    for (const item of cueBoxes) {
-      if (!item.box) continue;
+    const low = systemLowestY(target, staffBox, line);
+    const cueBoxes = list
+      .map((item) => ({ ...item, box: elementBox(item.cue) }))
+      .filter((item) => item.box)
+      .sort((a, b) => {
+        const am = a.measure == null ? a.box.x : Number(a.measure);
+        const bm = b.measure == null ? b.box.x : Number(b.measure);
+        return am - bm;
+      });
+    let baseline = low + 14;
+    for (let i = 0; i < cueBoxes.length; i += 1) {
+      const item = cueBoxes[i];
       const measure = item.measure != null ? Number(item.measure) : Math.max(
         0,
         Math.min(measureCount - 1, Math.floor((item.box.x - staffBox.x) / barWidth + 1e-6)),
       );
+      const nextMeasure = i + 1 < cueBoxes.length
+        ? Number(cueBoxes[i + 1].measure ?? Math.floor((cueBoxes[i + 1].box.x - staffBox.x) / barWidth + 1e-6))
+        : measureCount;
+      const span = Math.max(1, nextMeasure - measure);
+      const available = span * barWidth - 6;
       const barLeft = staffBox.x + measure * barWidth + 2;
       item.cue.style.transform = "";
       item.cue.removeAttribute("transform");
+      item.cue.removeAttribute("clip-path");
       for (const tspan of item.cue.querySelectorAll("tspan")) {
         tspan.removeAttribute("dy");
         tspan.removeAttribute("dx");
       }
       const cueFontPx = Number.parseFloat(window.getComputedStyle(item.cue).fontSize) || 14;
-      item.cue.setAttribute("dominant-baseline", "alphabetic");
+      item.cue.setAttribute("dominant-baseline", "hanging");
       item.cue.setAttribute("text-anchor", "start");
       item.cue.setAttribute("x", String(barLeft));
-      item.cue.setAttribute("y", String(staffBox.y + staffBox.height + 12));
+      item.cue.setAttribute("y", String(low + 8));
       const placed = elementBox(item.cue);
-      if (placed) {
-        const overlap = staffBox.y + staffBox.height + 6 - placed.y;
-        if (overlap > 0) {
-          item.cue.setAttribute("y", String(Number(item.cue.getAttribute("y")) + overlap));
-        }
+      if (placed && placed.y < low + 4) {
+        item.cue.setAttribute("y", String(Number(item.cue.getAttribute("y")) + (low + 4 - placed.y)));
       }
-      const next = capCueText(item.cue.textContent ?? "", barWidth - 6, cueFontPx);
+      const after = elementBox(item.cue);
+      if (after) baseline = Math.max(baseline, after.y);
+      const next = capCueText(item.cue.textContent ?? "", available, cueFontPx);
       if (next !== item.cue.textContent) {
         const tspan = item.cue.querySelector("tspan") ?? item.cue;
         tspan.textContent = next;
       }
       const clipped = elementBox(item.cue);
-      if (clipped && Number.isFinite(measure) && clipped.width > barWidth - 4) {
-        const id = `cue-clip-${lineIndex(item.cue) ?? "x"}-${measure}`;
+      if (clipped && clipped.width > available) {
+        const id = `cue-clip-${line ?? "x"}-${measure}`;
         let clip = svg.querySelector(`[id="${id}"]`);
         if (!clip) {
           clip = document.createElementNS(ns, "clipPath");
           clip.setAttribute("id", id);
           const rect = document.createElementNS(ns, "rect");
           rect.setAttribute("x", String(barLeft));
-          rect.setAttribute("y", String(staffBox.y + staffBox.height));
-          rect.setAttribute("width", String(barWidth - 4));
-          rect.setAttribute("height", "48");
+          rect.setAttribute("y", String(low));
+          rect.setAttribute("width", String(available));
+          rect.setAttribute("height", "56");
           clip.append(rect);
           svg.append(clip);
         }
         item.cue.setAttribute("clip-path", `url(#${id})`);
-      } else {
-        item.cue.removeAttribute("clip-path");
       }
     }
+    for (const item of cueBoxes) {
+      item.cue.setAttribute("y", String(Math.max(low + 8, baseline)));
+    }
   }
+  ensureCuesInView(svg, cues);
+  ensureSystemGap(target, layout);
 }
 
 function flattenTies(target) {
@@ -544,18 +686,18 @@ export function abcRenderOptions(layout, staffwidth, scale) {
     staffwidth: width,
     scale,
     responsive: "resize",
-    stretchlast: layout.stretchlast ?? true,
+    stretchlast: layout.stretchlast ?? false,
     expandToWidest: layout.expandToWidest ?? true,
     jazzchords: layout.jazzchords ?? true,
     maxshrink: layout.maxshrink ?? 0.8,
-    minPadding: layout.minPadding ?? 2.5,
-    format: { ...format, maxshrink: layout.maxshrink ?? 0.8, stretchlast: layout.stretchlast ?? 1 },
+    minPadding: layout.minPadding ?? 5,
+    format: { ...format, maxshrink: layout.maxshrink ?? 0.8, stretchlast: layout.stretchlast ?? 0 },
     wrap: layout.wrap ? { ...layout.wrap, staffwidth: width } : undefined,
   };
   if (layout.paddingleft != null) options.paddingleft = layout.paddingleft;
   if (layout.timeBasedLayout) {
     options.timeBasedLayout = {
-      minPadding: layout.timeBasedLayout.minPadding ?? layout.minPadding ?? 3,
+      minPadding: layout.timeBasedLayout.minPadding ?? layout.minPadding ?? 7,
       align: layout.timeBasedLayout.align ?? "left",
       minWidth: layout.timeBasedLayout.minWidth ?? width,
     };

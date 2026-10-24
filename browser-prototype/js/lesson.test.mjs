@@ -330,8 +330,8 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
-  assert.ok(stand.staffsep >= 72);
-  assert.ok(stand.staffsep <= 100);
+  assert.ok(stand.staffsep >= 120);
+  assert.ok(stand.staffsep <= 180);
   assert.equal(stand.minStaffPx, 83);
   assert.ok(stand.fillRatio >= 0.7);
   assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
@@ -386,7 +386,7 @@ test("chorus layout keeps bars intact: 4 per line wherever width allows, never a
     });
     assert.equal(layout.barsPerLine, viewport.barsPerLine, viewport.name);
     assert.equal(layout.wrap, null, viewport.name);
-    assert.equal(layout.stretchlast, true, viewport.name);
+    assert.equal(layout.stretchlast, false, viewport.name);
     assert.ok(layout.timeBasedLayout, viewport.name);
     assert.equal(
       Math.ceil(chorusBars / layout.barsPerLine),
@@ -405,10 +405,30 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
     showEntranceCues: false,
   });
   assert.equal(phrase.barsPerLine, 2);
+  assert.equal(phrase.stretchlast, false);
   assert.equal(phrase.fitToPaper, true);
   assert.equal(phrase.fillAxis, "width");
   assert.ok(estimatedStaffHeightCss(phrase, 980) >= 90);
   assert.ok(phrase.chordCssPx >= 28);
+  const gts = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: true,
+    showEntranceCues: false,
+    phraseBars: 3,
+  });
+  assert.equal(gts.barsPerLine, 3);
+  assert.equal(gts.stretchlast, false);
+  const five = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: true,
+    showEntranceCues: false,
+    phraseBars: 5,
+  });
+  assert.equal(five.barsPerLine, 5);
 });
 
 test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {

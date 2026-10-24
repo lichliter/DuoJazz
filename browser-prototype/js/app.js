@@ -5,6 +5,7 @@ import {
   minorSpelling,
   majorSpelling,
   phraseABC,
+  phraseMeasureCount,
   applicationKeyQuality,
   phraseSpanBars,
 } from "./music.js";
@@ -819,7 +820,8 @@ function updatePlayhead(snap = transport.snapshot()) {
     return;
   }
   const view = sessionPresentation(session);
-  const barsOnStaff = view.audioStage === "learn" ? 2 : (lastNotationLayout?.barsPerLine ?? 4);
+  const barsOnStaff = lastNotationLayout?.barsPerLine
+    ?? (view.audioStage === "learn" ? 2 : 4);
   const barIndex = Math.max(0, (snap.bar ?? 1) - 1);
   const system = Math.min(staffs.length - 1, Math.floor(barIndex / barsOnStaff));
   const barInSystem = barIndex % barsOnStaff;
@@ -871,6 +873,7 @@ function renderNotation() {
     viewportHeight: window.innerHeight,
     showPhraseNotation: view.showPhraseNotation,
     showEntranceCues: view.showEntranceCues,
+    phraseBars: view.showPhraseNotation ? phraseMeasureCount(lesson.applicationId) : undefined,
   });
   const concertKey = getKey(currentKeyId(session));
   lastNotationLayout = {
@@ -910,7 +913,14 @@ function renderNotation() {
           showCues: view.showEntranceCues,
           barsPerLine: layout.barsPerLine,
         })
-        : phraseABC(concertKey, session.displayMode, lesson.applicationId, session.clef, session.melodyRegister);
+        : phraseABC(
+          concertKey,
+          session.displayMode,
+          lesson.applicationId,
+          session.clef,
+          session.melodyRegister,
+          { barsPerLine: layout.barsPerLine },
+        );
   if (window.ABCJS) {
     const engraved = engraveAbc(els.notation, abc, {
       layout,

@@ -414,6 +414,7 @@ export function notationLayout({
   viewportHeight,
   showPhraseNotation,
   showEntranceCues,
+  phraseBars,
 }) {
   const narrow = staffWidth < 520;
   const stand = isStandPortrait(viewportWidth, viewportHeight);
@@ -421,28 +422,34 @@ export function notationLayout({
   const short = viewportHeight <= 860;
 
   if (showPhraseNotation) {
-    // Two-bar cell is the only music on Learn/Play. Engrave narrow so
-    // abcjs responsive:resize fills the card width with a large staff.
+    // Two-bar cells stay large and full-width. Three-to-five-bar Learn
+    // licks pack onto one system at iPad width instead of wrapping a
+    // leftover bar and stretching it.
+    const requested = Number(phraseBars);
+    const barsPerLine = narrow
+      ? 2
+      : Math.min(5, Math.max(2, Number.isFinite(requested) && requested > 0 ? requested : 2));
+    const longPhrase = barsPerLine >= 3;
     return {
-      scale: stand ? 2.7 : landscape ? 1.85 : narrow ? 1.22 : 1.45,
+      scale: stand ? (longPhrase ? 1.4 : 2.7) : landscape ? (longPhrase ? 1.2 : 1.85) : narrow ? 1.22 : 1.45,
       paddingtop: stand ? 16 : 10,
-      paddingbottom: stand ? 24 : 14,
+      paddingbottom: stand ? (longPhrase ? 36 : 24) : 14,
       wrap: null,
       flatbeams: true,
-      stretchlast: true,
-      minPadding: 3,
-      timeBasedLayout: { minPadding: 4, align: "left" },
-      barsPerLine: 2,
-      chordfont: stand ? "Noto Sans 30" : landscape ? "Noto Sans 20" : "Noto Sans 16",
+      stretchlast: false,
+      minPadding: longPhrase ? 6 : 5,
+      timeBasedLayout: { minPadding: longPhrase ? 9 : 7, align: "left" },
+      barsPerLine,
+      chordfont: stand ? (longPhrase ? "Noto Sans 22" : "Noto Sans 30") : landscape ? "Noto Sans 20" : "Noto Sans 16",
       annotationfont: stand ? "Source Sans 3 22" : "Source Sans 3 14",
       annotationPx: stand ? 26 : landscape ? 18 : 15,
-      chordCssPx: stand ? 36 : landscape ? 24 : 16,
+      chordCssPx: stand ? (longPhrase ? 28 : 36) : landscape ? 24 : 16,
       slashStroke: stand ? 3.4 : 2,
-      engravingRatio: stand ? 0.28 : landscape ? 0.48 : 1,
-      minEngravingRatio: stand ? 0.16 : 0.32,
+      engravingRatio: stand ? (longPhrase ? 0.9 : 0.28) : landscape ? (longPhrase ? 0.8 : 0.48) : 1,
+      minEngravingRatio: stand ? (longPhrase ? 0.72 : 0.16) : 0.32,
       fitToPaper: stand || landscape,
       fillAxis: "width",
-      staffsep: stand ? 70 : 55,
+      staffsep: stand ? (longPhrase ? 96 : 70) : 55,
       fillRatio: stand ? 0.58 : 0.9,
     };
   }
@@ -452,24 +459,25 @@ export function notationLayout({
   // Never hand wrapping to abcjs — its wrap engine will split 4+3+1 at
   // laptop widths (1280×720), dumping bar 8 onto a third system and mixing
   // landing notes with slashes. Line breaks come only from ABC newlines.
+  // A leftover last system stays at proportional width (stretchlast off).
   const barsPerLine = narrow ? 2 : 4;
 
   return {
     scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
     paddingtop: stand ? 6 : landscape ? 8 : short ? 8 : 16,
     paddingbottom: showEntranceCues
-      ? (stand ? 28 : landscape ? 24 : short ? 20 : 26)
-      : (stand ? 10 : 12),
+      ? (stand ? 48 : landscape ? 40 : short ? 32 : 36)
+      : (stand ? 14 : 16),
     wrap: null,
     flatbeams: true,
-    stretchlast: true,
-    minPadding: 2.5,
-    timeBasedLayout: { minPadding: 3, align: "left" },
+    stretchlast: false,
+    minPadding: 5,
+    timeBasedLayout: { minPadding: 7, align: "left" },
     barsPerLine,
     // Four bars will not engrave narrower than ~450px, so width-only upscale
     // caps the 5-line staff around 67px. After render we scaleX the chorus
-    // to hit minStaffPx. staffsep stays about one system height so the two
-    // 4-bar systems group, with the feedback panel below them.
+    // to hit minStaffPx. staffsep leaves a cue lane plus a line of chord
+    // clearance between systems.
     engravingRatio: stand ? 0.5 : landscape ? 0.7 : 1,
     minEngravingRatio: stand ? 0.48 : landscape ? 0.55 : 0.4,
     chordfont: stand ? "Noto Sans 16" : landscape ? "Noto Sans 15" : "Noto Sans 15",
@@ -480,11 +488,11 @@ export function notationLayout({
     fitToPaper: false,
     fillAxis: "fit",
     staffsep: showEntranceCues
-      ? (stand ? 86 : landscape ? 78 : 72)
-      : (stand ? 52 : landscape ? 48 : 46),
+      ? (stand ? 140 : landscape ? 124 : 110)
+      : (stand ? 68 : landscape ? 58 : 52),
     maxStaffsep: showEntranceCues
-      ? (stand ? 100 : 92)
-      : (stand ? 60 : 56),
+      ? (stand ? 170 : 150)
+      : (stand ? 80 : 70),
     fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
     minStaffPx: stand ? 83 : landscape ? 64 : 0,
   };
