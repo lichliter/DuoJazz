@@ -96,6 +96,8 @@ test("landing MEI keeps lick notes and slashes empty bars", () => {
   assert.match(mei, /pname="a" oct="3"/);
   const slashes = slashMEI(getKey("G"), "concert", "minor-home", "bass");
   assert.match(slashes, /head\.shape="slash"/);
+  assert.match(slashes, /type="slash"/);
+  assert.match(slashes, /loc="0"/);
   assert.doesNotMatch(slashes, /pname="a" oct="3"/);
   assert.doesNotMatch(slashes, /Get ready|HERE/);
 });

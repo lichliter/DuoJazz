@@ -351,9 +351,11 @@ h1 {
 }
 
 .paper .harm,
-.paper .harm text {
+.paper .harm text,
+.paper .harm tspan {
   font-family: "Noto Sans", "Source Sans 3", sans-serif;
   font-weight: 700;
+  letter-spacing: 0;
   fill: var(--paper-ink);
 }
 

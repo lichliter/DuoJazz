@@ -188,7 +188,7 @@ function slashXml(ctx, beats = 1) {
     beats,
     beamable: false,
     slash: true,
-    xml: `<note xml:id="${id}" ${pitch} ${durAttrs(beats)} loc="0" head.shape="slash" stem.visible="false"/>`,
+    xml: `<note xml:id="${id}" type="slash" ${pitch} ${durAttrs(beats)} loc="0" head.shape="slash" stem.visible="false"/>`,
   };
 }
 
