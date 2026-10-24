@@ -245,30 +245,64 @@ function isSlashHead(el) {
   return hrefs.some((href) => /E10[0-4]/i.test(href || ""));
 }
 
+function harmTextEl(harm) {
+  return harm.querySelector("text") ?? harm;
+}
+
+function harmAnchorX(harm) {
+  const el = harm.querySelector("tspan") ?? harm.querySelector("text") ?? harm;
+  const x = parseFloat(el.getAttribute("x") || "");
+  if (Number.isFinite(x)) return x;
+  try {
+    return harmTextEl(harm).getBBox().x;
+  } catch {
+    return 0;
+  }
+}
+
+function harmTextWidth(harm) {
+  const text = harmTextEl(harm);
+  if (typeof text.getComputedTextLength === "function") {
+    try {
+      const width = text.getComputedTextLength();
+      if (width > 0) return width;
+    } catch {
+      // fall through to bbox
+    }
+  }
+  try {
+    return text.getBBox().width;
+  } catch {
+    return 0;
+  }
+}
+
 export function separateChordSymbols(svg) {
   if (!svg?.querySelectorAll) return;
   const harms = [...svg.querySelectorAll(".harm")];
-  for (let pass = 0; pass < 6; pass += 1) {
+  for (let pass = 0; pass < 8; pass += 1) {
     let moved = false;
     for (let i = 0; i < harms.length - 1; i += 1) {
       let boxA;
       let boxB;
       try {
-        boxA = harms[i].getBBox();
-        boxB = harms[i + 1].getBBox();
+        boxA = harmTextEl(harms[i]).getBBox();
+        boxB = harmTextEl(harms[i + 1]).getBBox();
       } catch {
         continue;
       }
       if (Math.abs((boxA.y + boxA.height / 2) - (boxB.y + boxB.height / 2)) > Math.max(boxA.height, boxB.height) * 0.8) {
         continue;
       }
-      const overlap = boxA.x + boxA.width + 12 - boxB.x;
+      const xA = harmAnchorX(harms[i]);
+      const xB = harmAnchorX(harms[i + 1]);
+      const overlap = xA + harmTextWidth(harms[i]) + 36 - xB;
       if (overlap <= 0) continue;
       for (const harm of [harms[i], harms[i + 1]]) {
         for (const el of harm.querySelectorAll("text, tspan")) {
           const size = parseFloat(el.getAttribute("font-size") || "0");
-          if (size <= 220) continue;
-          el.setAttribute("font-size", `${Math.max(220, size * 0.88)}px`);
+          if (size <= 200) continue;
+          el.setAttribute("font-size", `${Math.max(200, size * 0.84)}px`);
           moved = true;
         }
       }
