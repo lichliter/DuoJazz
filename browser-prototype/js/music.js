@@ -913,36 +913,28 @@ function restAbc(startBeat, durationBeats) {
     .join("");
 }
 
-function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null, stem = "") {
+function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null) {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
   const pitch = abcNote(shownMidi, shownKey, barState);
   const dur = item.tuplet === 3 ? "" : abcDuration(durationBeats);
-  return `${abcArticulation(item)}${stem}${pitch}${dur}${tieOut ? "-" : ""}`;
+  return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
 }
 
-function writtenMidiForItem(item, ctx) {
-  return concertMidiToWritten(
-    eventMelodyMidi(ctx.concertKey, item, ctx.melodyRegister, ctx.octaveBase),
-    ctx.displayMode,
-  );
+/** True when ABC uses the up-bow / down-bow shorthands `u` / `v` in front of a note. */
+export function abcHasBareBowing(abc) {
+  const body = String(abc)
+    .replace(/"[^"]*"/g, " ")
+    .replace(/![\w]+!/g, " ");
+  return /(^|[^A-Ga-g])[uv][.=_^]*[A-Ga-g]/.test(body);
 }
 
-function stemForNotes(items, ctx) {
-  if (!items.length) return "";
-  const mid = abcClef(ctx.clef) === "bass" ? 50 : 71;
-  let extreme = writtenMidiForItem(items[0], ctx);
-  let extremeDist = Math.abs(extreme - mid);
-  for (const item of items.slice(1)) {
-    const midi = writtenMidiForItem(item, ctx);
-    const dist = Math.abs(midi - mid);
-    if (dist > extremeDist + 1e-6 || (Math.abs(dist - extremeDist) < 1e-6 && midi < extreme)) {
-      extreme = midi;
-      extremeDist = dist;
-    }
-  }
-  return extreme < mid ? "u" : "v";
+export function phraseMeasureCount(applicationId = DEFAULT_APPLICATION_ID) {
+  const lick = lickForApplication(applicationId);
+  const bars = Math.max(1, Math.ceil((Number(lick.learnBeats) || BEATS_PER_BAR) / BEATS_PER_BAR));
+  const pickup = (Number(lick.pickupBeats) || 0) > 1e-6 ? 1 : 0;
+  return bars + pickup;
 }
 
 function tokenDurationBeats(token) {
@@ -1009,10 +1001,9 @@ function renderSlice(items, start, end, ctx) {
         group.push(covering[i]);
         i += 1;
       }
-      const stem = stemForNotes(group, ctx);
       abc += "(3";
       for (const note of group) {
-        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality, ctx.barState, stem);
+        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality, ctx.barState);
       }
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -1026,15 +1017,7 @@ function renderSlice(items, start, end, ctx) {
     const tieOut = item.type === "note" && item.beat + item.beats > end + 1e-6;
     if (item.type === "rest") abc += restAbc(iStart, dur);
     else {
-      const beat = Math.floor(item.beat + 1e-6);
-      const group = covering.filter((other) => (
-        other.type === "note"
-        && other.tuplet !== 3
-        && other.beats <= 0.5 + 1e-6
-        && Math.floor(other.beat + 1e-6) === beat
-      ));
-      const stem = stemForNotes(group.length ? group : [item], ctx);
-      abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState, stem);
+      abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState);
     }
     cursor = iEnd;
     if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -1185,6 +1168,7 @@ export function phraseABC(
   applicationId = DEFAULT_APPLICATION_ID,
   clef = DEFAULT_CLEF,
   melodyRegister = DEFAULT_MELODY_REGISTER,
+  options = {},
 ) {
   const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
   const items = phraseTimeline(applicationId, true);
@@ -1194,6 +1178,8 @@ export function phraseABC(
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(ctx.shownKey, clef)}\n`;
 
   const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
+  const barsPerLine = options.barsPerLine
+    ?? Math.min(5, Math.max(2, barCount + (pickupNotes.length ? 1 : 0)));
   if (pickupNotes.length) {
     ctx.barState = newBarState(ctx.shownKey);
     abc += renderSlice(items, pickupNotes[0].beat, 0, ctx);
@@ -1217,7 +1203,7 @@ export function phraseABC(
         abc += renderSlice(items, sliceStart, sliceEnd, ctx);
       }
     }
-    abc += barAdvance(bar, barCount, 2);
+    abc += barAdvance(bar, barCount, barsPerLine);
   }
   return abc;
 }
