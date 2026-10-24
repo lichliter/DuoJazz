@@ -40,6 +40,7 @@ import {
   jazzChordRootParts,
   displayKey,
   lickNoun,
+  restBeatsForSpan,
 } from "./music.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
@@ -424,7 +425,8 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   const abc = landingABC(g, "concert", "minor-home", "bass", 0, { showCues: true });
   assert.match(abc, /K:Gmin clef=bass/);
   assert.match(abc, /"Cm7"/);
-  assert.match(abc, /z2z2z2z2/);
+  assert.match(abc, /z8/);
+  assert.doesNotMatch(abc, /z2z2z2z2/);
   assert.match(abc, /"Gm6""_HERE"/);
   assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
   assert.match(abc, /"D7""_Get ready"/);
@@ -588,6 +590,25 @@ test("empty bars draw a whole rest instead of a blank spacer", () => {
   assert.match(learn, /z8/);
   assert.doesNotMatch(learn, /\bx8\b/);
   const emr = landingABC(getKey("G"), "concert", "emr-autumn-leaves-a");
-  assert.match(emr, /z2z2z2z2/);
+  assert.match(emr, /z8/);
+  assert.doesNotMatch(emr, /z2z2z2z2/);
   assert.doesNotMatch(emr, /\bx8\b/);
+});
+
+test("empty-bar ABC is a single whole rest; partial bars never hide beat 3", () => {
+  assert.deepEqual(restBeatsForSpan(0, 4), [4]);
+  assert.deepEqual(restBeatsForSpan(4, 4), [4]);
+  assert.deepEqual(restBeatsForSpan(0, 2), [2]);
+  assert.deepEqual(restBeatsForSpan(2, 2), [2]);
+  assert.deepEqual(restBeatsForSpan(0, 3), [2, 1]);
+  assert.deepEqual(restBeatsForSpan(1, 3), [1, 2]);
+  assert.deepEqual(restBeatsForSpan(3, 1), [1]);
+  assert.deepEqual(restBeatsForSpan(2.5, 1.5), [0.5, 1]);
+  const landing = landingABC(getKey("C"), "concert", "cmar-blue-bossa");
+  const emptyBars = [...landing.matchAll(/"Cm7"yy([^"|]+)/g)].map((match) => match[1].trim());
+  assert.ok(emptyBars.some((body) => body === "z8"));
+  assert.ok(emptyBars.every((body) => !/z2z2/.test(body)));
+  const gts = phraseABC(getKey("G"), "concert", "gts-learn");
+  assert.match(gts, /"Gmaj7"yyB,,4 z4/);
+  assert.doesNotMatch(gts, /z2z2/);
 });

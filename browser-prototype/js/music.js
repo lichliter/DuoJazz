@@ -868,6 +868,51 @@ function afterNoteSpacing(beat) {
   return "";
 }
 
+function beatInBar(beat) {
+  return ((beat % BEATS_PER_BAR) + BEATS_PER_BAR) % BEATS_PER_BAR;
+}
+
+/** 4/4 rest grouping: whole rest only for a full empty bar; never a rest that hides beat 3. */
+export function restBeatsForSpan(startBeat, durationBeats) {
+  const chunks = [];
+  let t = startBeat;
+  let left = durationBeats;
+  while (left > 1e-6) {
+    const at = beatInBar(t);
+    const onBeat = Math.abs(at - Math.round(at)) < 1e-6;
+    if (!onBeat) {
+      const toBeat = Math.min(left, Math.ceil(at - 1e-9) - at);
+      chunks.push(toBeat);
+      t += toBeat;
+      left -= toBeat;
+      continue;
+    }
+    if (at < 1e-6 && left >= BEATS_PER_BAR - 1e-6) {
+      chunks.push(BEATS_PER_BAR);
+      t += BEATS_PER_BAR;
+      left -= BEATS_PER_BAR;
+      continue;
+    }
+    const toMidOrBar = at < 2 - 1e-6 ? 2 - at : BEATS_PER_BAR - at;
+    const cap = Math.min(left, toMidOrBar);
+    const chunk = cap >= 2 - 1e-6 ? 2
+      : cap >= 1 - 1e-6 ? 1
+      : cap >= 0.5 - 1e-6 ? 0.5
+      : cap >= 0.25 - 1e-6 ? 0.25
+      : cap;
+    chunks.push(chunk);
+    t += chunk;
+    left -= chunk;
+  }
+  return chunks;
+}
+
+function restAbc(startBeat, durationBeats) {
+  return restBeatsForSpan(startBeat, durationBeats)
+    .map((beats) => `z${abcDuration(beats)}`)
+    .join("");
+}
+
 function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null) {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
@@ -884,27 +929,12 @@ function renderSlice(items, start, end, ctx) {
   let abc = "";
   let cursor = start;
   let i = 0;
-  const restFill = (dur) => {
-    let left = dur;
-    let out = "";
-    const maxChunk = ctx.maxRestBeats ?? 4;
-    while (left > 1e-6) {
-      const chunk = left >= 4 - 1e-6 && maxChunk >= 4 ? 4
-        : left >= 2 - 1e-6 && maxChunk >= 2 ? 2
-        : left >= 1 - 1e-6 && maxChunk >= 1 ? 1
-        : left >= 0.5 - 1e-6 ? 0.5
-        : left;
-      out += `z${abcDuration(chunk)}`;
-      left -= chunk;
-    }
-    return out;
-  };
   if (!ctx.barState) ctx.barState = newBarState(ctx.shownKey);
   while (i < covering.length) {
     const item = covering[i];
     const iStart = Math.max(item.beat, start);
     if (iStart > cursor + 1e-6) {
-      abc += restFill(iStart - cursor);
+      abc += restAbc(cursor, iStart - cursor);
       cursor = iStart;
     }
     if (item.tuplet === 3) {
@@ -927,7 +957,7 @@ function renderSlice(items, start, end, ctx) {
     const iEnd = Math.min(item.beat + item.beats, end);
     const dur = iEnd - iStart;
     const tieOut = item.type === "note" && item.beat + item.beats > end + 1e-6;
-    if (item.type === "rest") abc += restFill(dur);
+    if (item.type === "rest") abc += restAbc(iStart, dur);
     else abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState);
     cursor = iEnd;
     if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -940,12 +970,12 @@ function renderSlice(items, start, end, ctx) {
     const leftover = end - cursor;
     const toBar = (4 - (cursor % 4)) % 4;
     if (toBar > 1e-6 && leftover > toBar + 1e-6) {
-      abc += restFill(toBar);
+      abc += restAbc(cursor, toBar);
       cursor += toBar;
       abc += " | ";
       ctx.barState = newBarState(ctx.shownKey);
     }
-    abc += restFill(end - cursor);
+    abc += restAbc(cursor, end - cursor);
   }
   return abc;
 }
@@ -1033,7 +1063,6 @@ function renderFormAbc({
     : form.bars.length;
   const items = notesForMode(applicationId, mode === "phrase" ? "landing" : mode, isolated || mode === "phrase");
   const eighth = true;
-  if (mode === "landing") ctx.maxRestBeats = 1;
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(ctx.shownKey, clef)}\n`;
 
   const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);

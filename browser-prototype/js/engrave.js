@@ -197,6 +197,52 @@ function drawSlashOn(host, glyphBox, staffBox, layout = {}) {
   host.append(slash);
 }
 
+function visitTuneElems(tune, fn) {
+  for (const line of tune?.lines ?? []) {
+    for (const staff of line.staff ?? []) {
+      for (const voice of staff.voices ?? []) {
+        for (const el of voice) fn(el);
+      }
+    }
+  }
+}
+
+function restBeatsFromElem(el) {
+  if (el?.duration > 0) return el.duration * 4;
+  return 1;
+}
+
+function restSvgNode(el) {
+  const nodes = el?.abselem?.elemset ?? [];
+  return nodes.find((node) => node.classList?.contains("abcjs-rest")) ?? nodes[0] ?? null;
+}
+
+function slashLane(abselem, beats, staffBox, barsPerLine) {
+  const barWidth = staffBox.width / Math.max(1, barsPerLine);
+  const mid = (abselem?.x ?? staffBox.x) + (abselem?.w ?? 0) / 2;
+  const rel = mid - staffBox.x;
+  const barIndex = Math.min(barsPerLine - 1, Math.max(0, Math.floor(rel / barWidth + 1e-6)));
+  const barLeft = staffBox.x + barIndex * barWidth;
+  const beatWidth = barWidth / 4;
+  const count = Math.max(1, Math.round(beats));
+  if (count >= 4) {
+    return { x: barLeft, width: barWidth, count: 4 };
+  }
+  const inBar = rel - barIndex * barWidth;
+  let startBeat = Math.round(inBar / beatWidth - count / 2);
+  if (count === 2) startBeat = inBar >= barWidth / 2 ? 2 : 0;
+  startBeat = Math.min(4 - count, Math.max(0, startBeat));
+  return { x: barLeft + startBeat * beatWidth, width: count * beatWidth, count };
+}
+
+function drawBeatSlashes(host, lane, staffBox, layout) {
+  for (let i = 0; i < lane.count; i += 1) {
+    const slotW = lane.width / lane.count;
+    const cx = lane.x + slotW * (i + 0.5);
+    drawSlashOn(host, { x: cx - slotW * 0.2, y: staffBox.y, width: slotW * 0.4, height: staffBox.height }, staffBox, layout);
+  }
+}
+
 function hideRestGlyph(rest) {
   hideNoteGlyphs(rest, true);
   for (const glyph of rest.querySelectorAll("path, ellipse")) {
@@ -206,11 +252,25 @@ function hideRestGlyph(rest) {
   }
 }
 
-export function applyRhythmSlashes(target, keepLandingNotes = false, layout = {}) {
+export function applyRhythmSlashes(target, keepLandingNotes = false, layout = {}, tune = null) {
   const svg = target.querySelector("svg");
   if (!svg) return;
   const staffs = [...target.querySelectorAll(".abcjs-staff")];
+  const barsPerLine = layout.barsPerLine ?? 4;
+  const used = new Set();
+  visitTuneElems(tune, (el) => {
+    if (!el.rest || el.rest.type === "spacer") return;
+    const node = restSvgNode(el);
+    if (!node || used.has(node)) return;
+    const staffBox = nearestStaffBox(node, staffs);
+    if (!staffBox || isSpacerRest(node, staffBox)) return;
+    used.add(node);
+    hideRestGlyph(node);
+    const lane = slashLane(el.abselem, restBeatsFromElem(el), staffBox, barsPerLine);
+    drawBeatSlashes(node, lane, staffBox, layout);
+  });
   for (const rest of target.querySelectorAll(".abcjs-rest")) {
+    if (used.has(rest)) continue;
     const staffBox = nearestStaffBox(rest, staffs);
     if (isSpacerRest(rest, staffBox)) continue;
     const glyph = rest.querySelector("path, ellipse") ?? rest;
@@ -361,8 +421,11 @@ export function engraveAbc(target, abc, options = {}) {
   const layout = options.layout ?? {};
   const width = options.width ?? Math.max(320, target.clientWidth || 760);
   const fitted = renderFittedAbc(target, abc, layout, width);
-  if (options.applySlashes) applyRhythmSlashes(target, Boolean(options.keepLandingNotes), fitted.layout);
-  else restyleAnnotations(target, fitted.layout);
+  if (options.applySlashes) {
+    applyRhythmSlashes(target, Boolean(options.keepLandingNotes), fitted.layout, fitted.tune);
+  } else {
+    restyleAnnotations(target, fitted.layout);
+  }
   const svg = target.querySelector("svg");
   if (svg && (options.fitChorus || layout.fillAxis === "fit")) fitChorusStaffSvg(target, svg, fitted.layout);
   return { ...fitted, svg };
