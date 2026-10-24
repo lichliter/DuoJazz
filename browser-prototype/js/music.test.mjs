@@ -41,6 +41,7 @@ import {
   displayKey,
   lickNoun,
   restBeatsForSpan,
+  beamGroupsCrossBeat3,
 } from "./music.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
@@ -148,10 +149,10 @@ test("phrase ABC defaults to bass clef with beat-grouped eighth beams", () => {
   const abc = phraseABC(getKey("G"), "concert", "minor-home");
   assert.match(abc, /K:Gmin clef=bass/);
   assert.match(abc, /"Gm6"/);
-  assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(abc, /[uv]?A,2 \(3[uv]?G,[uv]?D,[uv]?B,, [uv]?A,,[uv]?G,, z2/);
   const treble = phraseABC(getKey("G"), "concert", "minor-home", "treble");
   assert.match(treble, /clef=treble/);
-  assert.match(treble, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(treble, /[uv]?A,2 \(3[uv]?G,[uv]?D,[uv]?B,, [uv]?A,,[uv]?G,, z2/);
 });
 
 test("clef selection does not change concert MIDI or B-flat written transposition", () => {
@@ -379,13 +380,13 @@ test("phrase ABC follows melody register while clef and B♭ names stay independ
   const trebleUp = phraseABC(g, "concert", "minor-home", "treble", 1);
   const writtenUp = phraseABC(g, "bb-written", "minor-home", "bass", 1);
   assert.match(original, /K:Gmin clef=bass/);
-  assert.match(original, /A,2 \(3G,D,B,, A,,G,, z2/);
-  assert.match(up, /A2 \(3GDB, A,G, z2/);
-  assert.match(down, /A,,2 \(3G,,D,,B,,, A,,,G,,, z2/);
+  assert.match(original, /[uv]?A,2 \(3[uv]?G,[uv]?D,[uv]?B,, [uv]?A,,[uv]?G,, z2/);
+  assert.match(up, /[uv]?A2 \(3[uv]?G[uv]?D[uv]?B, [uv]?A,[uv]?G, z2/);
+  assert.match(down, /[uv]?A,,2 \(3[uv]?G,,[uv]?D,,[uv]?B,,, [uv]?A,,,[uv]?G,,, z2/);
   assert.match(trebleUp, /clef=treble/);
-  assert.match(trebleUp, /A2 \(3GDB, A,G, z2/);
+  assert.match(trebleUp, /[uv]?A2 \(3[uv]?G[uv]?D[uv]?B, [uv]?A,[uv]?G, z2/);
   assert.match(writtenUp, /K:Amin clef=bass/);
-  assert.match(writtenUp, /B2 \(3AEC B,A, z2/);
+  assert.match(writtenUp, /[uv]?B2 \(3[uv]?A[uv]?E[uv]?C [uv]?B,[uv]?A, z2/);
   const notes = phraseNotes(g, "bb-written", "minor-home", 1);
   assert.equal(notes[0].concertMidi, 69);
   assert.equal(notes[0].shownMidi, 71);
@@ -428,10 +429,10 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   assert.match(abc, /z8/);
   assert.doesNotMatch(abc, /z2z2z2z2/);
   assert.match(abc, /"Gm6""_HERE"/);
-  assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(abc, /[uv]?A,2 \(3[uv]?G,[uv]?D,[uv]?B,, [uv]?A,,[uv]?G,, z2/);
   assert.match(abc, /"D7""_Get ready"/);
   const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
-  assert.match(up, /A2 \(3GDB, A,G, z2/);
+  assert.match(up, /[uv]?A2 \(3[uv]?G[uv]?D[uv]?B, [uv]?A,[uv]?G, z2/);
   const quizCold = slashABC(g, "concert", "minor-home", "bass");
   assert.doesNotMatch(quizCold, /A,G,/);
   const viaChorus = chorusStaffABC({
@@ -500,7 +501,7 @@ test("four-bar landing systems keep bars 7–8 together with the lick on the doo
   assert.doesNotMatch(systems[0], /HERE|A,G,/);
   assert.match(systems[1], /"D7""_Get ready"/);
   assert.match(systems[1], /"Gm6""_HERE"/);
-  assert.match(systems[1], /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(systems[1], /[uv]?A,2 \(3[uv]?G,[uv]?D,[uv]?B,, [uv]?A,,[uv]?G,, z2/);
   assert.match(systems[1], /"Gm6""_HERE".+"Gm6"/);
   assert.doesNotMatch(systems[1], /\n/);
 });
@@ -579,6 +580,14 @@ test("BO and GTS Learn labels follow the I chord, not the cell tonic", () => {
 test("GTS eighths beam in beat pairs across the half-bar chord change", () => {
   const abc = phraseABC(getKey("G"), "concert", "gts-learn");
   assert.match(abc, /A,, "E7"/);
+  assert.equal(beamGroupsCrossBeat3(abc), false);
+  const st = landingABC(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
+  assert.equal(beamGroupsCrossBeat3(st), false);
+  const tokens = abc.split("\n").filter((line) => line.includes("|")).join(" ").split(/\s+/);
+  for (const token of tokens) {
+    const stems = [...token.matchAll(/([uv])[.=_^]*[A-Ga-g]/g)].map((match) => match[1]);
+    if (stems.length > 1) assert.equal(new Set(stems).size, 1, token);
+  }
 });
 
 test("empty bars draw a whole rest instead of a blank spacer", () => {
@@ -609,6 +618,6 @@ test("empty-bar ABC is a single whole rest; partial bars never hide beat 3", () 
   assert.ok(emptyBars.some((body) => body === "z8"));
   assert.ok(emptyBars.every((body) => !/z2z2/.test(body)));
   const gts = phraseABC(getKey("G"), "concert", "gts-learn");
-  assert.match(gts, /"Gmaj7"yyB,,4 z4/);
+  assert.match(gts, /"Gmaj7"yy[uv]?B,,4 z4/);
   assert.doesNotMatch(gts, /z2z2/);
 });

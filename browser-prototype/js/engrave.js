@@ -417,10 +417,25 @@ export function renderFittedAbc(target, abc, layout, width) {
   };
 }
 
+function hideBeamedTupletBrackets(target) {
+  for (const triplet of target.querySelectorAll(".abcjs-triplet")) {
+    const beamed = Boolean(
+      triplet.closest("g")?.querySelector(".abcjs-beam")
+      || triplet.parentElement?.querySelector(".abcjs-beam"),
+    );
+    if (!beamed) continue;
+    for (const path of triplet.querySelectorAll("path")) {
+      path.setAttribute("opacity", "0");
+      path.style.display = "none";
+    }
+  }
+}
+
 export function engraveAbc(target, abc, options = {}) {
   const layout = options.layout ?? {};
   const width = options.width ?? Math.max(320, target.clientWidth || 760);
   const fitted = renderFittedAbc(target, abc, layout, width);
+  hideBeamedTupletBrackets(target);
   if (options.applySlashes) {
     applyRhythmSlashes(target, Boolean(options.keepLandingNotes), fitted.layout, fitted.tune);
   } else {

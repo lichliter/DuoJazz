@@ -913,13 +913,86 @@ function restAbc(startBeat, durationBeats) {
     .join("");
 }
 
-function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null) {
+function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null, stem = "") {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
   const pitch = abcNote(shownMidi, shownKey, barState);
   const dur = item.tuplet === 3 ? "" : abcDuration(durationBeats);
-  return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
+  return `${abcArticulation(item)}${stem}${pitch}${dur}${tieOut ? "-" : ""}`;
+}
+
+function writtenMidiForItem(item, ctx) {
+  return concertMidiToWritten(
+    eventMelodyMidi(ctx.concertKey, item, ctx.melodyRegister, ctx.octaveBase),
+    ctx.displayMode,
+  );
+}
+
+function stemForNotes(items, ctx) {
+  if (!items.length) return "";
+  const mid = abcClef(ctx.clef) === "bass" ? 50 : 71;
+  let extreme = writtenMidiForItem(items[0], ctx);
+  let extremeDist = Math.abs(extreme - mid);
+  for (const item of items.slice(1)) {
+    const midi = writtenMidiForItem(item, ctx);
+    const dist = Math.abs(midi - mid);
+    if (dist > extremeDist + 1e-6 || (Math.abs(dist - extremeDist) < 1e-6 && midi < extreme)) {
+      extreme = midi;
+      extremeDist = dist;
+    }
+  }
+  return extreme < mid ? "u" : "v";
+}
+
+/** True when a beamed run would continue into this note (same beat, eighths or shorter). */
+function continuesBeam(prevEnd, nextStart, nextBeats) {
+  if (nextBeats > 0.5 + 1e-6) return false;
+  if (atBeatBoundary(nextStart) && Math.abs(nextStart - prevEnd) < 1e-6) return false;
+  return Math.abs(nextStart - prevEnd) < 1e-6;
+}
+
+function tokenDurationBeats(token) {
+  const rest = token.match(/^[yzx](\d+)?/i);
+  if (rest) return (rest[1] ? Number(rest[1]) : 1) * 0.5;
+  const notes = token.match(/[uv]?[.=_^]*[A-Ga-g][,']*(?:\d+|\/\d+)?/g) ?? [];
+  if (!notes.length) return 0;
+  let beats = 0;
+  for (const note of notes) {
+    const marked = note.match(/(\d+|\/\d+)$/);
+    if (!marked) {
+      beats += 0.5;
+      continue;
+    }
+    if (marked[1].startsWith("/")) beats += 0.5 / Number(marked[1].slice(1) || 2);
+    else beats += Number(marked[1]) * 0.5;
+  }
+  return beats;
+}
+
+export function beamGroupsCrossBeat3(abc) {
+  const measures = String(abc)
+    .split("\n")
+    .filter((line) => line.includes("|"))
+    .join(" ")
+    .replace(/"[^"]*"/g, " ")
+    .replace(/![\w]+!/g, " ")
+    .replace(/yy/g, " ")
+    .split("|");
+  for (const raw of measures) {
+    const measure = raw.replace(/[\[\]]/g, " ").trim();
+    if (!measure) continue;
+    let beat = 0;
+    for (const token of measure.split(/\s+/).filter(Boolean)) {
+      const notes = token.match(/[uv]?[.=_^]*[A-Ga-g][,']*(?:\d+|\/\d+)?/g) ?? [];
+      const dur = tokenDurationBeats(token);
+      const start = beat;
+      const end = beat + dur;
+      if (notes.length > 1 && start < 2 - 1e-6 && end > 2 + 1e-6) return true;
+      beat = end;
+    }
+  }
+  return false;
 }
 
 function renderSlice(items, start, end, ctx) {
@@ -943,9 +1016,10 @@ function renderSlice(items, start, end, ctx) {
         group.push(covering[i]);
         i += 1;
       }
+      const stem = stemForNotes(group, ctx);
       abc += "(3";
       for (const note of group) {
-        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality, ctx.barState);
+        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality, ctx.barState, stem);
       }
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -958,7 +1032,17 @@ function renderSlice(items, start, end, ctx) {
     const dur = iEnd - iStart;
     const tieOut = item.type === "note" && item.beat + item.beats > end + 1e-6;
     if (item.type === "rest") abc += restAbc(iStart, dur);
-    else abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState);
+    else {
+      const beat = Math.floor(item.beat + 1e-6);
+      const group = covering.filter((other) => (
+        other.type === "note"
+        && other.tuplet !== 3
+        && other.beats <= 0.5 + 1e-6
+        && Math.floor(other.beat + 1e-6) === beat
+      ));
+      const stem = stemForNotes(group.length ? group : [item], ctx);
+      abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState, stem);
+    }
     cursor = iEnd;
     if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
       abc += " | ";
@@ -1011,7 +1095,7 @@ function renderSlashBeats(durationBeats, clef, eighthUnit = true) {
   return Array.from({ length: n }, () => glyph).join(" ");
 }
 
-function formContext(concertKey, displayMode, applicationId, melodyRegister) {
+function formContext(concertKey, displayMode, applicationId, melodyRegister, clef = DEFAULT_CLEF) {
   const quality = applicationKeyQuality(applicationId);
   const shownKey = displayKey(concertKey, displayMode, quality);
   return {
@@ -1019,6 +1103,7 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister) {
     displayMode,
     applicationId,
     melodyRegister,
+    clef,
     octaveBase: octaveForApplication(applicationId, concertKey.pc),
     quality,
     shownKey,
@@ -1053,7 +1138,7 @@ function renderFormAbc({
   barsPerLine = 4,
   isolated = false,
 }) {
-  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister);
+  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
   const form = isolated && mode === "phrase"
     ? formForApplication(applicationId)
     : formForApplication(applicationId);
@@ -1108,7 +1193,7 @@ export function phraseABC(
   clef = DEFAULT_CLEF,
   melodyRegister = DEFAULT_MELODY_REGISTER,
 ) {
-  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister);
+  const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
   const items = phraseTimeline(applicationId, true);
   const length = learnBeatsFor(applicationId);
   const chords = learnChords(concertKey, displayMode, applicationId);
