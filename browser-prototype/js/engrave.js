@@ -345,19 +345,26 @@ export function abcRenderOptions(layout, staffwidth, scale) {
     add_classes: true,
     paddingtop: layout.paddingtop,
     paddingbottom: layout.paddingbottom,
+    paddingright: layout.paddingright ?? 16,
     staffwidth: width,
     scale,
     responsive: "resize",
-    stretchlast: layout.stretchlast ?? false,
+    stretchlast: layout.stretchlast ?? true,
+    expandToWidest: layout.expandToWidest ?? true,
     jazzchords: layout.jazzchords ?? true,
-    maxshrink: layout.maxshrink ?? 0.55,
-    format: { ...format, maxshrink: layout.maxshrink ?? 0.55 },
+    maxshrink: layout.maxshrink ?? 0.8,
+    minPadding: layout.minPadding ?? 2.5,
+    format: { ...format, maxshrink: layout.maxshrink ?? 0.8, stretchlast: layout.stretchlast ?? 1 },
     wrap: layout.wrap ? { ...layout.wrap, staffwidth: width } : undefined,
   };
   if (layout.paddingleft != null) options.paddingleft = layout.paddingleft;
-  if (layout.paddingright != null) options.paddingright = layout.paddingright;
-  if (layout.minPadding != null) options.minPadding = layout.minPadding;
-  if (layout.timeBasedLayout) options.timeBasedLayout = layout.timeBasedLayout;
+  if (layout.timeBasedLayout) {
+    options.timeBasedLayout = {
+      minPadding: layout.timeBasedLayout.minPadding ?? layout.minPadding ?? 3,
+      align: layout.timeBasedLayout.align ?? "left",
+      minWidth: layout.timeBasedLayout.minWidth ?? width,
+    };
+  }
   return options;
 }
 
