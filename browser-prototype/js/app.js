@@ -1,17 +1,16 @@
 import {
   MELODY_REGISTERS,
-  chorusStaffABC,
   getKey,
   minorSpelling,
   majorSpelling,
-  phraseABC,
   phraseMeasureCount,
   applicationKeyQuality,
   phraseSpanBars,
 } from "./music.js";
 import { Transport } from "./audio.js";
 import { notationLayout } from "./lesson.js";
-import { engraveAbc } from "./engrave.js";
+import { chorusStaffMEI, phraseMEI } from "./mei.js";
+import { engraveMei, whenVerovioReady } from "./engrave.js";
 import {
   PREFS_KEY,
   MODULE,
@@ -100,9 +99,10 @@ let mastery = loadMastery();
 let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
 let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
-let lastTune = null;
 let lastNotationLayout = null;
 let lastPlayheadSystem = null;
+let notationGen = 0;
+let lastEngraveMs = 0;
 let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
@@ -811,7 +811,7 @@ function updatePlayhead(snap = transport.snapshot()) {
   const svg = els.notation.querySelector("svg");
   if (!svg || !session) return;
   const { line, glow } = ensurePlayhead(svg);
-  const staffs = [...els.notation.querySelectorAll(".abcjs-staff")];
+  const staffs = [...els.notation.querySelectorAll(".staff")];
   const active = (snap.playing || snap.paused) && !snap.inCountIn && staffs.length;
   if (!active) {
     line.setAttribute("opacity", "0");
@@ -861,8 +861,8 @@ function renderNotation() {
   els.session.dataset.card = currentCard(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
   if (hideStaff) {
+    notationGen += 1;
     els.notation.replaceChildren();
-    lastTune = null;
     lastPlayheadSystem = null;
     return;
   }
@@ -881,8 +881,8 @@ function renderNotation() {
     phraseStartBar: view.application?.phraseStartBar ?? 7,
     phraseBars: phraseSpanBars(lesson.applicationId),
   };
-  const abc = view.showLandingNotation
-    ? chorusStaffABC({
+  const mei = view.showLandingNotation
+    ? chorusStaffMEI({
       concertKey,
       displayMode: session.displayMode,
       applicationId: lesson.applicationId,
@@ -893,7 +893,7 @@ function renderNotation() {
       barsPerLine: layout.barsPerLine,
     })
     : view.showModelNotation
-      ? chorusStaffABC({
+      ? chorusStaffMEI({
         concertKey,
         displayMode: session.displayMode,
         applicationId: lesson.applicationId,
@@ -904,7 +904,7 @@ function renderNotation() {
         barsPerLine: layout.barsPerLine,
       })
       : view.showSlashNotation
-        ? chorusStaffABC({
+        ? chorusStaffMEI({
           concertKey,
           displayMode: session.displayMode,
           applicationId: lesson.applicationId,
@@ -913,7 +913,7 @@ function renderNotation() {
           showCues: view.showEntranceCues,
           barsPerLine: layout.barsPerLine,
         })
-        : phraseABC(
+        : phraseMEI(
           concertKey,
           session.displayMode,
           lesson.applicationId,
@@ -921,27 +921,30 @@ function renderNotation() {
           session.melodyRegister,
           { barsPerLine: layout.barsPerLine },
         );
-  if (window.ABCJS) {
-    const engraved = engraveAbc(els.notation, abc, {
+  const gen = notationGen += 1;
+  whenVerovioReady().then(() => {
+    if (gen !== notationGen || !session || session.screen !== "session") return;
+    return engraveMei(els.notation, mei, {
       layout,
       width,
-      applySlashes: Boolean(view.showSlashNotation),
-      keepLandingNotes: Boolean(view.showLandingNotation),
       fitChorus: layout.fillAxis === "fit",
     });
-    lastTune = engraved.tune;
+  }).then((engraved) => {
+    if (!engraved || gen !== notationGen) return;
     lastNotationLayout = {
       ...engraved.layout,
       phraseStartBar: lastNotationLayout.phraseStartBar,
       phraseBars: lastNotationLayout.phraseBars,
     };
+    lastEngraveMs = engraved.elapsedMs;
     updatePlayhead();
-  } else {
+  }).catch(() => {
+    if (gen !== notationGen) return;
     els.notation.replaceChildren();
     const pre = document.createElement("pre");
-    pre.textContent = abc;
+    pre.textContent = mei;
     els.notation.append(pre);
-  }
+  });
 }
 
 function renderCopy(snap = transport.snapshot()) {
@@ -1335,6 +1338,7 @@ if (document.fonts?.ready) {
 window.__DUOJAZZ__ = {
   getPrefs: () => prefs,
   getSession: () => session,
+  lastEngraveMs: () => lastEngraveMs,
   openSetup,
   startFromSetup,
   createAndShow(options) {
