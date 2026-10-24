@@ -8,6 +8,7 @@ import {
   displayKey,
   getKey,
   phraseABC,
+  phraseMeasureCount,
   applicationKeyQuality,
 } from "./music.js";
 import { notationLayout } from "./lesson.js";
@@ -121,8 +122,11 @@ function keyLabel(keyId, applicationId) {
 
 export function abcForPanel(panel) {
   const concertKey = getKey(panel.keyId);
+  const layout = layoutForPanel(panel);
   if (panel.phrase) {
-    return phraseABC(concertKey, "concert", panel.applicationId, "bass", 0);
+    return phraseABC(concertKey, "concert", panel.applicationId, "bass", 0, {
+      barsPerLine: layout.barsPerLine,
+    });
   }
   return chorusStaffABC({
     concertKey,
@@ -132,7 +136,7 @@ export function abcForPanel(panel) {
     melodyRegister: 0,
     mode: "landing",
     showCues: panel.showCues,
-    barsPerLine: 4,
+    barsPerLine: layout.barsPerLine,
   });
 }
 
@@ -143,6 +147,7 @@ function layoutForPanel(panel, staffWidth = VIEWPORT.staffWidth) {
     viewportHeight: VIEWPORT.height,
     showPhraseNotation: Boolean(panel.phrase),
     showEntranceCues: Boolean(panel.showCues),
+    phraseBars: panel.phrase ? phraseMeasureCount(panel.applicationId) : undefined,
   });
 }
 

@@ -7,7 +7,7 @@ import {
   standardLessons,
   LEARN_KEYS,
 } from "./gallery.js";
-import { capCueText } from "./engrave.js";
+import { capCueText, svgHasBowingMarks } from "./engrave.js";
 import { MODULES } from "./registry.js";
 
 test("gallery is a catalog of Learn keys, one standard per module, one Play card, and three tunes", () => {
@@ -39,11 +39,23 @@ test("gallery Learn and landing ABC stay on bass clef without changing pitches",
   assert.match(abcForPanel(st), /Guide tone sequence/);
 });
 
-test("cue labels cap to the bar they belong to", () => {
+test("cue labels cap only when they cannot use following unlabeled bars", () => {
   assert.equal(capCueText("HERE", 120, 14), "HERE");
-  const long = capCueText("Embellished minor resolution", 72, 16);
-  assert.ok(long.endsWith("…"));
-  assert.ok(long.length < "Embellished minor resolution".length);
+  const oneBar = capCueText("Guide tone sequence", 72, 16);
+  assert.ok(oneBar.endsWith("…"));
+  assert.ok(oneBar.length < "Guide tone sequence".length);
+  assert.equal(capCueText("Guide tone sequence", 220, 16), "Guide tone sequence");
+});
+
+test("bowing-mark detector flags up-bow and down-bow classes only", () => {
+  const svg = { querySelectorAll() { return []; } };
+  assert.equal(svgHasBowingMarks(svg), false);
+  const bow = {
+    querySelectorAll() {
+      return [{ getAttribute: () => "abcjs-decoration abcjs-upbow" }];
+    },
+  };
+  assert.equal(svgHasBowingMarks(bow), true);
 });
 
 test("gallery engraves after the cards are in the document", async () => {
