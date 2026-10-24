@@ -211,8 +211,9 @@ function renderPanel(panel, paper) {
     if (panel.section === "compare") {
       const measured = measureEngraving(paper);
       const meta = paper.closest("article")?.querySelector("header p");
-      if (meta && measured?.staffMean) {
-        meta.textContent = `${panel.subtitle} · staff ${Math.round(measured.staffMean)}px`;
+      const staff = Math.round(measured?.staffMean || layout.minStaffPx || 0);
+      if (meta && staff) {
+        meta.textContent = `${panel.subtitle} · staff ${staff}px`;
       }
     }
     return engraved;
