@@ -146,6 +146,7 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   assert.match(src, /applyFixedStaffSize\(/);
   assert.match(src, /restyleHarms\(/);
   assert.match(src, /harmRawText\(/);
+  assert.match(src, /fiveLineStaffHeightCss\(/);
   assert.doesNotMatch(src, /chorusStaffFit\(/);
   assert.doesNotMatch(src, /fitChorus/);
 });

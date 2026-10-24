@@ -339,66 +339,40 @@ function harmTextEl(harm) {
   return harm.querySelector("text") ?? harm;
 }
 
-function harmAnchorX(harm) {
-  const el = harm.querySelector("tspan") ?? harm.querySelector("text") ?? harm;
-  const x = parseFloat(el.getAttribute("x") || "");
-  if (Number.isFinite(x)) return x;
-  try {
-    return harmTextEl(harm).getBBox().x;
-  } catch {
-    return 0;
-  }
-}
-
-function harmTextWidth(harm) {
-  const text = harmTextEl(harm);
-  if (typeof text.getComputedTextLength === "function") {
-    try {
-      const width = text.getComputedTextLength();
-      if (width > 0) return width;
-    } catch {
-      // fall through to bbox
-    }
-  }
-  try {
-    return text.getBBox().width;
-  } catch {
-    return 0;
-  }
-}
-
 export function separateChordSymbols(svg) {
   if (!svg?.querySelectorAll) return;
   const harms = [...svg.querySelectorAll(".harm")];
-  for (let pass = 0; pass < 8; pass += 1) {
-    let moved = false;
-    for (let i = 0; i < harms.length - 1; i += 1) {
+  const floor = 160;
+  const shrink = (harm) => {
+    let changed = false;
+    for (const el of harm.querySelectorAll("text, tspan")) {
+      const size = parseFloat(el.getAttribute("font-size") || "0");
+      if (size <= floor) continue;
+      el.setAttribute("font-size", `${Math.max(floor, size * 0.88)}px`);
+      changed = true;
+    }
+    return changed;
+  };
+  for (let i = 0; i < harms.length - 1; i += 1) {
+    for (let step = 0; step < 12; step += 1) {
       let boxA;
       let boxB;
       try {
-        boxA = harmTextEl(harms[i]).getBBox();
-        boxB = harmTextEl(harms[i + 1]).getBBox();
+        boxA = harmTextEl(harms[i]).getBoundingClientRect();
+        boxB = harmTextEl(harms[i + 1]).getBoundingClientRect();
       } catch {
-        continue;
+        break;
       }
+      if (!boxA.width || !boxB.width) break;
       if (Math.abs((boxA.y + boxA.height / 2) - (boxB.y + boxB.height / 2)) > Math.max(boxA.height, boxB.height) * 0.8) {
-        continue;
+        break;
       }
-      const xA = harmAnchorX(harms[i]);
-      const xB = harmAnchorX(harms[i + 1]);
-      const overlap = xA + harmTextWidth(harms[i]) + 48 - xB;
-      if (overlap <= 0) continue;
-      const floor = 240;
-      for (const harm of [harms[i], harms[i + 1]]) {
-        for (const el of harm.querySelectorAll("text, tspan")) {
-          const size = parseFloat(el.getAttribute("font-size") || "0");
-          if (size <= floor) continue;
-          el.setAttribute("font-size", `${Math.max(floor, size * 0.9)}px`);
-          moved = true;
-        }
-      }
+      if (boxA.right + 6 <= boxB.left) break;
+      const movedA = shrink(harms[i]);
+      const movedB = shrink(harms[i + 1]);
+      if (!movedA && !movedB) break;
+      void harmTextEl(harms[i]).getBoundingClientRect();
     }
-    if (!moved) break;
   }
 }
 
@@ -529,6 +503,22 @@ export function fiveLineStaffHeight(staff) {
   return best;
 }
 
+/** CSS px from the top staff line to the bottom staff line. */
+export function fiveLineStaffHeightCss(staff) {
+  const lines = [...(staff?.querySelectorAll?.(":scope > path") ?? [])];
+  if (lines.length >= 2 && typeof lines[0].getBoundingClientRect === "function") {
+    try {
+      const top = lines[0].getBoundingClientRect().top;
+      const bot = lines[lines.length - 1].getBoundingClientRect().top;
+      const css = Math.abs(bot - top);
+      if (css > 8) return css;
+    } catch {
+      // SVG not in the document.
+    }
+  }
+  return 0;
+}
+
 export function measureEngraving(root) {
   const svg = root?.querySelector?.("svg");
   if (!svg) return null;
@@ -536,7 +526,11 @@ export function measureEngraving(root) {
   const vb = svg.viewBox?.baseVal;
   const scale = vb?.width && svgBox.width ? svgBox.width / vb.width : 1;
   const staffs = [...svg.querySelectorAll(".staff")];
-  const staffPx = staffs.map((staff) => fiveLineStaffHeight(staff) * scale);
+  const staffPx = staffs.map((staff) => {
+    const css = fiveLineStaffHeightCss(staff);
+    if (css) return css;
+    return fiveLineStaffHeight(staff) * scale;
+  });
   const systemPitch = [];
   for (let i = 1; i < staffs.length; i += 1) {
     try {
