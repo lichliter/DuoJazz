@@ -1,0 +1,107 @@
+html.gallery-page,
+html.gallery-page body {
+  height: auto;
+  max-height: none;
+  overflow: auto;
+  background: var(--bg);
+}
+
+.gallery-head {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 1rem 1.25rem 0.5rem;
+  max-width: 1024px;
+  margin-inline: auto;
+}
+
+.gallery-head h1 {
+  margin: 0;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gallery-head p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+}
+
+.gallery-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.9rem;
+  padding: 0.5rem 1.25rem 1rem;
+  max-width: 1024px;
+  margin-inline: auto;
+}
+
+.gallery-nav a {
+  color: var(--accent);
+  text-decoration: none;
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+
+.gallery {
+  max-width: 1024px;
+  margin: 0 auto 3rem;
+  padding: 0 1.25rem;
+}
+
+.gallery-loading {
+  color: var(--muted);
+}
+
+.gallery-section {
+  margin: 0 0 2.5rem;
+}
+
+.gallery-section h2 {
+  margin: 0 0 0.75rem;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.gallery-card {
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: 10px;
+  padding: 0.85rem 0.75rem 1rem;
+  margin: 0 0 1.1rem;
+}
+
+.gallery-card header h3 {
+  margin: 0;
+  font-family: Oswald, "Arial Narrow", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+}
+
+.gallery-card header p {
+  margin: 0.1rem 0 0.55rem;
+  color: #6d5c4d;
+}
+
+.gallery-card .paper-wrap {
+  overflow: visible;
+}
+
+.gallery-card.shot {
+  width: 1024px;
+  max-width: 100%;
+  min-height: 1366px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .gallery-card.shot {
+    margin-inline: calc(50% - 512px);
+  }
+}
