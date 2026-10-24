@@ -386,6 +386,8 @@ test("chorus layout keeps bars intact: 4 per line wherever width allows, never a
     });
     assert.equal(layout.barsPerLine, viewport.barsPerLine, viewport.name);
     assert.equal(layout.wrap, null, viewport.name);
+    assert.equal(layout.stretchlast, true, viewport.name);
+    assert.ok(layout.timeBasedLayout, viewport.name);
     assert.equal(
       Math.ceil(chorusBars / layout.barsPerLine),
       viewport.barsPerLine === 4 ? 2 : 4,

@@ -429,6 +429,9 @@ export function notationLayout({
       paddingbottom: stand ? 24 : 14,
       wrap: null,
       flatbeams: true,
+      stretchlast: true,
+      minPadding: 3,
+      timeBasedLayout: { minPadding: 4, align: "left" },
       barsPerLine: 2,
       chordfont: stand ? "Noto Sans 30" : landscape ? "Noto Sans 20" : "Noto Sans 16",
       annotationfont: stand ? "Source Sans 3 22" : "Source Sans 3 14",
@@ -459,6 +462,9 @@ export function notationLayout({
       : (stand ? 10 : 12),
     wrap: null,
     flatbeams: true,
+    stretchlast: true,
+    minPadding: 2.5,
+    timeBasedLayout: { minPadding: 3, align: "left" },
     barsPerLine,
     // Four bars will not engrave narrower than ~450px, so width-only upscale
     // caps the 5-line staff around 67px. After render we scaleX the chorus
