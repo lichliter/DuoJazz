@@ -488,7 +488,7 @@ export function phraseTimeline(applicationId, isolated = false) {
   return items.sort((a, b) => a.beat - b.beat);
 }
 
-function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
+export function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
   const oct = event.octaveBase ?? octaveBase;
   if (event?.cellInterval == null) {
     return melodyMidiForInterval(concertKey.pc, event.interval, melodyRegister, oct);
@@ -501,7 +501,7 @@ function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
   );
 }
 
-function withSpotOctaves(items, applicationId, concertTonicPc) {
+export function withSpotOctaves(items, applicationId, concertTonicPc) {
   const octaves = spotOctavesFor(applicationId, concertTonicPc);
   return items.map((item) => ({
     ...item,
@@ -848,7 +848,7 @@ function slashBassName(concertTonic, spec, displayMode, shownKey) {
   return `/${pitchName(shownPc, shownKey.usesFlats)}`;
 }
 
-function abcChordName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null) {
+export function chordSymbolName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
   const shownKey = displayKey(concertTonic, displayMode, keyQuality);
@@ -856,6 +856,10 @@ function abcChordName(concertTonic, intervalFromTonic, quality, displayMode, key
   const root = pitchName(shownPc, flats);
   const slash = slashBassName(concertTonic, { slashIntervalFromTonic }, displayMode, { ...shownKey, usesFlats: flats });
   return `${root}${QUALITY_ABC[quality] ?? ""}${slash}`;
+}
+
+function abcChordName(...args) {
+  return chordSymbolName(...args);
 }
 
 function atBeatBoundary(beat) {
