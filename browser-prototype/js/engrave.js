@@ -93,18 +93,28 @@ function recolor(svg) {
   }
 }
 
-const SMUFL_PUA = /[\uE000-\uF8FF]/;
+function decodeFigbass(el) {
+  const text = el.textContent ?? "";
+  if (!/[\uEA63-\uEA67]/.test(text)) return /[\uE000-\uF8FF]/.test(text);
+  el.textContent = text
+    .replaceAll("\uEA63", "𝄫")
+    .replaceAll("\uEA64", "♭")
+    .replaceAll("\uEA65", "♮")
+    .replaceAll("\uEA66", "♯")
+    .replaceAll("\uEA67", "𝄪");
+  return false;
+}
 
 function restyleText(svg, layout = {}) {
   const phrase = layout.fillAxis === "width";
   const shortFill = phrase && (layout.barsPerLine ?? 2) <= 2;
-  const chordVU = shortFill ? 340 : 270;
+  const chordVU = shortFill ? 340 : 250;
   const cueVU = Math.round(chordVU * 0.88);
   for (const el of svg.querySelectorAll(".harm text, .harm tspan, .dir text, .dir tspan")) {
     el.setAttribute("fill", INK);
   }
   for (const el of svg.querySelectorAll(".harm text, .harm tspan")) {
-    if (SMUFL_PUA.test(el.textContent ?? "")) continue;
+    if (decodeFigbass(el)) continue;
     el.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "700");
     const size = parseFloat(el.getAttribute("font-size") || "0");
