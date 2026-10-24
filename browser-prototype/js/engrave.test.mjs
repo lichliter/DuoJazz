@@ -10,14 +10,15 @@ test("Verovio options use encoded breaks and do not stretch leftover systems", (
     minStaffPx: 83,
     annotationPx: 22,
     paddingbottom: 48,
-  }, 980);
+  }, 980, { hasSb: true });
   assert.equal(chorus.breaks, "encoded");
   assert.equal(chorus.adjustPageWidth, false);
   assert.ok(chorus.minLastJustification >= 0.8);
   assert.equal(chorus.header, "none");
   assert.equal(chorus.font, "Leipzig");
-  const cell = verovioOptions({ fillAxis: "width", barsPerLine: 2 }, 980);
+  const cell = verovioOptions({ fillAxis: "width", barsPerLine: 2 }, 980, { hasSb: false });
   assert.equal(cell.adjustPageWidth, true);
+  assert.equal(cell.breaks, "none");
 });
 
 test("index and gallery load Verovio instead of abcjs", async () => {
