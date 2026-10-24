@@ -398,6 +398,15 @@ export function afterRoundActions(stateOrGoal) {
   return actions;
 }
 
+/** 5-line staff height in CSS px (top line to bottom line) at 1024×1366. */
+export const STAFF_PX = 40;
+/** Slightly larger on a phone so two-bar lines stay readable. */
+export const STAFF_PX_NARROW = 46;
+/** Chord cap height as a fraction of staff height (~16–18px at STAFF_PX). */
+export const CHORD_CAP_RATIO = 0.42;
+/** Cue labels sit just under the lowest stem, in CSS px. */
+export const CUE_PX = 14;
+
 /** iPad Pro 12.9" portrait CSS px is 1024×1366. That is the primary lesson-1 target. */
 export function isStandPortrait(viewportWidth, viewportHeight) {
   return viewportWidth >= 900 && viewportWidth <= 1180 && viewportHeight >= 1200;
@@ -417,84 +426,75 @@ export function notationLayout({
   phraseBars,
 }) {
   const narrow = staffWidth < 520;
-  const stand = isStandPortrait(viewportWidth, viewportHeight);
-  const landscape = isStandLandscape(viewportWidth, viewportHeight);
-  const short = viewportHeight <= 860;
+  const staffPx = narrow ? STAFF_PX_NARROW : STAFF_PX;
+  const chordCssPx = Math.round(staffPx * CHORD_CAP_RATIO);
 
   if (showPhraseNotation) {
-    // Two-bar cells stay large and full-width. Three-to-five-bar Learn
-    // licks pack onto one system at iPad width instead of wrapping a
-    // leftover bar and stretching it.
+    // Same staff size as chorus/tune pages. Short 2–3 bar Learn cells stay
+    // at that size and take their natural width (centered), instead of
+    // scaling up to fill the card. Four- and five-bar phrases still pack
+    // onto one justified system.
     const requested = Number(phraseBars);
     const barsPerLine = narrow
       ? 2
       : Math.min(5, Math.max(2, Number.isFinite(requested) && requested > 0 ? requested : 2));
-    const longPhrase = barsPerLine >= 3;
+    const longPhrase = barsPerLine >= 4;
     return {
-      scale: stand ? (longPhrase ? 1.4 : 2.7) : landscape ? (longPhrase ? 1.2 : 1.85) : narrow ? 1.22 : 1.45,
-      paddingtop: stand ? 16 : 10,
-      paddingbottom: stand ? (longPhrase ? 36 : 24) : 14,
+      scale: 1,
+      paddingtop: 8,
+      paddingbottom: 16,
       wrap: null,
       flatbeams: true,
       stretchlast: false,
-      minPadding: longPhrase ? 6 : 5,
-      timeBasedLayout: { minPadding: longPhrase ? 9 : 7, align: "left" },
+      minPadding: 6,
+      timeBasedLayout: { minPadding: 9, align: "left" },
       barsPerLine,
-      chordfont: stand ? (longPhrase ? "Noto Sans 22" : "Noto Sans 30") : landscape ? "Noto Sans 20" : "Noto Sans 16",
-      annotationfont: stand ? "Source Sans 3 22" : "Source Sans 3 14",
-      annotationPx: stand ? 26 : landscape ? 18 : 15,
-      chordCssPx: stand ? (longPhrase ? 28 : 36) : landscape ? 24 : 16,
-      slashStroke: stand ? 3.4 : 2,
-      engravingRatio: stand ? (longPhrase ? 0.9 : 0.28) : landscape ? (longPhrase ? 0.8 : 0.48) : 1,
-      minEngravingRatio: stand ? (longPhrase ? 0.72 : 0.16) : 0.32,
-      fitToPaper: stand || landscape,
+      chordfont: "Noto Sans 16",
+      annotationfont: "Source Sans 3 13",
+      annotationPx: CUE_PX,
+      chordCssPx,
+      slashStroke: 2,
+      engravingRatio: 1,
+      minEngravingRatio: 1,
+      fitToPaper: false,
       fillAxis: "width",
-      staffsep: stand ? (longPhrase ? 96 : 70) : 55,
-      fillRatio: stand ? 0.58 : 0.9,
+      naturalWidth: !narrow && !longPhrase,
+      staffsep: 96,
+      fillRatio: 1,
+      minStaffPx: staffPx,
     };
   }
 
   // Keep bars intact at every viewport: 4 per line wherever the paper is
   // wide enough (8-bar chart → 2 systems). Phones drop to 2 bars per line.
-  // Never hand wrapping to abcjs — its wrap engine will split 4+3+1 at
-  // laptop widths (1280×720), dumping bar 8 onto a third system and mixing
-  // landing notes with slashes. Line breaks come only from ABC newlines.
-  // A leftover last system stays at proportional width (stretchlast off).
+  // Line breaks come from encoded <sb/> in MEI. A leftover last system
+  // stays at proportional width (Verovio minLastJustification).
   const barsPerLine = narrow ? 2 : 4;
 
   return {
-    scale: stand ? 1.12 : landscape ? 1.08 : short ? 0.9 : narrow ? 0.94 : 1.08,
-    paddingtop: stand ? 6 : landscape ? 8 : short ? 8 : 16,
-    paddingbottom: showEntranceCues
-      ? (stand ? 48 : landscape ? 40 : short ? 32 : 36)
-      : (stand ? 14 : 16),
+    scale: 1,
+    paddingtop: 8,
+    paddingbottom: showEntranceCues ? 28 : 14,
     wrap: null,
     flatbeams: true,
     stretchlast: false,
     minPadding: 5,
     timeBasedLayout: { minPadding: 7, align: "left" },
     barsPerLine,
-    // Four bars will not engrave narrower than ~450px, so width-only upscale
-    // caps the 5-line staff around 67px. After render we scaleX the chorus
-    // to hit minStaffPx. staffsep leaves a cue lane plus a line of chord
-    // clearance between systems.
-    engravingRatio: stand ? 0.5 : landscape ? 0.7 : 1,
-    minEngravingRatio: stand ? 0.48 : landscape ? 0.55 : 0.4,
-    chordfont: stand ? "Noto Sans 16" : landscape ? "Noto Sans 15" : "Noto Sans 15",
-    annotationfont: stand ? "Source Sans 3 13" : "Source Sans 3 12",
-    annotationPx: stand ? 22 : landscape ? 16 : 15,
-    chordCssPx: stand ? 26 : landscape ? 18 : 15,
-    slashStroke: stand ? 1.45 : 1.85,
+    engravingRatio: 1,
+    minEngravingRatio: 1,
+    chordfont: "Noto Sans 16",
+    annotationfont: "Source Sans 3 13",
+    annotationPx: CUE_PX,
+    chordCssPx,
+    slashStroke: 1.45,
     fitToPaper: false,
     fillAxis: "fit",
-    staffsep: showEntranceCues
-      ? (stand ? 140 : landscape ? 124 : 110)
-      : (stand ? 68 : landscape ? 58 : 52),
-    maxStaffsep: showEntranceCues
-      ? (stand ? 170 : 150)
-      : (stand ? 80 : 70),
-    fillRatio: stand ? 0.96 : landscape ? 0.9 : 0.92,
-    minStaffPx: stand ? 83 : landscape ? 64 : 0,
+    naturalWidth: false,
+    staffsep: showEntranceCues ? 160 : 96,
+    maxStaffsep: showEntranceCues ? 170 : 110,
+    fillRatio: 1,
+    minStaffPx: staffPx,
   };
 }
 
@@ -550,15 +550,11 @@ export function nextStaffsep(staffsep, renderedHeight, targetHeight, maxSep = 38
 }
 
 /**
- * Approximate 5-line staff height in CSS px after abcjs `responsive: "resize"`.
- * abcjs staffspace is 10 user units; four spaces → 40px at scale 1 before upscale.
+ * 5-line staff height in CSS px. Verovio uses one fixed scale (`minStaffPx`);
+ * we no longer upscale a narrower engraving to fill the paper.
  */
-export function estimatedStaffHeightCss(layout, containerWidth) {
-  const width = Math.max(1, containerWidth);
-  const engravingWidth = Math.max(1, width * (layout.engravingRatio ?? 1));
-  // `responsive: "resize"` sizes from viewBox width, not the abcjs scale option.
-  const natural = 40 * (width / engravingWidth);
-  return Math.max(natural, layout.minStaffPx ?? 0);
+export function estimatedStaffHeightCss(layout, _containerWidth) {
+  return layout.minStaffPx ?? STAFF_PX;
 }
 
 /**

@@ -178,7 +178,6 @@ function renderPanel(panel, paper) {
   return engraveMei(paper, meiForPanel(panel), {
     layout,
     width: paper.clientWidth || VIEWPORT.staffWidth,
-    fitChorus: layout.fillAxis === "fit",
   });
 }
 

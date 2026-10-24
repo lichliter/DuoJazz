@@ -24,6 +24,8 @@ import {
   chorusStaffFit,
   slashStrokeBox,
   slashFitsStaff,
+  STAFF_PX,
+  STAFF_PX_NARROW,
 } from "./lesson.js";
 
 const helpState = { ...defaultState(), support: "help" };
@@ -330,11 +332,13 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
+  assert.equal(stand.naturalWidth, false);
   assert.ok(stand.staffsep >= 120);
   assert.ok(stand.staffsep <= 180);
-  assert.equal(stand.minStaffPx, 83);
+  assert.equal(stand.minStaffPx, STAFF_PX);
   assert.ok(stand.fillRatio >= 0.7);
-  assert.ok(estimatedStaffHeightCss(stand, 980) >= 80);
+  const staffCss = estimatedStaffHeightCss(stand, 980);
+  assert.ok(staffCss >= 38 && staffCss <= 42, `staff ${staffCss}`);
   const landscape = notationLayout({
     staffWidth: 980,
     viewportWidth: 1366,
@@ -345,7 +349,8 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(landscape.barsPerLine, 4);
   assert.equal(landscape.wrap, null);
   assert.equal(landscape.fitToPaper, false);
-  assert.ok(landscape.scale >= 1.08);
+  assert.equal(landscape.minStaffPx, STAFF_PX);
+  assert.equal(landscape.scale, 1);
   const desktop = notationLayout({
     staffWidth: 760,
     viewportWidth: 1280,
@@ -364,7 +369,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   });
   assert.equal(narrow.barsPerLine, 2);
   assert.equal(narrow.wrap, null);
-  assert.ok(narrow.scale < 1);
+  assert.equal(narrow.minStaffPx, STAFF_PX_NARROW);
   assert.equal(narrow.fitToPaper, false);
 });
 
@@ -396,7 +401,7 @@ test("chorus layout keeps bars intact: 4 per line wherever width allows, never a
   }
 });
 
-test("focused two-bar cell fills width with a staff taller than 90px on iPad portrait", () => {
+test("focused two-bar cell keeps the same 38–42px staff and natural width", () => {
   const phrase = notationLayout({
     staffWidth: 980,
     viewportWidth: 1024,
@@ -406,10 +411,13 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
   });
   assert.equal(phrase.barsPerLine, 2);
   assert.equal(phrase.stretchlast, false);
-  assert.equal(phrase.fitToPaper, true);
+  assert.equal(phrase.fitToPaper, false);
   assert.equal(phrase.fillAxis, "width");
-  assert.ok(estimatedStaffHeightCss(phrase, 980) >= 90);
-  assert.ok(phrase.chordCssPx >= 28);
+  assert.equal(phrase.naturalWidth, true);
+  assert.equal(phrase.minStaffPx, STAFF_PX);
+  const staffCss = estimatedStaffHeightCss(phrase, 980);
+  assert.ok(staffCss >= 38 && staffCss <= 42, `phrase staff ${staffCss}`);
+  assert.ok(phrase.chordCssPx >= 16 && phrase.chordCssPx <= 18);
   const gts = notationLayout({
     staffWidth: 980,
     viewportWidth: 1024,
@@ -419,6 +427,8 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
     phraseBars: 3,
   });
   assert.equal(gts.barsPerLine, 3);
+  assert.equal(gts.naturalWidth, true);
+  assert.equal(gts.minStaffPx, STAFF_PX);
   assert.equal(gts.stretchlast, false);
   const five = notationLayout({
     staffWidth: 980,
@@ -429,6 +439,8 @@ test("focused two-bar cell fills width with a staff taller than 90px on iPad por
     phraseBars: 5,
   });
   assert.equal(five.barsPerLine, 5);
+  assert.equal(five.naturalWidth, false);
+  assert.equal(five.minStaffPx, STAFF_PX);
 });
 
 test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {

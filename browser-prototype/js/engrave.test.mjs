@@ -5,28 +5,59 @@ import {
   capCueText,
   compactChordSymbol,
   resetVerovioForTests,
+  staffCssFromPage,
+  STAFF_USER_UNITS,
   svgHasBowingMarks,
   verovioModuleIsReady,
   verovioOptions,
   whenVerovioReady,
 } from "./engrave.js";
+import { STAFF_PX } from "./lesson.js";
 
 test("Verovio options use encoded breaks and do not stretch leftover systems", () => {
   const chorus = verovioOptions({
     fillAxis: "fit",
     barsPerLine: 4,
-    minStaffPx: 83,
-    annotationPx: 22,
-    paddingbottom: 48,
+    minStaffPx: STAFF_PX,
+    annotationPx: 14,
+    paddingbottom: 28,
   }, 980, { hasSb: true });
   assert.equal(chorus.breaks, "encoded");
   assert.equal(chorus.adjustPageWidth, false);
   assert.ok(chorus.minLastJustification >= 0.8);
   assert.equal(chorus.header, "none");
   assert.equal(chorus.font, "Leipzig");
-  const cell = verovioOptions({ fillAxis: "width", barsPerLine: 2 }, 980, { hasSb: false });
+  const cell = verovioOptions({
+    fillAxis: "width",
+    barsPerLine: 2,
+    minStaffPx: STAFF_PX,
+    naturalWidth: true,
+  }, 980, { hasSb: false });
   assert.equal(cell.adjustPageWidth, true);
   assert.equal(cell.breaks, "none");
+});
+
+test("one fixed Verovio scale keeps a 38–42px staff and does not blow up short cells", () => {
+  const chorus = verovioOptions({
+    fillAxis: "fit",
+    barsPerLine: 4,
+    minStaffPx: STAFF_PX,
+  }, 980, { hasSb: true });
+  const cell = verovioOptions({
+    fillAxis: "width",
+    barsPerLine: 2,
+    minStaffPx: STAFF_PX,
+    naturalWidth: true,
+  }, 980, { hasSb: false });
+  const chorusStaff = staffCssFromPage(chorus.pageWidth, 980);
+  const cellStaff = staffCssFromPage(cell.pageWidth, 980);
+  assert.ok(chorusStaff >= 38 && chorusStaff <= 42, `chorus staff ${chorusStaff}`);
+  assert.ok(cellStaff >= 38 && cellStaff <= 42, `cell staff ${cellStaff}`);
+  assert.equal(chorus.scale, 100);
+  assert.equal(cell.scale, 100);
+  assert.equal(chorus.unit, 12);
+  assert.equal(STAFF_USER_UNITS, 96);
+  assert.ok(Math.abs(chorus.pageWidth - cell.pageWidth) < 2);
 });
 
 test("index and gallery load Verovio instead of abcjs", async () => {
@@ -92,6 +123,9 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
   assert.match(src, /separateChordSymbols\(svg\)/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
+  assert.match(src, /applyFixedStaffSize\(/);
+  assert.doesNotMatch(src, /chorusStaffFit\(/);
+  assert.doesNotMatch(src, /fitChorus/);
 });
 
 test("session paper re-renders once Verovio is ready", async () => {
@@ -106,14 +140,18 @@ test("cue cap helper and bowing detector still work without abcjs", () => {
   assert.equal(svgHasBowingMarks('artic="upbow"'), true);
 });
 
-test("Verovio options leave room for a cue lane under the staff", () => {
+test("Verovio options leave a tight cue lane under the staff", () => {
   const chorus = verovioOptions({
     fillAxis: "fit",
     barsPerLine: 4,
-    annotationPx: 22,
-    paddingbottom: 48,
+    minStaffPx: STAFF_PX,
+    annotationPx: 14,
+    paddingbottom: 28,
   }, 980, { hasSb: true });
-  assert.ok(chorus.pageMarginBottom >= 48);
-  assert.ok(chorus.lyricSize >= 2.9);
-  assert.ok(chorus.lyricSize <= 4.2);
+  assert.ok(chorus.pageMarginBottom >= 28);
+  assert.ok(chorus.pageMarginBottom <= 48);
+  assert.ok(chorus.spacingSystem >= 6);
+  assert.ok(chorus.spacingSystem <= 12);
+  assert.ok(chorus.lyricSize >= 2.0);
+  assert.ok(chorus.lyricSize <= 3.5);
 });
