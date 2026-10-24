@@ -577,6 +577,17 @@ test("BO and GTS Learn labels follow the I chord, not the cell tonic", () => {
   assert.doesNotMatch(boBb.learnBlurb, /F major/);
 });
 
+test("a two-chord bar places the second chord on beat 3", () => {
+  const chords = chorusChords(getKey("G"), "concert", "gts-learn");
+  assert.equal(chords[0].startBeat, 0);
+  assert.equal(chords[1].startBeat, 2);
+  const abc = phraseABC(getKey("G"), "concert", "gts-learn");
+  assert.match(abc, /"Bm7".+"E7"/);
+  const st = landingABC(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
+  assert.match(st, /"Cmaj7".+"F7"/);
+  assert.match(st, /C7\/E/);
+});
+
 test("GTS eighths beam in beat pairs across the half-bar chord change", () => {
   const abc = phraseABC(getKey("G"), "concert", "gts-learn");
   assert.match(abc, /A,, "E7"/);

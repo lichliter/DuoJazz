@@ -945,13 +945,6 @@ function stemForNotes(items, ctx) {
   return extreme < mid ? "u" : "v";
 }
 
-/** True when a beamed run would continue into this note (same beat, eighths or shorter). */
-function continuesBeam(prevEnd, nextStart, nextBeats) {
-  if (nextBeats > 0.5 + 1e-6) return false;
-  if (atBeatBoundary(nextStart) && Math.abs(nextStart - prevEnd) < 1e-6) return false;
-  return Math.abs(nextStart - prevEnd) < 1e-6;
-}
-
 function tokenDurationBeats(token) {
   const rest = token.match(/^[yzx](\d+)?/i);
   if (rest) return (rest[1] ? Number(rest[1]) : 1) * 0.5;
