@@ -787,6 +787,13 @@ function abcOctaveLetter(letter, octave) {
   return `${letter.toLowerCase()}${"'".repeat(octave - 5)}`;
 }
 
+/** Zero-duration ABC spacer glued to a written accidental so it does not touch the previous notehead. */
+export const ACCIDENTAL_SPACER = "y0";
+
+function withAccidentalSpacer(prefix, body) {
+  return prefix ? `${ACCIDENTAL_SPACER}${prefix}${body}` : body;
+}
+
 function abcNote(midi, shownKey, barState) {
   const pc = wrapPc(midi);
   const octave = Math.floor(midi / 12) - 1;
@@ -794,9 +801,10 @@ function abcNote(midi, shownKey, barState) {
   const name = pitchName(pc, usesFlats);
   const letter = name[0];
   const acc = accidentalValue(name);
+  const pitch = abcOctaveLetter(letter, octave);
   if (!barState) {
     const prefix = acc === 1 ? "^" : acc === -1 ? "_" : "";
-    return `${prefix}${abcOctaveLetter(letter, octave)}`;
+    return withAccidentalSpacer(prefix, pitch);
   }
   const sig = barState.sig?.[letter] ?? 0;
   const current = barState.written.has(letter) ? barState.written.get(letter) : sig;
@@ -805,7 +813,7 @@ function abcNote(midi, shownKey, barState) {
     prefix = acc === 1 ? "^" : acc === -1 ? "_" : "=";
     barState.written.set(letter, acc);
   }
-  return `${prefix}${abcOctaveLetter(letter, octave)}`;
+  return withAccidentalSpacer(prefix, pitch);
 }
 
 function abcDuration(beats) {
@@ -926,7 +934,8 @@ function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase
 export function abcHasBareBowing(abc) {
   const body = String(abc)
     .replace(/"[^"]*"/g, " ")
-    .replace(/![\w]+!/g, " ");
+    .replace(/![\w]+!/g, " ")
+    .replaceAll(ACCIDENTAL_SPACER, "");
   return /(^|[^A-Ga-g])[uv][.=_^]*[A-Ga-g]/.test(body);
 }
 
@@ -938,9 +947,10 @@ export function phraseMeasureCount(applicationId = DEFAULT_APPLICATION_ID) {
 }
 
 function tokenDurationBeats(token) {
-  const rest = token.match(/^[yzx](\d+)?/i);
+  const cleaned = String(token).replaceAll(ACCIDENTAL_SPACER, "");
+  const rest = cleaned.match(/^[yzx](\d+)?/i);
   if (rest) return (rest[1] ? Number(rest[1]) : 1) * 0.5;
-  const notes = token.match(/[uv]?[.=_^]*[A-Ga-g][,']*(?:\d+|\/\d+)?/g) ?? [];
+  const notes = cleaned.match(/[uv]?[.=_^]*[A-Ga-g][,']*(?:\d+|\/\d+)?/g) ?? [];
   if (!notes.length) return 0;
   let beats = 0;
   for (const note of notes) {
@@ -962,6 +972,7 @@ export function beamGroupsCrossBeat3(abc) {
     .join(" ")
     .replace(/"[^"]*"/g, " ")
     .replace(/![\w]+!/g, " ")
+    .replaceAll(ACCIDENTAL_SPACER, "")
     .replace(/yy/g, " ")
     .split("|");
   for (const raw of measures) {

@@ -44,6 +44,7 @@ import {
   beamGroupsCrossBeat3,
   abcHasBareBowing,
   phraseMeasureCount,
+  ACCIDENTAL_SPACER,
 } from "./music.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
@@ -595,6 +596,17 @@ test("GTS eighths beam in beat pairs across the half-bar chord change", () => {
   assert.match(abc, /A,, "E7"/);
   assert.equal(beamGroupsCrossBeat3(abc), false);
   const st = landingABC(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
+  assert.equal(beamGroupsCrossBeat3(st), false);
+});
+
+test("accidentals in dense eighth runs get a zero-duration spacer", () => {
+  const st = landingABC(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
+  assert.match(st, new RegExp(`${ACCIDENTAL_SPACER}\\^F,`));
+  assert.match(st, new RegExp(`${ACCIDENTAL_SPACER}=A,`));
+  assert.match(st, new RegExp(`${ACCIDENTAL_SPACER}\\^G,`));
+  const gts = phraseABC(getKey("Bb"), "concert", "gts-learn");
+  assert.match(gts, new RegExp(`${ACCIDENTAL_SPACER}=E,`));
+  assert.match(gts, new RegExp(`${ACCIDENTAL_SPACER}_A,`));
   assert.equal(beamGroupsCrossBeat3(st), false);
 });
 

@@ -5,7 +5,11 @@
 
 import { jazzChordRootParts } from "./music.js";
 import {
+  CUE_LANE_GAP,
+  accidentalMinGap,
   chorusStaffFit,
+  cueLaneY,
+  fullSystemScaleX,
   nextEngravingWidth,
   nextStaffsep,
   slashStrokeBox,
@@ -388,6 +392,12 @@ function addTranslateY(el, dy) {
   el.setAttribute("transform", `translate(0 ${dy})${prev ? ` ${prev}` : ""}`);
 }
 
+function addTranslateX(el, dx) {
+  if (!el || !Number.isFinite(dx) || Math.abs(dx) < 0.35) return;
+  const prev = el.getAttribute("transform") || "";
+  el.setAttribute("transform", `translate(${dx} 0)${prev ? ` ${prev}` : ""}`);
+}
+
 function engravingRoots(svg) {
   const fit = svg.querySelector("[data-staff-fit]");
   const host = fit ?? svg;
@@ -407,7 +417,7 @@ function expandViewBox(svg, extraBottom) {
 function systemLowestY(target, staffBox, line) {
   let bottom = staffBox.y + staffBox.height;
   const nodes = target.querySelectorAll(
-    ".abcjs-stem, .abcjs-beam, .abcjs-beam-elem, .abcjs-notehead, .abcjs-flag, .abcjs-rest",
+    ".abcjs-stem, .abcjs-beam, .abcjs-beam-elem, .abcjs-notehead, .abcjs-flag",
   );
   for (const el of nodes) {
     const elLine = lineIndex(el);
@@ -415,9 +425,11 @@ function systemLowestY(target, staffBox, line) {
     if (!box) continue;
     if (elLine != null && line != null && String(elLine) !== String(line)) continue;
     if (elLine == null) {
-      if (box.y > staffBox.y + staffBox.height + 48) continue;
+      if (box.y > staffBox.y + staffBox.height + 36) continue;
       if (box.y + box.height < staffBox.y - 24) continue;
     }
+    // Ignore huge spacer/rest leftovers that would detach the cue lane.
+    if (box.height > staffBox.height * 2.4) continue;
     bottom = Math.max(bottom, box.y + box.height);
   }
   return bottom;
@@ -459,7 +471,7 @@ function ensureSystemGap(target, layout = {}) {
   const svg = target.querySelector("svg");
   const staffs = [...target.querySelectorAll(".abcjs-staff")];
   if (!svg || staffs.length < 2) return;
-  const lineHeight = Math.max(16, layout.annotationPx ?? 18);
+  const needed = Math.max(12, (layout.annotationPx ?? 18) * 0.55);
   const systems = staffs
     .map((staff, index) => ({
       staff,
@@ -473,12 +485,12 @@ function ensureSystemGap(target, layout = {}) {
     const prev = systems[i - 1];
     const cur = systems[i];
     const laneBottom = cueBottom(target, prev.line)
-      ?? systemLowestY(target, prev.box, prev.line);
+      ?? cueLaneY(prev.box, systemLowestY(target, prev.box, prev.line));
     const chordTop = systemChordTop(target, cur.line, cur.box);
     const gap = chordTop - laneBottom;
-    const missing = lineHeight - gap;
+    const missing = needed - gap;
     if (missing <= 1) continue;
-    shiftElementsFrom(svg, cur.box.y - 40, missing);
+    shiftElementsFrom(svg, cur.box.y - 24, missing);
     extra += missing;
     cur.box = elementBox(cur.staff) ?? cur.box;
   }
@@ -526,6 +538,7 @@ function layoutCueLane(target, layout = {}) {
     const barWidth = staffBox.width / Math.max(1, measureCount);
     if (!Number.isFinite(barWidth) || barWidth < 8) continue;
     const low = systemLowestY(target, staffBox, line);
+    const laneY = cueLaneY(staffBox, low, CUE_LANE_GAP);
     const cueBoxes = list
       .map((item) => ({ ...item, box: elementBox(item.cue) }))
       .filter((item) => item.box)
@@ -534,7 +547,7 @@ function layoutCueLane(target, layout = {}) {
         const bm = b.measure == null ? b.box.x : Number(b.measure);
         return am - bm;
       });
-    let baseline = low + 14;
+    let baseline = laneY;
     for (let i = 0; i < cueBoxes.length; i += 1) {
       const item = cueBoxes[i];
       const measure = item.measure != null ? Number(item.measure) : Math.max(
@@ -558,13 +571,13 @@ function layoutCueLane(target, layout = {}) {
       item.cue.setAttribute("dominant-baseline", "hanging");
       item.cue.setAttribute("text-anchor", "start");
       item.cue.setAttribute("x", String(barLeft));
-      item.cue.setAttribute("y", String(low + 8));
+      item.cue.setAttribute("y", String(laneY));
       const placed = elementBox(item.cue);
-      if (placed && placed.y < low + 4) {
-        item.cue.setAttribute("y", String(Number(item.cue.getAttribute("y")) + (low + 4 - placed.y)));
+      if (placed && placed.y < low + 2) {
+        item.cue.setAttribute("y", String(Number(item.cue.getAttribute("y")) + (low + 2 - placed.y)));
       }
       const after = elementBox(item.cue);
-      if (after) baseline = Math.max(baseline, after.y);
+      if (after) baseline = Math.max(baseline, Number(item.cue.getAttribute("y")) || laneY);
       const next = capCueText(item.cue.textContent ?? "", available, cueFontPx);
       if (next !== item.cue.textContent) {
         const tspan = item.cue.querySelector("tspan") ?? item.cue;
@@ -589,7 +602,7 @@ function layoutCueLane(target, layout = {}) {
       }
     }
     for (const item of cueBoxes) {
-      item.cue.setAttribute("y", String(Math.max(low + 8, baseline)));
+      item.cue.setAttribute("y", String(Math.max(laneY, baseline)));
     }
   }
   ensureCuesInView(svg, cues);
@@ -626,7 +639,140 @@ function placeArticulations(target) {
   }
 }
 
+function systemMeasureCount(target, line) {
+  const measures = new Set();
+  for (const el of target.querySelectorAll("[class]")) {
+    if (String(lineIndex(el) ?? "") !== String(line)) continue;
+    const measure = measureIndex(el);
+    if (measure != null) measures.add(measure);
+  }
+  return measures.size;
+}
+
+function systemWrapper(svg, line) {
+  return svg.querySelector(`.abcjs-staff-wrapper.abcjs-l${line}`)
+    ?? svg.querySelector(`.abcjs-staff.abcjs-l${line}`)?.parentElement
+    ?? null;
+}
+
+function scaleSystemX(svg, line, anchor, scaleX) {
+  const wrapper = systemWrapper(svg, line);
+  if (!wrapper || wrapper.getAttribute("data-system-justify") != null) return;
+  const prev = wrapper.getAttribute("transform") || "";
+  wrapper.setAttribute("data-system-justify", String(line));
+  wrapper.setAttribute(
+    "transform",
+    `translate(${anchor} 0) scale(${scaleX} 1) translate(${-anchor} 0)${prev ? ` ${prev}` : ""}`,
+  );
+}
+
+export function justifyFullSystems(target, layout = {}) {
+  const svg = target.querySelector("svg");
+  if (!svg || svg.querySelector("[data-system-justify]")) return;
+  const vb = svg.viewBox?.baseVal;
+  if (!vb?.width) return;
+  const barsPerLine = barsPerLineCount(layout);
+  const padRight = layout.paddingright ?? 16;
+  const staffwidth = Math.max(80, layout.staffwidth ?? vb.width);
+  const targetRight = Math.max(80, staffwidth - padRight);
+  const staffs = [...target.querySelectorAll(".abcjs-staff")];
+  const systems = staffs
+    .map((staff, index) => {
+      const line = lineIndex(staff) ?? String(index);
+      const box = elementBox(staff);
+      if (!box) return null;
+      return {
+        line,
+        box,
+        measures: systemMeasureCount(target, line),
+        right: box.x + box.width,
+      };
+    })
+    .filter(Boolean);
+  for (const sys of systems) {
+    const isFull = sys.measures >= barsPerLine || (systems.length === 1 && barsPerLine >= 3);
+    let goal = sys.right;
+    if (sys.right > targetRight + 1) goal = targetRight;
+    else if (isFull && sys.right < targetRight - 1) goal = targetRight;
+    else continue;
+    const scaleX = fullSystemScaleX(sys.box.x, sys.right, goal);
+    if (Math.abs(scaleX - 1) < 0.012) continue;
+    scaleSystemX(svg, sys.line, sys.box.x, scaleX);
+  }
+  if (vb.width > staffwidth + 1) {
+    lockSvgViewWidth(svg, staffwidth);
+  }
+}
+
+function lockSvgViewWidth(svg, staffwidth) {
+  const vb = svg.viewBox?.baseVal;
+  if (!vb?.width || !(staffwidth > 80)) return;
+  svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${staffwidth} ${vb.height}`);
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
+  const wrap = svg.closest(".paper-wrap") ?? svg.parentElement;
+  const paperW = wrap?.clientWidth || svg.parentElement?.clientWidth || staffwidth;
+  const displayHeight = Math.round(paperW * vb.height / staffwidth);
+  svg.style.setProperty("width", "100%", "important");
+  svg.style.setProperty("height", `${displayHeight}px`, "important");
+  const container = svg.parentElement;
+  if (container) {
+    container.style.setProperty("height", `${displayHeight}px`, "important");
+    container.style.setProperty("overflow", "visible");
+    container.style.position = "relative";
+  }
+}
+
+function accidentalGlyph(note) {
+  const marked = note.querySelector(".abcjs-accidental");
+  if (marked) return marked;
+  const head = note.querySelector(".abcjs-notehead");
+  const headBox = elementBox(head);
+  if (!headBox) return null;
+  return [...note.querySelectorAll("path")].find((el) => {
+    if (el.classList.contains("abcjs-notehead") || el.classList.contains("abcjs-stem")) return false;
+    const box = elementBox(el);
+    return Boolean(box && box.x + box.width * 0.5 < headBox.x);
+  }) ?? null;
+}
+
+export function padAccidentals(target, layout = {}) {
+  const staffBox = elementBox(target.querySelector(".abcjs-staff"));
+  const gap = accidentalMinGap(staffBox?.height ?? layout.minStaffPx ?? 20);
+  const byLine = new Map();
+  for (const note of target.querySelectorAll(".abcjs-note")) {
+    const line = lineIndex(note) ?? "0";
+    const list = byLine.get(line) ?? [];
+    list.push(note);
+    byLine.set(line, list);
+  }
+  for (const list of byLine.values()) {
+    const notes = list
+      .map((note) => ({
+        note,
+        box: elementBox(note),
+        head: note.querySelector(".abcjs-notehead"),
+        acc: accidentalGlyph(note),
+      }))
+      .filter((item) => item.box)
+      .sort((a, b) => a.box.x - b.box.x);
+    let carry = 0;
+    for (let i = 0; i < notes.length; i += 1) {
+      if (carry) addTranslateX(notes[i].note, carry);
+      if (!notes[i].acc || i === 0) continue;
+      const accBox = elementBox(notes[i].acc);
+      const prevBox = notes[i - 1].head ? elementBox(notes[i - 1].head) : notes[i - 1].box;
+      if (!accBox || !prevBox) continue;
+      const overlap = prevBox.x + prevBox.width + gap - accBox.x;
+      if (overlap <= 0.5 || overlap > 14) continue;
+      addTranslateX(notes[i].note, overlap);
+      carry += overlap;
+    }
+  }
+}
+
 function polishEngraving(target, layout = {}) {
+  restyleAnnotations(target, layout);
   normalizeSlashChords(target);
   placeArticulations(target);
   alignChordBaseline(target);
@@ -687,20 +833,21 @@ export function abcRenderOptions(layout, staffwidth, scale) {
     scale,
     responsive: "resize",
     stretchlast: layout.stretchlast ?? false,
-    expandToWidest: layout.expandToWidest ?? true,
+    expandToWidest: layout.expandToWidest ?? false,
     jazzchords: layout.jazzchords ?? true,
     maxshrink: layout.maxshrink ?? 0.8,
-    minPadding: layout.minPadding ?? 5,
+    minPadding: layout.minPadding ?? 6,
     format: { ...format, maxshrink: layout.maxshrink ?? 0.8, stretchlast: layout.stretchlast ?? 0 },
     wrap: layout.wrap ? { ...layout.wrap, staffwidth: width } : undefined,
   };
   if (layout.paddingleft != null) options.paddingleft = layout.paddingleft;
   if (layout.timeBasedLayout) {
-    options.timeBasedLayout = {
-      minPadding: layout.timeBasedLayout.minPadding ?? layout.minPadding ?? 7,
+    const tbl = {
+      minPadding: layout.timeBasedLayout.minPadding ?? layout.minPadding ?? 8,
       align: layout.timeBasedLayout.align ?? "left",
-      minWidth: layout.timeBasedLayout.minWidth ?? width,
     };
+    if (layout.timeBasedLayout.minWidth != null) tbl.minWidth = layout.timeBasedLayout.minWidth;
+    options.timeBasedLayout = tbl;
   }
   return options;
 }
@@ -785,6 +932,8 @@ export function engraveAbc(target, abc, options = {}) {
   } else {
     restyleAnnotations(target, fitted.layout);
   }
+  padAccidentals(target, fitted.layout);
+  justifyFullSystems(target, fitted.layout);
   polishEngraving(target, fitted.layout);
   const svg = target.querySelector("svg");
   if (svg && (options.fitChorus || layout.fillAxis === "fit")) fitChorusStaffSvg(target, svg, fitted.layout);
