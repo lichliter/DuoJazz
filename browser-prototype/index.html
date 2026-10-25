@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=92">
-  <link rel="stylesheet" href="./css/styles.css?v=92">
-  <link rel="stylesheet" href="./css/hig.css?v=92">
+  <link rel="stylesheet" href="./css/tokens.css?v=93">
+  <link rel="stylesheet" href="./css/styles.css?v=93">
+  <link rel="stylesheet" href="./css/hig.css?v=93">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=92" defer></script>
-  <script type="module" src="./js/app.js?v=92"></script>
+  <script src="./js/verovio-bind.js?v=93" defer></script>
+  <script type="module" src="./js/app.js?v=93"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -25,17 +25,15 @@
       </div>
       <div class="masthead-actions">
         <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view">Modules</button>
-        <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Settings</button>
       </div>
     </header>
 
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
         <div class="home-settings">
-          <button type="button" class="settings-summary" id="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings">
-            <span id="settings-summary">Original key · 96 bpm · 1-bar count-in · Swing on</span>
+          <button type="button" class="settings-summary" id="settings-summary-btn" data-testid="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings">
+            <span id="settings-summary">Piano · 96 bpm · 1-bar</span>
           </button>
-          <button type="button" class="quiet" id="home-settings-btn" data-testid="home-settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
         </div>
         <section class="lesson-path" aria-label="Lesson path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -159,6 +157,11 @@
       </header>
 
       <section class="inset-group">
+        <h3 class="group-label" id="instrument-label">Instrument</h3>
+        <div id="instrument-list" role="radiogroup" aria-labelledby="instrument-label"></div>
+      </section>
+
+      <section class="inset-group">
         <h3 class="group-label" id="key-mode-label">Keys</h3>
         <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
         <div class="group-row">
@@ -193,21 +196,6 @@
       <section class="inset-group">
         <h3 class="group-label" id="card-set-label">Cards</h3>
         <div class="row wrap" id="card-sets" role="group" aria-labelledby="card-set-label"></div>
-      </section>
-
-      <section class="inset-group">
-        <h3 class="group-label">Notation</h3>
-        <fieldset>
-          <legend>Clef</legend>
-          <label><input type="radio" name="clef" value="bass" checked> Bass (concert trombone, default)</label>
-          <label><input type="radio" name="clef" value="treble"> Treble (concert)</label>
-        </fieldset>
-        <fieldset>
-          <legend>Note names</legend>
-          <label><input type="radio" name="displayMode" value="concert" checked> Concert pitch</label>
-          <label><input type="radio" name="displayMode" value="bb-written"> B♭ written (audio stays concert)</label>
-        </fieldset>
-        <p class="help" id="display-banner"></p>
       </section>
 
       <details class="about-block">

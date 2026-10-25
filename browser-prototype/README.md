@@ -20,7 +20,7 @@ Deep links for screenshots and review:
 - `/?screen=home&demo=medal`
 - `/?screen=session&lesson=learn-lick&card=play&mic=denied`
 
-Dev-only backing A/B (not linked from the app): `sound.html`. Live Learn / Play / memory / tune pages use New-simple sampled piano, bass, and ride kit, with the old synth as fallback.
+Dev-only backing A/B (not linked from the app): `sound.html`. Live Learn / Play / memory / tune pages use New-simple sampled piano, bass, and ride kit for backing, plus the selected instrument for the demo line, with synth fallback.
 
 ## Music
 
@@ -47,7 +47,7 @@ The module is the Cry Me a River cell. Module home is a Duolingo-style winding p
 
 A setup sheet remembers choices per lesson: one key / cycle 4ths / chromatic / random, start key, all cards or Listen + Quiz, tempo, and melody octave. The session is full screen: Learn → Play → Listen → Quiz, then a wrap-up per key.
 
-Melody octave (−1 / Original / +1) still moves only the model line and displayed phrase. Default notation is **concert bass clef**. Continue without a take on Play, Listen, or Quiz is **Skipped**, never a 0% pass. Pitch observations reset at the start of every card and every take.
+Melody octave (−1 / Original / +1) still moves only the model line and displayed phrase. One **Instrument** setting (default Piano) sets clef, written transposition, register, and demo samples. Continue without a take on Play, Listen, or Quiz is **Skipped**, never a 0% pass. Pitch observations reset at the start of every card and every take.
 
 Play, Listen, and Quiz cards are graded from the microphone (YIN in an AudioWorklet) on pitch (±50 cents) and onset timing. Learn is not graded. A key is mastered when Quiz is passed in Learn the lick and in at least one integration lesson. Bronze / Silver / Gold at 1 / 6 / 12 keys. Progress is monotonic in localStorage.
 

@@ -87,6 +87,7 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /class="play-round"/);
   assert.match(index, /class="session-bottom"/);
   assert.match(index, /id="settings-summary"/);
+  assert.match(index, /id="instrument-list"/);
   assert.match(index, /id="session-title"/);
   assert.match(index, /class="sheet-done"/);
   assert.match(index, /class="session-stage"/);
@@ -100,6 +101,10 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /class="headphones-tip"/);
   assert.doesNotMatch(index, /class="session-spacer"/);
   assert.doesNotMatch(index, /Your tunes/);
+  assert.doesNotMatch(index, /id="home-settings-btn"/);
+  assert.doesNotMatch(index, /id="display-chip"/);
+  assert.doesNotMatch(index, /name="clef"/);
+  assert.doesNotMatch(index, /name="displayMode"/);
 });
 
 test("tokens restore the warm palette and keep the iOS type scale", async () => {
@@ -120,6 +125,9 @@ test("tokens restore the warm palette and keep the iOS type scale", async () => 
   assert.match(hig, /line-clamp:\s*2/);
   assert.match(hig, /margin-top:\s*var\(--space-6\)/);
   assert.match(hig, /\.module-sheet-row/);
+  assert.match(hig, /\.session-stage \{[\s\S]*?margin-block:\s*0/);
+  assert.doesNotMatch(hig, /\.session-stage \{[\s\S]*?margin-block:\s*auto/);
+  assert.doesNotMatch(hig, /#home-settings-btn/);
   assert.doesNotMatch(hig, /#quick-view-btn,\s*\.quick-view-fab \{\s*display:\s*none/);
 });
 

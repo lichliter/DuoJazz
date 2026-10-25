@@ -252,7 +252,7 @@ test("grading treats a tie as one note and still grades a pickup", () => {
   const boExpected = expectedNotesFor(bo);
   assert.ok(boExpected[0].startBeat < 0);
   assert.equal(boExpected[0].bar, 1);
-  const boNotes = phraseNotes(getKey("F"), "concert", "bo-honeysuckle");
+  const boNotes = phraseNotes(getKey("F"), bo.displayMode, "bo-honeysuckle");
   assert.deepEqual(boExpected.map((note) => note.midi), boNotes.map((note) => note.concertMidi));
   const boPass = gradeSession(bo, synthTrack(boExpected));
   assert.equal(boPass.passed, true);

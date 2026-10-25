@@ -631,8 +631,9 @@ test("abandoning a session marks unfinished graded cards Skipped", () => {
 });
 
 test("global settings summary and lesson-1 labels", () => {
-  assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "All 12 keys · 140 bpm · 1-bar count-in · Swing on");
-  assert.equal(settingsSummary(defaultPrefs()), "Original key · 96 bpm · 1-bar count-in · Swing on");
+  assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "Piano · 140 bpm · 1-bar");
+  assert.equal(settingsSummary(defaultPrefs()), "Piano · 96 bpm · 1-bar");
+  assert.equal(settingsSummary({ instrumentId: "trumpet", tempo: 96 }), "Trumpet · 96 bpm · 1-bar");
   assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
   assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");

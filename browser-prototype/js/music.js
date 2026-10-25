@@ -27,6 +27,10 @@ import {
   REGISTER_FLOOR_MIDI,
   REGISTER_CEIL_MIDI,
 } from "./registry.js";
+import {
+  instrumentFromDisplay,
+  writtenSemitones,
+} from "./instruments.js";
 
 export {
   ALL_APPLICATIONS,
@@ -304,14 +308,16 @@ export function majorSpelling(key) {
   };
 }
 
-export function writtenKeyFromConcert(concertKey) {
-  const writtenPc = wrapPc(concertKey.pc + 2);
+export function writtenKeyFromConcert(concertKey, semitones = 2) {
+  const amount = typeof semitones === "number" ? semitones : writtenSemitones(semitones);
+  const writtenPc = wrapPc(concertKey.pc + amount);
   const match = KEYS.find((key) => key.pc === writtenPc && key.usesFlats === concertKey.usesFlats);
   return match ?? KEYS.find((key) => key.pc === writtenPc) ?? concertKey;
 }
 
 export function displayKey(concertKey, displayMode, quality = "minor") {
-  const raw = displayMode === "bb-written" ? writtenKeyFromConcert(concertKey) : concertKey;
+  const shift = writtenSemitones(displayMode);
+  const raw = shift ? writtenKeyFromConcert(concertKey, shift) : concertKey;
   return quality === "major" ? majorSpelling(raw) : minorSpelling(raw);
 }
 
@@ -319,13 +325,17 @@ export function chordRootPc(concertTonicPc, intervalFromTonic) {
   return wrapPc(concertTonicPc + intervalFromTonic);
 }
 
+function shownPc(concertPc, displayMode) {
+  return wrapPc(concertPc + writtenSemitones(displayMode));
+}
+
 export function chordDisplayName(concertTonic, intervalFromTonic, quality, displayMode) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
-  const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
+  const shown = shownPc(concertRoot, displayMode);
   const shownKey = displayKey(concertTonic, displayMode, "minor");
   const usesFlats = displayKey(concertTonic, displayMode, applicationKeyQualityFromTonic(concertTonic)).usesFlats
     ?? shownKey.usesFlats;
-  return `${pitchName(shownPc, usesFlats)}${QUALITY_ASCII[quality] ?? QUALITY_ASCII.dominant7}`;
+  return `${pitchName(shown, usesFlats)}${QUALITY_ASCII[quality] ?? QUALITY_ASCII.dominant7}`;
 }
 
 function applicationKeyQualityFromTonic() {
@@ -344,9 +354,17 @@ export function midiForInterval(concertTonicPc, interval, octaveOffset = PHRASE_
   return 60 + concertTonicPc + interval + octaveOffset * 12;
 }
 
-function octaveFitScore(min, max, oct, preferred) {
-  const below = Math.max(0, REGISTER_FLOOR_MIDI - min);
-  const above = Math.max(0, max - REGISTER_CEIL_MIDI);
+export function registerWindow(displayMode) {
+  const instrument = instrumentFromDisplay(displayMode);
+  if (instrument && Number.isFinite(instrument.rangeLow) && Number.isFinite(instrument.rangeHigh)) {
+    return { floor: instrument.rangeLow, ceil: instrument.rangeHigh };
+  }
+  return { floor: REGISTER_FLOOR_MIDI, ceil: REGISTER_CEIL_MIDI };
+}
+
+function octaveFitScore(min, max, oct, preferred, floor = REGISTER_FLOOR_MIDI, ceil = REGISTER_CEIL_MIDI) {
+  const below = Math.max(0, floor - min);
+  const above = Math.max(0, max - ceil);
   // Keep the C3 floor when the span cannot also fit under Bb4.
   return below * 100 + above * 8 + Math.abs(oct - preferred) * 0.25;
 }
@@ -355,13 +373,14 @@ function candidateOctaves(preferred) {
   return [preferred - 2, preferred - 1, preferred, preferred + 1, preferred + 2];
 }
 
-function bestOctaveForNotes(notes, tonicPc, preferred) {
+function bestOctaveForNotes(notes, tonicPc, preferred, displayMode) {
   if (!notes.length) return preferred;
+  const { floor, ceil } = registerWindow(displayMode);
   let best = preferred;
   let bestScore = Infinity;
   for (const oct of candidateOctaves(preferred)) {
     const midis = notes.map((note) => midiForInterval(tonicPc, note.interval, oct));
-    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, preferred);
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, preferred, floor, ceil);
     if (score < bestScore) {
       bestScore = score;
       best = oct;
@@ -370,27 +389,27 @@ function bestOctaveForNotes(notes, tonicPc, preferred) {
   return best;
 }
 
-export function lickOctaveForKey(lick, keyPc) {
-  return bestOctaveForNotes(lickNoteElements(lick), keyPc, lick.octave);
+export function lickOctaveForKey(lick, keyPc, displayMode) {
+  return bestOctaveForNotes(lickNoteElements(lick), keyPc, lick.octave, displayMode);
 }
 
-export function octaveForSpot(lick, concertTonicPc, spot, elements) {
+export function octaveForSpot(lick, concertTonicPc, spot, elements, displayMode) {
   const notes = (elements ?? lick.elements).filter((el) => el.type === "note");
   const tonic = wrapPc(concertTonicPc + (spot.anchorInterval ?? 0));
-  return bestOctaveForNotes(notes, tonic, lick.octave);
+  return bestOctaveForNotes(notes, tonic, lick.octave, displayMode);
 }
 
-export function spotOctavesFor(applicationId, concertTonicPc) {
+export function spotOctavesFor(applicationId, concertTonicPc, displayMode) {
   const app = applicationById(applicationId);
   const spots = spotsFor(applicationId);
   return spots.map((spot, index) => {
     const lick = lickById(spot.lickId ?? app.lickId);
     const { elements } = elementsForSpot(app, spot, spots[index + 1]);
-    return octaveForSpot(lick, concertTonicPc, spot, elements);
+    return octaveForSpot(lick, concertTonicPc, spot, elements, displayMode);
   });
 }
 
-export function octaveForApplication(applicationId, concertTonicPc) {
+export function octaveForApplication(applicationId, concertTonicPc, displayMode) {
   const app = applicationById(applicationId);
   const lick = lickForApplication(applicationId);
   const spots = spotsFor(applicationId);
@@ -403,11 +422,12 @@ export function octaveForApplication(applicationId, concertTonicPc) {
     }
   });
   if (!notes.length) return lick.octave;
+  const { floor, ceil } = registerWindow(displayMode);
   let best = lick.octave;
   let bestScore = Infinity;
   for (const oct of candidateOctaves(lick.octave)) {
     const midis = notes.map((note) => midiForInterval(note.tonic, note.interval, oct));
-    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave, floor, ceil);
     if (score < bestScore) {
       bestScore = score;
       best = oct;
@@ -426,7 +446,7 @@ export function melodyMidiForInterval(
 }
 
 export function concertMidiToWritten(midi, displayMode) {
-  return displayMode === "bb-written" ? midi + 2 : midi;
+  return midi + writtenSemitones(displayMode);
 }
 
 export function spellMidi(midi, usesFlats) {
@@ -507,8 +527,8 @@ export function eventMelodyMidi(concertKey, event, melodyRegister, octaveBase) {
   );
 }
 
-export function withSpotOctaves(items, applicationId, concertTonicPc) {
-  const octaves = spotOctavesFor(applicationId, concertTonicPc);
+export function withSpotOctaves(items, applicationId, concertTonicPc, displayMode) {
+  const octaves = spotOctavesFor(applicationId, concertTonicPc, displayMode);
   return items.map((item) => ({
     ...item,
     octaveBase: octaves[item.spotIndex ?? 0] ?? octaves[0],
@@ -535,9 +555,9 @@ export function phraseNotes(
   const quality = applicationKeyQuality(applicationId);
   const shownKey = displayKey(concertKey, displayMode, quality);
   const concertSpell = quality === "major" ? majorSpelling(concertKey) : minorSpelling(concertKey);
-  const octaveBase = octaveForApplication(applicationId, concertKey.pc);
+  const octaveBase = octaveForApplication(applicationId, concertKey.pc, displayMode);
   const chords = learnChords(concertKey, displayMode, applicationId);
-  return withSpotOctaves(phraseEvents(applicationId), applicationId, concertKey.pc).map((event, index) => {
+  return withSpotOctaves(phraseEvents(applicationId), applicationId, concertKey.pc, displayMode).map((event, index) => {
     const concertMidi = eventMelodyMidi(concertKey, event, melodyRegister, octaveBase);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     const chord = chordAtEventBeat(chords, event.beat);
@@ -569,9 +589,7 @@ function materializeChord(concertKey, displayMode, spec, startBeat, quality) {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const flats = spec.usesFlats ?? shownKey.usesFlats;
   const name = `${pitchName(
-    displayMode === "bb-written"
-      ? wrapPc(chordRootPc(concertKey.pc, spec.intervalFromTonic) + 2)
-      : chordRootPc(concertKey.pc, spec.intervalFromTonic),
+    shownPc(chordRootPc(concertKey.pc, spec.intervalFromTonic), displayMode),
     flats,
   )}${QUALITY_ASCII[spec.quality] ?? ""}${slashBassName(concertKey, spec, displayMode, { ...shownKey, usesFlats: flats })}`;
   return {
@@ -645,8 +663,8 @@ export function cellTonicSpelling(concertKey, displayMode, applicationId = DEFAU
   const quality = applicationKeyQuality(applicationId);
   const shownKey = displayKey(concertKey, displayMode, quality);
   const concertPc = wrapPc(concertKey.pc + app.cellTonicInterval);
-  const shownPc = displayMode === "bb-written" ? wrapPc(concertPc + 2) : concertPc;
-  const name = pitchName(shownPc, shownKey.usesFlats);
+  const shown = shownPc(concertPc, displayMode);
+  const name = pitchName(shown, shownKey.usesFlats);
   if (quality === "major") {
     return { name, minorName: `${name} major`, shortName: name, quality };
   }
@@ -870,16 +888,15 @@ export function jazzChordRootParts(text) {
 function slashBassName(concertTonic, spec, displayMode, shownKey) {
   if (spec?.slashIntervalFromTonic == null) return "";
   const concertPc = chordRootPc(concertTonic.pc, spec.slashIntervalFromTonic);
-  const shownPc = displayMode === "bb-written" ? wrapPc(concertPc + 2) : concertPc;
-  return `/${pitchName(shownPc, shownKey.usesFlats)}`;
+  return `/${pitchName(shownPc(concertPc, displayMode), shownKey.usesFlats)}`;
 }
 
 export function chordSymbolName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
-  const shownPc = displayMode === "bb-written" ? wrapPc(concertRoot + 2) : concertRoot;
+  const shown = shownPc(concertRoot, displayMode);
   const shownKey = displayKey(concertTonic, displayMode, keyQuality);
   const flats = forceFlats ?? shownKey.usesFlats;
-  const root = pitchName(shownPc, flats);
+  const root = pitchName(shown, flats);
   const slash = slashBassName(concertTonic, { slashIntervalFromTonic }, displayMode, { ...shownKey, usesFlats: flats });
   return `${root}${QUALITY_ABC[quality] ?? ""}${slash}`;
 }
@@ -1119,7 +1136,7 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister, cle
     applicationId,
     melodyRegister,
     clef,
-    octaveBase: octaveForApplication(applicationId, concertKey.pc),
+    octaveBase: octaveForApplication(applicationId, concertKey.pc, displayMode),
     quality,
     shownKey,
     barState: newBarState(shownKey),
@@ -1379,10 +1396,10 @@ export function scheduleChorus({
   const form = isolated ? learnChords(concertKey, displayMode, applicationId) : chorusChords(concertKey, displayMode, applicationId);
   const phraseStart = isolated ? 0 : phraseStartBeat(applicationId);
   const cuesOn = includeCue ?? false;
-  const octaveBase = octaveForApplication(applicationId, concertKey.pc);
+  const octaveBase = octaveForApplication(applicationId, concertKey.pc, displayMode);
   const melodySource = isolated || modelScope === "phrase"
-    ? withSpotOctaves(phraseEvents(applicationId, isolated), applicationId, concertKey.pc)
-    : withSpotOctaves(modelSolo(applicationId), applicationId, concertKey.pc);
+    ? withSpotOctaves(phraseEvents(applicationId, isolated), applicationId, concertKey.pc, displayMode)
+    : withSpotOctaves(modelSolo(applicationId), applicationId, concertKey.pc, displayMode);
 
   for (const chord of form) {
     if (chord.startBeat >= 0 && chord.startBeat < length) {
