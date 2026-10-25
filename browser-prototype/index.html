@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=82">
-  <link rel="stylesheet" href="./css/styles.css?v=82">
-  <link rel="stylesheet" href="./css/hig.css?v=82">
+  <link rel="stylesheet" href="./css/tokens.css?v=85">
+  <link rel="stylesheet" href="./css/styles.css?v=85">
+  <link rel="stylesheet" href="./css/hig.css?v=85">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=82" defer></script>
-  <script type="module" src="./js/app.js?v=82"></script>
+  <script src="./js/verovio-bind.js?v=85" defer></script>
+  <script type="module" src="./js/app.js?v=85"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -43,9 +43,11 @@
         <header class="session-top">
           <button type="button" class="icon-btn" id="session-exit" aria-label="Close">×</button>
           <h1 class="session-title" id="session-title">Lesson</h1>
-          <p class="session-meta" id="session-key">G minor</p>
-          <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
-          <button type="button" class="toolbar-btn session-jump" id="session-quick-view" data-testid="session-quick-view" aria-haspopup="dialog" aria-controls="quick-view">Jump</button>
+          <div class="session-end">
+            <p class="session-meta" id="session-key">G minor</p>
+            <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
+            <button type="button" class="toolbar-btn session-jump" id="session-quick-view" data-testid="session-quick-view" aria-haspopup="dialog" aria-controls="quick-view">Jump</button>
+          </div>
         </header>
         <div class="session-body">
           <h2 class="session-step" id="card-badge">Hear it</h2>

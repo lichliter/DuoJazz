@@ -85,12 +85,30 @@ html:has(.app-shell[data-screen="home"]) body,
   margin: 0;
   padding: 0;
   overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.split-home {
+.app-shell[data-screen="home"] #screen-home.split-home,
+#screen-home.split-home {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  min-height: calc(100dvh - 52px - var(--safe-top));
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  gap: 0;
+  padding: 0;
+  justify-content: stretch;
+}
+
+#screen-home.split-home > * {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.app-shell[data-screen="session"] #screen-home,
+.app-shell[data-screen="wrapup"] #screen-home {
+  display: none;
 }
 
 .sidebar {
@@ -250,6 +268,12 @@ html:has(.app-shell[data-screen="home"]) body,
   background: var(--fill-pressed);
 }
 
+#screen-home .lesson-row[data-recommended="true"],
+.lesson-row[data-recommended="true"] {
+  background: var(--bg-base);
+  box-shadow: none;
+}
+
 .lesson-row .n,
 .lesson-row .title,
 .lesson-row .sub {
@@ -279,6 +303,12 @@ html:has(.app-shell[data-screen="home"]) body,
   right: -8px;
   top: 8px;
   --vinyl-size: 28px;
+  opacity: 0.4;
+}
+
+.row-vinyl > span:last-child {
+  position: relative;
+  z-index: 1;
 }
 
 .row-copy {
@@ -350,15 +380,26 @@ html:has(.app-shell[data-screen="home"]) body,
   padding: 0 0 calc(3.25rem + var(--safe-bottom));
 }
 
+.app-shell[data-screen="session"] .session-top {
+  border-bottom: 0.5px solid var(--separator);
+}
+
 .session-top {
   display: grid;
-  grid-template-columns: var(--tap) minmax(0, 1fr) auto auto;
+  grid-template-columns: var(--tap) minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--gap-controls);
   min-height: calc(var(--tap) + var(--safe-top));
   padding: var(--safe-top) var(--margin-regular) 0;
   border-bottom: 0.5px solid var(--separator);
   background: var(--toolbar-bg);
+}
+
+.session-end {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-controls);
+  min-width: 0;
 }
 
 .session-title {
@@ -671,20 +712,31 @@ html:has(.app-shell[data-screen="home"]) body,
 
 @media (max-width: 677px) {
   .app-toolbar {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "back title settings"
+      "summary summary summary";
     padding-inline: var(--margin-compact);
-    flex-wrap: wrap;
+    align-items: center;
+    min-height: 0;
+    row-gap: var(--space-1);
   }
 
+  .toolbar-back { grid-area: back; }
+  .toolbar-title { grid-area: title; }
+  .toolbar-btn { grid-area: settings; }
   .settings-line {
-    order: 5;
-    flex: 1 1 100%;
+    grid-area: summary;
     text-align: left;
-    padding-bottom: var(--space-2);
+    padding: 0 0 var(--space-2);
+    min-height: var(--tap);
+    color: var(--label-secondary);
   }
 
-  .split-home {
+  .app-shell[data-screen="home"] #screen-home.split-home,
+  #screen-home.split-home {
     grid-template-columns: 1fr;
-    min-height: calc(100dvh - 88px - var(--safe-top));
   }
 
   .app-shell[data-home-pane="list"] .detail,
@@ -701,7 +753,6 @@ html:has(.app-shell[data-screen="home"]) body,
     padding-inline: var(--margin-compact);
   }
 
-  .session-key-count,
   #session-key-count {
     display: none;
   }
@@ -721,12 +772,26 @@ html:has(.app-shell[data-screen="home"]) body,
 }
 
 @media (min-width: 678px) and (max-width: 900px) {
-  .split-home {
+  .app-shell[data-screen="home"] #screen-home.split-home,
+  #screen-home.split-home {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
   .sidebar-row {
     padding-inline: var(--space-4);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
+  #screen-home.split-home {
+    justify-content: stretch;
+    gap: 0;
+    padding: 0;
+  }
+
+  #screen-home .lesson-row {
+    padding: var(--space-3) var(--space-4);
+    min-height: 64px;
   }
 }
 
