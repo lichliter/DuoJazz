@@ -197,6 +197,14 @@ test("chords-only MEI keeps barlines and chord symbols without lick notes", () =
   assert.doesNotMatch(mei, /head\.shape="slash"/);
 });
 
+test("Donna Lee Resolution MEI spells G7♭9 alterations as A♭ and B♭", () => {
+  const mei = phraseMEI(getKey("C"), "concert", "dlr-learn");
+  assert.match(mei, /pname="a"[^>]*accid="f"/);
+  assert.match(mei, /pname="b"[^>]*accid="f"/);
+  assert.doesNotMatch(mei, /pname="g"[^>]*accid="s"/);
+  assert.doesNotMatch(mei, /pname="a"[^>]*accid="s"/);
+});
+
 test("long cue labels wrap at a word instead of overflowing the next bar", () => {
   assert.equal(wrapCueLines("HERE"), "HERE");
   assert.equal(wrapCueLines("Get ready"), "Get ready");

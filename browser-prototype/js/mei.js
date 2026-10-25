@@ -10,6 +10,7 @@ import {
   DEFAULT_MELODY_REGISTER,
   applicationKeyQuality,
   chordSymbolName,
+  chordAtEventBeat,
   chorusChords,
   concertMidiToWritten,
   cueCaption,
@@ -26,6 +27,7 @@ import {
   phraseTimeline,
   pitchName,
   restBeatsForSpan,
+  usesFlatsForChord,
   withSpotOctaves,
 } from "./music.js";
 
@@ -128,7 +130,8 @@ function notePitchAttrs(item, ctx) {
   const shownMidi = concertMidiToWritten(concertMidi, ctx.displayMode);
   const pc = ((shownMidi % 12) + 12) % 12;
   const oct = Math.floor(shownMidi / 12) - 1;
-  const name = pitchName(pc, ctx.shownKey.usesFlats);
+  const chord = chordAtEventBeat(ctx.chords, item.beat);
+  const name = pitchName(pc, usesFlatsForChord(ctx.shownKey, chord));
   const letter = name[0];
   const acc = accidentalValue(name);
   const sig = ctx.barState.sig?.[letter] ?? 0;
@@ -428,6 +431,7 @@ function renderFormMei({
   const chords = isolatedCell
     ? learnChords(concertKey, displayMode, applicationId)
     : chorusChords(concertKey, displayMode, applicationId);
+  ctx.chords = chords;
   const barCount = isolatedCell
     ? Math.max(1, Math.ceil(learnBeatsFor(applicationId) / BEATS_PER_BAR))
     : form.bars.length;
