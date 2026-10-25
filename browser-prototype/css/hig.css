@@ -7,6 +7,7 @@ body {
   color: var(--label);
   font-size: 17px;
   line-height: 1.294;
+  accent-color: var(--tint);
 }
 
 html:has(.app-shell[data-screen="home"]),
@@ -125,7 +126,7 @@ html:has(.app-shell[data-screen="home"]) body,
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  min-height: var(--tap);
+  min-height: 52px;
   padding: var(--space-2) var(--margin-regular);
   border: 0;
   background: transparent;
@@ -165,7 +166,13 @@ html:has(.app-shell[data-screen="home"]) body,
 .sidebar-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  line-height: 20px;
+  max-height: 40px;
 }
 
 .mastery-ring {
@@ -297,13 +304,7 @@ html:has(.app-shell[data-screen="home"]) body,
 }
 
 .row-vinyl .vinyl {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  right: -8px;
-  top: 8px;
-  --vinyl-size: 28px;
-  opacity: 0.4;
+  display: none;
 }
 
 .row-vinyl > span:last-child {
@@ -338,8 +339,8 @@ html:has(.app-shell[data-screen="home"]) body,
   place-items: center;
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
-  background: var(--tint);
-  color: #fff;
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
   font: var(--text-footnote);
   font-weight: 600;
 }
@@ -371,13 +372,29 @@ html:has(.app-shell[data-screen="home"]) body,
   margin: 0;
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.app-shell[data-screen="session"] #screen-session {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .session-screen {
   background: var(--bg);
   color: var(--label);
   gap: 0;
-  padding: 0 0 calc(3.25rem + var(--safe-bottom));
+  padding: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+#quick-view-btn,
+.quick-view-fab {
+  display: none !important;
 }
 
 .app-shell[data-screen="session"] .session-top {
@@ -425,6 +442,43 @@ html:has(.app-shell[data-screen="home"]) body,
   color: var(--tint);
 }
 
+.headphones-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-3) auto 0;
+  padding: var(--space-2) var(--space-4);
+  width: calc(100% - 2 * var(--margin-regular));
+  max-width: var(--content-max);
+  background: var(--tint-fill);
+  color: var(--label);
+  border-radius: var(--radius-md);
+  font: var(--text-footnote);
+  flex: 0 0 auto;
+}
+
+.headphones-banner[hidden] {
+  display: none !important;
+}
+
+.headphones-banner p {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.headphones-dismiss {
+  flex: 0 0 auto;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 0;
+  background: transparent;
+  color: var(--tint);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .session-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -435,6 +489,17 @@ html:has(.app-shell[data-screen="home"]) body,
   max-width: calc(var(--content-max) + 2 * var(--margin-regular));
   width: 100%;
   margin-inline: auto;
+}
+
+.session-stage {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-block: auto;
+}
+
+.session-spacer {
+  display: none;
 }
 
 .session-step {
@@ -455,6 +520,10 @@ html:has(.app-shell[data-screen="home"]) body,
 
 .session-screen .chart-card {
   flex: 0 0 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: var(--content-max);
+  min-width: min(100%, var(--content-max));
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -467,13 +536,10 @@ html:has(.app-shell[data-screen="home"]) body,
   min-height: 0;
 }
 
-.session-spacer {
-  flex: 1 1 8px;
-  min-height: 8px;
-}
-
 .session-transport {
-  padding: var(--space-2) 0 var(--space-3);
+  margin-top: var(--space-8);
+  padding: 0;
+  gap: var(--space-3);
 }
 
 .play-round {
@@ -481,8 +547,8 @@ html:has(.app-shell[data-screen="home"]) body,
   height: var(--play-size);
   min-width: 88px;
   min-height: 88px;
-  background: var(--tint);
-  color: #fff;
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
   position: relative;
 }
 
@@ -493,7 +559,7 @@ html:has(.app-shell[data-screen="home"]) body,
 
 .play-round-count {
   font: var(--text-title-1);
-  color: #fff;
+  color: var(--tint-on-solid);
 }
 
 .play-round[data-state="count-in"] .play-round-icon {
@@ -502,6 +568,11 @@ html:has(.app-shell[data-screen="home"]) body,
 
 .play-round[data-state="listening"] {
   box-shadow: 0 0 0 8px var(--tint-fill);
+}
+
+.play-round[data-state="playing"] {
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
 }
 
 .play-round[data-state="result"][data-passed="true"] {
@@ -526,10 +597,15 @@ html:has(.app-shell[data-screen="home"]) body,
 }
 
 .session-bottom {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
   padding: var(--space-2) var(--margin-regular) calc(var(--space-2) + var(--safe-bottom));
   background: var(--toolbar-bg);
   border-top: 0.5px solid var(--separator);
   gap: var(--gap-controls);
+  z-index: 2;
 }
 
 .session-nav-btn {
@@ -544,7 +620,7 @@ html:has(.app-shell[data-screen="home"]) body,
 }
 
 .session-progress span {
-  background: var(--tint);
+  background: var(--tint-solid);
 }
 
 .icon-btn {
@@ -661,8 +737,8 @@ html:has(.app-shell[data-screen="home"]) body,
 
 .inset-group .chip[aria-pressed="true"],
 .inset-group .key-btn[aria-pressed="true"] {
-  background: var(--tint);
-  color: #fff;
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
   box-shadow: none;
 }
 
@@ -697,8 +773,8 @@ html:has(.app-shell[data-screen="home"]) body,
 }
 
 .play {
-  background: var(--tint);
-  color: #fff;
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
   border-radius: var(--radius-md);
   font: var(--text-headline);
 }
@@ -712,26 +788,22 @@ html:has(.app-shell[data-screen="home"]) body,
 
 @media (max-width: 677px) {
   .app-toolbar {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      "back title settings"
-      "summary summary summary";
+    display: flex;
     padding-inline: var(--margin-compact);
     align-items: center;
-    min-height: 0;
-    row-gap: var(--space-1);
+    min-height: calc(var(--tap) + var(--safe-top));
   }
 
-  .toolbar-back { grid-area: back; }
-  .toolbar-title { grid-area: title; }
-  .toolbar-btn { grid-area: settings; }
+  .toolbar-title {
+    flex: 1 1 auto;
+  }
+
   .settings-line {
-    grid-area: summary;
-    text-align: left;
-    padding: 0 0 var(--space-2);
-    min-height: var(--tap);
-    color: var(--label-secondary);
+    display: none;
+  }
+
+  .headphones-banner {
+    width: calc(100% - 2 * var(--margin-compact));
   }
 
   .app-shell[data-screen="home"] #screen-home.split-home,
@@ -774,7 +846,7 @@ html:has(.app-shell[data-screen="home"]) body,
 @media (min-width: 678px) and (max-width: 900px) {
   .app-shell[data-screen="home"] #screen-home.split-home,
   #screen-home.split-home {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: var(--sidebar-width-split) minmax(0, 1fr);
   }
 
   .sidebar-row {

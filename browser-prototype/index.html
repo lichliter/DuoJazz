@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=85">
-  <link rel="stylesheet" href="./css/styles.css?v=85">
-  <link rel="stylesheet" href="./css/hig.css?v=85">
+  <link rel="stylesheet" href="./css/tokens.css?v=86">
+  <link rel="stylesheet" href="./css/styles.css?v=86">
+  <link rel="stylesheet" href="./css/hig.css?v=86">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=85" defer></script>
-  <script type="module" src="./js/app.js?v=85"></script>
+  <script src="./js/verovio-bind.js?v=86" defer></script>
+  <script type="module" src="./js/app.js?v=86"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -49,36 +49,40 @@
             <button type="button" class="toolbar-btn session-jump" id="session-quick-view" data-testid="session-quick-view" aria-haspopup="dialog" aria-controls="quick-view">Jump</button>
           </div>
         </header>
+        <aside class="headphones-banner" id="headphones-tip" hidden>
+          <p>Headphones recommended so the backing does not leak into grading.</p>
+          <button type="button" class="headphones-dismiss" id="headphones-dismiss" aria-label="Dismiss headphones tip">×</button>
+        </aside>
         <div class="session-body">
-          <h2 class="session-step" id="card-badge">Hear it</h2>
-          <p class="cue-line" id="instruction" aria-live="polite"></p>
-          <p class="meter" id="meter" hidden></p>
-          <p class="mic-line" id="session-mic" hidden></p>
-          <p class="headphones-tip" id="headphones-tip" hidden>Headphones recommended so the backing does not leak into grading.</p>
-          <p class="grade-line" id="grade-line" hidden></p>
-          <section class="chart-card" id="music-surface" aria-label="Music">
-            <div class="chart-head">
-              <p id="chart-title">Cry Me a River cell</p>
-              <p id="chart-meta">G minor</p>
+          <div class="session-stage">
+            <h2 class="session-step" id="card-badge">Hear it</h2>
+            <p class="cue-line" id="instruction" aria-live="polite"></p>
+            <p class="meter" id="meter" hidden></p>
+            <p class="mic-line" id="session-mic" hidden></p>
+            <p class="grade-line" id="grade-line" hidden></p>
+            <section class="chart-card" id="music-surface" aria-label="Music">
+              <div class="chart-head">
+                <p id="chart-title">Cry Me a River cell</p>
+                <p id="chart-meta">G minor</p>
+              </div>
+              <div class="paper-wrap">
+                <div id="notation" class="paper" aria-label="Staff notation"></div>
+                <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
+              </div>
+              <div class="listen-state" id="listen-state" hidden>
+                <p class="listen-kicker" id="listen-kicker">Listening</p>
+                <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
+              </div>
+            </section>
+            <div class="session-transport">
+              <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
+              <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Hear the cell">
+                <span class="play-round-icon" aria-hidden="true"></span>
+                <span class="play-round-count" id="primary-count" hidden></span>
+              </button>
+              <p class="play-round-label" id="primary-label">Hear the cell</p>
+              <button type="button" class="text-link" id="continue-btn">Continue</button>
             </div>
-            <div class="paper-wrap">
-              <div id="notation" class="paper" aria-label="Staff notation"></div>
-              <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
-            </div>
-            <div class="listen-state" id="listen-state" hidden>
-              <p class="listen-kicker" id="listen-kicker">Listening</p>
-              <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
-            </div>
-          </section>
-          <div class="session-spacer" aria-hidden="true"></div>
-          <div class="session-transport">
-            <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
-            <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Hear the cell">
-              <span class="play-round-icon" aria-hidden="true"></span>
-              <span class="play-round-count" id="primary-count" hidden></span>
-            </button>
-            <p class="play-round-label" id="primary-label">Hear the cell</p>
-            <button type="button" class="text-link" id="continue-btn">Continue</button>
           </div>
         </div>
         <footer class="session-bottom">

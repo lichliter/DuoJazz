@@ -296,7 +296,9 @@ export function normalizePrefs(raw) {
   merged.startKeyId = normalizeKeyId(raw?.startKeyId ?? seed.startKeyId ?? DEFAULT_KEY_ID);
   merged.cardSet = raw?.cardSet === "listen-quiz" || seed.cardSet === "listen-quiz" ? "listen-quiz" : "all";
   merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
-  merged.headphonesTipSeen = Boolean(raw?.headphonesTipSeen);
+  merged.headphonesTipSeen = Boolean(raw?.headphonesTipSeen)
+    || raw?.headphonesTipSeen === "1"
+    || raw?.headphonesTipSeen === "true";
   merged.lessons = { ...base.lessons };
   for (const lesson of LESSONS) {
     const incoming = raw?.lessons?.[lesson.id] ?? {};
@@ -314,6 +316,16 @@ export function normalizePrefs(raw) {
   }
   merged.progress = raw?.progress && typeof raw.progress === "object" ? raw.progress : {};
   return merged;
+}
+
+export function headphonesTipIsDismissed(prefs, storageValue) {
+  return Boolean(prefs?.headphonesTipSeen) || storageValue === "1" || storageValue === "true";
+}
+
+export function dismissHeadphonesTip(prefs) {
+  const next = normalizePrefs(prefs);
+  next.headphonesTipSeen = true;
+  return next;
 }
 
 /**
