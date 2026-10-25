@@ -506,6 +506,53 @@ export function settingsSummary(prefs) {
   return `${instrument.label} · ${p.tempo} bpm · 1-bar`;
 }
 
+export function visibleModuleLessons(module) {
+  return (module.lessons ?? []).filter((lesson) => lesson.group !== "your-tunes");
+}
+
+export function lessonIsComplete(lessonKeys, lessonId) {
+  return [...new Set(lessonKeys?.[lessonId] ?? [])].length >= 12;
+}
+
+export function moduleLessonsComplete(module, lessonKeys = {}) {
+  const visible = visibleModuleLessons(module);
+  return visible.length > 0 && visible.every((lesson) => lessonIsComplete(lessonKeys, lesson.id));
+}
+
+export function isLastVisibleLesson(lessonId) {
+  const module = moduleForLesson(lessonId);
+  const visible = visibleModuleLessons(module);
+  return visible.at(-1)?.id === lessonId;
+}
+
+export function nextModuleTarget(module) {
+  const index = MODULES.findIndex((item) => item.id === module.id);
+  if (index < 0 || index >= MODULES.length - 1) {
+    return { type: "home", label: "Home" };
+  }
+  const next = MODULES[index + 1];
+  return {
+    type: "module",
+    id: next.id,
+    number: next.number,
+    name: next.name,
+    label: `Next: Module ${next.number} · ${next.name}`,
+  };
+}
+
+/** Wrap-up CTA after the last road lesson of a module. Last module links home. */
+export function wrapupNextModule(session) {
+  if (!session || !isLastVisibleLesson(session.lessonId)) return null;
+  return nextModuleTarget(moduleForLesson(session.lessonId));
+}
+
+/** Module-home CTA once every road lesson has 12 keys. Hidden on the last module. */
+export function homeNextModule(module, lessonKeys = {}) {
+  if (!moduleLessonsComplete(module, lessonKeys)) return null;
+  const target = nextModuleTarget(module);
+  return target.type === "home" ? null : target;
+}
+
 export function completeCard(session, result = {}) {
   const cardId = currentCard(session);
   const cardResults = [

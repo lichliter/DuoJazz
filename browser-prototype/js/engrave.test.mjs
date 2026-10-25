@@ -87,6 +87,9 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /class="play-round"/);
   assert.match(index, /class="session-bottom"/);
   assert.match(index, /id="settings-summary"/);
+  assert.match(index, /class="settings-gear"/);
+  assert.match(index, /id="next-module"/);
+  assert.match(index, /aria-label="Settings"/);
   assert.match(index, /id="instrument-list"/);
   assert.match(index, /id="session-title"/);
   assert.match(index, /class="sheet-done"/);
@@ -123,6 +126,8 @@ test("tokens restore the warm palette and keep the iOS type scale", async () => 
   assert.doesNotMatch(tokens, /#007aff|#0a84ff/);
   assert.doesNotMatch(tokens, /--sidebar-width/);
   assert.match(hig, /line-clamp:\s*2/);
+  assert.match(hig, /@media \(max-width: 390px\)/);
+  assert.match(hig, /\.home-settings \.settings-summary \{[\s\S]*?min-height:\s*var\(--tap\)/);
   assert.match(hig, /margin-top:\s*var\(--space-6\)/);
   assert.match(hig, /\.module-sheet-row/);
   assert.match(hig, /\.session-stage \{[\s\S]*?margin-block:\s*0/);

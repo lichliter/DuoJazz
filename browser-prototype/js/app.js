@@ -73,6 +73,8 @@ import {
   resolveQuickViewJump,
   persistLessonTempo,
   settingsSummary,
+  wrapupNextModule,
+  homeNextModule,
   setInstrument,
   cardLabel,
   sessionScreenTitle,
@@ -142,6 +144,7 @@ const els = {
   setupSummary: document.getElementById("setup-summary"),
   settingsSummary: document.getElementById("settings-summary"),
   settingsSummaryBtn: document.getElementById("settings-summary-btn"),
+  nextModule: document.getElementById("next-module"),
   quickViewBtn: document.getElementById("quick-view-btn"),
   quickViewTitle: document.getElementById("quick-view-title"),
   sessionTitle: document.getElementById("session-title"),
@@ -601,6 +604,21 @@ function moreLicksSoon() {
   return wrap;
 }
 
+function homeNextModuleButton(link) {
+  const wrap = document.createElement("div");
+  wrap.className = "path-end path-end-next";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "next-module-path";
+  btn.dataset.testid = "home-next-module";
+  btn.textContent = link.label;
+  btn.addEventListener("click", () => {
+    if (link.type === "module") selectModule(link.id);
+  });
+  wrap.append(btn);
+  return wrap;
+}
+
 function renderHome() {
   if (!MODULES.some((module) => module.id === selectedModuleId)) {
     selectedModuleId = MODULES[0].id;
@@ -608,9 +626,10 @@ function renderHome() {
   const module = moduleById(selectedModuleId) ?? MODULES[0];
   const keys = keysByLesson(mastery);
   const nodes = moduleRoadNodes(module, prefs, keys);
+  const next = homeNextModule(module, keys);
   els.lessonList.replaceChildren(
     moduleBlock(module, nodes, moduleMastery(mastery, module.id)),
-    moreLicksSoon(),
+    next ? homeNextModuleButton(next) : moreLicksSoon(),
   );
   requestAnimationFrame(paintPathTrail);
 }
@@ -725,7 +744,9 @@ function renderSetup() {
 }
 
 function renderSettings() {
-  if (els.settingsSummary) els.settingsSummary.textContent = settingsSummary(prefs);
+  const summary = settingsSummary(prefs);
+  if (els.settingsSummary) els.settingsSummary.textContent = summary;
+  if (els.settingsSummaryBtn) els.settingsSummaryBtn.setAttribute("aria-label", `Settings, ${summary}`);
   chipRow(els.keyModes, KEY_MODES, prefs.keyMode, (id) => {
     prefs.keyMode = id;
     persist();
@@ -1187,6 +1208,11 @@ function renderWrapup() {
   }
   els.nextKey.hidden = !copy.nextKeyLabel;
   if (copy.nextKeyLabel) els.nextKey.textContent = copy.nextKeyLabel;
+  const nextModule = wrapupNextModule(session);
+  if (els.nextModule) {
+    els.nextModule.hidden = !nextModule;
+    if (nextModule) els.nextModule.textContent = nextModule.label;
+  }
 }
 
 function render(snap = transport.snapshot()) {
@@ -1368,6 +1394,17 @@ els.leaveConfirm?.addEventListener("close", () => {
 });
 els.primary.addEventListener("click", runPrimary);
 els.continueBtn.addEventListener("click", goContinue);
+els.nextModule?.addEventListener("click", () => {
+  if (!session) return;
+  const link = wrapupNextModule(session);
+  halt();
+  if (link?.type === "module") {
+    selectedModuleId = link.id;
+    exitSession();
+    return;
+  }
+  exitSession();
+});
 els.nextKey.addEventListener("click", () => {
   if (!session) return;
   halt();
