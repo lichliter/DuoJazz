@@ -177,6 +177,21 @@ export function modulePathNodes(module, prefs, lessonKeys = {}) {
   }));
 }
 
+/** Road nodes for a module home: hides Your tunes lessons, keeps numbering sequential. */
+export function moduleRoadNodes(module, prefs, lessonKeys = {}) {
+  const visible = module.lessons.filter((lesson) => lesson.group !== "your-tunes");
+  const unfinished = visible.find((lesson) => [...new Set(lessonKeys[lesson.id] ?? [])].length < 12);
+  const recommendedId = unfinished?.id ?? null;
+  return visible.map((lesson, index) => lessonPathNode({
+    ...lesson,
+    moduleId: module.id,
+    moduleName: module.name,
+  }, index, {
+    recommendedId,
+    passedKeys: lessonKeys[lesson.id] ?? [],
+  }));
+}
+
 export function lessonPathNodes(prefs, lessonKeys = {}) {
   return MODULES.flatMap((module) => modulePathNodes(module, prefs, lessonKeys));
 }
@@ -653,6 +668,11 @@ export function quickViewData(lessonKeys = {}, masteredByModule = {}) {
       })),
     },
   ];
+}
+
+/** Modules sheet rows: modules 1–30 only. Your tunes stay in quickViewData. */
+export function modulesSheetData(lessonKeys = {}, masteredByModule = {}) {
+  return quickViewData(lessonKeys, masteredByModule).filter((module) => module.id !== TUNE_SECTION.id);
 }
 
 export function resolveQuickViewJump(id) {

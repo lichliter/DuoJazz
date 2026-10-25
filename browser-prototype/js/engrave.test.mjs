@@ -77,37 +77,49 @@ test("index and gallery load Verovio instead of abcjs", async () => {
   assert.doesNotMatch(gallery, /abcjs/);
 });
 
-test("session chrome uses a sidebar home, a round play button, and a pinned bottom bar", async () => {
+test("home uses the record road and a Modules sheet; session keeps the round play cluster", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(index, /id="module-sidebar"/);
-  assert.match(index, /aria-label="Modules"/);
+  assert.match(index, /class="lesson-path"/);
+  assert.match(index, /id="quick-view-btn"/);
+  assert.match(index, />Modules</);
+  assert.match(index, /id="quick-view-title">Modules</);
+  assert.match(index, /family=Oswald/);
   assert.match(index, /class="play-round"/);
   assert.match(index, /class="session-bottom"/);
   assert.match(index, /id="settings-summary"/);
   assert.match(index, /id="session-title"/);
   assert.match(index, /class="sheet-done"/);
-  assert.doesNotMatch(index, />Quick view</);
-  assert.doesNotMatch(index, /id="setup"/);
-  assert.doesNotMatch(index, /id="session-card-count"/);
-  assert.doesNotMatch(index, /id="quick-view-btn"/);
   assert.match(index, /class="session-stage"/);
   assert.match(index, /class="headphones-banner"/);
   assert.match(index, /id="headphones-dismiss"/);
+  assert.doesNotMatch(index, /id="module-sidebar"/);
+  assert.doesNotMatch(index, />Quick view</);
+  assert.doesNotMatch(index, /id="setup"/);
+  assert.doesNotMatch(index, /id="session-card-count"/);
   assert.doesNotMatch(index, /class="headphones-tip"/);
   assert.doesNotMatch(index, /class="session-spacer"/);
+  assert.doesNotMatch(index, /Your tunes/);
 });
 
-test("HIG tokens use a warm brand tint and a 320pt sidebar", async () => {
+test("tokens restore the warm palette and keep the iOS type scale", async () => {
   const tokens = await readFile(new URL("../css/tokens.css", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
-  assert.match(tokens, /--sidebar-width:\s*320px/);
-  assert.match(tokens, /--sidebar-width-split:\s*280px/);
-  assert.match(tokens, /--tint-solid:\s*#a84416/);
+  assert.match(tokens, /--bg:\s*#201712/);
+  assert.match(tokens, /--paper:\s*#f3e6ce/);
+  assert.match(tokens, /--vinyl-amber:\s*#e39a3a/);
+  assert.match(tokens, /--vinyl-teal:\s*#1a6e67/);
+  assert.match(tokens, /--vinyl-oxblood:\s*#7a2430/);
+  assert.match(tokens, /--display:\s*Oswald/);
+  assert.match(tokens, /--text-body:\s*400 17px/);
+  assert.match(tokens, /--tap:\s*44px/);
+  assert.match(tokens, /color-scheme:\s*dark/);
+  assert.doesNotMatch(tokens, /prefers-color-scheme/);
   assert.doesNotMatch(tokens, /#007aff|#0a84ff/);
+  assert.doesNotMatch(tokens, /--sidebar-width/);
   assert.match(hig, /line-clamp:\s*2/);
   assert.match(hig, /margin-top:\s*var\(--space-6\)/);
-  assert.match(hig, /\.settings-line \{\s*display:\s*none;/);
-  assert.match(hig, /#quick-view-btn/);
+  assert.match(hig, /\.module-sheet-row/);
+  assert.doesNotMatch(hig, /#quick-view-btn,\s*\.quick-view-fab \{\s*display:\s*none/);
 });
 
 test("index and gallery bind Verovio WASM before the page module", async () => {

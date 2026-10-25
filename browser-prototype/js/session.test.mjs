@@ -8,6 +8,8 @@ import {
   MODULES,
   PATH_ALIGNS,
   modulePathNodes,
+  moduleRoadNodes,
+  modulesSheetData,
   TWELVE_KEY_IDS,
   lessonPathNode,
   lessonPathNodes,
@@ -563,6 +565,26 @@ test("moving cards stops audio, the count-in, and the mic", () => {
   assert.equal(back.stopAudio, true);
   assert.equal(back.stopCountIn, true);
   assert.equal(back.stopMic, true);
+});
+
+test("module road hides Your tunes and re-numbers the remaining sleeves", () => {
+  const nodes = moduleRoadNodes(MODULES[0], defaultPrefs(), {});
+  assert.equal(nodes.length, 7);
+  assert.equal(nodes.every((node) => node.group !== "your-tunes"), true);
+  assert.deepEqual(nodes.map((node) => node.number), ["01", "02", "03", "04", "05", "06", "07"]);
+  assert.equal(nodes[0].id, "learn-lick");
+  assert.equal(nodes[0].recommended, true);
+  assert.equal(modulePathNodes(MODULES[0], defaultPrefs(), {}).length, 10);
+});
+
+test("modules sheet lists 1–30 and omits Your tunes", () => {
+  const data = modulesSheetData({}, { cmar: ["G"] });
+  assert.equal(data.length, 30);
+  assert.equal(data.some((module) => module.id === "tunes"), false);
+  assert.equal(data[0].number, 1);
+  assert.equal(data[0].lickName, "Cry Me a River");
+  assert.equal(data[0].keysMastered, 1);
+  assert.equal(data[29].number, 30);
 });
 
 test("quick view lists every module and record", () => {

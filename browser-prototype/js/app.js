@@ -54,9 +54,8 @@ import {
   setMelodyRegister,
   skipCard,
   sessionSlot,
-  modulePathNodes,
-  tunePathNodes,
-  TUNE_SECTION,
+  moduleRoadNodes,
+  modulesSheetData,
   moduleById,
   lessonSleeve,
   vinylTier,
@@ -70,7 +69,6 @@ import {
   resultForCard,
   leaveCardOutcome,
   skipRemainingCards,
-  quickViewData,
   resolveQuickViewJump,
   persistLessonTempo,
   settingsSummary,
@@ -124,7 +122,6 @@ let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
 let selectedModuleId = MODULES[0]?.id ?? "cmar";
-let homePane = "list";
 
 const els = {
   shell: document.getElementById("app-shell"),
@@ -141,9 +138,8 @@ const els = {
   settingsSummary: document.getElementById("settings-summary"),
   settingsSummaryBtn: document.getElementById("settings-summary-btn"),
   homeSettingsBtn: document.getElementById("home-settings-btn"),
-  homeBack: document.getElementById("home-back"),
-  moduleSidebar: document.getElementById("module-sidebar"),
-  detailHead: document.getElementById("detail-head"),
+  quickViewBtn: document.getElementById("quick-view-btn"),
+  quickViewTitle: document.getElementById("quick-view-title"),
   sessionTitle: document.getElementById("session-title"),
   primaryCount: document.getElementById("primary-count"),
   keyModes: document.getElementById("key-modes"),
@@ -349,29 +345,32 @@ function openSetup(lessonId) {
 
 function renderQuickView() {
   if (!els.quickViewList) return;
+  if (els.quickViewTitle) els.quickViewTitle.textContent = "Modules";
   const mastered = Object.fromEntries(
     MODULES.map((module) => [module.id, moduleMastery(mastery, module.id).masteredKeys]),
   );
-  const modules = quickViewData(keysByLesson(), mastered);
+  const modules = modulesSheetData(keysByLesson(), mastered);
   els.quickViewList.replaceChildren(
     ...modules.map((module) => {
-      const section = document.createElement("section");
-      section.className = "quick-view-module";
-      section.dataset.module = module.id;
-
-      const header = document.createElement("button");
-      header.type = "button";
-      header.className = "quick-view-module-btn";
-      header.dataset.testid = `quick-view-module-${module.id}`;
-      const kicker = module.id === "tunes" ? "Play-through" : `Module ${module.number}`;
-      const meta = module.id === "tunes"
-        ? `${module.records.length} tunes`
-        : `${module.keysMastered} of 12 keys mastered`;
-      header.innerHTML = `<p class="quick-view-kicker">${kicker}</p><p class="quick-view-name">${module.lickName}</p><p class="quick-view-meta">${meta}</p>`;
-      header.addEventListener("click", () => jumpFromQuickView(module.id));
-      if (module.id === currentHomeModuleId()) header.classList.add("is-current");
-      section.append(header);
-      return section;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "module-sheet-row";
+      btn.dataset.testid = `quick-view-module-${module.id}`;
+      btn.setAttribute("aria-current", module.id === currentHomeModuleId() ? "page" : "false");
+      const num = document.createElement("span");
+      num.className = "module-sheet-num";
+      num.textContent = String(module.number);
+      const copy = document.createElement("span");
+      copy.className = "module-sheet-copy";
+      copy.innerHTML = `<span class="module-sheet-name">${module.lickName}</span><span class="module-sheet-meta">${module.keysMastered} of 12 keys mastered</span>`;
+      const ring = document.createElement("span");
+      ring.className = "mastery-ring";
+      ring.style.setProperty("--progress", String((module.keysMastered / 12) * 100));
+      ring.innerHTML = `<span>${module.keysMastered}</span>`;
+      ring.setAttribute("aria-label", `${module.keysMastered} of 12 keys mastered`);
+      btn.append(num, copy, ring);
+      btn.addEventListener("click", () => jumpFromQuickView(module.id));
+      return btn;
     }),
   );
 }
@@ -401,18 +400,18 @@ function abandonToQuickView() {
   openQuickView();
 }
 
-function compactHome() {
-  return window.matchMedia("(max-width: 677px)").matches;
-}
-
 function currentHomeModuleId() {
   return selectedModuleId ?? MODULES[0]?.id;
 }
 
-function selectModule(id, { reveal = true } = {}) {
-  selectedModuleId = id || MODULES[0]?.id;
-  if (reveal && compactHome()) homePane = "detail";
+function selectModule(id) {
+  const next = MODULES.some((module) => module.id === id) ? id : MODULES[0]?.id;
+  selectedModuleId = next;
   renderHome();
+  requestAnimationFrame(() => {
+    document.getElementById("screen-home")?.scrollIntoView({ block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 }
 
 function jumpFromQuickView(id) {
@@ -537,168 +536,56 @@ function keysByLesson(current = mastery) {
   );
 }
 
-function sidebarEntries() {
-  return [
-    ...MODULES.map((module) => {
-      const stats = moduleMastery(mastery, module.id);
-      return {
-        id: module.id,
-        number: module.number,
-        name: module.name,
-        kind: "module",
-        mastered: stats.masteredKeys.length,
-      };
-    }),
-    {
-      id: TUNE_SECTION.id,
-      number: null,
-      name: TUNE_SECTION.name,
-      kind: "tunes",
-      mastered: null,
-    },
-  ];
-}
-
-function sidebarButton(entry) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "sidebar-row";
-  btn.dataset.testid = `sidebar-module-${entry.id}`;
-  btn.setAttribute("aria-current", entry.id === selectedModuleId ? "page" : "false");
-  const num = document.createElement("span");
-  num.className = "sidebar-num";
-  num.textContent = entry.number != null ? String(entry.number) : "♪";
-  const name = document.createElement("span");
-  name.className = "sidebar-name";
-  name.textContent = entry.name;
-  btn.append(num, name);
-  if (entry.kind === "module") {
-    const ring = document.createElement("span");
-    ring.className = "mastery-ring";
-    ring.style.setProperty("--progress", String((entry.mastered / 12) * 100));
-    ring.innerHTML = `<span>${entry.mastered}</span>`;
-    ring.setAttribute("aria-label", `${entry.mastered} of 12 keys mastered`);
-    btn.append(ring);
-  }
-  btn.addEventListener("click", () => selectModule(entry.id));
-  return btn;
-}
-
-function renderSidebar() {
-  if (!els.moduleSidebar) return;
-  els.moduleSidebar.replaceChildren(...sidebarEntries().map(sidebarButton));
-}
-
-function detailBanner(module, stats) {
-  const count = stats?.masteredKeys?.length ?? 0;
+function moduleBanner(module, stats) {
+  const count = stats.masteredKeys.length;
   const medal = count ? stats.medal : "none";
-  const header = document.createElement("header");
-  header.className = "detail-head";
-  header.id = "detail-head";
-  header.dataset.testid = `module-banner-${module.id}`;
-  const kicker = document.createElement("p");
-  kicker.className = "detail-kicker";
-  kicker.textContent = module.id === TUNE_SECTION.id ? "Play-through" : `Module ${module.number}`;
-  const title = document.createElement("h1");
-  title.textContent = module.name;
-  header.append(kicker, title);
-  if (module.id !== TUNE_SECTION.id) {
-    const copy = document.createElement("p");
-    copy.className = "detail-count";
-    copy.textContent = `${count} of 12 keys mastered`;
-    const badge = document.createElement("div");
-    badge.className = "medal-badge";
-    badge.dataset.medal = medal;
-    badge.setAttribute(
-      "aria-label",
-      count ? `${displayMedal(stats.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
-    );
-    const mark = homeMedalMark(count, stats.medal);
-    badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
-    header.append(copy, badge);
-  }
-  return header;
+  const section = document.createElement("section");
+  section.className = "module-banner";
+  section.dataset.testid = `module-banner-${module.id}`;
+  const copy = document.createElement("div");
+  copy.className = "banner-copy";
+  copy.innerHTML = `<p class="banner-kicker">Module ${module.number} · a lick</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
+  const badge = document.createElement("div");
+  badge.className = "medal-badge";
+  badge.dataset.medal = medal;
+  badge.setAttribute(
+    "aria-label",
+    count ? `${displayMedal(stats.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
+  );
+  const mark = homeMedalMark(count, stats.medal);
+  badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
+  section.append(copy, badge);
+  return section;
 }
 
-function groupHeader(title, testId) {
-  const p = document.createElement("p");
-  p.className = "path-group-label";
-  p.dataset.testid = testId;
-  p.textContent = title;
-  return p;
+function moduleBlock(module, nodes, stats) {
+  const wrap = document.createElement("section");
+  wrap.className = "module-block is-current";
+  wrap.dataset.module = module.id;
+  wrap.append(moduleBanner(module, stats), ...nodes.map((node) => sleeveButton(node)));
+  return wrap;
 }
 
-function lessonRow(node) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "lesson-row";
-  btn.dataset.testid = `lesson-${node.id}`;
-  btn.dataset.sleeve = node.sleeve;
-  btn.dataset.recommended = String(node.recommended);
-  btn.dataset.complete = String(node.complete);
-  btn.dataset.vinylTier = node.vinylTier;
-  const bits = [
-    `Lesson ${node.number}: ${node.title}`,
-    `${node.passedCount} of 12 keys passed`,
-  ];
-  if (node.recommended) bits.push("recommended start");
-  if (node.complete) bits.push("all keys passed");
-  btn.setAttribute("aria-label", bits.join(". "));
-
-  const vinyl = document.createElement("span");
-  vinyl.className = "row-vinyl";
-  vinyl.dataset.sleeve = node.sleeve;
-  vinyl.textContent = node.number;
-
-  const copy = document.createElement("span");
-  copy.className = "row-copy";
-  copy.innerHTML = `<span class="row-kicker">Lesson ${Number(node.number)}</span><span class="row-title">${node.coverTitle ?? node.title}</span><span class="row-sub">${node.caption ?? sleeveCaption(node.context, node.passedCount)}</span>`;
-
-  btn.append(vinyl, copy);
-  if (node.recommended) {
-    const tag = document.createElement("span");
-    tag.className = "start-pill";
-    tag.textContent = "Start";
-    btn.append(tag);
-  }
-  btn.addEventListener("click", () => openSetup(node.id));
-  return btn;
-}
-
-function renderDetail() {
-  const keys = keysByLesson(mastery);
-  const isTunes = selectedModuleId === TUNE_SECTION.id;
-  const module = isTunes ? TUNE_SECTION : (moduleById(selectedModuleId) ?? MODULES[0]);
-  const nodes = isTunes ? tunePathNodes(prefs, keys) : modulePathNodes(module, prefs, keys);
-  const stats = isTunes ? null : moduleMastery(mastery, module.id);
-  if (els.detailHead) {
-    els.detailHead.replaceWith(detailBanner(module, stats ?? { masteredKeys: [], medal: "none" }));
-    els.detailHead = document.getElementById("detail-head") ?? document.querySelector(".detail-head");
-  }
-  const rows = [];
-  let lastGroup = "standards";
-  for (const node of nodes) {
-    const group = node.group ?? "standards";
-    if (group !== lastGroup && group === "your-tunes") {
-      rows.push(groupHeader("Your tunes", `your-tunes-${module.id}`));
-    }
-    lastGroup = group;
-    rows.push(lessonRow(node));
-  }
-  els.lessonList.replaceChildren(...rows);
+function moreLicksSoon() {
+  const wrap = document.createElement("div");
+  wrap.className = "path-end";
+  wrap.setAttribute("aria-hidden", "true");
+  wrap.innerHTML = `<span class="path-end-sleeve"></span><span class="path-end-label">More licks soon</span>`;
+  return wrap;
 }
 
 function renderHome() {
-  if (!MODULES.some((module) => module.id === selectedModuleId) && selectedModuleId !== TUNE_SECTION.id) {
+  if (!MODULES.some((module) => module.id === selectedModuleId)) {
     selectedModuleId = MODULES[0].id;
   }
-  els.shell.dataset.homePane = compactHome() ? homePane : "split";
-  if (els.homeBack) {
-    const showBack = compactHome() && homePane === "detail";
-    els.homeBack.hidden = !showBack;
-  }
-  renderSidebar();
-  renderDetail();
+  const module = moduleById(selectedModuleId) ?? MODULES[0];
+  const keys = keysByLesson(mastery);
+  const nodes = moduleRoadNodes(module, prefs, keys);
+  els.lessonList.replaceChildren(
+    moduleBlock(module, nodes, moduleMastery(mastery, module.id)),
+    moreLicksSoon(),
+  );
+  requestAnimationFrame(paintPathTrail);
 }
 
 function sleeveBoxFromStage(stage, svgRect) {
@@ -1267,7 +1154,6 @@ function applyDeepLink() {
   const moduleParam = params.get("module");
   if (moduleParam) {
     selectedModuleId = moduleParam;
-    homePane = "detail";
   }
   if (!screen) return;
   if (params.get("demo") === "grades" || params.get("demo") === "medal") {
@@ -1403,10 +1289,7 @@ transport.onEnded = () => {
 els.displayChip.addEventListener("click", () => openSettings());
 els.settingsSummaryBtn?.addEventListener("click", () => openSettings());
 els.homeSettingsBtn?.addEventListener("click", () => openSettings());
-els.homeBack?.addEventListener("click", () => {
-  homePane = "list";
-  renderHome();
-});
+els.quickViewBtn?.addEventListener("click", requestQuickView);
 els.sessionExit.addEventListener("click", exitSession);
 els.sessionBack?.addEventListener("click", () => navigateCard(-1));
 els.sessionNext?.addEventListener("click", () => navigateCard(1));
@@ -1622,6 +1505,9 @@ resolveNotationScale();
 applyDeepLink();
 renderSetup();
 render();
+if (new URLSearchParams(location.search).get("sheet") === "modules") {
+  openQuickView();
+}
 whenVerovioReady().then(() => {
   if (session?.screen === "session") renderNotation();
 });

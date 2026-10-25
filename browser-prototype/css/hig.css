@@ -1,4 +1,4 @@
-/* Phase 1 HIG layout: toolbar, sidebar+detail home, session modal, form sheets. */
+/* Phase 1 session/sheet chrome on the restored warm road home. */
 
 html,
 body {
@@ -10,170 +10,53 @@ body {
   accent-color: var(--tint);
 }
 
-html:has(.app-shell[data-screen="home"]),
-html:has(.app-shell[data-screen="home"]) body,
-.app-shell[data-screen="home"] {
-  height: 100%;
-  max-height: 100dvh;
-  overflow: hidden;
+.logo,
+.module-banner h1,
+.module-banner h2,
+.sleeve-title,
+.sleeve-num {
+  font-family: var(--display);
 }
 
-.app-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-controls);
-  min-height: calc(var(--tap) + var(--safe-top));
-  padding: var(--safe-top) var(--margin-regular) 0;
-  background: var(--toolbar-bg);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 0.5px solid var(--separator);
+.masthead {
   position: sticky;
   top: 0;
   z-index: 8;
+  min-height: calc(var(--tap) + var(--safe-top));
+  padding-top: var(--safe-top);
+  background: var(--toolbar-bg);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
-.toolbar-title {
-  margin: 0;
-  font: var(--text-headline);
-  color: var(--label);
-  flex: 0 0 auto;
-}
-
-.toolbar-back,
-.toolbar-btn,
-.settings-line {
-  min-height: var(--tap);
-  min-width: var(--tap);
-  border: 0;
-  background: transparent;
+.masthead .quiet {
   color: var(--tint);
   font: var(--text-body);
-  cursor: pointer;
-  padding: 0 var(--space-2);
 }
 
-.toolbar-back {
-  font-size: 28px;
-  line-height: 1;
-  margin-left: calc(var(--space-2) * -1);
-}
-
-.settings-line {
-  flex: 1 1 auto;
-  min-width: 0;
+.home-settings .settings-summary {
+  border: 0;
+  background: transparent;
   color: var(--label-secondary);
   font: var(--text-footnote);
-  text-align: right;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--tap);
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0.25rem 0.4rem;
 }
 
-.settings-line span {
+.home-settings .settings-summary span {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.toolbar-btn {
-  font: var(--text-body);
-  font-weight: 400;
-  flex: 0 0 auto;
-}
-
-.app-shell[data-screen="home"] .workspace {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.app-shell[data-screen="home"] #screen-home.split-home,
-#screen-home.split-home {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  gap: 0;
-  padding: 0;
-  justify-content: stretch;
-}
-
-#screen-home.split-home > * {
-  flex-shrink: 1;
-  min-height: 0;
-}
-
 .app-shell[data-screen="session"] #screen-home,
 .app-shell[data-screen="wrapup"] #screen-home {
   display: none;
-}
-
-.sidebar {
-  background: var(--bg-secondary);
-  border-right: 0.5px solid var(--separator);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--space-2) 0 calc(var(--space-6) + var(--safe-bottom));
-}
-
-.sidebar-row {
-  display: grid;
-  grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-  min-height: 52px;
-  padding: var(--space-2) var(--margin-regular);
-  border: 0;
-  background: transparent;
-  color: var(--label);
-  font: var(--text-body);
-  text-align: left;
-  cursor: pointer;
-}
-
-.sidebar-row + .sidebar-row {
-  margin-top: 0;
-}
-
-.sidebar-row:hover {
-  background: var(--fill);
-}
-
-.sidebar-row:active {
-  background: var(--fill-pressed);
-}
-
-.sidebar-row[aria-current="page"] {
-  background: var(--tint-fill);
-}
-
-.sidebar-num {
-  font: var(--text-subhead);
-  color: var(--label-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.sidebar-row[aria-current="page"] .sidebar-num {
-  color: var(--tint);
-  font-weight: 600;
-}
-
-.sidebar-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  line-height: 20px;
-  max-height: 40px;
 }
 
 .mastery-ring {
@@ -193,7 +76,7 @@ html:has(.app-shell[data-screen="home"]) body,
   position: absolute;
   inset: 4px;
   border-radius: 50%;
-  background: var(--bg-secondary);
+  background: var(--bg-grouped-secondary);
 }
 
 .mastery-ring span {
@@ -204,173 +87,77 @@ html:has(.app-shell[data-screen="home"]) body,
   font-variant-numeric: tabular-nums;
 }
 
-.sidebar-row[aria-current="page"] .mastery-ring::after {
-  background: var(--bg-base);
-}
-
-.detail {
-  background: var(--bg);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--space-5) var(--margin-regular) calc(var(--space-8) + var(--safe-bottom));
-}
-
-.detail-head {
-  max-width: var(--content-max);
-  margin-bottom: var(--space-5);
-}
-
-.detail-kicker {
-  margin: 0 0 var(--space-1);
-  font: var(--text-footnote);
-  color: var(--label-secondary);
-}
-
-.detail-head h1 {
-  margin: 0;
-  font: var(--text-large-title);
-  max-width: none;
-  text-transform: none;
-  letter-spacing: -0.02em;
-  font-family: var(--font);
-  color: var(--label);
-}
-
-.detail-count {
-  margin: var(--space-2) 0 0;
-  font: var(--text-subhead);
-  color: var(--label-secondary);
-}
-
-.detail-head .medal-badge,
-.detail-head .medal-badge[data-medal="none"] {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  width: fit-content;
-  height: auto;
-  min-height: var(--tap);
-  margin-top: var(--space-4);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-full);
+.module-sheet-row[aria-current="page"] .mastery-ring::after {
   background: var(--fill);
-  box-shadow: none;
-  color: var(--label);
-  font: var(--text-subhead);
 }
 
-.lesson-list {
+.quick-view-list {
   display: grid;
-  gap: var(--space-2);
-  max-width: var(--content-max);
-  background: none;
-  position: static;
+  gap: 0;
+  padding: var(--space-2) 0 var(--space-4);
 }
 
-.lesson-row {
+.module-sheet-row {
   display: grid;
-  grid-template-columns: var(--tap) minmax(0, 1fr) auto;
+  grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  min-height: 64px;
-  padding: var(--space-3) var(--space-4);
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-4);
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--bg-base);
+  background: transparent;
   color: var(--label);
+  font: var(--text-body);
   text-align: left;
   cursor: pointer;
-  font: inherit;
-  box-shadow: none;
 }
 
-.lesson-row:active {
+.module-sheet-row:hover {
+  background: var(--fill);
+}
+
+.module-sheet-row:active {
   background: var(--fill-pressed);
 }
 
-#screen-home .lesson-row[data-recommended="true"],
-.lesson-row[data-recommended="true"] {
-  background: var(--bg-base);
-  box-shadow: none;
+.module-sheet-row[aria-current="page"] {
+  background: var(--tint-fill);
 }
 
-.lesson-row .n,
-.lesson-row .title,
-.lesson-row .sub {
-  font-family: var(--font);
-  text-transform: none;
-  letter-spacing: 0;
+.module-sheet-num {
+  font: var(--text-subhead);
+  color: var(--label-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
-.row-vinyl {
-  width: var(--tap);
-  height: var(--tap);
-  border-radius: 12px;
-  background: var(--sleeve, var(--vinyl-amber));
-  color: var(--sleeve-ink, #2b211a);
-  display: grid;
-  place-items: center;
-  font: var(--text-headline);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-  position: relative;
-  overflow: hidden;
+.module-sheet-row[aria-current="page"] .module-sheet-num {
+  color: var(--tint);
+  font-weight: 600;
 }
 
-.row-vinyl .vinyl {
-  display: none;
-}
-
-.row-vinyl > span:last-child {
-  position: relative;
-  z-index: 1;
-}
-
-.row-copy {
+.module-sheet-copy {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.row-kicker {
+.module-sheet-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  line-height: 20px;
+  max-height: 40px;
+}
+
+.module-sheet-meta {
   font: var(--text-caption);
   color: var(--label-secondary);
-}
-
-.row-title {
-  font: var(--text-headline);
-  color: var(--label);
-}
-
-.row-sub {
-  font: var(--text-footnote);
-  color: var(--label-secondary);
-}
-
-.start-pill {
-  min-height: var(--tap);
-  display: grid;
-  place-items: center;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  background: var(--tint-solid);
-  color: var(--tint-on-solid);
-  font: var(--text-footnote);
-  font-weight: 600;
-}
-
-.path-group-label {
-  margin: var(--space-5) 0 var(--space-2);
-  justify-self: start;
-  font: var(--text-footnote);
-  letter-spacing: 0;
-  text-transform: none;
-  font-weight: 600;
-  color: var(--label-secondary);
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
 }
 
 .app-shell[data-screen="session"] .masthead,
@@ -405,11 +192,6 @@ html:has(.app-shell[data-screen="home"]) body,
   padding: 0;
   min-height: 0;
   height: 100%;
-}
-
-#quick-view-btn,
-.quick-view-fab {
-  display: none !important;
 }
 
 .app-shell[data-screen="session"] .session-top {
@@ -828,37 +610,13 @@ html:has(.app-shell[data-screen="home"]) body,
 }
 
 @media (max-width: 677px) {
-  .app-toolbar {
-    display: flex;
-    padding-inline: var(--margin-compact);
-    align-items: center;
-    min-height: calc(var(--tap) + var(--safe-top));
-  }
-
-  .toolbar-title {
-    flex: 1 1 auto;
-  }
-
-  .settings-line {
-    display: none;
+  .masthead,
+  .workspace {
+    width: min(1080px, calc(100% - 2 * var(--margin-compact)));
   }
 
   .headphones-banner {
     width: calc(100% - 2 * var(--margin-compact));
-  }
-
-  .app-shell[data-screen="home"] #screen-home.split-home,
-  #screen-home.split-home {
-    grid-template-columns: 1fr;
-  }
-
-  .app-shell[data-home-pane="list"] .detail,
-  .app-shell[data-home-pane="detail"] .sidebar {
-    display: none;
-  }
-
-  .detail {
-    padding-inline: var(--margin-compact);
   }
 
   .session-top {
@@ -881,30 +639,6 @@ html:has(.app-shell[data-screen="home"]) body,
     max-height: min(92dvh, 100%);
     margin: auto auto 0;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  }
-}
-
-@media (min-width: 678px) and (max-width: 900px) {
-  .app-shell[data-screen="home"] #screen-home.split-home,
-  #screen-home.split-home {
-    grid-template-columns: var(--sidebar-width-split) minmax(0, 1fr);
-  }
-
-  .sidebar-row {
-    padding-inline: var(--space-4);
-  }
-}
-
-@media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
-  #screen-home.split-home {
-    justify-content: stretch;
-    gap: 0;
-    padding: 0;
-  }
-
-  #screen-home .lesson-row {
-    padding: var(--space-3) var(--space-4);
-    min-height: 64px;
   }
 }
 
