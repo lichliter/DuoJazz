@@ -6,7 +6,8 @@ This folder is a **separate, playable browser experiment**. It is not a port of 
 cd browser-prototype
 python3 -m http.server 4173 --bind 127.0.0.1
 # open http://127.0.0.1:4173/
-node --test js/music.test.mjs js/lesson.test.mjs js/session.test.mjs js/grade.test.mjs
+# backing A/B (dev only): http://127.0.0.1:4173/sound.html
+node --test js/*.test.mjs
 ```
 
 Deep links for screenshots and review:
