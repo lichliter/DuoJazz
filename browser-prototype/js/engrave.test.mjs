@@ -10,6 +10,7 @@ import {
   cueFontVU,
   resetVerovioForTests,
   smuflChordChar,
+  soundingIdsAt,
   staffCssFromPage,
   STAFF_USER_UNITS,
   svgHasBowingMarks,
@@ -74,6 +75,19 @@ test("index and gallery load Verovio instead of abcjs", async () => {
   assert.match(gallery, /href="#compare"/);
   assert.doesNotMatch(index, /abcjs/);
   assert.doesNotMatch(gallery, /abcjs/);
+});
+
+test("session chrome uses Modules, a round play button, and a pinned bottom bar", async () => {
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(index, /aria-label="Modules"/);
+  assert.match(index, /id="quick-view-title">Modules</);
+  assert.match(index, /class="play-round"/);
+  assert.match(index, /class="session-bottom"/);
+  assert.match(index, /id="home-settings"/);
+  assert.match(index, /id="settings-summary"/);
+  assert.doesNotMatch(index, />Quick view</);
+  assert.doesNotMatch(index, /id="setup"/);
+  assert.doesNotMatch(index, /id="session-card-count"/);
 });
 
 test("index and gallery bind Verovio WASM before the page module", async () => {
@@ -188,6 +202,18 @@ test("Verovio options leave a tight cue lane under the staff", () => {
   assert.ok(chorus.lyricSize <= 3.5);
   assert.equal(chorus.leftMarginAccid, 2);
   assert.ok(chorus.rightMarginAccid >= 1.0);
+});
+
+test("timemap highlight picks the event covering the current quarter", () => {
+  const timemap = [
+    { qstamp: 0, duration: 1, on: ["n1"], off: [] },
+    { qstamp: 1, duration: 1, on: ["n2"], off: ["n1"] },
+    { qstamp: 2, duration: 2, on: ["n3"], off: ["n2"] },
+  ];
+  assert.deepEqual(soundingIdsAt(timemap, 0.25), ["n1"]);
+  assert.deepEqual(soundingIdsAt(timemap, 1.1), ["n2"]);
+  assert.deepEqual(soundingIdsAt(timemap, 3.5), ["n3"]);
+  assert.deepEqual(soundingIdsAt(timemap, -1), []);
 });
 
 test("notation size presets keep four bars per line and scale the staff together", () => {

@@ -911,6 +911,11 @@ input[type="checkbox"] {
   width: min(1080px, calc(100% - 1.5rem));
 }
 
+.app-shell[data-screen="session"] .workspace {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
 .key-strip {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -1049,10 +1054,26 @@ input[type="checkbox"] {
   font-size: 1.05rem;
 }
 
+.home-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.15rem 0 0.45rem;
+}
+
+.settings-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  min-width: 0;
+}
+
 .session-screen {
-  gap: 0.35rem;
-  overflow-x: hidden;
-  overflow-y: auto;
+  gap: 0.28rem;
+  overflow: hidden;
+  min-height: 0;
+  padding-bottom: calc(3.4rem + env(safe-area-inset-bottom));
 }
 
 .session-top {
@@ -1082,6 +1103,22 @@ input[type="checkbox"] {
   gap: 0.4rem;
   flex: 1 1 10rem;
   min-width: 0;
+}
+
+.session-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  padding: 0.3rem max(0.75rem, calc((100vw - 1080px) / 2)) calc(0.45rem + env(safe-area-inset-bottom));
+  margin-top: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  z-index: 6;
 }
 
 .session-nav-btn {
@@ -1148,27 +1185,115 @@ input[type="checkbox"] {
 
 .session-octave {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
+  gap: 0.55rem;
   flex: 0 0 auto;
 }
 
 .session-octave .chip {
   min-width: var(--tap);
   min-height: var(--tap);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.session-octave .chip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.session-transport {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  flex: 0 0 auto;
+  padding: 0.15rem 0 0;
+}
+
+.play-round {
+  width: 96px;
+  height: 96px;
+  min-width: 96px;
+  min-height: 96px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--selected);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.play-round:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.play-round-icon {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 14px 0 14px 24px;
+  border-color: transparent transparent transparent currentColor;
+  margin-left: 5px;
+}
+
+.play-round.is-stop .play-round-icon,
+.play-round[data-action="pause"] .play-round-icon,
+.play-round[data-action="stop"] .play-round-icon {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  margin: 0;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.play-round-label {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.session-transport .text-link {
+  min-height: var(--tap);
+  color: var(--muted);
+}
+
+.headphones-tip {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  flex: 0 0 auto;
 }
 
 .session-screen .chart-card {
-  flex: 1 0 auto;
+  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: visible;
+  overflow: auto;
 }
 
 .session-screen .chart-foot {
   margin-top: auto;
+}
+
+.vrv-container svg .sounding,
+.vrv-container svg .sounding * {
+  fill: var(--accent) !important;
+  stroke: var(--accent) !important;
+}
+
+.module-block.is-current .module-banner {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 12px;
 }
 
 .session-screen .paper-wrap {

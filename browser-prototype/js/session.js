@@ -32,7 +32,9 @@ import {
   chartCopy,
 } from "./lesson.js";
 
-export const PREFS_KEY = "duojazz-focused-session-v1";
+export const PREFS_KEY = "duojazz-focused-session-v2";
+export const LEGACY_PREFS_KEY = "duojazz-focused-session-v1";
+export const HEADPHONES_TIP_KEY = "duojazz.headphonesTipSeen";
 
 export const MODULE = {
   id: MODULES[0].id,
@@ -65,6 +67,30 @@ export const CARDS = {
   listen: { id: "listen", label: "Listen", kicker: "LISTEN" },
   quiz: { id: "quiz", label: "Quiz", kicker: "QUIZ" },
 };
+
+export const LEARN_CARDS = ["learn", "play", "quiz"];
+
+export function isLearnLesson(lessonId) {
+  return lessonById(lessonId).kind === "learn";
+}
+
+export function cardLabel(cardId, lessonId) {
+  if (lessonId && isLearnLesson(lessonId)) {
+    if (cardId === "learn") return "Hear it";
+    if (cardId === "play") return "Play it";
+    if (cardId === "quiz") return "Play it from memory";
+  }
+  return CARDS[cardId]?.label ?? cardId;
+}
+
+export function cardKicker(cardId, lessonId) {
+  if (lessonId && isLearnLesson(lessonId)) {
+    if (cardId === "learn") return "HEAR";
+    if (cardId === "play") return "PLAY";
+    if (cardId === "quiz") return "MEMORY";
+  }
+  return CARDS[cardId]?.kicker ?? cardId;
+}
 
 export const PATH_ALIGNS = ["left", "center", "right"];
 
@@ -152,7 +178,8 @@ export function keyModeById(id) {
   return KEY_MODES.find((mode) => mode.id === id) ?? KEY_MODES[0];
 }
 
-export function cardsFor(cardSet) {
+export function cardsFor(cardSet, lessonId) {
+  if (lessonId && isLearnLesson(lessonId)) return [...LEARN_CARDS];
   return cardSet === "listen-quiz" ? ["listen", "quiz"] : [...CARD_ORDER];
 }
 
@@ -237,6 +264,11 @@ export function defaultPrefs() {
     swing: true,
     metronome: false,
     guideTones: true,
+    keyMode: "one",
+    startKeyId: DEFAULT_KEY_ID,
+    cardSet: "all",
+    tempo: 96,
+    headphonesTipSeen: false,
     lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, defaultLessonPref(lesson.id)])),
     progress: {},
   };
@@ -250,6 +282,14 @@ export function normalizePrefs(raw) {
   merged.swing = Boolean(merged.swing);
   merged.metronome = Boolean(merged.metronome);
   merged.guideTones = merged.guideTones !== false;
+  const seed = raw?.lessons?.["learn-lick"] ?? {};
+  merged.keyMode = KEY_MODES.some((mode) => mode.id === raw?.keyMode)
+    ? raw.keyMode
+    : (KEY_MODES.some((mode) => mode.id === seed.keyMode) ? seed.keyMode : "one");
+  merged.startKeyId = normalizeKeyId(raw?.startKeyId ?? seed.startKeyId ?? DEFAULT_KEY_ID);
+  merged.cardSet = raw?.cardSet === "listen-quiz" || seed.cardSet === "listen-quiz" ? "listen-quiz" : "all";
+  merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
+  merged.headphonesTipSeen = Boolean(raw?.headphonesTipSeen);
   merged.lessons = { ...base.lessons };
   for (const lesson of LESSONS) {
     const incoming = raw?.lessons?.[lesson.id] ?? {};
@@ -310,7 +350,7 @@ export function createSession({
   rng = Math.random,
 } = {}) {
   const lesson = lessonById(lessonId);
-  const cards = cardsFor(cardSet);
+  const cards = cardsFor(cardSet, lesson.id);
   const keyQueue = buildKeyQueue(keyMode, startKeyId, rng);
   return {
     screen: "session",
@@ -398,10 +438,17 @@ export function lessonsSharingTempo(lessonId) {
 export function persistLessonTempo(prefs, lessonId, tempo) {
   const next = normalizePrefs(prefs);
   const bpm = Math.min(160, Math.max(60, Number(tempo) || 96));
+  next.tempo = bpm;
   for (const id of lessonsSharingTempo(lessonId)) {
     next.lessons[id] = { ...next.lessons[id], tempo: bpm };
   }
   return next;
+}
+
+export function settingsSummary(prefs) {
+  const p = normalizePrefs(prefs);
+  const keys = p.keyMode === "one" ? "Original key" : "All 12 keys";
+  return `${keys} · ${p.tempo} bpm · 1-bar count-in · ${p.swing ? "Swing on" : "Swing off"}`;
 }
 
 export function completeCard(session, result = {}) {
@@ -457,11 +504,17 @@ export function canGoNext(session) {
   );
 }
 
+export function sessionProgress(session) {
+  const perKey = Math.max(1, session.cards.length);
+  const keys = Math.max(1, session.keyQueue.length);
+  const total = perKey * keys;
+  const done = session.keyIndex * perKey + session.cardIndex;
+  return { index: done + 1, total, ratio: total ? done / total : 0 };
+}
+
 export function cardCounter(session) {
-  return {
-    index: session.cardIndex + 1,
-    total: session.cards.length,
-  };
+  const progress = sessionProgress(session);
+  return { index: progress.index, total: progress.total };
 }
 
 /**
@@ -714,6 +767,21 @@ export function sessionPresentation(session) {
   const isolated = lesson.kind === "learn";
   const hideMelody = card === "listen" || card === "quiz";
 
+  if (isolated && card === "quiz") {
+    return {
+      ...view,
+      looping: false,
+      hideStaff: false,
+      hideMelody: true,
+      showChordsOnly: true,
+      showPhraseNotation: false,
+      showModelNotation: false,
+      showSlashNotation: false,
+      showLandingNotation: false,
+      showEntranceCues: false,
+    };
+  }
+
   if (!hideMelody) {
     if (!isolated && card === "play") {
       return {
@@ -762,20 +830,30 @@ export function hearBarsLabel(barCount) {
 }
 
 export function sessionPrimaryAction(session, playback) {
-  const action = primaryAction(practiceStateFor(session), playback);
-  if (action.id !== "start") return action;
+  const idle = primaryAction(practiceStateFor(session), {});
+  const live = primaryAction(practiceStateFor(session), playback);
   const lesson = lessonById(session.lessonId);
-  if (lesson.kind === "learn" || currentCard(session) !== "learn") return action;
-  if (lesson.group === "my-tunes") return { ...action, label: "Hear the tune" };
-  if (lesson.group === "your-tunes") {
-    return { ...action, label: `Hear it in ${lesson.coverTitle ?? lesson.title}` };
+  const card = currentCard(session);
+  let label = idle.label;
+  if (lesson.kind === "learn") {
+    label = card === "learn" ? "Hear it" : "Count me in";
+  } else if (card === "learn") {
+    if (lesson.group === "my-tunes") label = "Hear the tune";
+    else if (lesson.group === "your-tunes") {
+      label = `Hear it in ${lesson.coverTitle ?? lesson.title}`;
+    } else {
+      const ctx = applicationContext(
+        getKey(currentKeyId(session)),
+        session.displayMode,
+        lesson.applicationId,
+      );
+      label = hearBarsLabel(ctx.formBars);
+    }
   }
-  const ctx = applicationContext(
-    getKey(currentKeyId(session)),
-    session.displayMode,
-    lesson.applicationId,
-  );
-  return { ...action, label: hearBarsLabel(ctx.formBars) };
+  if (live.id === "pause" || live.id === "resume" || live.id === "stop") {
+    return { ...live, label };
+  }
+  return { ...idle, label };
 }
 
 export function sessionChartCopy(session) {
@@ -825,12 +903,7 @@ export function sessionCue(session, snap = {}) {
     const noun = ctx.noun ?? "lick";
     if (card === "learn") return `Hear the ${noun} in ${ctx.tuneName}.`;
     if (card === "play") return `Play the ${noun}. The staff is there if you need it.`;
-    if (card === "listen") {
-      return session.listenStage === "echo"
-        ? `Your turn. Play the ${noun} by ear.`
-        : "Listen first. The staff stays hidden.";
-    }
-    return "Cold recall. No staff, no model.";
+    return `Play the ${noun} from memory. Chord symbols and bar lines stay.`;
   }
   if (card === "learn") {
     if (lesson.group === "my-tunes" || lesson.group === "your-tunes") {
@@ -912,7 +985,7 @@ export function wrapupCopy(session) {
       const row = session.cardResults.find((item) => item.cardId === cardId) ?? { outcome: "completed" };
       const result = {
         cardId,
-        label: CARDS[cardId].label,
+        label: cardLabel(cardId, session.lessonId),
         outcome: row.outcome ?? "completed",
         percent: typeof row.percent === "number" ? row.percent : null,
         passed: Boolean(row.passed),

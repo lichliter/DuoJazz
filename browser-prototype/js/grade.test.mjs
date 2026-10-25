@@ -131,9 +131,9 @@ test("Learn cards are not graded", () => {
 });
 
 test("Listen Your-turn take is graded like Play against the current octave", () => {
-  const echo = { ...jumpToCard(createSession({ lessonId: "learn-lick", melodyRegister: 1 }), "listen"), listenStage: "echo" };
+  const echo = { ...jumpToCard(createSession({ lessonId: "integrate-minor-home", melodyRegister: 1 }), "listen"), listenStage: "echo" };
   const expected = expectedNotesFor(echo);
-  assert.equal(expected[0].midi, expectedNotesFor(jumpToCard(createSession({ lessonId: "learn-lick" }), "play"))[0].midi + 12);
+  assert.equal(expected[0].midi, expectedNotesFor(jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "play"))[0].midi + 12);
   const result = gradeSession(echo, synthTrack(expected));
   assert.equal(result.graded, true);
   assert.equal(result.passed, true);
@@ -153,7 +153,7 @@ test("a graded card with no take reports Skipped and is never a pass", () => {
   assert.equal(skippedQuiz.passed, false);
   const silence = finishCard(play, [{ beat: 0, hz: 0, amp: 0 }]);
   assert.equal(silence.outcome, "skipped");
-  const echo = { ...jumpToCard(createSession({ lessonId: "learn-lick" }), "listen"), listenStage: "echo" };
+  const echo = { ...jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "listen"), listenStage: "echo" };
   assert.equal(finishCard(echo, []).outcome, "skipped");
   assert.equal(finishCard(createSession({ lessonId: "learn-lick" }), []).outcome, "completed");
 });
@@ -192,13 +192,12 @@ test("skipping a graded card is Skipped and never a pass", () => {
     cardResults: [
       { cardId: "learn", outcome: "completed" },
       { cardId: "play", ...skipped },
-      { cardId: "listen", ...skipResult({ ...play, cards: ["listen"], cardIndex: 0 }) },
       { cardId: "quiz", outcome: "missed", graded: true, passed: false, percent: 0, correction: "1st note didn't speak" },
     ],
   });
   assert.equal(copy.results[1].summary, "Skipped");
   assert.equal(copy.results[1].passed, false);
-  assert.equal(copy.results[3].summary, "0% · miss · 1st note didn't speak");
+  assert.equal(copy.results[2].summary, "0% · miss · 1st note didn't speak");
 });
 
 test("medal thresholds are bronze 1, silver 6, gold 12", () => {
@@ -266,7 +265,6 @@ test("wrap-up copy surfaces score, pass, and the one correction", () => {
     cardResults: [
       { cardId: "learn", outcome: "completed" },
       { cardId: "play", outcome: "missed", graded: true, passed: false, percent: 50, correction: "Bar 1 · 3rd note a little flat" },
-      { cardId: "listen", outcome: "passed", graded: true, passed: true, percent: 83 },
       { cardId: "quiz", outcome: "passed", graded: true, passed: true, percent: 100 },
     ],
   };
@@ -274,13 +272,14 @@ test("wrap-up copy surfaces score, pass, and the one correction", () => {
   assert.equal(copy.results[1].percent, 50);
   assert.equal(copy.results[1].correction, "Bar 1 · 3rd note a little flat");
   assert.equal(copy.results[1].summary, "50% · miss · Bar 1 · 3rd note a little flat");
-  assert.equal(copy.results[2].summary, "83% · pass");
-  assert.equal(copy.results[3].passed, true);
+  assert.equal(copy.results[2].summary, "100% · pass");
+  assert.equal(copy.results[2].passed, true);
 });
 
 test("mic copy covers denied, no-signal, and listening", () => {
   assert.match(micCopy("denied"), /blocked/i);
   assert.match(micCopy("no-signal"), /no signal/i);
-  assert.match(micCopy("listening"), /listening/i);
+  assert.equal(micCopy("listening"), "");
+  assert.equal(micCopy("idle"), "");
   assert.match(micCopy("unsupported"), /ipad safari/i);
 });

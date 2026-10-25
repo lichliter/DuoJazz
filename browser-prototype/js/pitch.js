@@ -141,7 +141,6 @@ export function micCopy(state) {
   if (state === "denied") return "Microphone blocked. Enable it in Safari settings to grade.";
   if (state === "unsupported") return "This browser cannot run pitch detection. Try iPad Safari.";
   if (state === "no-signal") return "No signal. Play closer to the mic, or use headphones for the backing.";
-  if (state === "listening") return "Listening. Headphones recommended — backing can leak into the mic.";
   if (state === "requesting") return "Asking for the microphone…";
-  return "Microphone ready after you press Play. Headphones recommended.";
+  return "";
 }

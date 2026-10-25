@@ -56,6 +56,11 @@ import {
   quickViewData,
   resolveQuickViewJump,
   cardCounter,
+  settingsSummary,
+  sessionProgress,
+  cardLabel,
+  cardKicker,
+  sessionPrimaryAction,
 } from "./session.js";
 
 function rngFrom(values) {
@@ -106,8 +111,10 @@ test("one key cycle is a single starting key", () => {
 });
 
 test("card sets are all four cards or Listen + Quiz only", () => {
-  assert.deepEqual(cardsFor("all"), ["learn", "play", "listen", "quiz"]);
-  assert.deepEqual(cardsFor("listen-quiz"), ["listen", "quiz"]);
+  assert.deepEqual(cardsFor("all", "integrate-minor-home"), ["learn", "play", "listen", "quiz"]);
+  assert.deepEqual(cardsFor("listen-quiz", "integrate-minor-home"), ["listen", "quiz"]);
+  assert.deepEqual(cardsFor("all", "learn-lick"), ["learn", "play", "quiz"]);
+  assert.deepEqual(cardsFor("listen-quiz", "learn-lick"), ["learn", "play", "quiz"]);
 });
 
 test("completing cards advances, then wrap-up after the last card of a key", () => {
@@ -120,12 +127,10 @@ test("completing cards advances, then wrap-up after the last card of a key", () 
   session = completeCard(session);
   assert.equal(currentCard(session), "play");
   session = completeCard(session);
-  assert.equal(currentCard(session), "listen");
-  session = completeCard(session);
   assert.equal(currentCard(session), "quiz");
   session = completeCard(session);
   assert.equal(session.screen, "wrapup");
-  assert.equal(session.cardResults.length, 4);
+  assert.equal(session.cardResults.length, 3);
   assert.ok(session.cardResults.every((row) => row.outcome === "completed"));
 });
 
@@ -144,7 +149,7 @@ test("Listen + Quiz sessions skip Learn and Play", () => {
 });
 
 test("listen playback ending starts the echo stage, then completes the card", () => {
-  let session = jumpToCard(createSession({ lessonId: "learn-lick" }), "listen");
+  let session = jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "listen");
   const afterHear = handlePlaybackEnded(session);
   assert.equal(afterHear.session.listenStage, "echo");
   assert.equal(afterHear.autoStart, true);
@@ -161,7 +166,7 @@ test("skipping a card still auto-advances without requiring playback", () => {
   assert.equal(currentCard(session), "play");
   assert.equal(session.cardResults[0].outcome, "completed");
   session = skipCard(session);
-  assert.equal(currentCard(session), "listen");
+  assert.equal(currentCard(session), "quiz");
   assert.equal(session.cardResults.find((row) => row.cardId === "play")?.outcome, "skipped");
   assert.equal(session.cardResults.find((row) => row.cardId === "play")?.passed, false);
 });
@@ -271,9 +276,10 @@ test("learn-the-lick cards use isolated cell audio; integration cards use the ei
 });
 
 test("listen and quiz hide lick notation; quiz does not leak the door in idle copy", () => {
-  const learnListen = jumpToCard(createSession({ lessonId: "learn-lick" }), "listen");
-  const learnView = sessionPresentation(learnListen);
-  assert.equal(learnView.hideStaff, true);
+  const learnMemory = jumpToCard(createSession({ lessonId: "learn-lick" }), "quiz");
+  const learnView = sessionPresentation(learnMemory);
+  assert.equal(learnView.hideStaff, false);
+  assert.equal(learnView.showChordsOnly, true);
   assert.equal(learnView.showPhraseNotation, false);
   assert.equal(learnView.showModelNotation, false);
 
@@ -303,7 +309,9 @@ test("wrap-up lists per-card completion and names the next key", () => {
     startKeyId: "G",
   }));
   const copy = wrapupCopy(session);
-  assert.equal(copy.results.length, 4);
+  assert.equal(copy.results.length, 3);
+  assert.equal(copy.results[0].label, "Hear it");
+  assert.equal(copy.results[2].label, "Play it from memory");
   assert.equal(copy.heading, "G minor");
   assert.equal(copy.kicker, "Key complete");
   assert.equal(copy.detail, "Learn the lick");
@@ -315,12 +323,12 @@ test("wrap-up lists per-card completion and names the next key", () => {
 });
 
 test("Listen and Quiz expose a listening-state copy for the feedback area", () => {
-  const listen = jumpToCard(createSession({ lessonId: "learn-lick" }), "listen");
+  const listen = jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "listen");
   const hear = listenStateCopy(listen);
   assert.equal(hear.kicker, "Listening");
   const echo = listenStateCopy({ ...listen, listenStage: "echo" });
   assert.equal(echo.kicker, "Your turn");
-  const quiz = listenStateCopy(jumpToCard(createSession({ lessonId: "learn-lick" }), "quiz"));
+  const quiz = listenStateCopy(jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "quiz"));
   assert.equal(quiz.kicker, "Quiz");
   assert.equal(listenStateCopy(createSession({ lessonId: "learn-lick" })), null);
 });
@@ -455,7 +463,7 @@ test("melody octave is remembered per lesson and applied on the session", () => 
 });
 
 test("Listen is graded on the Your-turn take, not while hearing the model", () => {
-  const hear = jumpToCard(createSession({ lessonId: "learn-lick" }), "listen");
+  const hear = jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "listen");
   assert.equal(shouldGradeNow(hear), false);
   assert.equal(shouldGradeNow(hear, { hasTake: true }), true);
   const echo = { ...hear, listenStage: "echo" };
@@ -476,7 +484,6 @@ test("a graded card with no take is Skipped and is not a pass", () => {
     cardResults: [
       { cardId: "learn", outcome: "completed" },
       { cardId: "play", outcome: "skipped", graded: false, passed: false },
-      { cardId: "listen", outcome: "skipped", graded: false, passed: false },
       { cardId: "quiz", outcome: "skipped", graded: false, passed: false },
     ],
   });
@@ -489,19 +496,19 @@ test("Back is disabled on card 1 and Next on the last card", () => {
   const first = createSession({ lessonId: "learn-lick" });
   assert.equal(canGoBack(first), false);
   assert.equal(canGoNext(first), true);
-  assert.deepEqual(cardCounter(first), { index: 1, total: 4 });
+  assert.deepEqual(cardCounter(first), { index: 1, total: 3 });
   const backNoop = goBack(first);
   assert.equal(backNoop.moved, false);
   assert.equal(backNoop.session.cardIndex, 0);
   assert.equal(backNoop.stopAudio, false);
 
-  const last = { ...first, cardIndex: 3 };
+  const last = { ...first, cardIndex: 2 };
   assert.equal(currentCard(last), "quiz");
   assert.equal(canGoBack(last), true);
   assert.equal(canGoNext(last), false);
   const nextNoop = goNext(last);
   assert.equal(nextNoop.moved, false);
-  assert.equal(nextNoop.session.cardIndex, 3);
+  assert.equal(nextNoop.session.cardIndex, 2);
   assert.equal(nextNoop.session.screen, "session");
 });
 
@@ -509,9 +516,9 @@ test("leaving a graded card with no take marks it Skipped", () => {
   const play = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
   const moved = goNext(play, { hasTake: false });
   assert.equal(moved.moved, true);
-  assert.equal(currentCard(moved.session), "listen");
+  assert.equal(currentCard(moved.session), "quiz");
   assert.deepEqual(keyOrdinal(moved.session), { index: 1, total: 1 });
-  assert.deepEqual(cardCounter(moved.session), { index: 3, total: 4 });
+  assert.deepEqual(cardCounter(moved.session), { index: 3, total: 3 });
   const skipped = resultForCard(moved.session, "play");
   assert.equal(skipped.outcome, "skipped");
   assert.equal(skipped.passed, false);
@@ -592,6 +599,41 @@ test("abandoning a session marks unfinished graded cards Skipped", () => {
   session = skipRemainingCards(session);
   assert.equal(resultForCard(session, "learn").outcome, "completed");
   assert.equal(resultForCard(session, "play").outcome, "skipped");
-  assert.equal(resultForCard(session, "listen").outcome, "skipped");
   assert.equal(resultForCard(session, "quiz").outcome, "skipped");
+});
+
+test("global settings summary and lesson-1 labels", () => {
+  assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "All 12 keys · 140 bpm · 1-bar count-in · Swing on");
+  assert.equal(settingsSummary(defaultPrefs()), "Original key · 96 bpm · 1-bar count-in · Swing on");
+  assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
+  assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
+  assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
+  const twelve = createSession({ lessonId: "learn-lick", keyMode: "fourths" });
+  assert.deepEqual(sessionProgress(twelve), { index: 1, total: 36, ratio: 0 });
+  const hear = createSession({ lessonId: "learn-lick" });
+  assert.equal(sessionPrimaryAction(hear, {}).label, "Hear it");
+  assert.equal(sessionPrimaryAction(hear, { playing: true }).id, "pause");
+  assert.equal(sessionPrimaryAction(hear, { playing: true }).label, "Hear it");
+  assert.equal(sessionPrimaryAction(jumpToCard(hear, "play"), {}).label, "Count me in");
+  const shifted = setMelodyRegister(createSession({
+    lessonId: "learn-lick",
+    keyMode: "fourths",
+    startKeyId: "G",
+  }), 1);
+  const nextKey = advanceKey(jumpToWrapup(shifted));
+  assert.equal(nextKey.melodyRegister, 1);
+  assert.equal(currentKeyId(nextKey), "C");
+});
+
+test("timemap sounding ids cover on/off by qstamp", async () => {
+  const { soundingIdsAt } = await import("./engrave.js");
+  const map = [
+    { qstamp: 0, on: ["n1"], off: [] },
+    { qstamp: 1, on: ["n2"], off: ["n1"] },
+    { qstamp: 4, on: [], off: ["n2"] },
+  ];
+  assert.deepEqual(soundingIdsAt(map, 0), ["n1"]);
+  assert.deepEqual(soundingIdsAt(map, 1.5), ["n2"]);
+  assert.deepEqual(soundingIdsAt(map, 4), []);
+  assert.deepEqual(soundingIdsAt(map, -1), []);
 });

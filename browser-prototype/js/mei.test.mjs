@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getKey, restBeatsForSpan, phraseMeasureCount } from "./music.js";
 import {
+  chordsOnlyMEI,
   chorusStaffMEI,
   countMeasures,
   countSystemBreaks,
@@ -185,6 +186,15 @@ test("flat and sharp chord names encode without spaces so Verovio will not figba
   const billies = landingMEI(getKey("F"), "concert", "bo-billies");
   assert.ok(harms(billies).some((name) => /Bb|B♭|o7|°/.test(name)));
   assert.doesNotMatch(billies, /[A-G][b#]?\s+(maj7|o7|b9|b5)/);
+});
+
+test("chords-only MEI keeps barlines and chord symbols without lick notes", () => {
+  const mei = chordsOnlyMEI(getKey("G"), "concert", "minor-home", "bass", { isolated: true });
+  assert.ok(harms(mei).includes("Gm6"));
+  assert.equal(countMeasures(mei), 2);
+  assert.match(mei, /<space /);
+  assert.doesNotMatch(mei, /pname="a" oct="3"/);
+  assert.doesNotMatch(mei, /head\.shape="slash"/);
 });
 
 test("long cue labels wrap at a word instead of overflowing the next bar", () => {
