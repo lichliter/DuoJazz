@@ -57,6 +57,7 @@ import {
   modulePathNodes,
   tunePathNodes,
   TUNE_SECTION,
+  moduleById,
   lessonSleeve,
   vinylTier,
   sleeveCaption,
@@ -73,7 +74,8 @@ import {
   resolveQuickViewJump,
   persistLessonTempo,
   settingsSummary,
-  cardKicker,
+  cardLabel,
+  sessionScreenTitle,
   sessionProgress,
   LEGACY_PREFS_KEY,
   HEADPHONES_TIP_KEY,
@@ -119,6 +121,8 @@ let lastEngraveMs = 0;
 let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
+let selectedModuleId = MODULES[0]?.id ?? "cmar";
+let homePane = "list";
 
 const els = {
   shell: document.getElementById("app-shell"),
@@ -133,7 +137,13 @@ const els = {
   setupTitle: document.getElementById("setup-title"),
   setupSummary: document.getElementById("setup-summary"),
   settingsSummary: document.getElementById("settings-summary"),
+  settingsSummaryBtn: document.getElementById("settings-summary-btn"),
   homeSettingsBtn: document.getElementById("home-settings-btn"),
+  homeBack: document.getElementById("home-back"),
+  moduleSidebar: document.getElementById("module-sidebar"),
+  detailHead: document.getElementById("detail-head"),
+  sessionTitle: document.getElementById("session-title"),
+  primaryCount: document.getElementById("primary-count"),
   keyModes: document.getElementById("key-modes"),
   setupKeys: document.getElementById("setup-keys"),
   cardSets: document.getElementById("card-sets"),
@@ -312,6 +322,7 @@ function openSettings() {
 
 function startLesson(lessonId) {
   const lesson = lessonById(lessonId);
+  selectedModuleId = moduleForLesson(lesson.id)?.id ?? selectedModuleId;
   setupLessonId = lesson.id;
   const fallback = defaultLessonStartKey(lesson);
   halt();
@@ -394,9 +405,18 @@ function abandonToQuickView() {
   openQuickView();
 }
 
+function compactHome() {
+  return window.matchMedia("(max-width: 677px)").matches;
+}
+
 function currentHomeModuleId() {
-  return els.lessonList?.querySelector(".module-block.is-current")?.dataset.module
-    ?? MODULES[0]?.id;
+  return selectedModuleId ?? MODULES[0]?.id;
+}
+
+function selectModule(id, { reveal = true } = {}) {
+  selectedModuleId = id || MODULES[0]?.id;
+  if (reveal && compactHome()) homePane = "detail";
+  renderHome();
 }
 
 function jumpFromQuickView(id) {
@@ -404,14 +424,7 @@ function jumpFromQuickView(id) {
   closeQuickView();
   if (!target) return;
   const moduleId = target.type === "module" ? target.id : target.moduleId;
-  requestAnimationFrame(() => {
-    const block = document.querySelector(`[data-module="${moduleId}"]`);
-    for (const el of document.querySelectorAll(".module-block.is-current")) {
-      el.classList.remove("is-current");
-    }
-    block?.classList.add("is-current");
-    block?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+  selectModule(moduleId);
 }
 
 function closeSetup() {
@@ -528,26 +541,87 @@ function keysByLesson(current = mastery) {
   );
 }
 
-function moduleBanner(module, stats) {
-  const count = stats.masteredKeys.length;
+function sidebarEntries() {
+  return [
+    ...MODULES.map((module) => {
+      const stats = moduleMastery(mastery, module.id);
+      return {
+        id: module.id,
+        number: module.number,
+        name: module.name,
+        kind: "module",
+        mastered: stats.masteredKeys.length,
+      };
+    }),
+    {
+      id: TUNE_SECTION.id,
+      number: null,
+      name: TUNE_SECTION.name,
+      kind: "tunes",
+      mastered: null,
+    },
+  ];
+}
+
+function sidebarButton(entry) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "sidebar-row";
+  btn.dataset.testid = `sidebar-module-${entry.id}`;
+  btn.setAttribute("aria-current", entry.id === selectedModuleId ? "page" : "false");
+  const num = document.createElement("span");
+  num.className = "sidebar-num";
+  num.textContent = entry.number != null ? String(entry.number) : "♪";
+  const name = document.createElement("span");
+  name.className = "sidebar-name";
+  name.textContent = entry.name;
+  btn.append(num, name);
+  if (entry.kind === "module") {
+    const ring = document.createElement("span");
+    ring.className = "mastery-ring";
+    ring.style.setProperty("--progress", String((entry.mastered / 12) * 100));
+    ring.innerHTML = `<span>${entry.mastered}</span>`;
+    ring.setAttribute("aria-label", `${entry.mastered} of 12 keys mastered`);
+    btn.append(ring);
+  }
+  btn.addEventListener("click", () => selectModule(entry.id));
+  return btn;
+}
+
+function renderSidebar() {
+  if (!els.moduleSidebar) return;
+  els.moduleSidebar.replaceChildren(...sidebarEntries().map(sidebarButton));
+}
+
+function detailBanner(module, stats) {
+  const count = stats?.masteredKeys?.length ?? 0;
   const medal = count ? stats.medal : "none";
-  const section = document.createElement("section");
-  section.className = "module-banner";
-  section.dataset.testid = `module-banner-${module.id}`;
-  const copy = document.createElement("div");
-  copy.className = "banner-copy";
-  copy.innerHTML = `<p class="banner-kicker">Module ${module.number} · a lick</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
-  const badge = document.createElement("div");
-  badge.className = "medal-badge";
-  badge.dataset.medal = medal;
-  badge.setAttribute(
-    "aria-label",
-    count ? `${displayMedal(stats.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
-  );
-  const mark = homeMedalMark(count, stats.medal);
-  badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
-  section.append(copy, badge);
-  return section;
+  const header = document.createElement("header");
+  header.className = "detail-head";
+  header.id = "detail-head";
+  header.dataset.testid = `module-banner-${module.id}`;
+  const kicker = document.createElement("p");
+  kicker.className = "detail-kicker";
+  kicker.textContent = module.id === TUNE_SECTION.id ? "Play-through" : `Module ${module.number}`;
+  const title = document.createElement("h1");
+  title.textContent = module.name;
+  header.append(kicker, title);
+  if (module.id !== TUNE_SECTION.id) {
+    const copy = document.createElement("p");
+    copy.className = "detail-count";
+    copy.textContent = `${count} of 12 keys mastered`;
+    const badge = document.createElement("div");
+    badge.className = "medal-badge";
+    badge.dataset.medal = medal;
+    badge.setAttribute(
+      "aria-label",
+      count ? `${displayMedal(stats.medal)}, ${count} of 12 keys` : `${count} of 12 keys, no medal yet`,
+    );
+    const mark = homeMedalMark(count, stats.medal);
+    badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
+    header.append(copy, badge);
+  }
+  return header;
 }
 
 function groupHeader(title, testId) {
@@ -558,60 +632,77 @@ function groupHeader(title, testId) {
   return p;
 }
 
-function moduleBlock(module, nodes, stats) {
-  const wrap = document.createElement("section");
-  wrap.className = "module-block";
-  wrap.dataset.module = module.id;
-  wrap.append(moduleBanner(module, stats));
+function lessonRow(node) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "lesson-row";
+  btn.dataset.testid = `lesson-${node.id}`;
+  btn.dataset.sleeve = node.sleeve;
+  btn.dataset.recommended = String(node.recommended);
+  btn.dataset.complete = String(node.complete);
+  btn.dataset.vinylTier = node.vinylTier;
+  const bits = [
+    `Lesson ${node.number}: ${node.title}`,
+    `${node.passedCount} of 12 keys passed`,
+  ];
+  if (node.recommended) bits.push("recommended start");
+  if (node.complete) bits.push("all keys passed");
+  btn.setAttribute("aria-label", bits.join(". "));
+
+  const vinyl = document.createElement("span");
+  vinyl.className = "row-vinyl";
+  vinyl.dataset.sleeve = node.sleeve;
+  vinyl.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span>${node.number}</span>`;
+
+  const copy = document.createElement("span");
+  copy.className = "row-copy";
+  copy.innerHTML = `<span class="row-kicker">Lesson ${Number(node.number)}</span><span class="row-title">${node.coverTitle ?? node.title}</span><span class="row-sub">${node.caption ?? sleeveCaption(node.context, node.passedCount)}</span>`;
+
+  btn.append(vinyl, copy);
+  if (node.recommended) {
+    const tag = document.createElement("span");
+    tag.className = "start-pill";
+    tag.textContent = "Start";
+    btn.append(tag);
+  }
+  btn.addEventListener("click", () => openSetup(node.id));
+  return btn;
+}
+
+function renderDetail() {
+  const keys = keysByLesson(mastery);
+  const isTunes = selectedModuleId === TUNE_SECTION.id;
+  const module = isTunes ? TUNE_SECTION : (moduleById(selectedModuleId) ?? MODULES[0]);
+  const nodes = isTunes ? tunePathNodes(prefs, keys) : modulePathNodes(module, prefs, keys);
+  const stats = isTunes ? null : moduleMastery(mastery, module.id);
+  if (els.detailHead) {
+    els.detailHead.replaceWith(detailBanner(module, stats ?? { masteredKeys: [], medal: "none" }));
+    els.detailHead = document.getElementById("detail-head") ?? document.querySelector(".detail-head");
+  }
+  const rows = [];
   let lastGroup = "standards";
   for (const node of nodes) {
     const group = node.group ?? "standards";
     if (group !== lastGroup && group === "your-tunes") {
-      wrap.append(groupHeader("Your tunes", `your-tunes-${module.id}`));
+      rows.push(groupHeader("Your tunes", `your-tunes-${module.id}`));
     }
     lastGroup = group;
-    wrap.append(sleeveButton(node));
+    rows.push(lessonRow(node));
   }
-  return wrap;
-}
-
-function myTunesBlock(nodes) {
-  const wrap = document.createElement("section");
-  wrap.className = "module-block tunes-block";
-  wrap.dataset.module = TUNE_SECTION.id;
-  const banner = document.createElement("section");
-  banner.className = "module-banner tunes-banner";
-  banner.dataset.testid = `module-banner-${TUNE_SECTION.id}`;
-  banner.innerHTML = `<div class="banner-copy"><p class="banner-kicker">Play-through</p><h2>My tunes</h2></div>`;
-  wrap.append(banner, ...nodes.map((node) => sleeveButton(node)));
-  return wrap;
+  els.lessonList.replaceChildren(...rows);
 }
 
 function renderHome() {
-  const keys = keysByLesson(mastery);
-  const blocks = MODULES.map((module) => moduleBlock(
-    module,
-    modulePathNodes(module, prefs, keys),
-    moduleMastery(mastery, module.id),
-  ));
-  els.lessonList.replaceChildren(
-    ...blocks,
-    myTunesBlock(tunePathNodes(prefs, keys)),
-    moreLicksSoon(),
-  );
-  const first = els.lessonList.querySelector(".module-block");
-  if (first && !els.lessonList.querySelector(".module-block.is-current")) {
-    first.classList.add("is-current");
+  if (!MODULES.some((module) => module.id === selectedModuleId) && selectedModuleId !== TUNE_SECTION.id) {
+    selectedModuleId = MODULES[0].id;
   }
-  requestAnimationFrame(paintPathTrail);
-}
-
-function moreLicksSoon() {
-  const wrap = document.createElement("div");
-  wrap.className = "path-end";
-  wrap.setAttribute("aria-hidden", "true");
-  wrap.innerHTML = `<span class="path-end-sleeve"></span><span class="path-end-label">More licks soon</span>`;
-  return wrap;
+  els.shell.dataset.homePane = compactHome() ? homePane : "split";
+  if (els.homeBack) {
+    const showBack = compactHome() && homePane === "detail";
+    els.homeBack.hidden = !showBack;
+  }
+  renderSidebar();
+  renderDetail();
 }
 
 function sleeveBoxFromStage(stage, svgRect) {
@@ -844,7 +935,8 @@ function renderSessionChrome() {
   const card = currentCard(session);
   const ordinal = keyOrdinal(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
-  els.cardBadge.textContent = cardKicker(card, session.lessonId);
+  els.cardBadge.textContent = cardLabel(card, session.lessonId);
+  if (els.sessionTitle) els.sessionTitle.textContent = sessionScreenTitle(session);
   els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
   const progress = sessionProgress(session);
@@ -1039,17 +1131,48 @@ function renderCopy(snap = transport.snapshot()) {
   els.instruction.textContent = sessionCue(session, snap);
 }
 
-function renderPrimary() {
+function renderPrimary(snap = transport.snapshot()) {
   if (!session || session.screen !== "session") return;
   const action = sessionPrimaryAction(session, playback);
+  const icon = els.primary.querySelector(".play-round-icon");
   els.primary.hidden = !action;
-  if (action) {
-    const playing = action.id === "pause" || action.id === "stop";
-    els.primary.dataset.action = playing ? "stop" : action.id;
-    els.primary.classList.toggle("is-stop", playing);
-    els.primary.setAttribute("aria-label", playing ? "Stop" : action.label);
-    if (els.primaryLabel) els.primaryLabel.textContent = action.label;
+  if (!action) return;
+  const playing = action.id === "pause" || action.id === "stop";
+  const inCountIn = Boolean(snap.inCountIn);
+  const listening = Boolean(shouldListen() && (snap.playing || snap.paused) && !inCountIn);
+  const result = liveGrade?.graded ? liveGrade : null;
+  let state = "idle";
+  if (inCountIn) state = "count-in";
+  else if (playing) state = "playing";
+  else if (listening) state = "listening";
+  else if (result) state = "result";
+  els.primary.dataset.action = playing ? "stop" : action.id;
+  els.primary.dataset.state = state;
+  els.primary.classList.toggle("is-stop", playing && !inCountIn);
+  els.primary.classList.toggle("is-count", inCountIn);
+  if (result) els.primary.dataset.passed = String(Boolean(result.passed));
+  else delete els.primary.dataset.passed;
+  if (inCountIn) {
+    const n = Math.max(1, Math.ceil(-snap.beats));
+    if (els.primaryCount) {
+      els.primaryCount.hidden = false;
+      els.primaryCount.textContent = String(n);
+    }
+    if (icon) icon.hidden = true;
+    els.primary.setAttribute("aria-label", `Count-in ${n}`);
+    if (els.primaryLabel) els.primaryLabel.textContent = "Count-in";
+    return;
   }
+  if (els.primaryCount) {
+    els.primaryCount.hidden = true;
+    els.primaryCount.textContent = "";
+  }
+  if (icon) icon.hidden = false;
+  const label = result
+    ? (result.passed ? "Pass" : "Not yet")
+    : (playing ? "Stop" : action.label);
+  els.primary.setAttribute("aria-label", label);
+  if (els.primaryLabel) els.primaryLabel.textContent = playing ? "Stop" : (result ? label : action.label);
 }
 
 function renderMeter(snap = transport.snapshot()) {
@@ -1144,6 +1267,11 @@ function applyDeepLink() {
   const lessonId = params.get("lesson") || "learn-lick";
   const card = params.get("card") || "learn";
   const keyMode = params.get("keys") || "fourths";
+  const moduleParam = params.get("module");
+  if (moduleParam) {
+    selectedModuleId = moduleParam;
+    homePane = "detail";
+  }
   if (!screen) return;
   if (params.get("demo") === "grades" || params.get("demo") === "medal") {
     let next = emptyMastery();
@@ -1276,7 +1404,12 @@ transport.onEnded = () => {
 };
 
 els.displayChip.addEventListener("click", () => openSettings());
+els.settingsSummaryBtn?.addEventListener("click", () => openSettings());
 els.homeSettingsBtn?.addEventListener("click", () => openSettings());
+els.homeBack?.addEventListener("click", () => {
+  homePane = "list";
+  renderHome();
+});
 els.sessionExit.addEventListener("click", exitSession);
 els.sessionBack?.addEventListener("click", () => navigateCard(-1));
 els.sessionNext?.addEventListener("click", () => navigateCard(1));
@@ -1395,7 +1528,7 @@ els.session?.addEventListener("touchend", (event) => {
 
 window.addEventListener("resize", () => {
   if (session?.screen === "session") renderNotation();
-  else paintPathTrail();
+  else renderHome();
 });
 
 const lessonPath = document.querySelector(".lesson-path");

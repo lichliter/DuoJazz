@@ -92,6 +92,13 @@ export function cardKicker(cardId, lessonId) {
   return CARDS[cardId]?.kicker ?? cardId;
 }
 
+export function sessionScreenTitle(session) {
+  const lesson = lessonById(session.lessonId);
+  const module = moduleForLesson(session.lessonId);
+  const index = Math.max(1, (module.lessons ?? []).findIndex((item) => item.id === lesson.id) + 1);
+  return `${module.name} · Lesson ${index}`;
+}
+
 export const PATH_ALIGNS = ["left", "center", "right"];
 
 /**
