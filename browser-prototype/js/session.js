@@ -506,6 +506,12 @@ export function settingsSummary(prefs) {
   return `${instrument.label} · ${p.tempo} bpm · 1-bar`;
 }
 
+export function settingsSummaryShort(prefs) {
+  const p = normalizePrefs(prefs);
+  const instrument = instrumentOrDefault(p.instrumentId);
+  return `${instrument.label} · ${p.tempo} bpm`;
+}
+
 export function visibleModuleLessons(module) {
   return (module.lessons ?? []).filter((lesson) => lesson.group !== "your-tunes");
 }
