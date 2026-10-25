@@ -299,7 +299,7 @@ export function instructionCopy(stateOrGoal) {
   if (state.goal === "learn") {
     const noun = lickNoun(state.applicationId);
     return state.cellMode === "echo"
-      ? "Your turn. The synth is only a pad."
+      ? "Your turn. The band is only a pad."
       : `Hear the ${noun} in ${ctx.tuneName}. Repeat, echo, or change octave.`;
   }
   if (state.goal === "keys") return ctx.keysBlurb;

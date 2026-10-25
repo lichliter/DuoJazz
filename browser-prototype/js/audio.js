@@ -1,17 +1,29 @@
 import {
   COUNT_IN_BEATS,
   beatsToSeconds,
-  scheduleChorus,
 } from "./music.js";
+import { SampleLibrary } from "./sound-samples.js";
+import {
+  SAMPLE_FALLBACK_NOTICE,
+  countInEvents,
+  eventIsAudibleFrom,
+  livePlaybackEvents,
+} from "./sound-band.js";
 
 function midiToHz(midi) {
   return 440 * 2 ** ((midi - 69) / 12);
 }
 
+export { SAMPLE_FALLBACK_NOTICE };
+
 export class Transport {
   constructor() {
     this.ctx = null;
     this.master = null;
+    this.pianoBus = null;
+    this.bassBus = null;
+    this.drumBus = null;
+    this.melodyBus = null;
     this.playing = false;
     this.paused = false;
     this.epoch = 0;
@@ -29,11 +41,16 @@ export class Transport {
     this.lastConfig = null;
     this.cueGain = 1;
     this.ended = false;
+    this.library = null;
+    this.sampleStatus = "idle";
+    this.sampleNotice = "";
+    this.loadPromise = null;
   }
 
   async ensure() {
     if (this.ctx && this.ctx.state !== "closed") {
       if (this.ctx.state === "suspended") await this.ctx.resume();
+      this.ensureBuses();
       return;
     }
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -46,7 +63,59 @@ export class Transport {
     compressor.ratio.value = 3;
     this.master.connect(compressor);
     compressor.connect(this.ctx.destination);
+    this.ensureBuses();
     if (this.ctx.state === "suspended") await this.ctx.resume();
+  }
+
+  ensureBuses() {
+    if (!this.ctx || this.pianoBus) return;
+    this.pianoBus = this.ctx.createGain();
+    this.bassBus = this.ctx.createGain();
+    this.drumBus = this.ctx.createGain();
+    this.melodyBus = this.ctx.createGain();
+    this.pianoBus.gain.value = 0.8;
+    this.bassBus.gain.value = 0.85;
+    this.drumBus.gain.value = 0.7;
+    this.melodyBus.gain.value = 1;
+    this.pianoBus.connect(this.master);
+    this.bassBus.connect(this.master);
+    this.drumBus.connect(this.master);
+    this.melodyBus.connect(this.master);
+  }
+
+  samplesReady() {
+    return Boolean(this.library?.ready);
+  }
+
+  async prepareBacking({ onProgress } = {}) {
+    if (this.samplesReady()) {
+      this.sampleStatus = "ready";
+      this.sampleNotice = "";
+      return { status: "ready", coldMs: this.library.coldMs, fromCache: this.library.fromCache };
+    }
+    if (!this.loadPromise) {
+      this.sampleStatus = "loading";
+      this.loadPromise = this.loadBacking(onProgress).finally(() => {
+        this.loadPromise = null;
+      });
+    }
+    return this.loadPromise;
+  }
+
+  async loadBacking(onProgress) {
+    try {
+      await this.ensure();
+      if (!this.library) this.library = new SampleLibrary();
+      if (!this.library.ready) await this.library.load(this.ctx, { onProgress });
+      this.sampleStatus = "ready";
+      this.sampleNotice = "";
+      return { status: "ready", coldMs: this.library.coldMs, fromCache: this.library.fromCache };
+    } catch {
+      this.sampleStatus = "fallback";
+      this.sampleNotice = SAMPLE_FALLBACK_NOTICE;
+      this.library = this.library ?? new SampleLibrary();
+      return { status: "fallback", notice: this.sampleNotice };
+    }
   }
 
   stopAllNodes() {
@@ -107,10 +176,12 @@ export class Transport {
       inCountIn,
       bar: inCountIn ? 0 : Math.floor(formBeats / 4) % bars + 1,
       beatInBar: inCountIn ? 0 : Math.floor(formBeats % 4) + 1,
+      sampleStatus: this.sampleStatus,
+      sampleNotice: this.sampleNotice,
     };
   }
 
-  tone(time, freq, duration, { type = "sine", gain = 0.12, attack = 0.01, decay = 0.08 } = {}) {
+  tone(time, freq, duration, { type = "sine", gain = 0.12, attack = 0.01, decay = 0.08, bus } = {}) {
     const osc = this.ctx.createOscillator();
     const env = this.ctx.createGain();
     osc.type = type;
@@ -119,10 +190,30 @@ export class Transport {
     env.gain.exponentialRampToValueAtTime(gain, time + attack);
     env.gain.exponentialRampToValueAtTime(0.0001, time + Math.max(duration, attack + decay));
     osc.connect(env);
-    env.connect(this.master);
+    env.connect(bus ?? this.master);
     osc.start(time);
     osc.stop(time + duration + 0.05);
     this.nodes.push(osc);
+  }
+
+  playBuffer(buffer, time, { bus, gain = 0.2, duration = 0.5, playbackRate = 1 } = {}) {
+    if (!buffer) return;
+    const src = this.ctx.createBufferSource();
+    const env = this.ctx.createGain();
+    src.buffer = buffer;
+    src.playbackRate.value = playbackRate;
+    const attack = 0.008;
+    const release = Math.min(0.12, Math.max(0.04, duration * 0.25));
+    env.gain.setValueAtTime(0.0001, time);
+    env.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), time + attack);
+    const hold = Math.max(time + attack, time + duration - release);
+    env.gain.setValueAtTime(Math.max(0.0002, gain), hold);
+    env.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    src.connect(env);
+    env.connect(bus ?? this.master);
+    src.start(time);
+    src.stop(time + duration + 0.05);
+    this.nodes.push(src);
   }
 
   noiseClick(time, { strong = false, gain = 0.18 } = {}) {
@@ -152,7 +243,20 @@ export class Transport {
     const dur = beatsToSeconds(event.durationBeats ?? 0.5, this.tempo, event.swing === false ? false : this.swing);
     if (time + dur < this.ctx.currentTime) return;
     if (time < this.ctx.currentTime) time = this.ctx.currentTime;
+    const vel = event.velocity ?? 0.7;
+    const sampled = this.samplesReady();
+
     if (event.type === "click") {
+      if (sampled) {
+        const drum = event.strong ? "ride" : "hatClosed";
+        const buffer = this.library.drum(drum);
+        this.playBuffer(buffer, time, {
+          bus: this.drumBus ?? this.master,
+          gain: event.strong ? 0.34 : 0.22,
+          duration: event.strong ? 0.9 : 0.22,
+        });
+        return;
+      }
       this.noiseClick(time, { strong: event.strong, gain: event.strong ? 0.22 : 0.1 });
       return;
     }
@@ -179,6 +283,18 @@ export class Transport {
       });
       return;
     }
+    if (event.type === "piano" && sampled) {
+      for (const midi of event.midis) {
+        const pick = this.library.nearest("piano", midi);
+        this.playBuffer(pick.buffer, time, {
+          bus: this.pianoBus ?? this.master,
+          gain: 0.16 * vel,
+          duration: dur,
+          playbackRate: pick.playbackRate,
+        });
+      }
+      return;
+    }
     if (event.type === "chord") {
       for (const midi of event.midis) {
         this.tone(time, midiToHz(midi), dur * 0.95, {
@@ -202,19 +318,40 @@ export class Transport {
       return;
     }
     if (event.type === "bass") {
+      if (sampled) {
+        const pick = this.library.nearest("bass", event.midi);
+        this.playBuffer(pick.buffer, time, {
+          bus: this.bassBus ?? this.master,
+          gain: 0.55 * vel,
+          duration: dur,
+          playbackRate: pick.playbackRate,
+        });
+        return;
+      }
       this.tone(time, midiToHz(event.midi), dur * 0.88, {
         type: "sine",
         gain: 0.16,
         attack: 0.008,
         decay: 0.1,
       });
+      return;
+    }
+    if (event.type === "drum" && sampled) {
+      const buffer = this.library.drum(event.drum);
+      const ride = event.drum.includes("ride") || event.drum.includes("Ride");
+      const gain = event.drum === "kick" ? 0.45 * vel : ride ? 0.28 * vel : 0.32 * vel;
+      this.playBuffer(buffer, time, {
+        bus: this.drumBus ?? this.master,
+        gain,
+        duration: Math.max(dur, ride ? 1.4 : 0.35),
+        playbackRate: 1,
+      });
     }
   }
 
   scheduleCountIn(origin) {
-    for (let i = 0; i < COUNT_IN_BEATS; i += 1) {
-      const beat = i - COUNT_IN_BEATS;
-      this.scheduleEvent({ type: "click", beat, strong: true }, origin);
+    for (const event of countInEvents({ sampled: this.samplesReady() })) {
+      this.scheduleEvent(event, origin);
     }
   }
 
@@ -238,7 +375,9 @@ export class Transport {
   }
 
   armChorus(config, { countIn, fromBeat }) {
-    const events = scheduleChorus(config).filter((event) => event.beat >= fromBeat && event.type !== "end");
+    const sampled = this.samplesReady();
+    const source = config.events ?? livePlaybackEvents(config, { sampled });
+    const events = source.filter((event) => eventIsAudibleFrom(event, fromBeat));
     const origin = this.startedAt;
     if (countIn) this.scheduleCountIn(origin);
     for (const event of events) this.scheduleEvent(event, origin);

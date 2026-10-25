@@ -116,6 +116,9 @@ let lastPlayheadSystem = null;
 let lastTimemap = [];
 let lastChordTimings = [];
 let audioError = "";
+let audioNotice = "";
+let samplesLoading = false;
+let startGen = 0;
 let notationGen = 0;
 let lastEngraveMs = 0;
 let wrapupBanner = null;
@@ -213,12 +216,15 @@ function persist() {
 }
 
 function halt() {
+  startGen += 1;
+  samplesLoading = false;
   transport.stop();
   monitor.stop();
   playback.playing = false;
   playback.paused = false;
   playback.ended = false;
   audioError = "";
+  if (els.primary) els.primary.disabled = false;
 }
 
 function clearGradeLine() {
@@ -450,21 +456,41 @@ function applySession(next, { autoStart = false } = {}) {
 
 async function start(resume = false) {
   if (!session || session.screen !== "session") return;
+  const generation = startGen + 1;
+  startGen = generation;
   els.primary.disabled = true;
   audioError = "";
+  if (!resume) resetPitchTake();
+  samplesLoading = !resume && !transport.samplesReady();
+  if (samplesLoading) renderPrimary();
   try {
     await transport.ensure();
-    if (!resume) resetPitchTake();
+    if (generation !== startGen) return;
+    const prepared = await transport.prepareBacking({
+      onProgress: () => {
+        if (generation === startGen) renderPrimary();
+      },
+    });
+    if (generation !== startGen) return;
+    audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
+    samplesLoading = false;
     if (shouldListen() && !resume) {
       monitor.beatClock = () => transport.snapshot().beats;
       await monitor.start(transport.ctx);
     }
+    if (generation !== startGen) return;
     await transport.start(sessionAudioConfig(session), { resume });
   } catch {
+    if (generation !== startGen) return;
     audioError = "Audio failed to load.";
     renderMeter();
   } finally {
-    els.primary.disabled = false;
+    if (generation === startGen) {
+      samplesLoading = false;
+      els.primary.disabled = false;
+      renderPrimary();
+      renderMeter();
+    }
   }
 }
 
@@ -1025,16 +1051,24 @@ function renderPrimary(snap = transport.snapshot()) {
   const listening = Boolean(shouldListen() && (snap.playing || snap.paused) && !inCountIn);
   const result = liveGrade?.graded ? liveGrade : null;
   let state = "idle";
-  if (inCountIn) state = "count-in";
+  if (samplesLoading) state = "loading";
+  else if (inCountIn) state = "count-in";
   else if (playing) state = "playing";
   else if (listening) state = "listening";
   else if (result) state = "result";
   els.primary.dataset.action = playing ? "stop" : action.id;
   els.primary.dataset.state = state;
-  els.primary.classList.toggle("is-stop", playing && !inCountIn);
+  els.primary.classList.toggle("is-stop", playing && !inCountIn && !samplesLoading);
   els.primary.classList.toggle("is-count", inCountIn);
   if (result) els.primary.dataset.passed = String(Boolean(result.passed));
   else delete els.primary.dataset.passed;
+  if (samplesLoading) {
+    if (els.primaryCount) els.primaryCount.hidden = true;
+    if (icon) icon.hidden = true;
+    els.primary.setAttribute("aria-label", "Loading backing");
+    if (els.primaryLabel) els.primaryLabel.textContent = "Loading";
+    return;
+  }
   if (inCountIn) {
     const n = Math.max(1, Math.ceil(-snap.beats));
     if (els.primaryCount) {
@@ -1068,6 +1102,11 @@ function renderMeter(snap = transport.snapshot()) {
   if (snap.inCountIn) {
     els.meter.hidden = false;
     els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
+    return;
+  }
+  if (audioNotice && !snap.playing && !snap.paused) {
+    els.meter.hidden = false;
+    els.meter.textContent = audioNotice;
     return;
   }
   els.meter.hidden = true;
@@ -1426,6 +1465,8 @@ window.__DUOJAZZ__ = {
   getPrefs: () => prefs,
   getSession: () => session,
   lastEngraveMs: () => lastEngraveMs,
+  transport,
+  sampleStatus: () => transport.sampleStatus,
   measureNotation: () => measureEngraving(els.notation),
   openSetup,
   startFromSetup,

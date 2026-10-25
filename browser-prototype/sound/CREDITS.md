@@ -1,6 +1,6 @@
 # DuoJazz backing-sound samples
 
-Compressed AAC/M4A (22.05 kHz mono) for the dev-only `sound.html` A/B page.
+Compressed AAC/M4A (22.05 kHz mono) for live app backing and the dev-only `sound.html` A/B page.
 Originals were truncated and transcoded; this is not a redistributable sample library.
 
 All sources allow commercial use. Attribution below.

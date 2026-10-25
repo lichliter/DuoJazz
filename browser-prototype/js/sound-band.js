@@ -1,14 +1,16 @@
 /**
- * Arrangement for the sound.html A/B page.
- * Current = today's close-position synth voicings + walkingBassMidi.
- * New (busy) = rootless piano with varied comp cells, walking bass, swing ride kit.
- * New-simple = same bass/drums, calmer piano: one hit on short chords, Charleston or 2-and-4 on long chords.
+ * Arrangement for sampled backing.
+ * sound.html A/Bs Current (synth), New (busy), and New-simple.
+ * The live app uses New-simple only: calmer piano, walking bass, ride kit.
  */
 
 import {
+  COUNT_IN_BEATS,
   chordAtBeat,
   chorusChords,
   getKey,
+  learnChords,
+  scheduleChorus,
   voicingMidi,
   walkingBassMidi,
   wrapPc,
@@ -62,6 +64,12 @@ const TENSIONS = {
   major6: { third: 4, seventh: 9, ninth: 14, thirteenth: 21 },
   diminished7: { third: 3, seventh: 9, ninth: 12, thirteenth: 18 },
   minor: { third: 3, seventh: 10, ninth: 14, thirteenth: 19 },
+  minor7b5: { third: 3, seventh: 10, ninth: 13, thirteenth: 18 },
+  dominant7s9: { third: 4, seventh: 10, ninth: 15, thirteenth: 21 },
+  dominant7alt: { third: 4, seventh: 10, ninth: 13, thirteenth: 20 },
+  minormaj7: { third: 3, seventh: 11, ninth: 14, thirteenth: 19 },
+  minor11: { third: 3, seventh: 10, ninth: 14, thirteenth: 19 },
+  major7b5: { third: 4, seventh: 11, ninth: 14, thirteenth: 18 },
 };
 
 export const COMP_CELLS = [
@@ -560,4 +568,65 @@ export function withMelody(arranged, phrase = TEST_PHRASE) {
     ...arranged,
     events: [...arranged.events.filter((event) => event.type !== "end"), ...melodyEventsFromPhrase(phrase), { type: "end", beat: arranged.lengthBeats }],
   };
+}
+
+export const SAMPLE_FALLBACK_NOTICE = "Using synth backing — samples didn’t load.";
+export const LIVE_ENGINE = "new-simple";
+const KEEP_WITH_SAMPLED = new Set(["melody", "cue", "guide", "click"]);
+
+export function chorusFormChords(config) {
+  const isolated = config.stage === "learn";
+  return isolated
+    ? learnChords(config.concertKey, config.displayMode, config.applicationId)
+    : chorusChords(config.concertKey, config.displayMode, config.applicationId);
+}
+
+export function clipChords(chords, lengthBeats) {
+  return chords
+    .map((chord) => {
+      if (chord.startBeat >= lengthBeats) return null;
+      const durationBeats = Math.min(chord.durationBeats, lengthBeats - chord.startBeat);
+      if (durationBeats <= 0) return null;
+      return { ...chord, durationBeats };
+    })
+    .filter(Boolean);
+}
+
+export function eventIsAudibleFrom(event, fromBeat) {
+  if (event.type === "end") return false;
+  return event.beat >= fromBeat - 0.75;
+}
+
+export function countInEvents({ sampled = true } = {}) {
+  return Array.from({ length: COUNT_IN_BEATS }, (_, index) => {
+    const beat = index - COUNT_IN_BEATS;
+    const last = index === COUNT_IN_BEATS - 1;
+    if (!sampled) return { type: "click", beat, strong: true, swing: false };
+    return {
+      type: "drum",
+      beat,
+      drum: last ? "ride" : "hatClosed",
+      durationBeats: last ? 0.9 : 0.22,
+      velocity: last ? 0.62 : 0.48,
+      swing: false,
+    };
+  });
+}
+
+export function mergeLiveBacking(chorusEvents, backingEvents) {
+  const keep = chorusEvents.filter((event) => KEEP_WITH_SAMPLED.has(event.type));
+  const band = backingEvents.filter((event) => event.type === "piano" || event.type === "bass" || event.type === "drum");
+  const lengthBeats = chorusEvents.find((event) => event.type === "end")?.beat
+    ?? backingEvents.find((event) => event.type === "end")?.beat
+    ?? 0;
+  return sortEvents([...keep, ...band, { type: "end", beat: lengthBeats }]);
+}
+
+export function livePlaybackEvents(config, { sampled = true } = {}) {
+  const chorus = scheduleChorus(config);
+  if (!sampled) return chorus;
+  const lengthBeats = config.lengthBeats ?? (config.stage === "learn" ? 8 : formLengthBeats(chorusFormChords(config)));
+  const chords = clipChords(chorusFormChords(config), lengthBeats);
+  const backing = scheduleNewSimple(chords, { tempo: config.tempo ?? DEFAULT_TEMPO });
+  return mergeLiveBacking(chorus, backing.events);
 }
