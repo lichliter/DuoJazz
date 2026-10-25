@@ -1,7 +1,8 @@
 /**
  * Arrangement for the sound.html A/B page.
  * Current = today's close-position synth voicings + walkingBassMidi.
- * New = rootless piano, walking bass with approaches, swing ride kit, humanization.
+ * New (busy) = rootless piano with varied comp cells, walking bass, swing ride kit.
+ * New-simple = same bass/drums, calmer piano: one hit on short chords, Charleston or 2-and-4 on long chords.
  */
 
 import {
@@ -19,6 +20,17 @@ export const TEMPOS = [100, 140, 200];
 export const BLUES_CHORUSES = 2;
 export const HUMANIZE_TIMING_BEATS = 0.028;
 export const HUMANIZE_VELOCITY = 0.08;
+export const SIMPLE_HUMANIZE_MS = 10;
+export const SIMPLE_HUMANIZE_VELOCITY = 0.04;
+export const SHELL_LOW = 48; // C3
+export const SHELL_HIGH = 72; // C5
+export const SECTION_BEATS = BEATS_PER_BAR * 4;
+export const SAMPLED_ENGINES = new Set(["new", "new-simple"]);
+
+export const SIMPLE_LONG_PATTERN = {
+  charleston: { offsets: [0, 1.5], durations: [1.45, 2.2] },
+  twoAndFour: { offsets: [1, 3], durations: [1.7, 0.9] },
+};
 
 const F_BLUES_BARS = [
   { root: 5, quality: "dominant7", name: "F7" },
@@ -156,6 +168,88 @@ export function voicingHasGuideTones(midis, rootPc, quality) {
   return pcs.has(wrapPc(rootPc + t.third)) && pcs.has(wrapPc(rootPc + t.seventh));
 }
 
+export function isSampledEngine(engine) {
+  return SAMPLED_ENGINES.has(engine);
+}
+
+export function timingBeatsForMs(ms, tempo = DEFAULT_TEMPO) {
+  return (ms / 1000) * (tempo / 60);
+}
+
+function assignmentCost(a, b) {
+  const from = a.length <= b.length ? a : b;
+  const to = a.length <= b.length ? b : a;
+  let best = Infinity;
+  const used = new Array(to.length).fill(false);
+  const search = (i, acc) => {
+    if (acc >= best) return;
+    if (i === from.length) {
+      best = acc;
+      return;
+    }
+    for (let j = 0; j < to.length; j += 1) {
+      if (used[j]) continue;
+      used[j] = true;
+      search(i + 1, acc + Math.abs(from[i] - to[j]));
+      used[j] = false;
+    }
+  };
+  search(0, 0);
+  return best + Math.abs(a.length - b.length) * 3;
+}
+
+function shellCost(voicing, prevMidis) {
+  if (!prevMidis) {
+    const mid = (Math.min(...voicing) + Math.max(...voicing)) / 2;
+    return Math.abs(mid - 60);
+  }
+  return assignmentCost(voicing, prevMidis);
+}
+
+/** 3–4 note rootless shells (3–7 plus 9 or 13) in C3–C5 with tight voice leading. */
+export function rootlessShell(rootPc, quality, prevMidis = null) {
+  const t = TENSIONS[quality] ?? TENSIONS.dominant7;
+  const root = wrapPc(rootPc);
+  const degreeSets = [
+    ["third", "seventh", "ninth"],
+    ["third", "seventh", "thirteenth"],
+    ["third", "seventh", "ninth", "thirteenth"],
+  ];
+  const candidates = [];
+  for (const rawDegrees of degreeSets) {
+    const degrees = rawDegrees.filter((degree) => wrapPc(t[degree]) !== 0);
+    if (!degrees.includes("third") || !degrees.includes("seventh") || degrees.length < 3) continue;
+    const options = degrees.map((degree) => {
+      const pc = wrapPc(root + t[degree]);
+      const list = [];
+      for (let midi = pc; midi <= SHELL_HIGH; midi += 12) {
+        if (midi >= SHELL_LOW) list.push(midi);
+      }
+      return list;
+    });
+    const rec = (i, acc) => {
+      if (i === options.length) {
+        const voicing = [...acc].sort((a, b) => a - b);
+        const span = voicing[voicing.length - 1] - voicing[0];
+        if (span <= 16 && new Set(voicing).size === voicing.length) candidates.push(voicing);
+        return;
+      }
+      for (const midi of options[i]) rec(i + 1, [...acc, midi]);
+    };
+    rec(0, []);
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const voicing of candidates) {
+    const key = voicing.join(",");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(voicing);
+  }
+  unique.sort((a, b) => shellCost(a, prevMidis) - shellCost(b, prevMidis) || a.length - b.length);
+  return unique[0] ?? rootlessVoicing(rootPc, quality, prevMidis).map((midi) => Math.min(SHELL_HIGH, Math.max(SHELL_LOW, midi)));
+}
+
 function inBassRange(midi, low, high, prev) {
   let note = midi;
   while (note < low) note += 12;
@@ -232,6 +326,87 @@ export function pianoComping(chords, { seed = 2 } = {}) {
         velocity: 0.42 + rng() * 0.22,
       });
     }
+  }
+  return events;
+}
+
+function sectionPatternNames(lengthBeats, rng) {
+  const count = Math.max(1, Math.ceil(lengthBeats / SECTION_BEATS));
+  const names = [];
+  let current = rng() < 0.5 ? "charleston" : "twoAndFour";
+  for (let section = 0; section < count; section += 1) {
+    if (section > 0 && rng() < 0.22) current = current === "charleston" ? "twoAndFour" : "charleston";
+    names.push(current);
+  }
+  return names;
+}
+
+function patternAtBeat(names, beat) {
+  return names[Math.min(names.length - 1, Math.max(0, Math.floor(beat / SECTION_BEATS)))];
+}
+
+export function relativeCompOffsets(hits, chordStart) {
+  return hits.map((event) => Number((event.beat - chordStart).toFixed(3))).sort((a, b) => a - b);
+}
+
+export function isCharlestonOffsets(offsets) {
+  return offsets.length === 2 && offsets[0] === 0 && offsets[1] === 1.5;
+}
+
+export function isTwoAndFourOffsets(offsets) {
+  return offsets.length === 2 && offsets[0] === 1 && offsets[1] === 3;
+}
+
+/**
+ * Calmer piano: short chords get one held voicing; 4+ beat chords stay on one simple pattern per section.
+ * Same velocity ballpark as the busy comp — simpler, not quieter.
+ */
+export function pianoCompingSimple(chords, { seed = 2 } = {}) {
+  const rng = mulberry32(seed);
+  const events = [];
+  const names = sectionPatternNames(formLengthBeats(chords), rng);
+  let prev = null;
+  let lastWasAnticipation = false;
+  const velocity = () => 0.5 + rng() * 0.1;
+
+  for (const chord of chords) {
+    const midis = rootlessShell(chord.concertRootPc, chord.quality, prev);
+    prev = midis;
+
+    if (chord.durationBeats >= 4) {
+      lastWasAnticipation = false;
+      for (let window = 0; window + 4 <= chord.durationBeats + 1e-9; window += 4) {
+        const windowStart = chord.startBeat + window;
+        const spec = SIMPLE_LONG_PATTERN[patternAtBeat(names, windowStart)];
+        spec.offsets.forEach((offset, index) => {
+          events.push({
+            type: "piano",
+            beat: windowStart + offset,
+            chordStartBeat: chord.startBeat,
+            midis,
+            durationBeats: spec.durations[index],
+            velocity: velocity(),
+          });
+        });
+      }
+      continue;
+    }
+
+    let beat = chord.startBeat;
+    let anticipated = false;
+    if (chord.durationBeats <= 2 && chord.startBeat >= 0.5 && !lastWasAnticipation && rng() < 0.18) {
+      beat = chord.startBeat - 0.5;
+      anticipated = true;
+    }
+    lastWasAnticipation = anticipated;
+    events.push({
+      type: "piano",
+      beat,
+      chordStartBeat: chord.startBeat,
+      midis,
+      durationBeats: anticipated ? chord.durationBeats + 0.45 : chord.durationBeats * 0.96,
+      velocity: velocity(),
+    });
   }
   return events;
 }
@@ -339,6 +514,22 @@ export function scheduleNew(chords, { brushes = false, seed = 7 } = {}) {
   return { events: sortEvents(events), lengthBeats, chords };
 }
 
+export function scheduleNewSimple(chords, { brushes = false, seed = 7, tempo = DEFAULT_TEMPO } = {}) {
+  const lengthBeats = formLengthBeats(chords);
+  const piano = humanize(pianoCompingSimple(chords, { seed }), {
+    seed: seed + 3,
+    timingBeats: timingBeatsForMs(SIMPLE_HUMANIZE_MS, tempo),
+    velocityJitter: SIMPLE_HUMANIZE_VELOCITY,
+  });
+  const rest = humanize(
+    [...walkingBassLine(chords, { seed: seed + 1 }), ...drumPattern(lengthBeats, { brushes, seed: seed + 2 })],
+    { seed: seed + 3 },
+  );
+  const events = [...piano, ...rest];
+  events.push({ type: "end", beat: lengthBeats });
+  return { events: sortEvents(events), lengthBeats, chords };
+}
+
 export function melodyEventsFromPhrase(phrase = TEST_PHRASE) {
   return phrase.map((note) => ({
     type: "melody",
@@ -349,9 +540,11 @@ export function melodyEventsFromPhrase(phrase = TEST_PHRASE) {
   }));
 }
 
-export function backingFor(engine, formId, { brushes = false } = {}) {
+export function backingFor(engine, formId, { brushes = false, tempo = DEFAULT_TEMPO } = {}) {
   const chords = chordsForForm(formId);
-  return engine === "new" ? scheduleNew(chords, { brushes }) : scheduleCurrent(chords);
+  if (engine === "new-simple") return scheduleNewSimple(chords, { brushes, tempo });
+  if (engine === "new") return scheduleNew(chords, { brushes });
+  return scheduleCurrent(chords);
 }
 
 export function clipArrangement(arranged, lengthBeats) {
