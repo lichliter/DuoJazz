@@ -140,6 +140,7 @@ const QUALITY_ASCII = {
   major6: "6",
   dominant7b13: "7♭13",
   dominant7s11: "7♯11",
+  dominant7s5: "7♯5",
   dominant7s9: "7♯9",
   dominant7alt: "7alt",
   diminished7: "°7",
@@ -165,6 +166,7 @@ const QUALITY_INTERVALS = {
   major6: [0, 4, 7, 9],
   dominant7b13: [0, 4, 8, 10],
   dominant7s11: [0, 4, 6, 10],
+  dominant7s5: [0, 4, 8, 10],
   dominant7s9: [0, 4, 7, 10, 15],
   dominant7alt: [0, 4, 6, 8, 10, 13],
   diminished7: [0, 3, 6, 9],
@@ -188,6 +190,7 @@ const GUIDE_INTERVALS = {
   major6: [4, 9],
   dominant7b13: [4, 10],
   dominant7s11: [4, 10],
+  dominant7s5: [4, 10],
   dominant7s9: [4, 10],
   dominant7alt: [4, 10],
   diminished7: [3, 9],
@@ -584,10 +587,27 @@ export function phraseNotes(
   });
 }
 
+/** Conventional major-key accidental family for a pitch class (Db/Gb over C#/F#). */
+export function conventionalMajorUsesFlats(pc) {
+  const match = KEYS.find((key) => key.pc === wrapPc(pc));
+  return Boolean(match?.usesFlats);
+}
+
+/** Spell a chord symbol; `spellFrom` keeps a ii–V–I step in one family. */
+export function chordSymbolFlats(concertTonic, displayMode, spec, keyQuality = "minor") {
+  if (spec?.spellFrom != null) {
+    const destShown = shownPc(wrapPc(concertTonic.pc + spec.spellFrom), displayMode);
+    return conventionalMajorUsesFlats(destShown);
+  }
+  const shownKey = displayKey(concertTonic, displayMode, keyQuality);
+  if (spec?.usesFlats != null) return Boolean(spec.usesFlats);
+  return Boolean(shownKey.usesFlats);
+}
+
 function materializeChord(concertKey, displayMode, spec, startBeat, quality) {
   const keyQuality = quality ?? "minor";
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
-  const flats = spec.usesFlats ?? shownKey.usesFlats;
+  const flats = chordSymbolFlats(concertKey, displayMode, spec, keyQuality);
   const name = `${pitchName(
     shownPc(chordRootPc(concertKey.pc, spec.intervalFromTonic), displayMode),
     flats,
@@ -891,18 +911,27 @@ function slashBassName(concertTonic, spec, displayMode, shownKey) {
   return `/${pitchName(shownPc(concertPc, displayMode), shownKey.usesFlats)}`;
 }
 
-export function chordSymbolName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null) {
+export function chordSymbolName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null, spellFrom = null) {
   const concertRoot = chordRootPc(concertTonic.pc, intervalFromTonic);
   const shown = shownPc(concertRoot, displayMode);
   const shownKey = displayKey(concertTonic, displayMode, keyQuality);
-  const flats = forceFlats ?? shownKey.usesFlats;
+  const flats = chordSymbolFlats(concertTonic, displayMode, { usesFlats: forceFlats, spellFrom }, keyQuality);
   const root = pitchName(shown, flats);
   const slash = slashBassName(concertTonic, { slashIntervalFromTonic }, displayMode, { ...shownKey, usesFlats: flats });
   return `${root}${QUALITY_ABC[quality] ?? ""}${slash}`;
 }
 
-function abcChordName(...args) {
-  return chordSymbolName(...args);
+function abcChordName(concertKey, chord, displayMode, keyQuality) {
+  return chordSymbolName(
+    concertKey,
+    chord.intervalFromTonic,
+    chord.quality,
+    displayMode,
+    keyQuality,
+    chord.slashIntervalFromTonic,
+    chord.usesFlats,
+    chord.spellFrom,
+  );
 }
 
 function atBeatBoundary(beat) {
@@ -1208,7 +1237,7 @@ function renderFormAbc({
     for (const [index, chord] of barChords.entries()) {
       const sliceStart = Math.max(barStart, chord.startBeat);
       const sliceEnd = Math.min(barEnd, chord.startBeat + chord.durationBeats);
-      abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality, chord.slashIntervalFromTonic, chord.usesFlats)}"`;
+      abc += `"${abcChordName(concertKey, chord, displayMode, ctx.quality)}"`;
       if (index === 0) abc += barCueAnnotation(bar + 1, applicationId, showCues);
       abc += "yy";
       if (useNotes) abc += renderSlice(items, sliceStart, sliceEnd, ctx);
@@ -1257,7 +1286,7 @@ export function phraseABC(
       for (const chord of barChords) {
         const sliceStart = Math.max(barStart, chord.startBeat);
         const sliceEnd = Math.min(barEnd, chord.startBeat + chord.durationBeats);
-        abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, ctx.quality, chord.slashIntervalFromTonic, chord.usesFlats)}"yy`;
+        abc += `"${abcChordName(concertKey, chord, displayMode, ctx.quality)}"yy`;
         abc += renderSlice(items, sliceStart, sliceEnd, ctx);
       }
     }
@@ -1308,7 +1337,7 @@ export function slashABC(
       chord.startBeat < barEnd - 1e-6 && chord.startBeat + chord.durationBeats > barStart + 1e-6
     ));
     for (const [index, chord] of barChords.entries()) {
-      abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, shownKey.name.includes("minor") ? "minor" : "major", chord.slashIntervalFromTonic, chord.usesFlats)}"`;
+      abc += `"${abcChordName(concertKey, chord, displayMode, shownKey.name.includes("minor") ? "minor" : "major")}"`;
       if (index === 0) abc += barCueAnnotation(bar + 1, applicationId, showCues);
       abc += "yy";
       const n = Math.max(1, Math.round(Math.min(chord.durationBeats, barEnd - Math.max(barStart, chord.startBeat))));
@@ -1368,7 +1397,7 @@ export function chartABC(concertKey, displayMode, clef = DEFAULT_CLEF, applicati
   for (let bar = 0; bar < barCount; bar += 1) {
     const barStart = bar * BEATS_PER_BAR;
     const chord = chords.find((item) => item.startBeat >= barStart - 1e-6 && item.startBeat < barStart + BEATS_PER_BAR);
-    if (chord) abc += `"${abcChordName(concertKey, chord.intervalFromTonic, chord.quality, displayMode, shownKey.name.includes("minor") ? "minor" : "major", chord.slashIntervalFromTonic, chord.usesFlats)}"`;
+    if (chord) abc += `"${abcChordName(concertKey, chord, displayMode, shownKey.name.includes("minor") ? "minor" : "major")}"`;
     abc += "x";
     abc += bar === barCount - 1 ? " |]\n" : " | ";
   }

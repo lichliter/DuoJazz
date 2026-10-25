@@ -340,6 +340,7 @@ function harmXml(ctx, chord, tstamp) {
     ctx.quality,
     chord.slashIntervalFromTonic,
     chord.usesFlats,
+    chord.spellFrom,
   );
   return `<harm xml:id="${id}" place="above" staff="1" tstamp="${tstamp}">${literalRend(name)}</harm>`;
 }

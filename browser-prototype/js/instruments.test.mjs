@@ -38,6 +38,7 @@ test("instrument table has one row per v1 horn with clef, transpose, range, and 
   assert.equal(instrumentById("trombone").clef, "bass");
   assert.equal(instrumentById("trumpet").note, "B♭, treble clef");
   assert.equal(instrumentById("tenor-sax").note, "B♭, treble clef");
+  assert.equal(instrumentById("alto-sax").note, "E♭, treble clef");
   for (const instrument of INSTRUMENTS) {
     assert.doesNotMatch(instrument.note, /♭ ,/, instrument.id);
   }

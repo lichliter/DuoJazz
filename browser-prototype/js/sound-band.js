@@ -55,6 +55,7 @@ const TENSIONS = {
   dominant9: { third: 4, seventh: 10, ninth: 14, thirteenth: 21 },
   dominant7b13: { third: 4, seventh: 10, ninth: 14, thirteenth: 20 },
   dominant7s11: { third: 4, seventh: 10, ninth: 14, thirteenth: 21 },
+  dominant7s5: { third: 4, seventh: 10, ninth: 14, thirteenth: 20 },
   dominant7sus: { third: 5, seventh: 10, ninth: 14, thirteenth: 21 },
   minor7: { third: 3, seventh: 10, ninth: 14, thirteenth: 19 },
   minor6: { third: 3, seventh: 9, ninth: 14, thirteenth: 19 },
