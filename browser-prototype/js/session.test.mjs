@@ -630,6 +630,13 @@ test("abandoning a session marks unfinished graded cards Skipped", () => {
   assert.equal(resultForCard(session, "quiz").outcome, "skipped");
 });
 
+test("count-in keeps Hear it copy instead of a second Count-in line", () => {
+  const session = createSession({ lessonId: "learn-lick" });
+  const during = sessionCue(session, { playing: true, inCountIn: true, beats: -2 });
+  assert.match(during, /Hear the cell/);
+  assert.doesNotMatch(during, /Count-in/);
+});
+
 test("global settings summary and lesson-1 labels", () => {
   assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "Piano · 140 bpm · 1-bar");
   assert.equal(settingsSummary(defaultPrefs()), "Piano · 96 bpm · 1-bar");

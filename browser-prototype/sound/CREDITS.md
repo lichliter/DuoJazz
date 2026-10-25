@@ -1,6 +1,6 @@
 # DuoJazz backing-sound samples
 
-Compressed AAC/M4A (22.05 kHz mono) for live app backing and the dev-only `sound.html` A/B page.
+Compressed AAC/M4A (22.05 kHz mono) for live app backing, selected-instrument demo lines, and the dev-only `sound.html` A/B page.
 Originals were truncated and transcoded; this is not a redistributable sample library.
 
 All sources allow commercial use. Attribution below.
@@ -20,6 +20,15 @@ All sources allow commercial use. Attribution below.
 - Packaged as MP3 soundfont by [Michael Gleitz / midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts) (`FluidR3_GM/acoustic_bass-mp3`)
 - Notes kept: E1 F1 G1 A1 C2 E2 G2 A2 C3 E3
 
+## Guitar, trumpet, tenor sax, alto sax, trombone — Fluid R3 GM
+
+- Author: Frank Wen (Fluid R3)
+- License: MIT
+- Packaged as MP3 soundfonts by [Michael Gleitz / midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts)
+- Instruments: `acoustic_guitar_nylon`, `trumpet`, `tenor_sax`, `alto_sax`, `trombone`
+- Notes kept about every minor third across each instrument's comfortable range
+- Demo lines lazy-load only the selected instrument; piano/bass backing stays as above
+
 ## Drums — Salamander Drumkit
 
 - Author: Alexander Holm
@@ -34,4 +43,4 @@ There is no separate brush library in this pack. The **Brushes** toggle plays hi
 
 ## File sizes
 
-See `manifest.json`. Pack total is about **406 KB**, well under the ~10 MB budget.
+See `manifest.json`. Pack total is about **1.3 MB**, well under the ~10 MB budget. The live session still downloads backing plus one instrument at a time.

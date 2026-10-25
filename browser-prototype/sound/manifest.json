@@ -1,7 +1,43 @@
 {
-  "totalBytes": 415580,
-  "totalKB": 405.8,
+  "totalBytes": 1292441,
+  "totalKB": 1262.1,
   "files": [
+    {
+      "path": "alto-sax/As3.m4a",
+      "bytes": 18469
+    },
+    {
+      "path": "alto-sax/As4.m4a",
+      "bytes": 18459
+    },
+    {
+      "path": "alto-sax/C5.m4a",
+      "bytes": 18448
+    },
+    {
+      "path": "alto-sax/Cs3.m4a",
+      "bytes": 18479
+    },
+    {
+      "path": "alto-sax/Cs4.m4a",
+      "bytes": 18454
+    },
+    {
+      "path": "alto-sax/E3.m4a",
+      "bytes": 18399
+    },
+    {
+      "path": "alto-sax/E4.m4a",
+      "bytes": 18449
+    },
+    {
+      "path": "alto-sax/G3.m4a",
+      "bytes": 18467
+    },
+    {
+      "path": "alto-sax/G4.m4a",
+      "bytes": 18422
+    },
     {
       "path": "bass/A1.m4a",
       "bytes": 11865
@@ -75,6 +111,46 @@
       "bytes": 4514
     },
     {
+      "path": "guitar/As2.m4a",
+      "bytes": 17252
+    },
+    {
+      "path": "guitar/As3.m4a",
+      "bytes": 16932
+    },
+    {
+      "path": "guitar/Cs3.m4a",
+      "bytes": 17865
+    },
+    {
+      "path": "guitar/Cs4.m4a",
+      "bytes": 17695
+    },
+    {
+      "path": "guitar/E2.m4a",
+      "bytes": 17700
+    },
+    {
+      "path": "guitar/E3.m4a",
+      "bytes": 17782
+    },
+    {
+      "path": "guitar/E4.m4a",
+      "bytes": 18116
+    },
+    {
+      "path": "guitar/G2.m4a",
+      "bytes": 17714
+    },
+    {
+      "path": "guitar/G3.m4a",
+      "bytes": 16688
+    },
+    {
+      "path": "guitar/G4.m4a",
+      "bytes": 18239
+    },
+    {
       "path": "piano/A2.m4a",
       "bytes": 22485
     },
@@ -113,6 +189,122 @@
     {
       "path": "piano/Fs4.m4a",
       "bytes": 22753
+    },
+    {
+      "path": "tenor-sax/B2.m4a",
+      "bytes": 18412
+    },
+    {
+      "path": "tenor-sax/B3.m4a",
+      "bytes": 18445
+    },
+    {
+      "path": "tenor-sax/D3.m4a",
+      "bytes": 18520
+    },
+    {
+      "path": "tenor-sax/D4.m4a",
+      "bytes": 18430
+    },
+    {
+      "path": "tenor-sax/F3.m4a",
+      "bytes": 18461
+    },
+    {
+      "path": "tenor-sax/F4.m4a",
+      "bytes": 18504
+    },
+    {
+      "path": "tenor-sax/G4.m4a",
+      "bytes": 18506
+    },
+    {
+      "path": "tenor-sax/Gs2.m4a",
+      "bytes": 18465
+    },
+    {
+      "path": "tenor-sax/Gs3.m4a",
+      "bytes": 18463
+    },
+    {
+      "path": "trombone/As2.m4a",
+      "bytes": 18515
+    },
+    {
+      "path": "trombone/As3.m4a",
+      "bytes": 18430
+    },
+    {
+      "path": "trombone/Cs3.m4a",
+      "bytes": 18501
+    },
+    {
+      "path": "trombone/Cs4.m4a",
+      "bytes": 18420
+    },
+    {
+      "path": "trombone/E2.m4a",
+      "bytes": 18473
+    },
+    {
+      "path": "trombone/E3.m4a",
+      "bytes": 18489
+    },
+    {
+      "path": "trombone/E4.m4a",
+      "bytes": 18469
+    },
+    {
+      "path": "trombone/G2.m4a",
+      "bytes": 18444
+    },
+    {
+      "path": "trombone/G3.m4a",
+      "bytes": 18435
+    },
+    {
+      "path": "trombone/G4.m4a",
+      "bytes": 18445
+    },
+    {
+      "path": "trumpet/As3.m4a",
+      "bytes": 18473
+    },
+    {
+      "path": "trumpet/As4.m4a",
+      "bytes": 18528
+    },
+    {
+      "path": "trumpet/Cs4.m4a",
+      "bytes": 18513
+    },
+    {
+      "path": "trumpet/Cs5.m4a",
+      "bytes": 18460
+    },
+    {
+      "path": "trumpet/E3.m4a",
+      "bytes": 18162
+    },
+    {
+      "path": "trumpet/E4.m4a",
+      "bytes": 18265
+    },
+    {
+      "path": "trumpet/E5.m4a",
+      "bytes": 18543
+    },
+    {
+      "path": "trumpet/G3.m4a",
+      "bytes": 18196
+    },
+    {
+      "path": "trumpet/G4.m4a",
+      "bytes": 18339
+    },
+    {
+      "path": "trumpet/G5.m4a",
+      "bytes": 18526
     }
   ]
 }

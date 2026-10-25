@@ -45,6 +45,7 @@ export class Transport {
     this.sampleStatus = "idle";
     this.sampleNotice = "";
     this.loadPromise = null;
+    this.melodyKind = "piano";
   }
 
   async ensure() {
@@ -84,32 +85,39 @@ export class Transport {
   }
 
   samplesReady() {
-    return Boolean(this.library?.ready);
+    return Boolean(this.library?.backingReady);
   }
 
-  async prepareBacking({ onProgress } = {}) {
-    if (this.samplesReady()) {
+  async prepareBacking({ onProgress, sampleSet = "piano" } = {}) {
+    this.melodyKind = sampleSet;
+    if (this.library?.backingReady && this.library.hasMelody(sampleSet)) {
       this.sampleStatus = "ready";
       this.sampleNotice = "";
       return { status: "ready", coldMs: this.library.coldMs, fromCache: this.library.fromCache };
     }
     if (!this.loadPromise) {
       this.sampleStatus = "loading";
-      this.loadPromise = this.loadBacking(onProgress).finally(() => {
+      this.loadPromise = this.loadBacking(onProgress, sampleSet).finally(() => {
         this.loadPromise = null;
       });
     }
     return this.loadPromise;
   }
 
-  async loadBacking(onProgress) {
+  async loadBacking(onProgress, sampleSet = "piano") {
     try {
       await this.ensure();
       if (!this.library) this.library = new SampleLibrary();
-      if (!this.library.ready) await this.library.load(this.ctx, { onProgress });
-      this.sampleStatus = "ready";
-      this.sampleNotice = "";
-      return { status: "ready", coldMs: this.library.coldMs, fromCache: this.library.fromCache };
+      await this.library.load(this.ctx, { onProgress, sampleSet });
+      this.melodyKind = sampleSet;
+      if (this.library.backingReady) {
+        this.sampleStatus = "ready";
+        this.sampleNotice = "";
+        return { status: "ready", coldMs: this.library.coldMs, fromCache: this.library.fromCache };
+      }
+      this.sampleStatus = "fallback";
+      this.sampleNotice = SAMPLE_FALLBACK_NOTICE;
+      return { status: "fallback", notice: this.sampleNotice };
     } catch {
       this.sampleStatus = "fallback";
       this.sampleNotice = SAMPLE_FALLBACK_NOTICE;
@@ -269,6 +277,16 @@ export class Transport {
       return;
     }
     if (event.type === "melody") {
+      const pick = this.library?.nearest(this.melodyKind, event.midi);
+      if (pick?.buffer) {
+        this.playBuffer(pick.buffer, time, {
+          bus: this.melodyBus ?? this.master,
+          gain: 0.34 * vel,
+          duration: dur,
+          playbackRate: pick.playbackRate,
+        });
+        return;
+      }
       this.tone(time, midiToHz(event.midi), dur * 0.92, {
         type: "triangle",
         gain: 0.18,

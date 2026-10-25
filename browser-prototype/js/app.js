@@ -460,12 +460,14 @@ async function start(resume = false) {
   els.primary.disabled = true;
   audioError = "";
   if (!resume) resetPitchTake();
-  samplesLoading = !resume && !transport.samplesReady();
+  const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
+  samplesLoading = !resume && !(transport.library?.backingReady && transport.library.hasMelody(sampleSet));
   if (samplesLoading) renderPrimary();
   try {
     await transport.ensure();
     if (generation !== startGen) return;
     const prepared = await transport.prepareBacking({
+      sampleSet,
       onProgress: () => {
         if (generation === startGen) renderPrimary();
       },
