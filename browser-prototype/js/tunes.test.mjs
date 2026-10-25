@@ -196,6 +196,27 @@ const EXPECTED_CHORDS = {
       { bar: 29, lickId: "hsr" },
     ],
   },
+  recordame: {
+    key: "A",
+    bars: 32,
+    sections: [
+      { label: "A", startBar: 1 },
+      { label: "B", startBar: 17 },
+    ],
+    chords: [
+      "Am7", "Am7", "Cm7", "F7", "B♭maj7", "B♭maj7", "B♭m7", "E♭7",
+      "A♭maj7", "A♭maj7", "Bø7", "E7♭9", "Am7", "Am7", "Bø7", "E7♭9",
+      "Am7", "Am7", "Gm7", "C7", "Fmaj7", "Fmaj7", "Fm7", "B♭7",
+      "E♭maj7", "E♭maj7", "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Bø7", "E7♭9",
+    ],
+    spots: [
+      { bar: 1, lickId: "mp" },
+      { bar: 12, lickId: "emr" },
+      { bar: 19, lickId: "acvl" },
+      { bar: 23, lickId: "acvl" },
+      { bar: 27, lickId: "acvl" },
+    ],
+  },
   "another-you": {
     key: "Eb",
     bars: 32,
@@ -223,9 +244,9 @@ const EXPECTED_CHORDS = {
   },
 };
 
-test("there are eight tunes with the briefed bar counts, sections, and chords", () => {
+test("there are nine tunes with the briefed bar counts, sections, and chords", () => {
   assert.deepEqual(TUNES.map((tune) => tune.id), [
-    "nows-time", "four", "tune-up", "st-thomas", "attya", "autumn-leaves", "so-what", "another-you",
+    "nows-time", "four", "tune-up", "st-thomas", "attya", "autumn-leaves", "so-what", "another-you", "recordame",
   ]);
   for (const tune of TUNES) {
     const expected = EXPECTED_CHORDS[tune.id];
@@ -296,7 +317,7 @@ test("derived Your tunes lessons match the brief and each play-through has every
       );
     }
   }
-  assert.equal(TUNE_LESSONS.length, 8);
+  assert.equal(TUNE_LESSONS.length, 9);
   for (const lesson of TUNE_LESSONS) {
     const tune = tuneById(lesson.tuneId);
     assert.equal(lesson.id, tunePlayLessonId(tune.id));

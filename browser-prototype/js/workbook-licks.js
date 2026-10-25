@@ -3,6 +3,8 @@
  * Workbook (personal use). Do not store the PDF, page images, or long passages.
  */
 
+import { trackLessonsFor } from "./workbook-tracks.js";
+
 const T16 = 0.5 / 3;
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
 
@@ -471,21 +473,32 @@ export const WORKBOOK_LICKS = EXPANDED.map((item) => item.lick);
 export const WORKBOOK_FORMS = Object.fromEntries(EXPANDED.map((item) => [item.form.id, item.form]));
 export const WORKBOOK_APPLICATIONS = EXPANDED.map((item) => item.application);
 
-export const WORKBOOK_MODULES = EXPANDED.map((item, index) => ({
-  id: item.spec.id,
-  number: item.spec.n,
-  lickId: item.spec.id,
-  name: item.spec.name,
-  lessons: withSleeves([
-    {
-      id: item.application.id,
-      kind: "learn",
-      applicationId: item.application.id,
-      title: "Learn the lick",
-      coverTitle: "Learn the lick",
-      summary: `Hear, play, and recall ${item.spec.shortName}.`,
-      context: "The lick in this key",
-      defaultKeyId: item.spec.defaultKeyId,
-    },
-  ], 1 + index),
-}));
+export function buildWorkbookModules(sleeveStart = 0) {
+  let start = sleeveStart;
+  return EXPANDED.map((item) => {
+    const lessons = [
+      {
+        id: item.application.id,
+        kind: "learn",
+        applicationId: item.application.id,
+        title: "Learn the lick",
+        coverTitle: "Learn the lick",
+        summary: `Hear, play, and recall ${item.spec.shortName}.`,
+        context: "The lick in this key",
+        defaultKeyId: item.spec.defaultKeyId,
+      },
+      ...trackLessonsFor(item.spec.id),
+    ];
+    const module = {
+      id: item.spec.id,
+      number: item.spec.n,
+      lickId: item.spec.id,
+      name: item.spec.name,
+      lessons: withSleeves(lessons, start),
+    };
+    start = (start + lessons.length) % 3;
+    return module;
+  });
+}
+
+export const WORKBOOK_MODULES = buildWorkbookModules(1);

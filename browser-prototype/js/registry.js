@@ -15,8 +15,13 @@ import {
   WORKBOOK_LICKS,
   WORKBOOK_FORMS,
   WORKBOOK_APPLICATIONS,
-  WORKBOOK_MODULES,
+  buildWorkbookModules,
 } from "./workbook-licks.js";
+import {
+  WORKBOOK_TRACK_FORMS,
+  WORKBOOK_TRACK_APPLICATIONS,
+  emrRecordameLesson,
+} from "./workbook-tracks.js";
 
 export { TUNES };
 
@@ -504,6 +509,7 @@ export const FORMS = {
   },
   ...deriveTuneForms(TUNES),
   ...WORKBOOK_FORMS,
+  ...WORKBOOK_TRACK_FORMS,
 };
 
 const CMAR_LEAD_HOME = [
@@ -1052,6 +1058,7 @@ export const ALL_APPLICATIONS = [
   },
   ...deriveTuneApplications(TUNES),
   ...WORKBOOK_APPLICATIONS,
+  ...WORKBOOK_TRACK_APPLICATIONS,
 ];
 
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
@@ -1199,6 +1206,7 @@ export const MODULES = [
         context: "Fly Me to the Moon · A, bars 1–8",
         defaultKeyId: "C",
       },
+      emrRecordameLesson(),
       ...deriveYourTunesLessons("emr"),
     ], 1),
   },
@@ -1359,8 +1367,15 @@ export const MODULES = [
       ...deriveYourTunesLessons("hsr"),
     ], 0),
   },
-  ...WORKBOOK_MODULES,
 ];
+
+const CORE_SLEEVE_START = MODULES.reduce((sum, module) => sum + module.lessons.length, 0) % 3;
+MODULES.push(...buildWorkbookModules(CORE_SLEEVE_START));
+let sleeveIndex = 0;
+for (const module of MODULES) {
+  module.lessons = withSleeves(module.lessons, sleeveIndex % 3);
+  sleeveIndex += module.lessons.length;
+}
 
 export const APPLICATIONS = ALL_APPLICATIONS.filter((app) => (
   app.id === "minor-home" || app.id === "altered-dominant"
