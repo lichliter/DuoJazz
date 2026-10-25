@@ -62,8 +62,8 @@ export function expectedNotesFor(session) {
   const key = getKey(currentKeyId(session));
   const isolated = lesson.kind === "learn";
   const events = phraseEvents(lesson.applicationId, isolated);
-  const octaveBase = octaveForApplication(lesson.applicationId, key.pc);
-  const octaves = spotOctavesFor(lesson.applicationId, key.pc);
+  const octaveBase = octaveForApplication(lesson.applicationId, key.pc, session.displayMode);
+  const octaves = spotOctavesFor(lesson.applicationId, key.pc, session.displayMode);
   return events.map((event, index) => {
     const startBeat = event.beat;
     const cellPc = event.cellInterval == null

@@ -1,6 +1,6 @@
 import {
   getKey,
-  minorSpelling,
+  displayKey,
   phraseMeasureCount,
   phraseSpanBars,
   chorusChords,
@@ -8,6 +8,7 @@ import {
   learnBeatsFor,
   formBeatsFor,
 } from "./music.js";
+import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
 import { Transport } from "./audio.js";
 import { notationLayout, resolveNotationScale } from "./lesson.js";
 import { chordsOnlyMEI, chorusStaffMEI, phraseMEI } from "./mei.js";
@@ -72,6 +73,7 @@ import {
   resolveQuickViewJump,
   persistLessonTempo,
   settingsSummary,
+  setInstrument,
   cardLabel,
   sessionScreenTitle,
   sessionProgress,
@@ -133,14 +135,13 @@ const els = {
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
   lessonList: document.getElementById("lesson-list"),
-  displayChip: document.getElementById("display-chip"),
+  instrumentList: document.getElementById("instrument-list"),
   settings: document.getElementById("settings"),
   setup: document.getElementById("setup"),
   setupTitle: document.getElementById("setup-title"),
   setupSummary: document.getElementById("setup-summary"),
   settingsSummary: document.getElementById("settings-summary"),
   settingsSummaryBtn: document.getElementById("settings-summary-btn"),
-  homeSettingsBtn: document.getElementById("home-settings-btn"),
   quickViewBtn: document.getElementById("quick-view-btn"),
   quickViewTitle: document.getElementById("quick-view-title"),
   sessionTitle: document.getElementById("session-title"),
@@ -199,7 +200,6 @@ const els = {
   swing: document.getElementById("swing"),
   guideTones: document.getElementById("guideTones"),
   metronome: document.getElementById("metronome"),
-  displayBanner: document.getElementById("display-banner"),
 };
 
 function loadPrefs() {
@@ -333,8 +333,7 @@ function startLesson(lessonId) {
     cardSet: prefs.cardSet,
     tempo: prefs.tempo,
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
-    displayMode: prefs.displayMode,
-    clef: prefs.clef,
+    instrumentId: prefs.instrumentId,
     swing: prefs.swing,
     metronome: prefs.metronome,
     guideTones: prefs.guideTones,
@@ -736,7 +735,7 @@ function renderSettings() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "key-btn";
-      btn.textContent = minorSpelling(getKey(id)).shortName;
+      btn.textContent = displayKey(getKey(id), prefs.displayMode, "minor").shortName;
       btn.setAttribute("aria-pressed", String(id === prefs.startKeyId));
       btn.addEventListener("click", () => {
         prefs.startKeyId = id;
@@ -1021,21 +1020,49 @@ function renderNotation() {
   });
 }
 
+function renderInstruments() {
+  if (!els.instrumentList) return;
+  const current = instrumentOrDefault(prefs.instrumentId).id;
+  els.instrumentList.replaceChildren(
+    ...INSTRUMENTS.map((instrument) => {
+      const label = document.createElement("label");
+      label.className = "group-row instrument-row";
+      const copy = document.createElement("span");
+      copy.className = "instrument-copy";
+      copy.innerHTML = `<strong>${instrument.label}</strong><small>${instrument.note}</small>`;
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "instrument";
+      input.value = instrument.id;
+      input.checked = instrument.id === current;
+      input.addEventListener("change", () => applyInstrument(instrument.id));
+      label.append(copy, input);
+      return label;
+    }),
+  );
+}
+
+function applyInstrument(instrumentId) {
+  const instrument = instrumentOrDefault(instrumentId);
+  const restart = Boolean(session && (playback.playing || playback.paused));
+  prefs.instrumentId = instrument.id;
+  prefs.displayMode = instrument.id;
+  prefs.clef = instrument.clef;
+  persist();
+  if (session) {
+    halt();
+    session = setInstrument(session, instrument.id);
+  }
+  render();
+  if (restart) start(false);
+}
+
 function renderCopy(snap = transport.snapshot()) {
-  const clefLabel = prefs.clef === "bass" ? "Bass clef" : "Treble clef";
   if (els.settingsSummary) els.settingsSummary.textContent = settingsSummary(prefs);
   els.swing.checked = prefs.swing;
   els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
-  document.querySelectorAll("[name=displayMode]").forEach((input) => {
-    input.checked = input.value === prefs.displayMode;
-  });
-  document.querySelectorAll("[name=clef]").forEach((input) => {
-    input.checked = input.value === prefs.clef;
-  });
-  els.displayBanner.textContent = prefs.displayMode === "bb-written"
-    ? `${clefLabel}, B♭ written names. Audio stays concert; clef does not transpose.`
-    : `Concert ${clefLabel.toLowerCase()}. Audio matches this octave; clef does not transpose.`;
+  renderInstruments();
   if (!session || session.screen !== "session") return;
   els.instruction.textContent = sessionCue(session, snap);
 }
@@ -1100,8 +1127,8 @@ function renderMeter(snap = transport.snapshot()) {
     return;
   }
   if (snap.inCountIn) {
-    els.meter.hidden = false;
-    els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
+    els.meter.hidden = true;
+    els.meter.textContent = "";
     return;
   }
   if (audioNotice && !snap.playing && !snap.paused) {
@@ -1226,8 +1253,7 @@ function applyDeepLink() {
       cardSet: params.get("cards") || prefs.cardSet,
       tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
-      displayMode: prefs.displayMode,
-      clef: prefs.clef,
+      instrumentId: prefs.instrumentId,
       swing: prefs.swing,
       metronome: prefs.metronome,
       guideTones: prefs.guideTones,
@@ -1325,9 +1351,7 @@ transport.onEnded = () => {
   window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
 
-els.displayChip.addEventListener("click", () => openSettings());
 els.settingsSummaryBtn?.addEventListener("click", () => openSettings());
-els.homeSettingsBtn?.addEventListener("click", () => openSettings());
 els.quickViewBtn?.addEventListener("click", requestQuickView);
 els.sessionExit.addEventListener("click", exitSession);
 els.sessionBack?.addEventListener("click", () => navigateCard(-1));
@@ -1365,25 +1389,6 @@ els.tempoUp?.addEventListener("click", () => {
   prefs = persistLessonTempo(prefs, setupLessonId, prefs.tempo);
   persist();
   renderSettings();
-});
-
-document.querySelectorAll("[name=displayMode]").forEach((input) => {
-  input.addEventListener("change", () => {
-    prefs.displayMode = input.value;
-    persist();
-    if (session) session = { ...session, displayMode: prefs.displayMode };
-    halt();
-    render();
-  });
-});
-
-document.querySelectorAll("[name=clef]").forEach((input) => {
-  input.addEventListener("change", () => {
-    prefs.clef = input.value === "treble" ? "treble" : "bass";
-    persist();
-    if (session) session = { ...session, clef: prefs.clef };
-    render();
-  });
 });
 
 for (const [id, key] of [
@@ -1473,8 +1478,7 @@ window.__DUOJAZZ__ = {
   createAndShow(options) {
     halt();
     applySession(createSession({
-      displayMode: prefs.displayMode,
-      clef: prefs.clef,
+      instrumentId: prefs.instrumentId,
       swing: prefs.swing,
       metronome: prefs.metronome,
       guideTones: prefs.guideTones,

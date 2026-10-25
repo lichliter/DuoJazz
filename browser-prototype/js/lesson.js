@@ -325,7 +325,7 @@ export function livePrompt(stateOrGoal, snap = {}) {
   const idle = instructionCopy(state);
   if (!snap.playing && !snap.paused) return idle;
   if (snap.inCountIn || (typeof snap.beats === "number" && snap.beats < 0)) {
-    return `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
+    return idle;
   }
   if (view.audioStage === "learn") {
     const noun = lickNoun(state.applicationId);

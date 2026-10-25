@@ -8,10 +8,14 @@ import {
   DEFAULT_KEY_ID,
   getKey,
   applicationContext,
-  minorSpelling,
-  majorSpelling,
+  displayKey,
   applicationKeyQuality,
 } from "./music.js";
+import {
+  DEFAULT_INSTRUMENT_ID,
+  instrumentOrDefault,
+  migrateInstrumentId,
+} from "./instruments.js";
 import {
   LESSONS,
   MODULES,
@@ -280,9 +284,11 @@ export function defaultLessonPref(lessonId) {
 }
 
 export function defaultPrefs() {
+  const instrument = instrumentOrDefault(DEFAULT_INSTRUMENT_ID);
   return {
-    displayMode: "concert",
-    clef: "bass",
+    instrumentId: instrument.id,
+    displayMode: instrument.id,
+    clef: instrument.clef,
     swing: true,
     metronome: false,
     guideTones: true,
@@ -299,8 +305,10 @@ export function defaultPrefs() {
 export function normalizePrefs(raw) {
   const base = defaultPrefs();
   const merged = { ...base, ...(raw ?? {}) };
-  merged.displayMode = merged.displayMode === "bb-written" ? "bb-written" : "concert";
-  merged.clef = merged.clef === "treble" ? "treble" : "bass";
+  const instrument = instrumentOrDefault(migrateInstrumentId(raw ?? {}));
+  merged.instrumentId = instrument.id;
+  merged.displayMode = instrument.id;
+  merged.clef = instrument.clef;
   merged.swing = Boolean(merged.swing);
   merged.metronome = Boolean(merged.metronome);
   merged.guideTones = merged.guideTones !== false;
@@ -376,8 +384,9 @@ export function createSession({
   cardSet = "all",
   tempo = 96,
   melodyRegister = 0,
-  displayMode = "concert",
-  clef = "bass",
+  instrumentId = DEFAULT_INSTRUMENT_ID,
+  displayMode,
+  clef,
   swing = true,
   metronome = false,
   guideTones = true,
@@ -386,6 +395,7 @@ export function createSession({
   const lesson = lessonById(lessonId);
   const cards = cardsFor(cardSet, lesson.id);
   const keyQueue = buildKeyQueue(keyMode, startKeyId, rng);
+  const instrument = instrumentOrDefault(instrumentId);
   return {
     screen: "session",
     lessonId: lesson.id,
@@ -401,8 +411,9 @@ export function createSession({
     cardResults: [],
     tempo,
     melodyRegister,
-    displayMode,
-    clef,
+    instrumentId: instrument.id,
+    displayMode: displayMode ?? instrument.id,
+    clef: clef ?? instrument.clef,
     swing,
     metronome,
     guideTones,
@@ -453,6 +464,16 @@ export function setMelodyRegister(session, register) {
   return { ...session, melodyRegister };
 }
 
+export function setInstrument(session, instrumentId) {
+  const instrument = instrumentOrDefault(instrumentId);
+  return {
+    ...session,
+    instrumentId: instrument.id,
+    displayMode: instrument.id,
+    clef: instrument.clef,
+  };
+}
+
 export function persistLessonMelodyRegister(prefs, lessonId, register) {
   const next = normalizePrefs(prefs);
   const id = lessonById(lessonId).id;
@@ -481,8 +502,8 @@ export function persistLessonTempo(prefs, lessonId, tempo) {
 
 export function settingsSummary(prefs) {
   const p = normalizePrefs(prefs);
-  const keys = p.keyMode === "one" ? "Original key" : "All 12 keys";
-  return `${keys} · ${p.tempo} bpm · 1-bar count-in · ${p.swing ? "Swing on" : "Swing off"}`;
+  const instrument = instrumentOrDefault(p.instrumentId);
+  return `${instrument.label} · ${p.tempo} bpm · 1-bar`;
 }
 
 export function completeCard(session, result = {}) {
@@ -968,12 +989,7 @@ export function keyStripIds() {
 }
 
 export function displayKeyName(keyId, displayMode = "concert", quality = "minor") {
-  const key = getKey(keyId);
-  if (quality === "major") {
-    const shown = displayMode === "bb-written" ? getKey(key.id) : key;
-    return majorSpelling(shown).name;
-  }
-  return minorSpelling(key).name;
+  return displayKey(getKey(keyId), displayMode, quality).name;
 }
 
 export function sessionKeyQuality(session) {

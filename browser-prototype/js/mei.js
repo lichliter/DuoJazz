@@ -101,7 +101,7 @@ function formContext(concertKey, displayMode, applicationId, melodyRegister, cle
     applicationId,
     melodyRegister,
     clef,
-    octaveBase: octaveForApplication(applicationId, concertKey.pc),
+    octaveBase: octaveForApplication(applicationId, concertKey.pc, displayMode),
     quality,
     shownKey,
     barState: newBarState(shownKey),
@@ -121,8 +121,8 @@ function notesForMode(applicationId, mode, isolated = false) {
   return items;
 }
 
-function pitchedItems(applicationId, mode, isolated, concertTonicPc) {
-  return withSpotOctaves(notesForMode(applicationId, mode, isolated), applicationId, concertTonicPc);
+function pitchedItems(applicationId, mode, isolated, concertTonicPc, displayMode) {
+  return withSpotOctaves(notesForMode(applicationId, mode, isolated), applicationId, concertTonicPc, displayMode);
 }
 
 function notePitchAttrs(item, ctx) {
@@ -440,6 +440,7 @@ function renderFormMei({
     mode === "phrase" || mode === "chords" ? "landing" : mode,
     isolated || mode === "phrase" || mode === "chords",
     concertKey.pc,
+    displayMode,
   );
   const slashRests = mode === "landing" || mode === "slash";
   const slashAll = mode === "slash";
