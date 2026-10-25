@@ -689,6 +689,7 @@ body {
     font: var(--text-headline);
     font-family: var(--display);
     padding-inline: 0.85rem;
+    white-space: normal;
   }
 }
 
