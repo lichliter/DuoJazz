@@ -1,15 +1,5 @@
 :root {
-  --bg: #201712;
-  --surface: #2d201a;
-  --selected: #60392d;
-  --accent: #edbf7e;
-  --text: #f5e9d5;
-  --muted: #cbb9a3;
-  --paper: #f3e6ce;
-  --paper-ink: #2b211a;
-  --line: #4a372e;
-  --tap: 44px;
-  --radius: 6px;
+  --radius: 10px;
   --transport-h: 5.5rem;
   --sleeve-amber: #e39a3a;
   --sleeve-amber-ink: #2b211a;
@@ -17,16 +7,15 @@
   --sleeve-teal-ink: #f5e9d5;
   --sleeve-oxblood: #7a2430;
   --sleeve-oxblood-ink: #f5e9d5;
-  --sleeve: var(--accent);
+  --sleeve: var(--vinyl-amber, #e39a3a);
   --sleeve-ink: var(--paper-ink);
-  --press-shadow: #140e0b;
+  --press-shadow: color-mix(in srgb, var(--label) 18%, transparent);
   --sleeve-size: 200px;
   --vinyl-size: 164px;
   --sleeve-radius: 28px;
   --path-left: 28%;
   --path-center: 50%;
   --path-right: 72%;
-  color-scheme: dark;
 }
 
 *,
@@ -42,10 +31,10 @@ body {
   max-height: 100dvh;
   overflow: hidden;
   background: var(--bg);
-  color: var(--text);
-  font-family: "Source Sans 3", "Segoe UI", sans-serif;
-  font-size: 16px;
-  line-height: 1.4;
+  color: var(--label);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.294;
 }
 
 .app-shell {
