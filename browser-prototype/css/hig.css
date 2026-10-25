@@ -22,11 +22,25 @@ body {
   position: sticky;
   top: 0;
   z-index: 8;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
   min-height: calc(var(--tap) + var(--safe-top));
   padding-top: var(--safe-top);
   background: var(--toolbar-bg);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.masthead .brand {
+  min-width: 0;
+}
+
+.masthead-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
 }
 
 .masthead .quiet {
@@ -613,6 +627,10 @@ body {
   .masthead,
   .workspace {
     width: min(1080px, calc(100% - 2 * var(--margin-compact)));
+  }
+
+  #home-settings-btn {
+    display: none;
   }
 
   .headphones-banner {
