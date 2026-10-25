@@ -1,0 +1,118 @@
+{
+  "totalBytes": 415580,
+  "totalKB": 405.8,
+  "files": [
+    {
+      "path": "bass/A1.m4a",
+      "bytes": 11865
+    },
+    {
+      "path": "bass/A2.m4a",
+      "bytes": 11833
+    },
+    {
+      "path": "bass/C2.m4a",
+      "bytes": 11884
+    },
+    {
+      "path": "bass/C3.m4a",
+      "bytes": 12173
+    },
+    {
+      "path": "bass/E1.m4a",
+      "bytes": 12348
+    },
+    {
+      "path": "bass/E2.m4a",
+      "bytes": 12310
+    },
+    {
+      "path": "bass/E3.m4a",
+      "bytes": 12242
+    },
+    {
+      "path": "bass/F1.m4a",
+      "bytes": 12461
+    },
+    {
+      "path": "bass/G1.m4a",
+      "bytes": 11724
+    },
+    {
+      "path": "bass/G2.m4a",
+      "bytes": 11866
+    },
+    {
+      "path": "drums/brushRide.m4a",
+      "bytes": 15378
+    },
+    {
+      "path": "drums/brushTap.m4a",
+      "bytes": 4966
+    },
+    {
+      "path": "drums/hat.m4a",
+      "bytes": 4400
+    },
+    {
+      "path": "drums/hatClosed.m4a",
+      "bytes": 3831
+    },
+    {
+      "path": "drums/kick.m4a",
+      "bytes": 4590
+    },
+    {
+      "path": "drums/ride.m4a",
+      "bytes": 19990
+    },
+    {
+      "path": "drums/rideBell.m4a",
+      "bytes": 11114
+    },
+    {
+      "path": "drums/snare.m4a",
+      "bytes": 4514
+    },
+    {
+      "path": "piano/A2.m4a",
+      "bytes": 22485
+    },
+    {
+      "path": "piano/A3.m4a",
+      "bytes": 22386
+    },
+    {
+      "path": "piano/A4.m4a",
+      "bytes": 22751
+    },
+    {
+      "path": "piano/C3.m4a",
+      "bytes": 22626
+    },
+    {
+      "path": "piano/C4.m4a",
+      "bytes": 22460
+    },
+    {
+      "path": "piano/C5.m4a",
+      "bytes": 22809
+    },
+    {
+      "path": "piano/Ds3.m4a",
+      "bytes": 22405
+    },
+    {
+      "path": "piano/Ds4.m4a",
+      "bytes": 22725
+    },
+    {
+      "path": "piano/Fs3.m4a",
+      "bytes": 22691
+    },
+    {
+      "path": "piano/Fs4.m4a",
+      "bytes": 22753
+    }
+  ]
+}
