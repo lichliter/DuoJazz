@@ -107,7 +107,20 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /id="home-settings-btn"/);
   assert.doesNotMatch(index, /id="display-chip"/);
   assert.doesNotMatch(index, /name="clef"/);
+  assert.doesNotMatch(index, /More licks soon/);
   assert.doesNotMatch(index, /name="displayMode"/);
+});
+
+test("home road-end CTA is a 44pt next-module button with no More licks soon", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  assert.doesNotMatch(app, /More licks soon/);
+  assert.doesNotMatch(styles, /More licks soon/);
+  assert.doesNotMatch(hig, /More licks soon/);
+  assert.match(app, /homeNextModuleButton\(homeNextModule\(/);
+  assert.match(styles, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
+  assert.match(styles, /\.next-module-path \{[\s\S]*?background:\s*var\(--tint-solid\)/);
 });
 
 test("tokens restore the warm palette and keep the iOS type scale", async () => {
@@ -128,6 +141,7 @@ test("tokens restore the warm palette and keep the iOS type scale", async () => 
   assert.match(hig, /line-clamp:\s*2/);
   assert.match(hig, /@media \(max-width: 390px\)/);
   assert.match(hig, /\.home-settings \.settings-summary \{[\s\S]*?min-height:\s*var\(--tap\)/);
+  assert.match(hig, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
   assert.match(hig, /margin-top:\s*var\(--space-6\)/);
   assert.match(hig, /\.module-sheet-row/);
   assert.match(hig, /\.session-stage \{[\s\S]*?margin-block:\s*0/);

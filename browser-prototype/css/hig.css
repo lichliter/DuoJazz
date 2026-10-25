@@ -678,6 +678,18 @@ body {
   .home-settings .settings-summary span {
     font: var(--text-callout);
   }
+
+  .path-end,
+  .path-end-next {
+    width: 100%;
+  }
+
+  .next-module-path {
+    min-height: var(--tap);
+    font: var(--text-headline);
+    font-family: var(--display);
+    padding-inline: 0.85rem;
+  }
 }
 
 @media (max-width: 677px) {

@@ -526,31 +526,28 @@ export function isLastVisibleLesson(lessonId) {
 }
 
 export function nextModuleTarget(module) {
-  const index = MODULES.findIndex((item) => item.id === module.id);
-  if (index < 0 || index >= MODULES.length - 1) {
-    return { type: "home", label: "Home" };
-  }
-  const next = MODULES[index + 1];
+  const index = MODULES.findIndex((item) => item.id === module?.id);
+  const wrap = index < 0 || index >= MODULES.length - 1;
+  const next = wrap ? MODULES[0] : MODULES[index + 1];
+  const prefix = wrap ? "Back to" : "Next:";
   return {
     type: "module",
     id: next.id,
     number: next.number,
     name: next.name,
-    label: `Next: Module ${next.number} · ${next.name}`,
+    label: `${prefix} Module ${next.number} · ${next.name}`,
   };
 }
 
-/** Wrap-up CTA after the last road lesson of a module. Last module links home. */
+/** Wrap-up CTA after the last road lesson of a module. Same destination as the home road-end button. */
 export function wrapupNextModule(session) {
   if (!session || !isLastVisibleLesson(session.lessonId)) return null;
   return nextModuleTarget(moduleForLesson(session.lessonId));
 }
 
-/** Module-home CTA once every road lesson has 12 keys. Hidden on the last module. */
-export function homeNextModule(module, lessonKeys = {}) {
-  if (!moduleLessonsComplete(module, lessonKeys)) return null;
-  const target = nextModuleTarget(module);
-  return target.type === "home" ? null : target;
+/** Module-home road-end CTA. Always shown, finished or not. */
+export function homeNextModule(module, _lessonKeys = {}) {
+  return nextModuleTarget(module);
 }
 
 export function completeCard(session, result = {}) {

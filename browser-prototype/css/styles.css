@@ -2022,44 +2022,40 @@ input[type="checkbox"] {
 
 .path-end {
   display: grid;
-  justify-items: center;
-  gap: 0.3rem;
+  justify-items: stretch;
   justify-self: center;
-  padding: 0.85rem 0 0.35rem;
-  pointer-events: none;
+  width: min(100%, 22rem);
+  padding: 0.85rem 0 1.1rem;
 }
 
 .path-end-next {
   pointer-events: auto;
-  width: min(100%, 22rem);
 }
 
 .next-module-path {
   width: 100%;
   min-height: var(--tap);
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   border: 0;
   border-radius: 16px;
-  background: var(--selected);
-  color: var(--text);
-  font: inherit;
-  font-size: 1.05rem;
-  font-weight: 700;
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
+  font: var(--text-headline);
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
   cursor: pointer;
 }
 
-.path-end-sleeve {
-  width: 84px;
-  height: 84px;
-  border-radius: 22px;
-  border: 3px dashed color-mix(in srgb, var(--accent) 48%, transparent);
-  background: transparent;
+.next-module-path:hover,
+.next-module-path:focus-visible {
+  background: color-mix(in srgb, var(--tint-solid) 88%, #fff);
 }
 
-.path-end-label {
-  color: var(--muted);
-  font-size: 0.88rem;
-  letter-spacing: 0.02em;
+.next-module-path:active {
+  background: var(--fill-pressed);
 }
 
 .sleeve-node:hover .vinyl,
@@ -2468,12 +2464,6 @@ input[type="checkbox"] {
 
   .sleeve-num {
     font-size: 1.85rem;
-  }
-
-  .path-end-sleeve {
-    width: 72px;
-    height: 72px;
-    border-radius: 18px;
   }
 }
 
