@@ -7,34 +7,42 @@
   <meta name="description" content="Practice jazz licks in all 12 keys. Browser prototype, not the native DuoJazz iPad app.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=88">
-  <link rel="stylesheet" href="./css/styles.css?v=88">
-  <link rel="stylesheet" href="./css/hig.css?v=88">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/tokens.css?v=89">
+  <link rel="stylesheet" href="./css/styles.css?v=89">
+  <link rel="stylesheet" href="./css/hig.css?v=89">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=88" defer></script>
-  <script type="module" src="./js/app.js?v=88"></script>
+  <script src="./js/verovio-bind.js?v=89" defer></script>
+  <script type="module" src="./js/app.js?v=89"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <div class="app-shell" id="app-shell" data-screen="home" data-home-pane="split">
-    <header class="app-toolbar" id="masthead">
-      <button type="button" class="toolbar-back" id="home-back" data-testid="home-back" hidden aria-label="Back">
-        <span aria-hidden="true">‹</span>
-      </button>
-      <p class="toolbar-title" id="toolbar-title">DuoJazz</p>
-      <button type="button" class="settings-line" id="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings">
-        <span id="settings-summary">Original key · 96 bpm · 1-bar count-in · Swing on</span>
-      </button>
-      <button type="button" class="toolbar-btn" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+  <div class="app-shell" id="app-shell" data-screen="home">
+    <header class="masthead" id="masthead">
+      <div class="brand">
+        <p class="logo">duojazz</p>
+      </div>
+      <div class="masthead-actions">
+        <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view">Modules</button>
+        <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+      </div>
     </header>
 
     <main id="main" class="workspace">
-      <section class="screen split-home" id="screen-home" data-testid="screen-home" aria-label="Modules">
-        <nav class="sidebar" id="module-sidebar" aria-label="Modules"></nav>
-        <section class="detail" id="module-detail" aria-label="Selected module">
-          <header class="detail-head" id="detail-head"></header>
+      <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
+        <div class="home-settings">
+          <button type="button" class="settings-summary" id="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings">
+            <span id="settings-summary">Original key · 96 bpm · 1-bar count-in · Swing on</span>
+          </button>
+          <button type="button" class="quiet" id="home-settings-btn" data-testid="home-settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+        </div>
+        <section class="lesson-path" aria-label="Lesson path">
+          <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
+            <circle data-trail-cap cx="0" cy="0" r="0" fill="currentColor"></circle>
+          </svg>
+          <div class="path-rail" aria-hidden="true"></div>
           <div class="lesson-list" id="lesson-list"></div>
         </section>
       </section>
@@ -136,7 +144,7 @@
   <dialog id="quick-view" class="form-sheet" data-testid="quick-view" aria-labelledby="quick-view-title">
     <form method="dialog" class="sheet-form">
       <header class="sheet-toolbar">
-        <h2 id="quick-view-title">Jump</h2>
+        <h2 id="quick-view-title">Modules</h2>
         <button type="submit" class="sheet-done" value="close">Done</button>
       </header>
       <div class="quick-view-list" id="quick-view-list"></div>
