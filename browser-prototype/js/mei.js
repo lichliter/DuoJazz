@@ -77,7 +77,7 @@ function meiDur(beats) {
   for (const [value, dur, dots] of table) {
     if (almost(beats, value)) return { dur, dots };
   }
-  if (almost(beats, 1 / 6)) return { dur: "16", dots: 0 };
+  if (almost(beats, 0.5 / 3) || almost(beats, 1 / 6)) return { dur: "16", dots: 0 };
   if (almost(beats, 1 / 3) || almost(beats, 0.5)) return { dur: "8", dots: 0 };
   const nearest = table.reduce((best, row) => (
     Math.abs(row[0] - beats) < Math.abs(best[0] - beats) ? row : best
@@ -232,7 +232,7 @@ function sliceTokens(items, start, end, ctx, slashRests) {
       tokens.push({
         type: "tuplet",
         beats: group.reduce((sum, note) => sum + note.beats, 0),
-        notes: group.map((note) => noteXml(note, ctx, almost(note.beats, 1 / 6) ? 0.25 : 0.5)),
+        notes: group.map((note) => noteXml(note, ctx, almost(note.beats, 0.5 / 3) || almost(note.beats, 1 / 6) ? 0.25 : 0.5)),
       });
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       continue;

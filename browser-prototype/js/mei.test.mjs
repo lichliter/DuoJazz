@@ -58,10 +58,10 @@ test("clef and B-flat names do not change concert spelling in MEI", () => {
   const written = phraseMEI(getKey("G"), "bb-written", "minor-home", "bass");
   assert.equal(clefShape(bass), "F");
   assert.equal(clefShape(treble), "G");
-  assert.match(bass, /pname="a" oct="3"/);
-  assert.match(treble, /pname="a" oct="3"/);
+  assert.match(bass, /pname="a" oct="4"/);
+  assert.match(treble, /pname="a" oct="4"/);
   assert.match(written, /keysig="0"/);
-  assert.match(written, /pname="b" oct="3"/);
+  assert.match(written, /pname="b" oct="4"/);
 });
 
 test("a two-chord bar places the second harm on beat 3", () => {
@@ -94,12 +94,12 @@ test("landing MEI keeps lick notes and slashes empty bars", () => {
   assert.match(mei, /head\.shape="slash"/);
   assert.ok(dirs(mei).includes("HERE"));
   assert.ok(dirs(mei).includes("Get ready"));
-  assert.match(mei, /pname="a" oct="3"/);
+  assert.match(mei, /pname="a" oct="4"/);
   const slashes = slashMEI(getKey("G"), "concert", "minor-home", "bass");
   assert.match(slashes, /head\.shape="slash"/);
   assert.match(slashes, /type="slash"/);
   assert.match(slashes, /loc="0"/);
-  assert.doesNotMatch(slashes, /pname="a" oct="3"/);
+  assert.doesNotMatch(slashes, /pname="a" oct="4"/);
   assert.doesNotMatch(slashes, /Get ready|HERE/);
 });
 

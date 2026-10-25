@@ -3,7 +3,7 @@
  * Workbook (personal use). Do not store the PDF, page images, or long passages.
  */
 
-const T16 = 1 / 6;
+const T16 = 0.5 / 3;
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
 
 function N(interval, beats = 0.5, extra = {}) {

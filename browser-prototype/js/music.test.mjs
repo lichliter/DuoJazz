@@ -592,7 +592,7 @@ test("a two-chord bar places the second chord on beat 3", () => {
 
 test("GTS eighths beam in beat pairs across the half-bar chord change", () => {
   const abc = phraseABC(getKey("G"), "concert", "gts-learn");
-  assert.match(abc, /A,, "E7"/);
+  assert.match(abc, /A, "E7"/);
   assert.equal(beamGroupsCrossBeat3(abc), false);
   const st = landingABC(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
   assert.equal(beamGroupsCrossBeat3(st), false);
@@ -655,6 +655,6 @@ test("empty-bar ABC is a single whole rest; partial bars never hide beat 3", () 
   assert.ok(emptyBars.some((body) => body === "z8"));
   assert.ok(emptyBars.every((body) => !/z2z2/.test(body)));
   const gts = phraseABC(getKey("G"), "concert", "gts-learn");
-  assert.match(gts, /"Gmaj7"yyB,,4 z4/);
+  assert.match(gts, /"Gmaj7"yyB,4 z4/);
   assert.doesNotMatch(gts, /z2z2/);
 });

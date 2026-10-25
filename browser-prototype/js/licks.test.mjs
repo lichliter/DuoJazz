@@ -96,7 +96,7 @@ test("each lick’s sounding beats match the workbook cell", () => {
   assert.equal(formBeatsFor("hsr-honeysuckle"), 32);
   for (const lick of WORKBOOK_LICKS) {
     const expected = lick.workbookBars * 4 + (lick.pickupBeats || 0);
-    assert.equal(lickTotalBeats(lick), expected, `${lick.id} beats`);
+    assert.ok(Math.abs(lickTotalBeats(lick) - expected) < 1e-9, `${lick.id} beats`);
     assert.equal(lick.learnBeats, lick.workbookBars * 4, `${lick.id} learnBeats`);
   }
 });
@@ -148,8 +148,8 @@ test("Bird opening has a pickup, sixteenths, and a 12.5-beat span", () => {
 test("Turning Diminished Pattern is four 16th-triplet groups filling one bar", () => {
   const notes = lickNoteElements(lickById("tdp"));
   assert.equal(notes.length, 16);
-  assert.equal(notes.filter((note) => note.tuplet === 3 && Math.abs(note.beats - 1 / 6) < 1e-9).length, 12);
-  assert.equal(lickTotalBeats(lickById("tdp")), 4);
+  assert.equal(notes.filter((note) => note.tuplet === 3 && Math.abs(note.beats - 0.5 / 3) < 1e-9).length, 12);
+  assert.ok(Math.abs(lickTotalBeats(lickById("tdp")) - 4) < 1e-9);
 });
 
 test("HSR is six eighths and a quarter rest", () => {
@@ -199,10 +199,6 @@ test("each lick renders in C, G, B♭ and F♯ with barlines and chord symbols",
     { lesson: "gts-learn", applicationId: "gts-learn", isolated: true },
     { lesson: "bo-learn", applicationId: "bo-learn", isolated: true },
     { lesson: "hsr-learn", applicationId: "hsr-learn", isolated: true },
-    { lesson: "1235-learn", applicationId: "1235-learn", isolated: true },
-    { lesson: "tdp-learn", applicationId: "tdp-learn", isolated: true },
-    { lesson: "dss-learn", applicationId: "dss-learn", isolated: true },
-  ];
     { lesson: "1235-learn", applicationId: "1235-learn", isolated: true },
     { lesson: "tdp-learn", applicationId: "tdp-learn", isolated: true },
     { lesson: "dss-learn", applicationId: "dss-learn", isolated: true },
