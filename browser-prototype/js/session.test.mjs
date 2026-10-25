@@ -60,6 +60,7 @@ import {
   sessionProgress,
   cardLabel,
   cardKicker,
+  sessionScreenTitle,
   sessionPrimaryAction,
 } from "./session.js";
 
@@ -611,6 +612,8 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
   assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "learn-lick" })), "Cry Me a River · Lesson 1");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Lesson 2");
   const twelve = createSession({ lessonId: "learn-lick", keyMode: "fourths" });
   assert.deepEqual(sessionProgress(twelve), { index: 1, total: 36, ratio: 0 });
   const hear = createSession({ lessonId: "learn-lick" });

@@ -77,17 +77,19 @@ test("index and gallery load Verovio instead of abcjs", async () => {
   assert.doesNotMatch(gallery, /abcjs/);
 });
 
-test("session chrome uses Modules, a round play button, and a pinned bottom bar", async () => {
+test("session chrome uses a sidebar home, a round play button, and a pinned bottom bar", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(index, /id="module-sidebar"/);
   assert.match(index, /aria-label="Modules"/);
-  assert.match(index, /id="quick-view-title">Modules</);
   assert.match(index, /class="play-round"/);
   assert.match(index, /class="session-bottom"/);
-  assert.match(index, /id="home-settings"/);
   assert.match(index, /id="settings-summary"/);
+  assert.match(index, /id="session-title"/);
+  assert.match(index, /class="sheet-done"/);
   assert.doesNotMatch(index, />Quick view</);
   assert.doesNotMatch(index, /id="setup"/);
   assert.doesNotMatch(index, /id="session-card-count"/);
+  assert.doesNotMatch(index, /id="quick-view-btn"/);
 });
 
 test("index and gallery bind Verovio WASM before the page module", async () => {
