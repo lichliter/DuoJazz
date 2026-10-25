@@ -5,6 +5,7 @@
 
 import { Transport } from "./audio.js";
 import { beatsToSeconds } from "./music.js";
+import { countInEvents, isSampledEngine } from "./sound-band.js";
 
 function midiToHz(midi) {
   return 440 * 2 ** ((midi - 69) / 12);
@@ -71,6 +72,11 @@ export class BandTransport extends Transport {
     src.start(time);
     src.stop(time + duration + 0.05);
     this.nodes.push(src);
+  }
+
+  scheduleCountIn(origin) {
+    const sampled = isSampledEngine(this.engine) && this.library?.ready;
+    for (const event of countInEvents({ sampled })) this.scheduleEvent(event, origin);
   }
 
   armChorus(config, { countIn, fromBeat }) {
