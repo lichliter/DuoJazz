@@ -79,6 +79,8 @@ import {
   sessionProgress,
   LEGACY_PREFS_KEY,
   HEADPHONES_TIP_KEY,
+  headphonesTipIsDismissed,
+  dismissHeadphonesTip,
 } from "./session.js";
 import {
   tuneById,
@@ -149,6 +151,7 @@ const els = {
   cardSets: document.getElementById("card-sets"),
   sessionOctave: document.getElementById("session-octave"),
   headphonesTip: document.getElementById("headphones-tip"),
+  headphonesDismiss: document.getElementById("headphones-dismiss"),
   primaryLabel: document.getElementById("primary-label"),
   tempoReadout: document.getElementById("tempo-readout"),
   tempoDown: document.getElementById("tempo-down"),
@@ -159,7 +162,6 @@ const els = {
   sessionBack: document.getElementById("session-back"),
   sessionNext: document.getElementById("session-next"),
   sessionQuickView: document.getElementById("session-quick-view"),
-  quickViewBtn: document.getElementById("quick-view-btn"),
   quickView: document.getElementById("quick-view"),
   quickViewList: document.getElementById("quick-view-list"),
   leaveConfirm: document.getElementById("leave-confirm"),
@@ -272,16 +274,20 @@ function renderMic() {
   renderHeadphonesTip();
 }
 
-function headphonesTipSeen() {
+function headphonesStorageFlag() {
   try {
-    return Boolean(prefs.headphonesTipSeen || localStorage.getItem(HEADPHONES_TIP_KEY));
+    return localStorage.getItem(HEADPHONES_TIP_KEY);
   } catch {
-    return Boolean(prefs.headphonesTipSeen);
+    return null;
   }
 }
 
+function headphonesTipSeen() {
+  return headphonesTipIsDismissed(prefs, headphonesStorageFlag());
+}
+
 function markHeadphonesTipSeen() {
-  prefs.headphonesTipSeen = true;
+  prefs = dismissHeadphonesTip(prefs);
   try {
     localStorage.setItem(HEADPHONES_TIP_KEY, "1");
   } catch {
@@ -290,20 +296,10 @@ function markHeadphonesTipSeen() {
   persist();
 }
 
-let headphonesTipVisible = false;
-
 function renderHeadphonesTip() {
   if (!els.headphonesTip) return;
-  if (session?.screen !== "session") {
-    headphonesTipVisible = false;
-    els.headphonesTip.hidden = true;
-    return;
-  }
-  if (!headphonesTipSeen()) {
-    headphonesTipVisible = true;
-    markHeadphonesTipSeen();
-  }
-  els.headphonesTip.hidden = !headphonesTipVisible;
+  const show = session?.screen === "session" && !headphonesTipSeen();
+  els.headphonesTip.hidden = !show;
 }
 
 monitor.onState = () => renderMic();
@@ -652,7 +648,7 @@ function lessonRow(node) {
   const vinyl = document.createElement("span");
   vinyl.className = "row-vinyl";
   vinyl.dataset.sleeve = node.sleeve;
-  vinyl.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span>${node.number}</span>`;
+  vinyl.textContent = node.number;
 
   const copy = document.createElement("span");
   copy.className = "row-copy";
@@ -1248,6 +1244,7 @@ function render(snap = transport.snapshot()) {
   const moduleName = session ? moduleForLesson(session.lessonId).name : "DuoJazz";
   document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
+  renderHeadphonesTip();
   if (screen === "home") renderHome();
   if (screen === "session") {
     renderSessionChrome();
@@ -1413,7 +1410,10 @@ els.homeBack?.addEventListener("click", () => {
 els.sessionExit.addEventListener("click", exitSession);
 els.sessionBack?.addEventListener("click", () => navigateCard(-1));
 els.sessionNext?.addEventListener("click", () => navigateCard(1));
-els.quickViewBtn?.addEventListener("click", requestQuickView);
+els.headphonesDismiss?.addEventListener("click", () => {
+  markHeadphonesTipSeen();
+  renderHeadphonesTip();
+});
 els.sessionQuickView?.addEventListener("click", requestQuickView);
 els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();

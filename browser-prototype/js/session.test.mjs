@@ -62,6 +62,8 @@ import {
   cardKicker,
   sessionScreenTitle,
   sessionPrimaryAction,
+  headphonesTipIsDismissed,
+  dismissHeadphonesTip,
 } from "./session.js";
 
 function rngFrom(values) {
@@ -629,6 +631,18 @@ test("global settings summary and lesson-1 labels", () => {
   const nextKey = advanceKey(jumpToWrapup(shifted));
   assert.equal(nextKey.melodyRegister, 1);
   assert.equal(currentKeyId(nextKey), "C");
+});
+
+test("headphones tip stays hidden until dismissed, then persists", () => {
+  const fresh = defaultPrefs();
+  assert.equal(fresh.headphonesTipSeen, false);
+  assert.equal(headphonesTipIsDismissed(fresh, null), false);
+  assert.equal(headphonesTipIsDismissed(fresh, "1"), true);
+  const dismissed = dismissHeadphonesTip(fresh);
+  assert.equal(dismissed.headphonesTipSeen, true);
+  assert.equal(headphonesTipIsDismissed(dismissed, null), true);
+  const stored = normalizePrefs({ headphonesTipSeen: true });
+  assert.equal(stored.headphonesTipSeen, true);
 });
 
 test("timemap sounding ids cover on/off by qstamp", async () => {

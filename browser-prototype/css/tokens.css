@@ -15,7 +15,10 @@
   --margin-regular: 20px;
   --margin-compact: 16px;
   --content-max: 672px;
-  --sidebar-width: 280px;
+  --sidebar-width: 320px;
+  --sidebar-width-split: 280px;
+  --tint-solid: #a84416;
+  --tint-on-solid: #ffffff;
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -60,8 +63,8 @@
     --separator: rgba(60, 60, 67, 0.29);
     --fill: rgba(120, 120, 128, 0.16);
     --fill-pressed: rgba(120, 120, 128, 0.24);
-    --tint: #007aff;
-    --tint-fill: rgba(0, 122, 255, 0.12);
+    --tint: #a84416;
+    --tint-fill: rgba(168, 68, 22, 0.12);
     --toolbar-bg: rgba(249, 249, 249, 0.94);
     --shadow-sheet: 0 8px 40px rgba(0, 0, 0, 0.18);
     --success: #34c759;
@@ -84,8 +87,8 @@
     --separator: rgba(84, 84, 88, 0.65);
     --fill: rgba(120, 120, 128, 0.24);
     --fill-pressed: rgba(120, 120, 128, 0.36);
-    --tint: #0a84ff;
-    --tint-fill: rgba(10, 132, 255, 0.22);
+    --tint: #e3944a;
+    --tint-fill: rgba(227, 148, 74, 0.22);
     --toolbar-bg: rgba(28, 28, 30, 0.94);
     --shadow-sheet: 0 16px 48px rgba(0, 0, 0, 0.55);
     --success: #30d158;

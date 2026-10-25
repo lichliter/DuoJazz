@@ -90,6 +90,24 @@ test("session chrome uses a sidebar home, a round play button, and a pinned bott
   assert.doesNotMatch(index, /id="setup"/);
   assert.doesNotMatch(index, /id="session-card-count"/);
   assert.doesNotMatch(index, /id="quick-view-btn"/);
+  assert.match(index, /class="session-stage"/);
+  assert.match(index, /class="headphones-banner"/);
+  assert.match(index, /id="headphones-dismiss"/);
+  assert.doesNotMatch(index, /class="headphones-tip"/);
+  assert.doesNotMatch(index, /class="session-spacer"/);
+});
+
+test("HIG tokens use a warm brand tint and a 320pt sidebar", async () => {
+  const tokens = await readFile(new URL("../css/tokens.css", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  assert.match(tokens, /--sidebar-width:\s*320px/);
+  assert.match(tokens, /--sidebar-width-split:\s*280px/);
+  assert.match(tokens, /--tint-solid:\s*#a84416/);
+  assert.doesNotMatch(tokens, /#007aff|#0a84ff/);
+  assert.match(hig, /line-clamp:\s*2/);
+  assert.match(hig, /margin-top:\s*var\(--space-8\)/);
+  assert.match(hig, /\.settings-line \{\s*display:\s*none;/);
+  assert.match(hig, /#quick-view-btn/);
 });
 
 test("index and gallery bind Verovio WASM before the page module", async () => {
