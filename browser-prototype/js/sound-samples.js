@@ -1,5 +1,5 @@
 /**
- * Lazy-load + Cache Storage for the sound.html sample pack.
+ * Lazy-load + Cache Storage for the sampled backing pack used by the app and sound.html.
  */
 
 export const SAMPLE_VERSION = "duojazz-sound-v1";

@@ -399,8 +399,23 @@ body {
   color: var(--tint-on-solid);
 }
 
-.play-round[data-state="count-in"] .play-round-icon {
+.play-round[data-state="count-in"] .play-round-icon,
+.play-round[data-state="loading"] .play-round-icon {
   display: none;
+}
+
+.play-round[data-state="loading"]::after {
+  content: "";
+  width: 28px;
+  height: 28px;
+  border: 3px solid color-mix(in srgb, var(--tint-on-solid) 35%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: play-round-spin 0.7s linear infinite;
+}
+
+@keyframes play-round-spin {
+  to { transform: rotate(360deg); }
 }
 
 .play-round[data-state="listening"] {

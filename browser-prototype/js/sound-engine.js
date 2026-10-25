@@ -24,17 +24,10 @@ export class BandTransport extends Transport {
 
   async ensure() {
     await super.ensure();
-    if (this.pianoBus) return;
-    this.pianoBus = this.ctx.createGain();
-    this.bassBus = this.ctx.createGain();
-    this.drumBus = this.ctx.createGain();
-    this.melodyBus = this.ctx.createGain();
-    this.tap = this.ctx.createMediaStreamDestination();
-    this.pianoBus.connect(this.master);
-    this.bassBus.connect(this.master);
-    this.drumBus.connect(this.master);
-    this.melodyBus.connect(this.master);
-    this.master.connect(this.tap);
+    if (!this.tap) {
+      this.tap = this.ctx.createMediaStreamDestination();
+      this.master.connect(this.tap);
+    }
   }
 
   setMixer({ piano = 1, bass = 1, drums = 1, melody = 1 } = {}) {

@@ -20,6 +20,8 @@ Deep links for screenshots and review:
 - `/?screen=home&demo=medal`
 - `/?screen=session&lesson=learn-lick&card=play&mic=denied`
 
+Dev-only backing A/B (not linked from the app): `sound.html`. Live Learn / Play / memory / tune pages use New-simple sampled piano, bass, and ride kit, with the old synth as fallback.
+
 ## Music
 
 Recognizable **Cry Me a River** minor cell (`9–1–5–♭3–2–1`, one bar) over the **opening eight bars of Autumn Leaves** in concert G minor:

@@ -92,6 +92,7 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /class="session-stage"/);
   assert.match(index, /class="headphones-banner"/);
   assert.match(index, /id="headphones-dismiss"/);
+  assert.doesNotMatch(index, /sound\.html/);
   assert.doesNotMatch(index, /id="module-sidebar"/);
   assert.doesNotMatch(index, />Quick view</);
   assert.doesNotMatch(index, /id="setup"/);
