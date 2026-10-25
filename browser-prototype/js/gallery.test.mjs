@@ -110,8 +110,9 @@ test("gallery chord symbols have no internal gaps around accidentals or alterati
     const mei = meiForPanel(panel);
     for (const match of mei.matchAll(/<rend[^>]*>([^<]*)<\/rend>/g)) {
       const name = match[1];
-      assert.equal(compactChordSymbol(name), name, `${panel.id} ${name}`);
-      assert.doesNotMatch(name, /[A-G]\s+[♭♯°ø]/);
+      assert.doesNotMatch(name, /\s/, `${panel.id} ${name}`);
+      assert.doesNotMatch(compactChordSymbol(name), /\s/, `${panel.id} ${name}`);
+      assert.doesNotMatch(name, /[A-G]\s+[♭♯°øb#]/);
       assert.doesNotMatch(name, /[7mø°]\s+[♭♯]/);
     }
   }

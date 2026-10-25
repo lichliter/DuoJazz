@@ -159,10 +159,10 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     svgViewBox: true,
     svgHtml5: true,
     beamMaxSlope: 4,
-    spacingSystem: cue ? 10 : 6,
+    spacingSystem: 6,
     spacingStaff: 8,
     pageMarginTop: 24,
-    pageMarginBottom: cue ? 36 : 16,
+    pageMarginBottom: cue ? 28 : 16,
     pageMarginLeft: 16,
     pageMarginRight: 16,
     harmDist: 1.05,
@@ -220,8 +220,30 @@ export function smuflChordChar(href) {
 }
 
 export function compactChordSymbol(text) {
-  return decodeFigbassText(text)
+  let s = decodeFigbassText(text)
     .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "");
+  s = s.replace(/b13/g, "♭13");
+  s = s.replace(/#11/g, "♯11");
+  s = s.replace(/b9/g, "♭9");
+  s = s.replace(/#9/g, "♯9");
+  s = s.replace(/b5/g, "♭5");
+  s = s.replace(/b6/g, "♭6");
+  s = s.replace(/o7/g, "°7");
+  s = s.replace(/h7/g, "ø7");
+  s = s.replace(/mM7/g, "mΔ7");
+  s = s.replace(/([A-G])b/g, "$1♭");
+  s = s.replace(/([A-G][♭]?)#/g, "$1♯");
+  return s;
+}
+
+/** ASCII-safe harm text so Verovio does not split accidentals into figbass. */
+export function meiChordText(name) {
+  return compactChordSymbol(name)
+    .replaceAll("♭", "b")
+    .replaceAll("♯", "#")
+    .replaceAll("°", "o")
+    .replaceAll("ø", "h")
+    .replaceAll("Δ", "M");
 }
 
 export function harmRawText(harm) {
@@ -279,6 +301,7 @@ function paintChordText(text, compact, chordVU, x, y) {
   tspan.setAttribute("fill", INK);
   tspan.setAttribute("letter-spacing", "0");
   tspan.setAttribute("kerning", "0");
+  tspan.setAttribute("xml:space", "preserve");
   if (x != null) tspan.setAttribute("x", x);
   if (y != null) tspan.setAttribute("y", y);
   text.append(tspan);
@@ -288,6 +311,34 @@ function paintChordText(text, compact, chordVU, x, y) {
   text.setAttribute("letter-spacing", "0");
   text.setAttribute("kerning", "0");
   text.setAttribute("fill", INK);
+  text.style.whiteSpace = "nowrap";
+}
+
+function isChordFragment(text) {
+  return /^(maj7|m7|m6|sus|♭5|♭9|♭13|♯9|♯11|°7|ø7|Δ7|[♭♯°øΔ])/.test(text);
+}
+
+export function mergeSplitChordSymbols(svg) {
+  if (!svg?.querySelectorAll) return;
+  const harms = [...svg.querySelectorAll(".harm")];
+  for (let i = 1; i < harms.length; i += 1) {
+    const prev = compactChordSymbol(harmRawText(harms[i - 1]));
+    const cur = compactChordSymbol(harmRawText(harms[i]));
+    if (!prev || !cur || !isChordFragment(cur)) continue;
+    const host = harms[i - 1];
+    const { x, y } = textAnchor(harmTextEl(host));
+    const joined = compactChordSymbol(`${prev}${cur}`);
+    host.replaceChildren();
+    if (isSvgText(host)) {
+      paintChordText(host, joined, chordFontVU(), x, y);
+    } else {
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      host.append(text);
+      paintChordText(text, joined, chordFontVU(), x, y);
+    }
+    harms[i].remove();
+    harms[i] = host;
+  }
 }
 
 function restyleHarms(svg, chordVU) {
@@ -296,14 +347,20 @@ function restyleHarms(svg, chordVU) {
     if (!compact) continue;
     const texts = [...harm.querySelectorAll("text")];
     const target = isSvgText(harm) ? harm : texts[0];
-    if (!target) continue;
     const { x, y } = textAnchor(target);
-    if (!isSvgText(harm)) {
-      for (const extra of texts.slice(1)) extra.remove();
-      for (const use of harm.querySelectorAll(":scope > use, use")) use.remove();
+    for (const extra of texts) {
+      if (extra !== target) extra.remove();
     }
-    paintChordText(target, compact, chordVU, x, y);
+    for (const use of harm.querySelectorAll("use")) use.remove();
+    if (target) {
+      paintChordText(target, compact, chordVU, x, y);
+    } else {
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      harm.replaceChildren(text);
+      paintChordText(text, compact, chordVU, x, y);
+    }
   }
+  mergeSplitChordSymbols(svg);
 }
 
 function restyleDirs(svg, cueVU) {
@@ -376,17 +433,74 @@ export function separateChordSymbols(svg) {
   }
 }
 
-export function centerSlashNoteheads(svg) {
-  if (!svg?.querySelectorAll) return;
-  for (const staff of svg.querySelectorAll(".staff")) {
-    let staffBox;
+export function staffLineYs(staff) {
+  const ys = [];
+  for (const path of staff?.querySelectorAll?.(":scope > path") ?? []) {
+    let box;
     try {
-      staffBox = staff.getBBox();
+      box = path.getBBox();
     } catch {
       continue;
     }
-    if (!staffBox?.height) continue;
-    const mid = staffBox.y + staffBox.height / 2;
+    if (!box || box.width < 8) continue;
+    if (box.width > box.height * 6) ys.push(box.y + box.height / 2);
+  }
+  ys.sort((a, b) => a - b);
+  return ys;
+}
+
+export function middleStaffLineY(staff) {
+  const ys = staffLineYs(staff);
+  if (ys.length >= 5) return ys[2];
+  if (ys.length) return ys[Math.floor(ys.length / 2)];
+  try {
+    const box = staff.getBBox();
+    return box.y + box.height / 2;
+  } catch {
+    return null;
+  }
+}
+
+function staffLineBox(staff) {
+  let best = null;
+  for (const path of staff?.querySelectorAll?.(":scope > path") ?? []) {
+    let box;
+    try {
+      box = path.getBBox();
+    } catch {
+      continue;
+    }
+    if (!best || box.width > best.width) best = box;
+  }
+  return best;
+}
+
+function beatSlotsForStaff(staff, beats = 4) {
+  const lines = staffLineBox(staff);
+  if (!lines) return [];
+  const notes = [...staff.querySelectorAll(".note")];
+  let left = lines.x;
+  const right = lines.x + lines.width;
+  if (notes.length) {
+    try {
+      const noteLeft = Math.min(...notes.map((note) => note.getBBox().x));
+      if (Number.isFinite(noteLeft) && noteLeft > left + 8) left = noteLeft;
+    } catch {
+      // keep the line box
+    }
+  }
+  const width = Math.max(8, right - left);
+  const slot = width / beats;
+  return Array.from({ length: beats }, (_, i) => ({ x: left + i * slot, w: slot }));
+}
+
+export function centerSlashNoteheads(svg) {
+  if (!svg?.querySelectorAll) return;
+  for (const staff of svg.querySelectorAll(".staff")) {
+    const mid = middleStaffLineY(staff);
+    if (mid == null) continue;
+    const slots = beatSlotsForStaff(staff);
+    const slashNotes = [...staff.querySelectorAll(".note")].filter((el) => isSlashHead(el));
     const heads = [...staff.querySelectorAll(".notehead, .note, [class*='slash']")].filter(isSlashHead);
     const seen = new Set();
     for (const head of heads) {
@@ -403,9 +517,19 @@ export function centerSlashNoteheads(svg) {
       }
       if (!box.height) continue;
       const dy = mid - (box.y + box.height / 2);
-      if (Math.abs(dy) < 0.35) continue;
+      let dx = 0;
+      const note = target.closest(".note") ?? head.closest?.(".note");
+      if (note && slots.length === 4 && slashNotes.length) {
+        const trailing = slashNotes.indexOf(note);
+        const slotIndex = slashNotes.length === 4
+          ? trailing
+          : 4 - slashNotes.length + trailing;
+        const slot = slots[Math.max(0, Math.min(3, slotIndex))];
+        if (slot) dx = slot.x + slot.w / 2 - (box.x + box.width / 2);
+      }
+      if (Math.abs(dy) < 0.35 && Math.abs(dx) < 0.35) continue;
       const prev = target.getAttribute("transform") || "";
-      target.setAttribute("transform", `${prev} translate(0 ${dy})`.trim());
+      target.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
     }
   }
 }
@@ -463,6 +587,7 @@ export async function engraveMei(target, mei, options = {}) {
   if (svg) {
     recolor(svg);
     restyleText(svg, layout);
+    mergeSplitChordSymbols(svg);
     separateChordSymbols(svg);
     centerSlashNoteheads(svg);
     applyFixedStaffSize(target, svg, layout);

@@ -127,6 +127,11 @@ test("chord symbols compact figbass and internal gaps", () => {
   assert.equal(compactChordSymbol("A7 ♭9"), "A7♭9");
   assert.equal(compactChordSymbol("F ♯ °7"), "F♯°7");
   assert.equal(compactChordSymbol("F\u00A0♯\u202F°7"), "F♯°7");
+  assert.equal(compactChordSymbol("Bbmaj7"), "B♭maj7");
+  assert.equal(compactChordSymbol("Ebmaj7"), "E♭maj7");
+  assert.equal(compactChordSymbol("Am7b5"), "Am7♭5");
+  assert.equal(compactChordSymbol("A7b9"), "A7♭9");
+  assert.equal(compactChordSymbol("F#o7"), "F♯°7");
   assert.equal(smuflChordChar("#E260"), "♭");
   assert.equal(smuflChordChar("E870"), "°");
 });
@@ -143,6 +148,8 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
   assert.match(src, /separateChordSymbols\(svg\)/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
+  assert.match(src, /middleStaffLineY\(/);
+  assert.match(src, /mergeSplitChordSymbols\(/);
   assert.match(src, /applyFixedStaffSize\(/);
   assert.match(src, /restyleHarms\(/);
   assert.match(src, /harmRawText\(/);

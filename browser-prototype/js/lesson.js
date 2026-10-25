@@ -409,7 +409,7 @@ export const CUE_PX = 14;
 
 /** Sheet-music 1.0× plus the three larger try-on presets. */
 export const NOTATION_SCALE_VALUES = Object.freeze([1, 1.2, 1.4, 1.6]);
-export const NOTATION_SCALE_KEY = "duojazz.notationScale";
+export const NOTATION_SCALE_KEY = "duojazz.notationScale.v4";
 export const NOTATION_SCALE_LABELS = Object.freeze({
   1: "Sheet music (1.0×)",
   1.2: "1.2×",
@@ -554,8 +554,8 @@ export function notationLayout({
     fitToPaper: false,
     fillAxis: "fit",
     naturalWidth: false,
-    staffsep: Math.round((showEntranceCues ? 160 : 96) * size),
-    maxStaffsep: Math.round((showEntranceCues ? 170 : 110) * size),
+    staffsep: Math.round(96 * size),
+    maxStaffsep: Math.round(110 * size),
     fillRatio: 1,
     minStaffPx: staffPx,
   };

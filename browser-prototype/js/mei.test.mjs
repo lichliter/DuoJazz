@@ -177,12 +177,14 @@ test("staccato and tenuto encode as artic, never bowing", () => {
   }
 });
 
-test("flat and sharp chord names stay as literal Unicode in harm", () => {
+test("flat and sharp chord names encode without spaces so Verovio will not figbass-split them", () => {
   const gts = phraseMEI(getKey("Bb"), "concert", "gts-learn");
-  assert.ok(harms(gts).includes("B♭maj7"));
-  assert.match(gts, /<rend fontfam="sans-serif"[^>]*>B♭maj7<\/rend>/);
+  assert.ok(harms(gts).includes("Bbmaj7"));
+  assert.match(gts, /<rend fontfam="sans-serif"[^>]*>Bbmaj7<\/rend>/);
+  assert.doesNotMatch(gts, /B♭\s+maj7|Bb\s+maj7/);
   const billies = landingMEI(getKey("F"), "concert", "bo-billies");
-  assert.ok(harms(billies).some((name) => name.includes("B♭") || name.includes("°")));
+  assert.ok(harms(billies).some((name) => /Bb|B♭|o7|°/.test(name)));
+  assert.doesNotMatch(billies, /[A-G][b#]?\s+(maj7|o7|b9|b5)/);
 });
 
 test("long cue labels wrap at a word instead of overflowing the next bar", () => {
