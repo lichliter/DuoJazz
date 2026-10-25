@@ -12,6 +12,7 @@ import {
   TEST_PHRASE,
   backingFor,
   clipArrangement,
+  isSampledEngine,
   withMelody,
 } from "./sound-band.js";
 
@@ -57,17 +58,25 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function engineStatusName() {
+  if (state.engine === "new") return "New (busy)";
+  if (state.engine === "new-simple") return "New-simple";
+  return "Current synth (no sample download)";
+}
+
 function statusLine(extra = "") {
   const pack = state.packBytes ? formatBytes(state.packBytes) : "pack";
   const ready = state.readyMs != null ? `${(state.readyMs / 1000).toFixed(2)}s to ready` : "not loaded yet";
   const cache = library.fromCache ? "cache hit" : "cold download";
-  const engine = state.engine === "new" ? `New · ${pack} · ${ready} · ${cache}` : "Current synth (no sample download)";
+  const engine = isSampledEngine(state.engine)
+    ? `${engineStatusName()} · ${pack} · ${ready} · ${cache}`
+    : engineStatusName();
   $("status").textContent = extra ? `${engine}. ${extra}` : engine;
 }
 
 function chordName() {
   const snap = transport.snapshot();
-  const arranged = backingFor(state.engine, state.formId, { brushes: state.brushes });
+  const arranged = backingFor(state.engine, state.formId, { brushes: state.brushes, tempo: state.tempo });
   const chord = chordAtBeat(arranged.chords, Math.max(0, snap.beats));
   $("chord").textContent = snap.playing || snap.paused ? (chord?.name ?? "—") : "—";
   $("meter").textContent = snap.inCountIn
@@ -85,7 +94,7 @@ transport.onEnded = () => {
 };
 
 async function ensureNew() {
-  if (state.engine !== "new") return;
+  if (!isSampledEngine(state.engine)) return;
   await transport.ensure();
   if (library.ready) return;
   $("status").textContent = "Loading samples…";
@@ -100,7 +109,7 @@ async function ensureNew() {
 }
 
 function arrangement({ grade = false } = {}) {
-  let arranged = backingFor(state.engine, state.formId, { brushes: state.brushes });
+  let arranged = backingFor(state.engine, state.formId, { brushes: state.brushes, tempo: state.tempo });
   if (grade) {
     arranged = clipArrangement(arranged, 8);
     arranged = withMelody(arranged);
@@ -224,7 +233,8 @@ function bindToggles() {
 
 function applyQuery() {
   const query = new URLSearchParams(location.search);
-  if (query.get("engine") === "new" || query.get("engine") === "current") state.engine = query.get("engine");
+  const engine = query.get("engine");
+  if (engine === "new" || engine === "current" || engine === "new-simple") state.engine = engine;
   if (query.get("form") === "st-thomas") state.formId = "st-thomas";
   const tempo = Number(query.get("tempo"));
   if (tempo === 100 || tempo === 140 || tempo === 200) state.tempo = tempo;
