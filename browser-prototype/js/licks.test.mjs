@@ -32,6 +32,7 @@ import {
   BEATS_PER_BAR,
 } from "./music.js";
 import { WORKBOOK_LICKS } from "./workbook-licks.js";
+import { WORKBOOK_TRACKS } from "./workbook-tracks.js";
 import {
   TWELVE_KEY_IDS,
   recommendedLessonId,
@@ -68,11 +69,18 @@ test("registry has thirty modules: five with standards plus workbook 6–30", ()
   assert.equal(MODULES.length, 30);
   assert.deepEqual(
     MODULES.slice(0, 5).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
-    [7, 5, 4, 4, 5],
+    [7, 6, 4, 4, 5],
   );
-  assert.deepEqual(MODULES.slice(0, 5).map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
-  assert.ok(MODULES.slice(5).every((module) => module.lessons.length === 1 && module.lessons[0].kind === "learn"));
-  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 50);
+  assert.deepEqual(MODULES.slice(0, 5).map((module) => module.lessons.length), [10, 9, 8, 10, 13]);
+  assert.ok(MODULES.slice(5).every((module) => {
+    const n = module.lessons.length;
+    return n >= 2 && n <= 4 && module.lessons[0].kind === "learn"
+      && module.lessons.slice(1).every((lesson) => lesson.kind === "integrate");
+  }));
+  assert.equal(
+    LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length,
+    25 + 1 + 25 + WORKBOOK_TRACKS.length,
+  );
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "integrate"));
   for (const lick of LICKS) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);
