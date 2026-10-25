@@ -658,3 +658,18 @@ test("empty-bar ABC is a single whole rest; partial bars never hide beat 3", () 
   assert.match(gts, /"Gmaj7"yyB,4 z4/);
   assert.doesNotMatch(gts, /z2z2/);
 });
+
+test("Donna Lee Resolution over G7♭9 spells altered tones as flats, not sharps", () => {
+  const notes = phraseNotes(getKey("C"), "concert", "dlr-learn");
+  const names = notes.map((n) => n.shownName.replace(/\d+$/, ""));
+  assert.ok(names.includes("A♭"), names.join(" "));
+  assert.ok(names.includes("B♭"), names.join(" "));
+  assert.equal(names.includes("G♯"), false, names.join(" "));
+  assert.equal(names.includes("A♯"), false, names.join(" "));
+  const abc = phraseABC(getKey("C"), "concert", "dlr-learn");
+  assert.match(abc, /"G7♭9"/);
+  assert.match(abc, /_A/);
+  assert.match(abc, /_B/);
+  assert.doesNotMatch(abc, /\^G/);
+  assert.doesNotMatch(abc, /\^A/);
+});

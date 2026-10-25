@@ -536,11 +536,13 @@ export function phraseNotes(
   const shownKey = displayKey(concertKey, displayMode, quality);
   const concertSpell = quality === "major" ? majorSpelling(concertKey) : minorSpelling(concertKey);
   const octaveBase = octaveForApplication(applicationId, concertKey.pc);
+  const chords = learnChords(concertKey, displayMode, applicationId);
   return withSpotOctaves(phraseEvents(applicationId), applicationId, concertKey.pc).map((event, index) => {
     const concertMidi = eventMelodyMidi(concertKey, event, melodyRegister, octaveBase);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
-    const spelled = spellMidi(shownMidi, shownKey.usesFlats);
-    const concertSpelled = spellMidi(concertMidi, concertSpell.usesFlats);
+    const chord = chordAtEventBeat(chords, event.beat);
+    const spelled = spellMidi(shownMidi, usesFlatsForChord(shownKey, chord));
+    const concertSpelled = spellMidi(concertMidi, usesFlatsForChord(concertSpell, chord));
     return {
       index,
       startBeat: event.beat,
@@ -618,6 +620,24 @@ export function chordAtBeat(chords, beat) {
   return [...chords]
     .reverse()
     .find((chord) => beat >= chord.startBeat && beat < chord.startBeat + chord.durationBeats);
+}
+
+const ALTERED_FLAT_QUALITIES = new Set(["dominant7b9", "dominant7b13", "dominant7alt"]);
+
+/** Altered dominants (♭9 / ♭13 / alt) spell with flats; otherwise follow the key. */
+export function qualityPrefersFlats(quality) {
+  return ALTERED_FLAT_QUALITIES.has(quality);
+}
+
+export function usesFlatsForChord(shownKey, chord) {
+  if (chord?.usesFlats != null) return Boolean(chord.usesFlats);
+  if (qualityPrefersFlats(chord?.quality)) return true;
+  return Boolean(shownKey?.usesFlats);
+}
+
+export function chordAtEventBeat(chords, beat) {
+  if (!chords?.length) return null;
+  return chordAtBeat(chords, Math.max(0, beat)) ?? chords[0];
 }
 
 export function cellTonicSpelling(concertKey, displayMode, applicationId = DEFAULT_APPLICATION_ID) {
@@ -928,11 +948,11 @@ function tupletWrittenBeats(item) {
   return 0.5;
 }
 
-function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null) {
+function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null, usesFlatsOverride = null) {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
-  const pitch = abcNote(shownMidi, shownKey, barState);
+  const pitch = abcNote(shownMidi, usesFlatsOverride ?? shownKey.usesFlats, barState);
   const dur = item.tuplet === 3 ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);
   return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
 }
@@ -995,6 +1015,10 @@ export function beamGroupsCrossBeat3(abc) {
   return false;
 }
 
+function flatsForItem(ctx, item) {
+  return usesFlatsForChord(ctx.shownKey, chordAtEventBeat(ctx.chords, item?.beat));
+}
+
 function renderSlice(items, start, end, ctx) {
   const covering = items
     .filter((item) => item.beat < end - 1e-6 && item.beat + item.beats > start + 1e-6)
@@ -1018,7 +1042,7 @@ function renderSlice(items, start, end, ctx) {
       }
       abc += "(3";
       for (const note of group) {
-        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, tupletWrittenBeats(note), false, ctx.quality, ctx.barState);
+        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, tupletWrittenBeats(note), false, ctx.quality, ctx.barState, flatsForItem(ctx, note));
       }
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -1032,7 +1056,7 @@ function renderSlice(items, start, end, ctx) {
     const tieOut = item.type === "note" && item.beat + item.beats > end + 1e-6;
     if (item.type === "rest") abc += restAbc(iStart, dur);
     else {
-      abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState);
+      abc += noteToAbcBody(item, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, dur, tieOut, ctx.quality, ctx.barState, flatsForItem(ctx, item));
     }
     cursor = iEnd;
     if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -1134,6 +1158,7 @@ function renderFormAbc({
     ? formForApplication(applicationId)
     : formForApplication(applicationId);
   const chords = chorusChords(concertKey, displayMode, applicationId);
+  ctx.chords = chords;
   const barCount = isolated && mode === "phrase"
     ? Math.max(form.bars.length, Math.ceil(learnBeatsFor(applicationId) / BEATS_PER_BAR))
     : form.bars.length;
@@ -1189,6 +1214,7 @@ export function phraseABC(
   const items = phraseTimeline(applicationId, true);
   const length = learnBeatsFor(applicationId);
   const chords = learnChords(concertKey, displayMode, applicationId);
+  ctx.chords = chords;
   const barCount = Math.max(1, Math.ceil(length / BEATS_PER_BAR));
   let abc = `X:1\nM:4/4\nL:1/8\n${abcKeyLine(ctx.shownKey, clef)}\n`;
 
@@ -1431,4 +1457,4 @@ export function scheduleChorus({
   return events.sort((a, b) => a.beat - b.beat || a.type.localeCompare(b.type));
 }
 
-export { LICKS, FORMS, usesFlatsFor };
+export { LICKS, FORMS, usesFlatsFor, ALTERED_FLAT_QUALITIES };
