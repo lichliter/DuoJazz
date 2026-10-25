@@ -103,8 +103,12 @@ html.gallery-page body {
   background: var(--paper);
   color: var(--paper-ink);
   border-radius: 10px;
-  padding: 0.85rem 0.75rem 1rem;
+  padding: 0.85rem 0.75rem 0.85rem;
   margin: 0 0 1.1rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0;
+  height: auto;
 }
 
 .gallery-card header h3 {
@@ -122,23 +126,18 @@ html.gallery-page body {
 
 .gallery-card .paper-wrap {
   overflow: visible;
+  min-height: 0;
+  padding: 0;
 }
 
-.gallery-card.shot {
-  width: 1024px;
-  max-width: 100%;
-  min-height: 1366px;
-  box-sizing: border-box;
+.gallery-card .paper {
+  min-height: 0;
 }
 
+.gallery-card.shot,
 #compare .gallery-card {
-  width: 1024px;
+  width: min(1024px, 100%);
   max-width: 100%;
+  min-height: 0;
   box-sizing: border-box;
-}
-
-@media (min-width: 1024px) {
-  .gallery-card.shot {
-    margin-inline: calc(50% - 512px);
-  }
 }

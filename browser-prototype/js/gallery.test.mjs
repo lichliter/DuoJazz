@@ -125,6 +125,13 @@ test("compare view shows St. Thomas and GTS Learn in B♭ at all four sizes", ()
   assert.ok(panels.every((panel) => /1\.0×|1\.2×|1\.4×|1\.6×/.test(panel.title)));
 });
 
+test("gallery cards size to content instead of a full iPad frame", async () => {
+  const css = await (await import("node:fs/promises")).readFile(new URL("../css/gallery.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /min-height:\s*1366px/);
+  assert.match(css, /\.gallery-card[\s\S]*min-height:\s*0/);
+  assert.match(css, /\.gallery-card \.paper[\s\S]*min-height:\s*0/);
+});
+
 test("gallery chord symbols have no internal gaps around accidentals or alterations", () => {
   const samples = [
     galleryPanels().find((panel) => panel.id === "st-thomas"),
