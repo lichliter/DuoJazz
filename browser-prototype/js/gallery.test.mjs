@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import {
   abcForPanel,
   comparePanels,
+  coreModules,
   galleryPanels,
   learnLessons,
   meiForPanel,
   standardLessons,
+  workbookPanels,
   LEARN_KEYS,
 } from "./gallery.js";
 import { compactChordSymbol } from "./engrave.js";
@@ -20,14 +22,21 @@ test("gallery is a catalog of Learn keys, one standard per module, one Play card
   const standards = panels.filter((panel) => panel.section === "standards");
   const play = panels.filter((panel) => panel.section === "play");
   const tunes = panels.filter((panel) => panel.section === "tunes");
-  assert.equal(learnLessons().length, MODULES.length);
-  assert.equal(learn.length, MODULES.length * LEARN_KEYS.length);
-  assert.equal(standards.length, MODULES.length);
-  assert.deepEqual(standardLessons().map((item) => item.moduleId), MODULES.map((module) => module.id));
+  assert.equal(coreModules().length, 5);
+  assert.equal(learnLessons().length, 5);
+  assert.equal(learn.length, 5 * LEARN_KEYS.length);
+  assert.equal(standards.length, 5);
+  assert.deepEqual(standardLessons().map((item) => item.moduleId), coreModules().map((module) => module.id));
   assert.equal(play.length, 1);
   assert.equal(play[0].id, "billies-bounce-play");
   assert.deepEqual(tunes.map((panel) => panel.id), ["st-thomas", "four", "attya"]);
   assert.ok(panels.some((panel) => panel.id === "gts-learn-bb" && panel.keyId === "Bb"));
+  const workbook = panels.filter((panel) => panel.section === "workbook");
+  assert.equal(workbook.length, 25);
+  assert.deepEqual(workbookPanels().map((panel) => panel.id), workbook.map((panel) => panel.id));
+  assert.equal(workbook[0].id, "workbook-1235");
+  assert.equal(workbook[24].id, "workbook-nnr");
+  assert.ok(workbook.every((panel) => panel.phrase && panel.kind === "learn"));
 });
 
 test("gallery Learn and landing ABC stay on bass clef without changing pitches", () => {
@@ -55,6 +64,23 @@ test("gallery Learn and landing MEI stay on bass clef with harm and cue dirs", (
   const st = meiForPanel(galleryPanels().find((panel) => panel.id === "st-thomas"));
   assert.match(st, /Guide tone(?:<lb\/>)?\s*sequence/);
   assert.match(st, /head\.shape="slash"/);
+});
+
+test("workbook licks 6-30 gallery cards render in each lick’s default key", () => {
+  const cell = galleryPanels().find((panel) => panel.id === "workbook-1235");
+  assert.equal(cell.keyId, "G");
+  const abc = abcForPanel(cell);
+  assert.match(abc, /K:G clef=bass/);
+  assert.match(abc, /"Gmaj7"/);
+  assert.match(abc, /\|/);
+  const mei = meiForPanel(cell);
+  assert.match(mei, /clef\.shape="F"/);
+  const tdp = galleryPanels().find((panel) => panel.id === "workbook-tdp");
+  assert.equal(tdp.keyId, "B");
+  assert.match(abcForPanel(tdp), /K:B clef=bass/);
+  const dss = galleryPanels().find((panel) => panel.id === "workbook-dss");
+  assert.equal(dss.keyId, "C");
+  assert.match(meiForPanel(dss), /clef\.shape="F"/);
 });
 
 test("cue labels cap only when they cannot use following unlabeled bars", () => {

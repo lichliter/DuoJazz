@@ -64,17 +64,17 @@ test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo e
   assert.match(PHRASE_SOURCE.notUsed, /iivi-cry-me-enclosure/);
 });
 
-test("concert G minor cell pitches are trombone-register A3 G3 D3 Bb2 A2 G2", () => {
+test("concert G minor cell pitches are trombone-register A4 G4 D4 Bb3 A3 G3", () => {
   assert.equal(PHRASE_OCTAVE, -2);
   const g = getKey("G");
   const notes = phraseNotes(g, "concert", "minor-home");
   assert.deepEqual(
     notes.map((n) => n.concertMidi),
-    [57, 55, 50, 46, 45, 43],
+    [69, 67, 62, 58, 57, 55],
   );
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["A3", "G3", "D3", "B♭2", "A2", "G2"],
+    ["A4", "G4", "D4", "B♭3", "A3", "G3"],
   );
   assert.deepEqual(
     notes.map((n) => n.degree),
@@ -87,11 +87,11 @@ test("altered-dominant cell is the E♭-minor shape a major third down, spelled 
   const notes = phraseNotes(g, "concert", "altered-dominant");
   assert.deepEqual(
     notes.map((n) => n.concertMidi),
-    [53, 51, 46, 42, 41, 39],
+    [65, 63, 58, 54, 53, 51],
   );
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["F3", "E♭3", "B♭2", "G♭2", "F2", "E♭2"],
+    ["F4", "E♭4", "B♭3", "G♭3", "F3", "E♭3"],
   );
   assert.deepEqual(
     notes.map((n) => n.degree),
@@ -124,9 +124,9 @@ test("B-flat written names are a major second above concert and audio MIDI stays
   const written = writtenKeyFromConcert(g);
   assert.equal(written.id, "A");
   const notes = phraseNotes(g, "bb-written", "minor-home");
-  assert.equal(notes[0].concertMidi, 57);
-  assert.equal(notes[0].shownMidi, 59);
-  assert.equal(notes[0].shownName, "B3");
+  assert.equal(notes[0].concertMidi, 69);
+  assert.equal(notes[0].shownMidi, 71);
+  assert.equal(notes[0].shownName, "B4");
   assert.equal(chordDisplayName(g, 5, "minor7", "concert"), "Cm7");
   assert.equal(chordDisplayName(g, 5, "minor7", "bb-written"), "Dm7");
   assert.equal(chordDisplayName(g, 7, "dominant7", "bb-written"), "E7");
@@ -138,7 +138,7 @@ test("transposing the excerpt tonic moves the cell with the form", () => {
   const notes = phraseNotes(c, "concert", "minor-home");
   assert.deepEqual(
     notes.map((n) => n.shownName),
-    ["D3", "C3", "G2", "E♭2", "D2", "C2"],
+    ["D4", "C4", "G3", "E♭3", "D3", "C3"],
   );
   assert.equal(midiForInterval(c.pc, 14), 50);
   const chords = chorusChords(c, "concert");
@@ -151,10 +151,10 @@ test("phrase ABC defaults to bass clef with beat-grouped eighth beams", () => {
   const abc = phraseABC(getKey("G"), "concert", "minor-home");
   assert.match(abc, /K:Gmin clef=bass/);
   assert.match(abc, /"Gm6"/);
-  assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(abc, /A2 \(3GDB, A,G, z2/);
   const treble = phraseABC(getKey("G"), "concert", "minor-home", "treble");
   assert.match(treble, /clef=treble/);
-  assert.match(treble, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(treble, /A2 \(3GDB, A,G, z2/);
 });
 
 test("clef selection does not change concert MIDI or B-flat written transposition", () => {
@@ -248,7 +248,7 @@ test("scheduleChorus contextual demo plays the model; skip variation emits no me
   const phrase = melody.filter((e) => e.role === "phrase");
   assert.equal(phrase.length, 6);
   assert.equal(phrase[0].beat, 24);
-  assert.equal(phrase[0].midi, 57);
+  assert.equal(phrase[0].midi, 69);
   assert.equal(demo.find((e) => e.type === "end").beat, 32);
 });
 
@@ -265,7 +265,7 @@ test("learn / isolated cell starts the model immediately on the cell tonic", () 
   });
   const melody = events.filter((e) => e.type === "melody");
   assert.equal(melody[0].beat, 0);
-  assert.equal(melody[0].midi, 53);
+  assert.equal(melody[0].midi, 65);
   assert.equal(events.find((e) => e.type === "end").beat, 8);
   assert.equal(events.filter((e) => e.type === "guide").length, 0);
   assert.equal(events.find((e) => e.type === "chord").name, "E♭m6");
@@ -366,9 +366,9 @@ test("G minor cell names follow melody register; intervals and rhythm stay put",
   const original = phraseNotes(g, "concert", "minor-home", 0);
   const up = phraseNotes(g, "concert", "minor-home", 1);
   const down = phraseNotes(g, "concert", "minor-home", -1);
-  assert.deepEqual(original.map((n) => n.shownName), ["A3", "G3", "D3", "B♭2", "A2", "G2"]);
-  assert.deepEqual(up.map((n) => n.shownName), ["A4", "G4", "D4", "B♭3", "A3", "G3"]);
-  assert.deepEqual(down.map((n) => n.shownName), ["A2", "G2", "D2", "B♭1", "A1", "G1"]);
+  assert.deepEqual(original.map((n) => n.shownName), ["A4", "G4", "D4", "B♭3", "A3", "G3"]);
+  assert.deepEqual(up.map((n) => n.shownName), ["A5", "G5", "D5", "B♭4", "A4", "G4"]);
+  assert.deepEqual(down.map((n) => n.shownName), ["A3", "G3", "D3", "B♭2", "A2", "G2"]);
   assert.deepEqual(up.map((n) => n.interval), original.map((n) => n.interval));
   assert.deepEqual(up.map((n) => n.beats), original.map((n) => n.beats));
   assert.deepEqual(up.map((n) => n.degree), original.map((n) => n.degree));
@@ -382,16 +382,16 @@ test("phrase ABC follows melody register while clef and B♭ names stay independ
   const trebleUp = phraseABC(g, "concert", "minor-home", "treble", 1);
   const writtenUp = phraseABC(g, "bb-written", "minor-home", "bass", 1);
   assert.match(original, /K:Gmin clef=bass/);
-  assert.match(original, /A,2 \(3G,D,B,, A,,G,, z2/);
-  assert.match(up, /A2 \(3GDB, A,G, z2/);
-  assert.match(down, /A,,2 \(3G,,D,,B,,, A,,,G,,, z2/);
+  assert.match(original, /A2 \(3GDB, A,G, z2/);
+  assert.match(up, /a2 \(3gdB AG z2/);
+  assert.match(down, /A,2 \(3G,D,B,, A,,G,, z2/);
   assert.match(trebleUp, /clef=treble/);
-  assert.match(trebleUp, /A2 \(3GDB, A,G, z2/);
+  assert.match(trebleUp, /a2 \(3gdB AG z2/);
   assert.match(writtenUp, /K:Amin clef=bass/);
-  assert.match(writtenUp, /B2 \(3AEC B,A, z2/);
+  assert.match(writtenUp, /b2 \(3aec BA z2/);
   const notes = phraseNotes(g, "bb-written", "minor-home", 1);
-  assert.equal(notes[0].concertMidi, 69);
-  assert.equal(notes[0].shownMidi, 71);
+  assert.equal(notes[0].concertMidi, 81);
+  assert.equal(notes[0].shownMidi, 83);
   const bassModel = modelABC(g, "concert", "minor-home", "bass", -1);
   const trebleModel = modelABC(g, "concert", "minor-home", "treble", -1);
   assert.match(bassModel, /clef=bass/);
@@ -431,10 +431,10 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   assert.match(abc, /z8/);
   assert.doesNotMatch(abc, /z2z2z2z2/);
   assert.match(abc, /"Gm6""_HERE"/);
-  assert.match(abc, /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(abc, /A2 \(3GDB, A,G, z2/);
   assert.match(abc, /"D7""_Get ready"/);
   const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
-  assert.match(up, /A2 \(3GDB, A,G, z2/);
+  assert.match(up, /a2 \(3gdB AG z2/);
   const quizCold = slashABC(g, "concert", "minor-home", "bass");
   assert.doesNotMatch(quizCold, /A,G,/);
   const viaChorus = chorusStaffABC({
@@ -503,7 +503,7 @@ test("four-bar landing systems keep bars 7–8 together with the lick on the doo
   assert.doesNotMatch(systems[0], /HERE|A,G,/);
   assert.match(systems[1], /"D7""_Get ready"/);
   assert.match(systems[1], /"Gm6""_HERE"/);
-  assert.match(systems[1], /A,2 \(3G,D,B,, A,,G,, z2/);
+  assert.match(systems[1], /A2 \(3GDB, A,G, z2/);
   assert.match(systems[1], /"Gm6""_HERE".+"Gm6"/);
   assert.doesNotMatch(systems[1], /\n/);
 });

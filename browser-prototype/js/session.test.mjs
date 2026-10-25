@@ -334,7 +334,7 @@ test("Listen and Quiz expose a listening-state copy for the feedback area", () =
 });
 
 test("lessons stay unlocked and the module has 25 records", () => {
-  assert.equal(MODULES.length, 5);
+  assert.equal(MODULES.length, 30);
   assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.id), [
     "learn-lick",
     "integrate-minor-home",

@@ -297,8 +297,8 @@ test("melody register defaults to Original and rides on audio config", () => {
   const events = scheduleChorus(up);
   const melody = events.filter((event) => event.type === "melody");
   const phrase = melody.filter((event) => event.role === "phrase");
-  assert.equal(melody[0].midi, 48 + 12);
-  assert.equal(phrase[0].midi, 57 + 12);
+  assert.equal(melody[0].midi, 60 + 12);
+  assert.equal(phrase[0].midi, 69 + 12);
   assert.equal(phrase[0].beat, 24);
 });
 

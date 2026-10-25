@@ -25,10 +25,13 @@ import {
   scheduleChorus,
   TROMBONE_LOW_MIDI,
   TROMBONE_HIGH_MIDI,
+  REGISTER_FLOOR_MIDI,
+  REGISTER_CEIL_MIDI,
   octaveForApplication,
   melodyMidiForInterval,
   BEATS_PER_BAR,
 } from "./music.js";
+import { WORKBOOK_LICKS } from "./workbook-licks.js";
 import {
   TWELVE_KEY_IDS,
   recommendedLessonId,
@@ -54,12 +57,22 @@ function midisFor(lick, keyId) {
   return phraseNotes(getKey(keyId), "concert", lesson.applicationId).map((note) => note.concertMidi);
 }
 
-test("registry has five modules and 25 always-open lessons", () => {
-  assert.deepEqual(LICKS.map((lick) => lick.id), ["cmar", "emr", "gts", "bo", "hsr"]);
-  assert.equal(MODULES.length, 5);
-  assert.deepEqual(MODULES.map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length), [7, 5, 4, 4, 5]);
-  assert.deepEqual(MODULES.map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
-  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 25);
+test("registry has thirty modules: five with standards plus workbook 6–30", () => {
+  assert.deepEqual(LICKS.slice(0, 5).map((lick) => lick.id), ["cmar", "emr", "gts", "bo", "hsr"]);
+  assert.deepEqual(WORKBOOK_LICKS.map((lick) => lick.id), [
+    "1235", "br", "dlr", "acvl", "tm", "tisc", "et", "cbc", "jcdp", "tdp",
+    "se", "mp", "ssr", "sat", "ctdc", "tpr", "ntp", "dct", "ae", "fe",
+    "bb", "lg", "bcf", "dss", "nnr",
+  ]);
+  assert.equal(LICKS.length, 30);
+  assert.equal(MODULES.length, 30);
+  assert.deepEqual(
+    MODULES.slice(0, 5).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
+    [7, 5, 4, 4, 5],
+  );
+  assert.deepEqual(MODULES.slice(0, 5).map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
+  assert.ok(MODULES.slice(5).every((module) => module.lessons.length === 1 && module.lessons[0].kind === "learn"));
+  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 50);
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "integrate"));
   for (const lick of LICKS) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);
@@ -81,6 +94,11 @@ test("each lick’s sounding beats match the workbook cell", () => {
   assert.equal(formBeatsFor("gts-oleo"), 32);
   assert.equal(formBeatsFor("bo-rhythm"), 32);
   assert.equal(formBeatsFor("hsr-honeysuckle"), 32);
+  for (const lick of WORKBOOK_LICKS) {
+    const expected = lick.workbookBars * 4 + (lick.pickupBeats || 0);
+    assert.equal(lickTotalBeats(lick), expected, `${lick.id} beats`);
+    assert.equal(lick.learnBeats, lick.workbookBars * 4, `${lick.id} learnBeats`);
+  }
 });
 
 test("CMAR is a quarter, triplet, two eighths, and a rest", () => {
@@ -127,6 +145,13 @@ test("Bird opening has a pickup, sixteenths, and a 12.5-beat span", () => {
   assert.equal(isolated[1].beat, 0);
 });
 
+test("Turning Diminished Pattern is four 16th-triplet groups filling one bar", () => {
+  const notes = lickNoteElements(lickById("tdp"));
+  assert.equal(notes.length, 16);
+  assert.equal(notes.filter((note) => note.tuplet === 3 && Math.abs(note.beats - 1 / 6) < 1e-9).length, 12);
+  assert.equal(lickTotalBeats(lickById("tdp")), 4);
+});
+
 test("HSR is six eighths and a quarter rest", () => {
   const notes = lickNoteElements(lickById("hsr"));
   assert.deepEqual(notes.map((note) => note.interval), [5, 3, -5, -2, 2, 0]);
@@ -135,14 +160,24 @@ test("HSR is six eighths and a quarter rest", () => {
   assert.deepEqual(phraseSpanBars("hsr-a-train"), [5, 6]);
 });
 
-test("each lick stays in trombone range across twelve keys at original register", () => {
+function assertRegister(id, keyId, min, max) {
+  assert.ok(min >= REGISTER_FLOOR_MIDI, `${id} ${keyId} low ${min}`);
+  const canDrop = min - 12 >= REGISTER_FLOOR_MIDI;
+  if (canDrop) {
+    assert.ok(max <= REGISTER_CEIL_MIDI, `${id} ${keyId} high ${max} could drop`);
+  }
+}
+
+test("each lick stays on or above C3, preferring Bb4 as the ceiling", () => {
+  assert.equal(REGISTER_FLOOR_MIDI, 48);
+  assert.equal(REGISTER_CEIL_MIDI, 70);
+  assert.equal(TROMBONE_HIGH_MIDI, 70);
   for (const lick of LICKS) {
     for (const keyId of TWELVE_KEY_IDS) {
       const midis = midisFor(lick, keyId);
       const min = Math.min(...midis);
       const max = Math.max(...midis);
-      assert.ok(min >= TROMBONE_LOW_MIDI - 4, `${lick.id} ${keyId} low ${min}`);
-      assert.ok(max <= TROMBONE_HIGH_MIDI, `${lick.id} ${keyId} high ${max}`);
+      assertRegister(lick.id, keyId, min, max);
       const up = midis.map((midi) => midi + 12);
       const down = midis.map((midi) => midi - 12);
       assert.equal(up[0] - midis[0], 12);
@@ -151,10 +186,10 @@ test("each lick stays in trombone range across twelve keys at original register"
   }
 });
 
-test("CMAR G-minor pitches are unchanged besides rhythm", () => {
+test("CMAR G-minor pitches sit on the C3 floor", () => {
   const notes = phraseNotes(getKey("G"), "concert", "minor-home");
-  assert.deepEqual(notes.map((note) => note.concertMidi), [57, 55, 50, 46, 45, 43]);
-  assert.deepEqual(notes.map((note) => note.shownName), ["A3", "G3", "D3", "B♭2", "A2", "G2"]);
+  assert.deepEqual(notes.map((note) => note.concertMidi), [69, 67, 62, 58, 57, 55]);
+  assert.deepEqual(notes.map((note) => note.shownName), ["A4", "G4", "D4", "B♭3", "A3", "G3"]);
 });
 
 test("each lick renders in C, G, B♭ and F♯ with barlines and chord symbols", () => {
@@ -164,6 +199,13 @@ test("each lick renders in C, G, B♭ and F♯ with barlines and chord symbols",
     { lesson: "gts-learn", applicationId: "gts-learn", isolated: true },
     { lesson: "bo-learn", applicationId: "bo-learn", isolated: true },
     { lesson: "hsr-learn", applicationId: "hsr-learn", isolated: true },
+    { lesson: "1235-learn", applicationId: "1235-learn", isolated: true },
+    { lesson: "tdp-learn", applicationId: "tdp-learn", isolated: true },
+    { lesson: "dss-learn", applicationId: "dss-learn", isolated: true },
+  ];
+    { lesson: "1235-learn", applicationId: "1235-learn", isolated: true },
+    { lesson: "tdp-learn", applicationId: "tdp-learn", isolated: true },
+    { lesson: "dss-learn", applicationId: "dss-learn", isolated: true },
   ];
   for (const sample of samples) {
     for (const keyId of KEYS_C_G_BB_FS) {
@@ -283,7 +325,7 @@ test("saved CMAR mastery survives and new lessons start empty", () => {
   assert.equal(moduleMastery(afterEmr, "emr").medal, "bronze");
 });
 
-test("Start bubble walks the five-module path in order", () => {
+test("Start bubble walks the module path in book order", () => {
   assert.equal(recommendedLessonId({}), "learn-lick");
   const cmarDone = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.equal(recommendedLessonId(cmarDone), "emr-learn");
@@ -297,7 +339,7 @@ test("Start bubble walks the five-module path in order", () => {
   assert.equal(recommendedLessonId(all), null);
   const nodes = lessonPathNodes(defaultPrefs(), cmarDone);
   assert.equal(nodes.filter((node) => node.recommended).map((node) => node.id).join(), "emr-learn");
-  assert.equal(nodes.filter((node) => node.number === "01").length, 5);
+  assert.equal(nodes.filter((node) => node.number === "01").length, 30);
 });
 
 test("sleeve colors rotate so neighboring modules do not share an edge color", () => {
@@ -314,6 +356,9 @@ test("learn defaults follow each lick’s home key", () => {
   assert.equal(prefs.lessons["gts-learn"].startKeyId, "G");
   assert.equal(prefs.lessons["bo-learn"].startKeyId, "G");
   assert.equal(prefs.lessons["hsr-learn"].startKeyId, "C");
+  assert.equal(prefs.lessons["1235-learn"].startKeyId, "G");
+  assert.equal(prefs.lessons["tdp-learn"].startKeyId, "B");
+  assert.equal(prefs.lessons["nnr-learn"].startKeyId, "C");
 });
 
 const EXCERPTS = [
@@ -542,15 +587,14 @@ test("every Integrate excerpt is at least 8 bars with 4-bar systems", () => {
   }
 });
 
-test("each excerpt keeps every note in trombone range across twelve keys", () => {
+test("each excerpt keeps every note on or above C3 across twelve keys", () => {
   for (const excerpt of EXCERPTS) {
     for (const keyId of TWELVE_KEY_IDS) {
       const notes = phraseNotes(getKey(keyId), "concert", excerpt.id);
       assert.ok(notes.length > 0, excerpt.id);
       const min = Math.min(...notes.map((note) => note.concertMidi));
       const max = Math.max(...notes.map((note) => note.concertMidi));
-      assert.ok(min >= TROMBONE_LOW_MIDI - 4, `${excerpt.id} ${keyId} low ${min}`);
-      assert.ok(max <= TROMBONE_HIGH_MIDI, `${excerpt.id} ${keyId} high ${max}`);
+      assertRegister(excerpt.id, keyId, min, max);
     }
   }
 });
