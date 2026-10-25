@@ -360,7 +360,7 @@ test("lessons stay unlocked and the module has 25 records", () => {
   ]);
   assert.deepEqual(
     MODULES.slice(0, 5).map((module) => module.lessons.length),
-    [10, 9, 8, 10, 13],
+    [10, 8, 8, 10, 13],
   );
   assert.ok(MODULES.slice(5).every((module) => module.lessons.length >= 2 && module.lessons.length <= 4));
   const road = LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes");

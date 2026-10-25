@@ -198,23 +198,20 @@ const EXPECTED_CHORDS = {
   },
   recordame: {
     key: "A",
-    bars: 32,
-    sections: [
-      { label: "A", startBar: 1 },
-      { label: "B", startBar: 17 },
-    ],
+    bars: 16,
+    sections: [],
     chords: [
-      "Am7", "Am7", "Cm7", "F7", "B♭maj7", "B♭maj7", "B♭m7", "E♭7",
-      "A♭maj7", "A♭maj7", "Bø7", "E7♭9", "Am7", "Am7", "Bø7", "E7♭9",
-      "Am7", "Am7", "Gm7", "C7", "Fmaj7", "Fmaj7", "Fm7", "B♭7",
-      "E♭maj7", "E♭maj7", "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Bø7", "E7♭9",
+      "Am7", "Am7", "Am7", "Am7", "Cm7", "Cm7", "Cm7", "Cm7", "F7",
+      "B♭maj7", "B♭m7", "E♭7", "A♭maj7", "A♭m7", "D♭7", "G♭maj7",
+      "Gm7", "C7", "Fmaj7", "E7♯9",
     ],
     spots: [
       { bar: 1, lickId: "mp" },
-      { bar: 12, lickId: "emr" },
-      { bar: 19, lickId: "acvl" },
-      { bar: 23, lickId: "acvl" },
-      { bar: 27, lickId: "acvl" },
+      { bar: 5, lickId: "mp" },
+      { bar: 8, lickId: "se" },
+      { bar: 10, lickId: "se" },
+      { bar: 12, lickId: "se" },
+      { bar: 14, lickId: "se" },
     ],
   },
   "another-you": {
@@ -242,18 +239,39 @@ const EXPECTED_CHORDS = {
       { bar: 30, lickId: "gts" },
     ],
   },
+  nutville: {
+    key: "C",
+    bars: 30,
+    sections: [
+      { label: "A", startBar: 1 },
+      { label: "B", startBar: 17 },
+    ],
+    chords: [
+      ...Array.from({ length: 8 }, () => "Cm7"),
+      "Fm7", "Fm7", "Fm7", "D♭7", "Cm7", "Cm7", "Cm7", "Cm7",
+      "A♭7", "A♭7", "G7", "G7", "G♭7", "G♭7", "F7", "F7",
+      "A♭7", "A♭7", "G7♭13", "G7♭13", "Cm7", "Cm7",
+    ],
+    spots: [
+      { bar: 1, lickId: "mp" },
+      { bar: 17, lickId: "cbc" },
+      { bar: 19, lickId: "cbc" },
+      { bar: 21, lickId: "cbc" },
+      { bar: 23, lickId: "cbc" },
+    ],
+  },
 };
 
-test("there are nine tunes with the briefed bar counts, sections, and chords", () => {
+test("there are ten tunes with the briefed bar counts, sections, and chords", () => {
   assert.deepEqual(TUNES.map((tune) => tune.id), [
-    "nows-time", "four", "tune-up", "st-thomas", "attya", "autumn-leaves", "so-what", "another-you", "recordame",
+    "nows-time", "four", "tune-up", "st-thomas", "attya", "autumn-leaves", "so-what", "another-you", "recordame", "nutville",
   ]);
   for (const tune of TUNES) {
     const expected = EXPECTED_CHORDS[tune.id];
     assert.equal(tuneBarCount(tune), expected.bars, tune.id);
     assert.equal(tuneFormBars(tune).length, expected.bars, tune.id);
     assert.deepEqual(tuneSectionMeta(tune), expected.sections, `${tune.id} sections`);
-    assert.match(tune.chords, /iReal Pro Jazz 1460/);
+    assert.match(tune.chords, /iReal Pro Jazz 1460|reharmonize\.app/);
     const appId = tuneApplicationId(tune.id);
     const form = formById(applicationById(appId).formId);
     assert.equal(form.bars.length, expected.bars, `${tune.id} form`);
@@ -317,7 +335,7 @@ test("derived Your tunes lessons match the brief and each play-through has every
       );
     }
   }
-  assert.equal(TUNE_LESSONS.length, 9);
+  assert.equal(TUNE_LESSONS.length, 10);
   for (const lesson of TUNE_LESSONS) {
     const tune = tuneById(lesson.tuneId);
     assert.equal(lesson.id, tunePlayLessonId(tune.id));

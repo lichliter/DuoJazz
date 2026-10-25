@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   WORKBOOK_TRACKS,
-  EMR_RECORDAME,
   placementHarmony,
   qualityFamily,
   trackLessonsFor,
@@ -35,12 +34,10 @@ import { expectedNotesFor, gradeSession, synthTrack } from "./grade.js";
 
 const LOOSE_TAILS = new Set([
   "jcdp-tune-up",
+  "jcdp-nutville",
   "dct-four",
   "dct-another-you",
   "dss-nows-time",
-  "sat-recordame",
-  "tpr-recordame",
-  "nnr-recordame",
 ]);
 
 function specFor(lickId) {
@@ -48,21 +45,19 @@ function specFor(lickId) {
   return WORKBOOK_SPECS.find((item) => item.id === lickId);
 }
 
-test("Recordame is 32 bars, AB, concert A minor, and flagged for an iReal check", () => {
+test("Recordame is 16 bars, concert A minor, with half-bar walking ii–Vs", () => {
   const tune = tuneById("recordame");
-  assert.equal(tuneBarCount(tune), 32);
+  assert.equal(tuneBarCount(tune), 16);
   assert.equal(tune.key, "A");
   assert.equal(tune.keyQuality, "minor");
   assert.equal(tune.feel, "straight");
-  assert.equal(tune.needsIRealCheck, true);
-  assert.match(tune.chords, /Needs check against iReal Pro Jazz 1460/);
+  assert.match(tune.chords, /reharmonize\.app/);
   assert.deepEqual(
     chorusChords(getKey("A"), "concert", "tune-recordame").map((chord) => chord.name),
     [
-      "Am7", "Am7", "Cm7", "F7", "B♭maj7", "B♭maj7", "B♭m7", "E♭7",
-      "A♭maj7", "A♭maj7", "Bø7", "E7♭9", "Am7", "Am7", "Bø7", "E7♭9",
-      "Am7", "Am7", "Gm7", "C7", "Fmaj7", "Fmaj7", "Fm7", "B♭7",
-      "E♭maj7", "E♭maj7", "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Bø7", "E7♭9",
+      "Am7", "Am7", "Am7", "Am7", "Cm7", "Cm7", "Cm7", "Cm7", "F7",
+      "B♭maj7", "B♭m7", "E♭7", "A♭maj7", "A♭m7", "D♭7", "G♭maj7",
+      "Gm7", "C7", "Fmaj7", "E7♯9",
     ],
   );
 });
@@ -73,17 +68,17 @@ test("every workbook module has 1–3 tune lessons on the road", () => {
     assert.ok(extras.length >= 1 && extras.length <= 3, `${module.id} ${extras.length}`);
     assert.deepEqual(extras.map((lesson) => lesson.id), trackLessonsFor(module.id).map((lesson) => lesson.id));
   }
-  assert.ok(LESSONS.some((lesson) => lesson.id === "emr-integrate-recordame"));
+  assert.equal(LESSONS.some((lesson) => lesson.id === "emr-integrate-recordame"), false);
 });
 
 test("each new tune placement’s first-bar harmony matches the lick", () => {
-  for (const row of [...WORKBOOK_TRACKS, EMR_RECORDAME]) {
+  for (const row of WORKBOOK_TRACKS) {
     const spec = specFor(row.lickId);
     const reports = placementHarmony(row, spec.formBars);
     const app = applicationById(`${row.lickId}-${row.tuneId}`);
     const form = formById(app.formId);
     assert.ok(form.bars.length >= 8, row.lickId);
-    assert.match(form.source, /iReal Pro Jazz 1460|Needs check against iReal Pro Jazz 1460/);
+    assert.match(form.source, /iReal Pro Jazz 1460|reharmonize\.app/);
     assert.equal(row.simplification.length > 10, true, row.lickId);
     for (const { spot, report } of reports) {
       assert.equal(report[0].ok, true, `${row.lickId}-${row.tuneId} bar ${spot.bar}: ${JSON.stringify(report[0])}`);
@@ -98,19 +93,19 @@ test("each new tune placement’s first-bar harmony matches the lick", () => {
   }
 });
 
-test("Recordame walking ii–Vs move the lick down a whole step each time and grade each key", () => {
-  const row = WORKBOOK_TRACKS.find((item) => item.lickId === "acvl" && item.tuneId === "recordame");
-  assert.deepEqual(row.spots.map((spot) => spot.anchor), [8, 6, 4]);
-  for (let i = 1; i < row.spots.length; i += 1) {
-    assert.equal((row.spots[i - 1].anchor - row.spots[i].anchor + 12) % 12, 2);
-  }
+test("Recordame walking ii–Vs move the lick down whole steps, then a half step, and grade each key", () => {
+  const row = WORKBOOK_TRACKS.find((item) => item.lickId === "sat" && item.tuneId === "recordame");
+  assert.deepEqual(row.spots.map((spot) => spot.anchor), [1, 11, 9, 8]);
+  assert.equal((row.spots[0].anchor - row.spots[1].anchor + 12) % 12, 2);
+  assert.equal((row.spots[1].anchor - row.spots[2].anchor + 12) % 12, 2);
+  assert.equal((row.spots[2].anchor - row.spots[3].anchor + 12) % 12, 1);
   const session = jumpToCard(createSession({
-    lessonId: "acvl-integrate-recordame",
+    lessonId: "sat-integrate-recordame",
     startKeyId: "A",
   }), "quiz");
   const expected = expectedNotesFor(session);
   const spots = [...new Set(expected.map((note) => note.spotIndex))];
-  assert.equal(spots.length, 3);
+  assert.equal(spots.length, 4);
   const first = expected.filter((note) => note.spotIndex === 0);
   const second = expected.filter((note) => note.spotIndex === 1);
   assert.notEqual(first[0].midi, second[0].midi);
@@ -141,6 +136,34 @@ test("new placements stay on or above C3 in twelve keys", () => {
   }
 });
 
+test("Nutville is C minor, 16-bar Latin A plus a TODO-verify swing B, with descending dominants", () => {
+  const tune = tuneById("nutville");
+  assert.equal(tuneBarCount(tune), 30);
+  assert.equal(tune.key, "C");
+  assert.equal(tune.keyQuality, "minor");
+  assert.equal(tune.feel, "medium-up");
+  assert.equal(tune.sections[1].todoVerify, true);
+  assert.match(tune.chords, /TODO-verify/);
+  assert.deepEqual(
+    chorusChords(getKey("C"), "concert", "tune-nutville").map((chord) => chord.name),
+    [
+      ...Array.from({ length: 8 }, () => "Cm7"),
+      "Fm7", "Fm7", "Fm7", "D♭7", "Cm7", "Cm7", "Cm7", "Cm7",
+      "A♭7", "A♭7", "G7", "G7", "G♭7", "G♭7", "F7", "F7",
+      "A♭7", "A♭7", "G7♭13", "G7♭13", "Cm7", "Cm7",
+    ],
+  );
+  const row = WORKBOOK_TRACKS.find((item) => item.lickId === "cbc" && item.tuneId === "nutville");
+  assert.deepEqual(row.spots.map((spot) => spot.anchor), [1, 0, 11, 10]);
+  const session = jumpToCard(createSession({
+    lessonId: "cbc-integrate-nutville",
+    startKeyId: "C",
+  }), "quiz");
+  const expected = expectedNotesFor(session);
+  assert.equal(new Set(expected.map((note) => note.spotIndex)).size, 4);
+  assert.equal(gradeSession(session, synthTrack(expected)).passed, true);
+});
+
 test("wrap-up of a module’s last lesson offers the next module", () => {
   const first = MODULES[0];
   const lastVisible = visibleModuleLessons(first).at(-1);
@@ -150,5 +173,6 @@ test("wrap-up of a module’s last lesson offers the next module", () => {
   assert.match(homeNextModule(first, done).label, /^Next: Module 2 · /);
   assert.equal(homeNextModule(first, {}), null);
   assert.ok(tuneById("recordame"));
-  assert.equal(TUNES.at(-1).id, "recordame");
+  assert.ok(tuneById("nutville"));
+  assert.equal(TUNES.at(-1).id, "nutville");
 });

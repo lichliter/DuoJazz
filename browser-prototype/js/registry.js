@@ -20,7 +20,6 @@ import {
 import {
   WORKBOOK_TRACK_FORMS,
   WORKBOOK_TRACK_APPLICATIONS,
-  emrRecordameLesson,
 } from "./workbook-tracks.js";
 
 export { TUNES };
@@ -1206,7 +1205,6 @@ export const MODULES = [
         context: "Fly Me to the Moon · A, bars 1–8",
         defaultKeyId: "C",
       },
-      emrRecordameLesson(),
       ...deriveYourTunesLessons("emr"),
     ], 1),
   },
