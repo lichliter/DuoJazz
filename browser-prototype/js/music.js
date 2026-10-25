@@ -924,7 +924,7 @@ function restAbc(startBeat, durationBeats) {
 }
 
 function tupletWrittenBeats(item) {
-  if (almost(item.beats, 1 / 6)) return 0.25;
+  if (almost(item.beats, 0.5 / 3) || almost(item.beats, 1 / 6)) return 0.25;
   return 0.5;
 }
 

@@ -347,9 +347,12 @@ test("lessons stay unlocked and the module has 25 records", () => {
     "tune-autumn-leaves-cmar",
     "tune-so-what-cmar",
   ]);
-  assert.deepEqual(MODULES.map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
-  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 25);
-  assert.equal(LESSONS.length, 57);
+  assert.deepEqual(
+    MODULES.map((module) => module.lessons.length),
+    [10, 8, 8, 10, 13, ...Array(25).fill(1)],
+  );
+  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 50);
+  assert.equal(LESSONS.length, 82);
   assert.equal(TWELVE_KEY_IDS.length, 12);
 });
 
@@ -376,7 +379,7 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
     "left", "center", "right", "left", "center", "right", "left",
     "center", "right", "left",
   ]);
-  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 49);
+  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 74);
   assert.equal(nodes[0].recommended, true);
   assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
@@ -564,7 +567,7 @@ test("quick view lists every module and record", () => {
     "learn-lick": ["G", "C"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   }, { cmar: ["G"], emr: [] });
-  assert.equal(data.length, 6);
+  assert.equal(data.length, 31);
   assert.deepEqual(data.map((module) => module.id), [...MODULES.map((module) => module.id), "tunes"]);
   assert.equal(data.flatMap((module) => module.records).length, LESSONS.length);
   assert.equal(data[0].lickName, "Cry Me a River");
