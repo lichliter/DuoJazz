@@ -49,16 +49,26 @@ body {
 }
 
 .home-settings .settings-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   border: 0;
-  background: transparent;
-  color: var(--label-secondary);
-  font: var(--text-footnote);
+  border-radius: var(--radius-full);
+  background: var(--fill);
+  color: var(--label);
+  font: var(--text-callout);
   text-align: left;
   cursor: pointer;
   min-height: var(--tap);
-  min-width: 0;
-  flex: 1 1 auto;
-  padding: 0.25rem 0.4rem;
+  min-width: var(--tap);
+  max-width: 100%;
+  flex: 0 1 auto;
+  padding: 0 0.9rem 0 0.7rem;
+}
+
+.home-settings .settings-gear {
+  flex: 0 0 auto;
+  color: var(--tint);
 }
 
 .home-settings .settings-summary span {
@@ -66,6 +76,8 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font: var(--text-callout);
+  color: var(--label);
 }
 
 .app-shell[data-screen="session"] #screen-home,
@@ -653,6 +665,19 @@ body {
   color: var(--label);
   border: 0;
   border-radius: var(--radius-full);
+}
+
+@media (max-width: 390px) {
+  .home-settings .settings-summary {
+    width: 100%;
+    max-width: 100%;
+    font: var(--text-callout);
+    padding-inline: 0.7rem;
+  }
+
+  .home-settings .settings-summary span {
+    font: var(--text-callout);
+  }
 }
 
 @media (max-width: 677px) {

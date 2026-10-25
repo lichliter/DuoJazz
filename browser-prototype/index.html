@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=93">
-  <link rel="stylesheet" href="./css/styles.css?v=93">
-  <link rel="stylesheet" href="./css/hig.css?v=93">
+  <link rel="stylesheet" href="./css/tokens.css?v=94">
+  <link rel="stylesheet" href="./css/styles.css?v=94">
+  <link rel="stylesheet" href="./css/hig.css?v=94">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=93" defer></script>
-  <script type="module" src="./js/app.js?v=93"></script>
+  <script src="./js/verovio-bind.js?v=94" defer></script>
+  <script type="module" src="./js/app.js?v=94"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -31,7 +31,10 @@
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
         <div class="home-settings">
-          <button type="button" class="settings-summary" id="settings-summary-btn" data-testid="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings">
+          <button type="button" class="settings-summary" id="settings-summary-btn" data-testid="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings" aria-label="Settings">
+            <svg class="settings-gear" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.04 7.04 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.5.42l-.36 2.54c-.59.22-1.14.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.8 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.92 14.1a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.49.41 1.04.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.8c.24 0 .45-.18.5-.42l.36-2.54c.59-.22 1.14-.53 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+            </svg>
             <span id="settings-summary">Piano · 96 bpm · 1-bar</span>
           </button>
         </div>
@@ -118,6 +121,7 @@
           <p class="medal-copy" id="wrapup-medal"></p>
         </section>
         <div class="wrapup-actions">
+          <button type="button" class="play" id="next-module" data-testid="next-module" hidden>Next module</button>
           <button type="button" class="play" id="next-key">Next key</button>
           <button type="button" class="chip" id="again-key">Again</button>
           <button type="button" class="text-link" id="done-session">Done</button>

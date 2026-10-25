@@ -36,6 +36,11 @@ test("instrument table has one row per v1 horn with clef, transpose, range, and 
   assert.equal(instrumentById("tenor-sax").transposeSemitones, 14);
   assert.equal(instrumentById("alto-sax").transposeSemitones, 9);
   assert.equal(instrumentById("trombone").clef, "bass");
+  assert.equal(instrumentById("trumpet").note, "B♭, treble clef");
+  assert.equal(instrumentById("tenor-sax").note, "B♭, treble clef");
+  for (const instrument of INSTRUMENTS) {
+    assert.doesNotMatch(instrument.note, /♭ ,/, instrument.id);
+  }
   assert.equal(instrumentById("missing"), null);
   assert.equal(instrumentOrDefault("missing").id, "piano");
 });

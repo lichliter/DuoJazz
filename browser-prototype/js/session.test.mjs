@@ -66,6 +66,12 @@ import {
   sessionPrimaryAction,
   headphonesTipIsDismissed,
   dismissHeadphonesTip,
+  wrapupNextModule,
+  homeNextModule,
+  isLastVisibleLesson,
+  moduleLessonsComplete,
+  nextModuleTarget,
+  visibleModuleLessons,
 } from "./session.js";
 
 function rngFrom(values) {
@@ -353,11 +359,13 @@ test("lessons stay unlocked and the module has 25 records", () => {
     "tune-so-what-cmar",
   ]);
   assert.deepEqual(
-    MODULES.map((module) => module.lessons.length),
-    [10, 8, 8, 10, 13, ...Array(25).fill(1)],
+    MODULES.slice(0, 5).map((module) => module.lessons.length),
+    [10, 9, 8, 10, 13],
   );
-  assert.equal(LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length, 50);
-  assert.equal(LESSONS.length, 82);
+  assert.ok(MODULES.slice(5).every((module) => module.lessons.length >= 2 && module.lessons.length <= 4));
+  const road = LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes");
+  assert.ok(road.length > 50);
+  assert.equal(LESSONS.length, road.length + LESSONS.filter((lesson) => lesson.group === "your-tunes" || lesson.group === "my-tunes").length);
   assert.equal(TWELVE_KEY_IDS.length, 12);
 });
 
@@ -384,7 +392,10 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
     "left", "center", "right", "left", "center", "right", "left",
     "center", "right", "left",
   ]);
-  assert.equal(lessonPathNodes(defaultPrefs(), {}).length, 74);
+  assert.equal(
+    lessonPathNodes(defaultPrefs(), {}).length,
+    MODULES.reduce((sum, module) => sum + module.lessons.length, 0),
+  );
   assert.equal(nodes[0].recommended, true);
   assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
@@ -686,4 +697,32 @@ test("timemap sounding ids cover on/off by qstamp", async () => {
   assert.deepEqual(soundingIdsAt(map, 1.5), ["n2"]);
   assert.deepEqual(soundingIdsAt(map, 4), []);
   assert.deepEqual(soundingIdsAt(map, -1), []);
+});
+
+test("next-module link follows last lesson wrap-up and completed module home", () => {
+  const cmar = MODULES[0];
+  const emr = MODULES[1];
+  const last = MODULES.at(-1);
+  const cmarLast = visibleModuleLessons(cmar).at(-1);
+  const emrLast = visibleModuleLessons(emr).at(-1);
+  assert.equal(isLastVisibleLesson("learn-lick"), false);
+  assert.equal(isLastVisibleLesson(cmarLast.id), true);
+  assert.equal(nextModuleTarget(cmar).label, `Next: Module ${emr.number} · ${emr.name}`);
+  assert.equal(nextModuleTarget(last).type, "home");
+  assert.equal(nextModuleTarget(last).label, "Home");
+
+  const wrapLast = wrapupNextModule(createSession({ lessonId: cmarLast.id, startKeyId: "G" }));
+  assert.equal(wrapLast.label, `Next: Module ${emr.number} · ${emr.name}`);
+  assert.equal(wrapupNextModule(createSession({ lessonId: "learn-lick", startKeyId: "G" })), null);
+  const wrapBookEnd = wrapupNextModule(createSession({ lessonId: visibleModuleLessons(last).at(-1).id }));
+  assert.equal(wrapBookEnd.label, "Home");
+
+  const empty = {};
+  assert.equal(homeNextModule(cmar, empty), null);
+  const done = Object.fromEntries(visibleModuleLessons(cmar).map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
+  const homeLink = homeNextModule(cmar, done);
+  assert.equal(homeLink.label, `Next: Module ${emr.number} · ${emr.name}`);
+  assert.equal(moduleLessonsComplete(cmar, done), true);
+  const lastDone = Object.fromEntries(visibleModuleLessons(last).map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
+  assert.equal(homeNextModule(last, lastDone), null);
 });
