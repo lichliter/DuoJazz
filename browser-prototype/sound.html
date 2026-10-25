@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DuoJazz backing sound test (dev)</title>
   <meta name="robots" content="noindex">
-  <meta name="description" content="Dev-only A/B page: current synth backing vs sampled piano, bass, and drums. Not linked from the app.">
+  <meta name="description" content="Dev-only A/B page: Current synth vs New (busy) vs New-simple sampled piano, bass, and drums. Not linked from the app.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
@@ -18,15 +18,16 @@
     <p class="logo">duojazz</p>
     <div>
       <h1>Backing sound test</h1>
-      <p>Dev only. Not linked from the app. 12-bar F blues at medium swing, plus St. Thomas in New.</p>
+      <p>Dev only. Not linked from the app. A/B Current, New (busy), and New-simple on F blues and St. Thomas.</p>
     </div>
   </header>
   <main class="sound-main">
     <section class="sound-panel" aria-label="Engine">
       <h2>Engine</h2>
-      <div class="sound-row" id="engine-row" role="group" aria-label="Current or New">
+      <div class="sound-row" id="engine-row" role="group" aria-label="Current, New busy, or New-simple">
         <button type="button" data-engine="current" aria-pressed="true">Current</button>
-        <button type="button" data-engine="new" aria-pressed="false">New</button>
+        <button type="button" data-engine="new" aria-pressed="false">New (busy)</button>
+        <button type="button" data-engine="new-simple" aria-pressed="false">New-simple</button>
       </div>
     </section>
     <section class="sound-panel" aria-label="Form">
@@ -65,7 +66,7 @@
       </div>
       <p class="sound-meter" id="meter">Bar — · Beat —</p>
       <p class="sound-chord" id="chord">—</p>
-      <p class="sound-status" id="status">Current synth is ready. New samples load on first Play.</p>
+      <p class="sound-status" id="status">Current synth is ready. New and New-simple samples load on first Play.</p>
       <p class="sound-grade" id="grade-line">Grade check plays the trombone-register test phrase over the band and scores pitch detection.</p>
     </section>
     <section class="sound-panel sound-credits" aria-label="Credits">

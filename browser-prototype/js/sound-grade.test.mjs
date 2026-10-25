@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { gradePerformance } from "./grade.js";
 import { beatsToSeconds } from "./music.js";
-import { TEST_PHRASE, fBluesChords, scheduleCurrent, scheduleNew } from "./sound-band.js";
+import { TEST_PHRASE, fBluesChords, scheduleCurrent, scheduleNew, scheduleNewSimple } from "./sound-band.js";
 import { addNoiseBurst, addTone, collectPitchTrack, hzFromMidi } from "./sound-yin.js";
 
 const SAMPLE_RATE = 22050;
@@ -51,8 +51,7 @@ function renderCurrentBacking(pcm, gain) {
   }
 }
 
-function renderNewBacking(pcm, gain) {
-  const { events } = scheduleNew(fBluesChords(1), { seed: 7 });
+function renderSampledBacking(pcm, gain, events) {
   for (const event of events) {
     if (event.beat >= 8 || event.beat < 0) continue;
     if (event.type === "piano") {
@@ -106,11 +105,25 @@ test("New backing through a speaker-like mix grades as well as Current", () => {
   renderPhrase(newPcm, 0.28);
   // Speaker leak: backing well below the horn, not headphones-silent.
   renderCurrentBacking(currentPcm, 0.55);
-  renderNewBacking(newPcm, 0.55);
+  renderSampledBacking(newPcm, 0.55, scheduleNew(fBluesChords(1), { seed: 7 }).events);
   const current = score(currentPcm);
   const next = score(newPcm);
   assert.equal(current.passed, true, `Current ${current.percent}% ${current.correction}`);
   assert.equal(next.passed, true, `New ${next.percent}% ${next.correction}`);
   assert.ok(next.percent >= current.percent - 15, `New ${next.percent}% vs Current ${current.percent}%`);
   assert.ok(Math.abs(hzFromMidi(57) - 220) < 1);
+});
+
+test("New-simple backing through a speaker-like mix grades as well as Current", () => {
+  const currentPcm = new Float32Array(SAMPLE_RATE * 5);
+  const simplePcm = new Float32Array(SAMPLE_RATE * 5);
+  renderPhrase(currentPcm, 0.28);
+  renderPhrase(simplePcm, 0.28);
+  renderCurrentBacking(currentPcm, 0.55);
+  renderSampledBacking(simplePcm, 0.55, scheduleNewSimple(fBluesChords(1), { seed: 7, tempo: TEMPO }).events);
+  const current = score(currentPcm);
+  const simple = score(simplePcm);
+  assert.equal(current.passed, true, `Current ${current.percent}% ${current.correction}`);
+  assert.equal(simple.passed, true, `New-simple ${simple.percent}% ${simple.correction}`);
+  assert.ok(simple.percent >= current.percent - 15, `New-simple ${simple.percent}% vs Current ${current.percent}%`);
 });

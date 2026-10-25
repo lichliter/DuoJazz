@@ -1,6 +1,6 @@
 /**
  * Playback for sound.html. Subclasses Transport so Current is today's synth.
- * New routes sampled piano / bass / drums onto mixer buses.
+ * New and New-simple route sampled piano / bass / drums onto mixer buses.
  */
 
 import { Transport } from "./audio.js";
@@ -102,7 +102,7 @@ export class BandTransport extends Transport {
     if (!placed) return;
     const { time, dur } = placed;
     const vel = event.velocity ?? 0.7;
-    const sampled = this.engine === "new" && this.library?.ready;
+    const sampled = (this.engine === "new" || this.engine === "new-simple") && this.library?.ready;
 
     if (event.type === "click") {
       this.noiseClick(time, { strong: event.strong, gain: event.strong ? 0.22 : 0.1 });
