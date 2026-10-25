@@ -292,8 +292,18 @@ function emitLayer(tokens) {
   return out.join("");
 }
 
+function meiChordText(name) {
+  return String(name)
+    .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "")
+    .replaceAll("♭", "b")
+    .replaceAll("♯", "#")
+    .replaceAll("°", "o")
+    .replaceAll("ø", "h")
+    .replaceAll("Δ", "M");
+}
+
 function literalRend(text) {
-  const name = String(text).replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "");
+  const name = meiChordText(text);
   return `<rend fontfam="sans-serif" fontname="Noto Sans" fontweight="bold">${esc(name)}</rend>`;
 }
 

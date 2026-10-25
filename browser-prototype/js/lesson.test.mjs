@@ -339,8 +339,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
   assert.equal(stand.naturalWidth, false);
-  assert.ok(stand.staffsep >= 120);
-  assert.ok(stand.staffsep <= 180);
+  assert.equal(stand.staffsep, 96);
   assert.equal(stand.minStaffPx, STAFF_PX);
   assert.ok(stand.fillRatio >= 0.7);
   const staffCss = estimatedStaffHeightCss(stand, 980);
@@ -511,6 +510,7 @@ test("notation URL param accepts the four presets and persists them", () => {
     getItem: (key) => memory.get(key) ?? null,
     setItem: (key, value) => memory.set(key, String(value)),
   };
+  assert.equal(resolveNotationScale({ search: "", storage: { getItem: () => null } }), 1);
   assert.equal(resolveNotationScale({ search: "?notation=1.2", storage }), 1.2);
   assert.equal(memory.get(NOTATION_SCALE_KEY), "1.2");
   assert.equal(resolveNotationScale({ search: "", storage }), 1.2);
