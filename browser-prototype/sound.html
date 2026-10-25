@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" class="sound-page">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DuoJazz backing sound test (dev)</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Dev-only A/B page: current synth backing vs sampled piano, bass, and drums. Not linked from the app.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/sound.css">
+  <script type="module" src="./js/sound-page.js"></script>
+</head>
+<body>
+  <header class="sound-head">
+    <p class="logo">duojazz</p>
+    <div>
+      <h1>Backing sound test</h1>
+      <p>Dev only. Not linked from the app. 12-bar F blues at medium swing, plus St. Thomas in New.</p>
+    </div>
+  </header>
+  <main class="sound-main">
+    <section class="sound-panel" aria-label="Engine">
+      <h2>Engine</h2>
+      <div class="sound-row" id="engine-row" role="group" aria-label="Current or New">
+        <button type="button" data-engine="current" aria-pressed="true">Current</button>
+        <button type="button" data-engine="new" aria-pressed="false">New</button>
+      </div>
+    </section>
+    <section class="sound-panel" aria-label="Form">
+      <h2>Form</h2>
+      <div class="sound-row" id="form-row" role="group" aria-label="Progression">
+        <button type="button" data-form="blues" aria-pressed="true">F blues · 2 choruses</button>
+        <button type="button" data-form="st-thomas" aria-pressed="false">St. Thomas</button>
+      </div>
+      <div class="sound-row" id="kit-row" role="group" aria-label="Drum kit" style="margin-top:0.55rem">
+        <button type="button" data-kit="sticks" aria-pressed="true">Sticks</button>
+        <button type="button" data-kit="brushes" aria-pressed="false">Brushes</button>
+      </div>
+    </section>
+    <section class="sound-panel" aria-label="Tempo">
+      <h2>Tempo</h2>
+      <div class="sound-row" id="tempo-row" role="group" aria-label="Beats per minute">
+        <button type="button" data-tempo="100" aria-pressed="false">100</button>
+        <button type="button" data-tempo="140" aria-pressed="true">140</button>
+        <button type="button" data-tempo="200" aria-pressed="false">200</button>
+      </div>
+    </section>
+    <section class="sound-panel" aria-label="Mixer">
+      <h2>Mixer</h2>
+      <div class="mixer">
+        <label>Piano <input id="mix-piano" type="range" min="0" max="100" value="80"> <span id="mix-piano-val">80</span></label>
+        <label>Bass <input id="mix-bass" type="range" min="0" max="100" value="85"> <span id="mix-bass-val">85</span></label>
+        <label>Drums <input id="mix-drums" type="range" min="0" max="100" value="70"> <span id="mix-drums-val">70</span></label>
+      </div>
+    </section>
+    <section class="sound-panel" aria-label="Transport">
+      <h2>Play</h2>
+      <div class="sound-row">
+        <button type="button" class="play" id="play-btn">Play</button>
+        <button type="button" id="stop-btn">Stop</button>
+        <button type="button" id="grade-btn">Grade check</button>
+      </div>
+      <p class="sound-meter" id="meter">Bar — · Beat —</p>
+      <p class="sound-chord" id="chord">—</p>
+      <p class="sound-status" id="status">Current synth is ready. New samples load on first Play.</p>
+      <p class="sound-grade" id="grade-line">Grade check plays the trombone-register test phrase over the band and scores pitch detection.</p>
+    </section>
+    <section class="sound-panel sound-credits" aria-label="Credits">
+      <h2>Sources</h2>
+      <p>Piano: Salamander Grand Piano (Alexander Holm, CC BY 3.0). Bass: Fluid R3 GM (Frank Wen, MIT). Drums: Salamander Drumkit (Alexander Holm, CC BY-SA 3.0). Full list in <a href="./sound/CREDITS.md">sound/CREDITS.md</a>.</p>
+    </section>
+  </main>
+</body>
+</html>
