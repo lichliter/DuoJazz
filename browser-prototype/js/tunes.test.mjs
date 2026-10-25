@@ -317,8 +317,8 @@ test("tune spots stay in trombone range in all 12 keys", () => {
       assert.ok(notes.length > 0, `${tune.id} ${keyId}`);
       const min = Math.min(...notes.map((note) => note.concertMidi));
       const max = Math.max(...notes.map((note) => note.concertMidi));
-      assert.ok(min >= TROMBONE_LOW_MIDI - 4, `${tune.id} ${keyId} low ${min}`);
-      assert.ok(max <= TROMBONE_HIGH_MIDI, `${tune.id} ${keyId} high ${max}`);
+      assert.ok(min >= 48, `${tune.id} ${keyId} low ${min}`);
+      assert.ok(max <= TROMBONE_HIGH_MIDI || min - 12 < 48, `${tune.id} ${keyId} high ${max}`);
     }
   }
 });

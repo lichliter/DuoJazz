@@ -11,11 +11,21 @@ import {
   deriveYourTunesLessons,
   deriveMyTunesLessons,
 } from "./tunes.js";
+import {
+  WORKBOOK_LICKS,
+  WORKBOOK_FORMS,
+  WORKBOOK_APPLICATIONS,
+  WORKBOOK_MODULES,
+} from "./workbook-licks.js";
 
 export { TUNES };
 
 export const TROMBONE_LOW_MIDI = 40; // E2
-export const TROMBONE_HIGH_MIDI = 67; // G4
+/** Preferred ceiling (Bb4). Notes may go higher when a lick cannot fit under it. */
+export const TROMBONE_HIGH_MIDI = 70; // Bb4
+/** Brian’s floor: rarely wants to play below C3. */
+export const REGISTER_FLOOR_MIDI = 48; // C3
+export const REGISTER_CEIL_MIDI = 70; // Bb4
 
 const T8 = 1 / 3;
 
@@ -493,6 +503,7 @@ export const FORMS = {
     ],
   },
   ...deriveTuneForms(TUNES),
+  ...WORKBOOK_FORMS,
 };
 
 const CMAR_LEAD_HOME = [
@@ -677,6 +688,7 @@ export const LICKS = [
       R(1),
     ],
   },
+  ...WORKBOOK_LICKS,
 ];
 
 export const FRAGMENTS = {
@@ -1039,6 +1051,7 @@ export const ALL_APPLICATIONS = [
     ],
   },
   ...deriveTuneApplications(TUNES),
+  ...WORKBOOK_APPLICATIONS,
 ];
 
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
@@ -1346,6 +1359,7 @@ export const MODULES = [
       ...deriveYourTunesLessons("hsr"),
     ], 0),
   },
+  ...WORKBOOK_MODULES,
 ];
 
 export const APPLICATIONS = ALL_APPLICATIONS.filter((app) => (

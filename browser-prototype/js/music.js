@@ -24,6 +24,8 @@ import {
   elementsForSpot,
   TROMBONE_LOW_MIDI,
   TROMBONE_HIGH_MIDI,
+  REGISTER_FLOOR_MIDI,
+  REGISTER_CEIL_MIDI,
 } from "./registry.js";
 
 export {
@@ -38,6 +40,8 @@ export {
   phraseSpanBars,
   TROMBONE_LOW_MIDI,
   TROMBONE_HIGH_MIDI,
+  REGISTER_FLOOR_MIDI,
+  REGISTER_CEIL_MIDI,
 };
 
 const CMAR = lickById("cmar");
@@ -132,11 +136,14 @@ const QUALITY_ASCII = {
   major6: "6",
   dominant7b13: "7♭13",
   dominant7s11: "7♯11",
+  dominant7s9: "7♯9",
+  dominant7alt: "7alt",
   diminished7: "°7",
   dominant9: "9",
   dominant7sus: "7sus",
   minormaj7: "mΔ7",
   minor11: "m11",
+  major7b5: "maj7♭5",
 };
 
 const QUALITY_ABC = { ...QUALITY_ASCII };
@@ -154,11 +161,14 @@ const QUALITY_INTERVALS = {
   major6: [0, 4, 7, 9],
   dominant7b13: [0, 4, 8, 10],
   dominant7s11: [0, 4, 6, 10],
+  dominant7s9: [0, 4, 7, 10, 15],
+  dominant7alt: [0, 4, 6, 8, 10, 13],
   diminished7: [0, 3, 6, 9],
   dominant9: [0, 4, 7, 10, 14],
   dominant7sus: [0, 5, 7, 10],
   minormaj7: [0, 3, 7, 11],
   minor11: [0, 3, 7, 10, 14, 17],
+  major7b5: [0, 4, 6, 11],
 };
 
 const GUIDE_INTERVALS = {
@@ -174,11 +184,14 @@ const GUIDE_INTERVALS = {
   major6: [4, 9],
   dominant7b13: [4, 10],
   dominant7s11: [4, 10],
+  dominant7s9: [4, 10],
+  dominant7alt: [4, 10],
   diminished7: [3, 9],
   dominant9: [4, 10],
   dominant7sus: [5, 10],
   minormaj7: [3, 11],
   minor11: [3, 10],
+  major7b5: [4, 11],
 };
 
 const AL_FUNCTION = ["iv-7", "♭VII7", "♭IIImaj7", "♭VImaj7", "iiø7", "V7", "i6", "i6"];
@@ -331,45 +344,40 @@ export function midiForInterval(concertTonicPc, interval, octaveOffset = PHRASE_
   return 60 + concertTonicPc + interval + octaveOffset * 12;
 }
 
-const TROMBONE_MIN_ALLOWED = TROMBONE_LOW_MIDI - 4;
-
 function octaveFitScore(min, max, oct, preferred) {
-  const below = Math.max(0, TROMBONE_MIN_ALLOWED - min);
-  const above = Math.max(0, max - TROMBONE_HIGH_MIDI);
-  return below * 8 + above * 8 + Math.abs(oct - preferred) * 0.25;
+  const below = Math.max(0, REGISTER_FLOOR_MIDI - min);
+  const above = Math.max(0, max - REGISTER_CEIL_MIDI);
+  // Keep the C3 floor when the span cannot also fit under Bb4.
+  return below * 100 + above * 8 + Math.abs(oct - preferred) * 0.25;
 }
 
-export function lickOctaveForKey(lick, keyPc) {
-  const notes = lickNoteElements(lick);
-  if (!notes.length || lick.id === "cmar") return lick.octave;
-  let best = lick.octave;
+function candidateOctaves(preferred) {
+  return [preferred - 2, preferred - 1, preferred, preferred + 1, preferred + 2];
+}
+
+function bestOctaveForNotes(notes, tonicPc, preferred) {
+  if (!notes.length) return preferred;
+  let best = preferred;
   let bestScore = Infinity;
-  for (const oct of [lick.octave - 1, lick.octave, lick.octave + 1]) {
-    const midis = notes.map((note) => midiForInterval(keyPc, note.interval, oct));
-    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
+  for (const oct of candidateOctaves(preferred)) {
+    const midis = notes.map((note) => midiForInterval(tonicPc, note.interval, oct));
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, preferred);
     if (score < bestScore) {
       bestScore = score;
       best = oct;
     }
   }
   return best;
+}
+
+export function lickOctaveForKey(lick, keyPc) {
+  return bestOctaveForNotes(lickNoteElements(lick), keyPc, lick.octave);
 }
 
 export function octaveForSpot(lick, concertTonicPc, spot, elements) {
   const notes = (elements ?? lick.elements).filter((el) => el.type === "note");
-  if (!notes.length || lick.id === "cmar") return lick.octave;
   const tonic = wrapPc(concertTonicPc + (spot.anchorInterval ?? 0));
-  let best = lick.octave;
-  let bestScore = Infinity;
-  for (const oct of [lick.octave - 1, lick.octave, lick.octave + 1]) {
-    const midis = notes.map((note) => midiForInterval(tonic, note.interval, oct));
-    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
-    if (score < bestScore) {
-      bestScore = score;
-      best = oct;
-    }
-  }
-  return best;
+  return bestOctaveForNotes(notes, tonic, lick.octave);
 }
 
 export function spotOctavesFor(applicationId, concertTonicPc) {
@@ -394,12 +402,10 @@ export function octaveForApplication(applicationId, concertTonicPc) {
       if (el.type === "note") notes.push({ tonic, interval: el.interval });
     }
   });
-  if (!notes.length || (lick.id === "cmar" && spots.length <= 1)) {
-    return lick.octave;
-  }
+  if (!notes.length) return lick.octave;
   let best = lick.octave;
   let bestScore = Infinity;
-  for (const oct of [lick.octave - 1, lick.octave, lick.octave + 1]) {
+  for (const oct of candidateOctaves(lick.octave)) {
     const midis = notes.map((note) => midiForInterval(note.tonic, note.interval, oct));
     const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave);
     if (score < bestScore) {
@@ -917,12 +923,17 @@ function restAbc(startBeat, durationBeats) {
     .join("");
 }
 
+function tupletWrittenBeats(item) {
+  if (almost(item.beats, 1 / 6)) return 0.25;
+  return 0.5;
+}
+
 function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null) {
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
   const pitch = abcNote(shownMidi, shownKey, barState);
-  const dur = item.tuplet === 3 ? "" : abcDuration(durationBeats);
+  const dur = item.tuplet === 3 ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);
   return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
 }
 
@@ -1007,7 +1018,7 @@ function renderSlice(items, start, end, ctx) {
       }
       abc += "(3";
       for (const note of group) {
-        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, 0.5, false, ctx.quality, ctx.barState);
+        abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, tupletWrittenBeats(note), false, ctx.quality, ctx.barState);
       }
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {

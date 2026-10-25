@@ -38,8 +38,16 @@ const TUNE_PAGES = [
   { id: "attya", shotId: "attya" },
 ];
 
+export function coreModules() {
+  return MODULES.filter((module) => module.number != null && module.number <= 5);
+}
+
+export function workbookModules() {
+  return MODULES.filter((module) => module.number > 5);
+}
+
 export function learnLessons() {
-  return MODULES.map((module) => {
+  return coreModules().map((module) => {
     const lesson = module.lessons.find((item) => item.kind === "learn");
     return {
       moduleId: module.id,
@@ -52,7 +60,7 @@ export function learnLessons() {
 }
 
 export function standardLessons() {
-  return MODULES.map((module) => {
+  return coreModules().map((module) => {
     const lesson = module.lessons.find((item) => item.kind === "integrate" && item.group !== "your-tunes");
     return {
       moduleId: module.id,
@@ -61,6 +69,23 @@ export function standardLessons() {
       applicationId: lesson.applicationId,
       title: lesson.coverTitle ?? lesson.title,
       defaultKeyId: lesson.defaultKeyId,
+    };
+  });
+}
+
+export function workbookPanels() {
+  return workbookModules().map((module) => {
+    const lesson = module.lessons.find((item) => item.kind === "learn");
+    return {
+      id: `workbook-${module.id}`,
+      section: "workbook",
+      kind: "learn",
+      title: `${module.number}. ${module.name}`,
+      subtitle: keyLabel(lesson.defaultKeyId, lesson.applicationId),
+      applicationId: lesson.applicationId,
+      keyId: lesson.defaultKeyId,
+      showCues: false,
+      phrase: true,
     };
   });
 }
@@ -84,6 +109,7 @@ export function galleryPanels() {
       });
     }
   }
+  for (const panel of workbookPanels()) panels.push(panel);
   for (const standard of standardLessons()) {
     panels.push({
       id: `standard-${standard.moduleId}`,
@@ -288,6 +314,7 @@ function boot() {
   const sections = {
     compare: sectionEl("compare", "Size compare · St. Thomas and GTS Learn in B♭"),
     learn: sectionEl("learn-licks", "Learn cards · C, G, B♭, F♯"),
+    workbook: sectionEl("workbook-6-30", "Workbook licks 6-30"),
     standards: sectionEl("standards", "One standards lesson per module"),
     play: sectionEl("play-card", "Play card"),
     tunes: sectionEl("tune-pages", "Tune pages"),
@@ -304,6 +331,7 @@ function boot() {
   root.replaceChildren(
     sections.compare,
     sections.learn,
+    sections.workbook,
     sections.standards,
     sections.play,
     sections.tunes,
