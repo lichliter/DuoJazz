@@ -596,14 +596,6 @@ function moduleBlock(module, nodes, stats) {
   return wrap;
 }
 
-function moreLicksSoon() {
-  const wrap = document.createElement("div");
-  wrap.className = "path-end";
-  wrap.setAttribute("aria-hidden", "true");
-  wrap.innerHTML = `<span class="path-end-sleeve"></span><span class="path-end-label">More licks soon</span>`;
-  return wrap;
-}
-
 function homeNextModuleButton(link) {
   const wrap = document.createElement("div");
   wrap.className = "path-end path-end-next";
@@ -613,7 +605,7 @@ function homeNextModuleButton(link) {
   btn.dataset.testid = "home-next-module";
   btn.textContent = link.label;
   btn.addEventListener("click", () => {
-    if (link.type === "module") selectModule(link.id);
+    if (link.id) selectModule(link.id);
   });
   wrap.append(btn);
   return wrap;
@@ -626,10 +618,9 @@ function renderHome() {
   const module = moduleById(selectedModuleId) ?? MODULES[0];
   const keys = keysByLesson(mastery);
   const nodes = moduleRoadNodes(module, prefs, keys);
-  const next = homeNextModule(module, keys);
   els.lessonList.replaceChildren(
     moduleBlock(module, nodes, moduleMastery(mastery, module.id)),
-    next ? homeNextModuleButton(next) : moreLicksSoon(),
+    homeNextModuleButton(homeNextModule(module, keys)),
   );
   requestAnimationFrame(paintPathTrail);
 }
@@ -1398,11 +1389,7 @@ els.nextModule?.addEventListener("click", () => {
   if (!session) return;
   const link = wrapupNextModule(session);
   halt();
-  if (link?.type === "module") {
-    selectedModuleId = link.id;
-    exitSession();
-    return;
-  }
+  if (link?.id) selectedModuleId = link.id;
   exitSession();
 });
 els.nextKey.addEventListener("click", () => {
