@@ -280,7 +280,11 @@ body {
 
 @media (max-width: 767px) {
   html:has(.app-shell[data-screen="home"]) {
-    padding-bottom: calc(49px + var(--safe-bottom));
+    padding-bottom: 0;
+  }
+
+  .app-shell[data-screen="home"] .workspace {
+    padding-bottom: calc(1.5rem + 49px + var(--safe-bottom));
   }
 
   .masthead .app-tab-bar {
