@@ -105,7 +105,7 @@ test("HIG tokens use a warm brand tint and a 320pt sidebar", async () => {
   assert.match(tokens, /--tint-solid:\s*#a84416/);
   assert.doesNotMatch(tokens, /#007aff|#0a84ff/);
   assert.match(hig, /line-clamp:\s*2/);
-  assert.match(hig, /margin-top:\s*var\(--space-8\)/);
+  assert.match(hig, /margin-top:\s*var\(--space-6\)/);
   assert.match(hig, /\.settings-line \{\s*display:\s*none;/);
   assert.match(hig, /#quick-view-btn/);
 });
