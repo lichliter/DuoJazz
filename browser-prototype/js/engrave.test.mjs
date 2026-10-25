@@ -121,6 +121,7 @@ test("home road-end CTA is a 44pt next-module button with no More licks soon", a
   assert.match(app, /homeNextModuleButton\(homeNextModule\(/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?background:\s*var\(--tint-solid\)/);
+  assert.match(styles, /\.next-module-path \{[\s\S]*?white-space:\s*normal/);
 });
 
 test("tokens restore the warm palette and keep the iOS type scale", async () => {
