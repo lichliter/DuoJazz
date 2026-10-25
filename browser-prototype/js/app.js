@@ -1,16 +1,24 @@
 import {
-  MELODY_REGISTERS,
   getKey,
   minorSpelling,
-  majorSpelling,
   phraseMeasureCount,
-  applicationKeyQuality,
   phraseSpanBars,
+  chorusChords,
+  learnChords,
+  learnBeatsFor,
+  formBeatsFor,
 } from "./music.js";
 import { Transport } from "./audio.js";
 import { notationLayout, resolveNotationScale } from "./lesson.js";
-import { chorusStaffMEI, phraseMEI } from "./mei.js";
-import { engraveMei, measureEngraving, whenVerovioReady } from "./engrave.js";
+import { chordsOnlyMEI, chorusStaffMEI, phraseMEI } from "./mei.js";
+import {
+  applySoundingHighlight,
+  engraveMei,
+  highlightActiveChords,
+  measureEngraving,
+  soundingIdsAt,
+  whenVerovioReady,
+} from "./engrave.js";
 import {
   PREFS_KEY,
   MODULE,
@@ -18,7 +26,6 @@ import {
   LESSONS,
   KEY_MODES,
   CARD_SETS,
-  CARDS,
   TWELVE_KEY_IDS,
   lessonById,
   normalizePrefs,
@@ -40,7 +47,6 @@ import {
   sessionPrimaryAction,
   sessionChartCopy,
   sessionCue,
-  sessionMeterExtras,
   wrapupCopy,
   listenStateCopy,
   displayKeyName,
@@ -65,8 +71,12 @@ import {
   skipRemainingCards,
   quickViewData,
   resolveQuickViewJump,
-  cardCounter,
   persistLessonTempo,
+  settingsSummary,
+  cardKicker,
+  sessionProgress,
+  LEGACY_PREFS_KEY,
+  HEADPHONES_TIP_KEY,
 } from "./session.js";
 import {
   tuneById,
@@ -101,6 +111,9 @@ let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
 let lastNotationLayout = null;
 let lastPlayheadSystem = null;
+let lastTimemap = [];
+let lastChordTimings = [];
+let audioError = "";
 let notationGen = 0;
 let lastEngraveMs = 0;
 let wrapupBanner = null;
@@ -119,10 +132,14 @@ const els = {
   setup: document.getElementById("setup"),
   setupTitle: document.getElementById("setup-title"),
   setupSummary: document.getElementById("setup-summary"),
+  settingsSummary: document.getElementById("settings-summary"),
+  homeSettingsBtn: document.getElementById("home-settings-btn"),
   keyModes: document.getElementById("key-modes"),
   setupKeys: document.getElementById("setup-keys"),
   cardSets: document.getElementById("card-sets"),
   sessionOctave: document.getElementById("session-octave"),
+  headphonesTip: document.getElementById("headphones-tip"),
+  primaryLabel: document.getElementById("primary-label"),
   tempoReadout: document.getElementById("tempo-readout"),
   tempoDown: document.getElementById("tempo-down"),
   tempoUp: document.getElementById("tempo-up"),
@@ -138,7 +155,6 @@ const els = {
   leaveConfirm: document.getElementById("leave-confirm"),
   sessionKey: document.getElementById("session-key"),
   sessionKeyCount: document.getElementById("session-key-count"),
-  sessionCardCount: document.getElementById("session-card-count"),
   sessionProgressFill: document.getElementById("session-progress-fill"),
   cardBadge: document.getElementById("card-badge"),
   notation: document.getElementById("notation"),
@@ -177,7 +193,8 @@ const els = {
 
 function loadPrefs() {
   try {
-    return normalizePrefs(JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null"));
+    const raw = localStorage.getItem(PREFS_KEY) ?? localStorage.getItem(LEGACY_PREFS_KEY) ?? "null";
+    return normalizePrefs(JSON.parse(raw));
   } catch {
     return defaultPrefs();
   }
@@ -193,6 +210,7 @@ function halt() {
   playback.playing = false;
   playback.paused = false;
   playback.ended = false;
+  audioError = "";
 }
 
 function clearGradeLine() {
@@ -235,9 +253,47 @@ function fillListenState(gradeResult = liveGrade) {
 
 function renderMic() {
   const copy = micCopy(monitor.state);
-  if (els.sessionMic) els.sessionMic.textContent = copy;
+  if (els.sessionMic) {
+    els.sessionMic.hidden = !copy;
+    els.sessionMic.textContent = copy;
+  }
   if (els.micStatus) els.micStatus.textContent = copy;
   fillListenState();
+  renderHeadphonesTip();
+}
+
+function headphonesTipSeen() {
+  try {
+    return Boolean(prefs.headphonesTipSeen || localStorage.getItem(HEADPHONES_TIP_KEY));
+  } catch {
+    return Boolean(prefs.headphonesTipSeen);
+  }
+}
+
+function markHeadphonesTipSeen() {
+  prefs.headphonesTipSeen = true;
+  try {
+    localStorage.setItem(HEADPHONES_TIP_KEY, "1");
+  } catch {
+    // private mode
+  }
+  persist();
+}
+
+let headphonesTipVisible = false;
+
+function renderHeadphonesTip() {
+  if (!els.headphonesTip) return;
+  if (session?.screen !== "session") {
+    headphonesTipVisible = false;
+    els.headphonesTip.hidden = true;
+    return;
+  }
+  if (!headphonesTipSeen()) {
+    headphonesTipVisible = true;
+    markHeadphonesTipSeen();
+  }
+  els.headphonesTip.hidden = !headphonesTipVisible;
 }
 
 monitor.onState = () => renderMic();
@@ -249,11 +305,39 @@ function screenName() {
   return "home";
 }
 
+function openSettings() {
+  renderSettings();
+  if (els.settings && !els.settings.open) els.settings.showModal();
+}
+
+function startLesson(lessonId) {
+  const lesson = lessonById(lessonId);
+  setupLessonId = lesson.id;
+  const fallback = defaultLessonStartKey(lesson);
+  halt();
+  prefs = markLessonStarted(prefs, lesson.id, prefs.startKeyId ?? fallback);
+  persist();
+  applySession(createSession({
+    lessonId: lesson.id,
+    keyMode: prefs.keyMode,
+    startKeyId: prefs.startKeyId || fallback,
+    cardSet: prefs.cardSet,
+    tempo: prefs.tempo,
+    melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
+    displayMode: prefs.displayMode,
+    clef: prefs.clef,
+    swing: prefs.swing,
+    metronome: prefs.metronome,
+    guideTones: prefs.guideTones,
+  }));
+}
+
+function defaultLessonStartKey(lesson) {
+  return lesson?.defaultKeyId ?? prefs.startKeyId;
+}
+
 function openSetup(lessonId) {
-  setupLessonId = lessonById(lessonId).id;
-  setupDraft = { ...prefs.lessons[setupLessonId] };
-  renderSetup();
-  if (!els.setup.open) els.setup.showModal();
+  startLesson(lessonId);
 }
 
 function renderQuickView() {
@@ -278,19 +362,8 @@ function renderQuickView() {
         : `${module.keysMastered} of 12 keys mastered`;
       header.innerHTML = `<p class="quick-view-kicker">${kicker}</p><p class="quick-view-name">${module.lickName}</p><p class="quick-view-meta">${meta}</p>`;
       header.addEventListener("click", () => jumpFromQuickView(module.id));
-
-      const records = document.createElement("div");
-      records.className = "quick-view-records";
-      for (const record of module.records) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "quick-view-record";
-        btn.dataset.testid = `quick-view-lesson-${record.id}`;
-        btn.innerHTML = `<p class="quick-view-num">${record.number}</p><span><p class="quick-view-title">${record.title}</p><p class="quick-view-meta">${record.context} · ${record.keysPassed}/12 keys</p></span>`;
-        btn.addEventListener("click", () => jumpFromQuickView(record.id));
-        records.append(btn);
-      }
-      section.append(header, records);
+      if (module.id === currentHomeModuleId()) header.classList.add("is-current");
+      section.append(header);
       return section;
     }),
   );
@@ -321,40 +394,32 @@ function abandonToQuickView() {
   openQuickView();
 }
 
+function currentHomeModuleId() {
+  return els.lessonList?.querySelector(".module-block.is-current")?.dataset.module
+    ?? MODULES[0]?.id;
+}
+
 function jumpFromQuickView(id) {
   const target = resolveQuickViewJump(id);
   closeQuickView();
   if (!target) return;
-  if (target.type === "module") {
-    requestAnimationFrame(() => {
-      document.querySelector(`[data-testid="module-banner-${target.id}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    return;
-  }
-  openSetup(target.id);
+  const moduleId = target.type === "module" ? target.id : target.moduleId;
+  requestAnimationFrame(() => {
+    const block = document.querySelector(`[data-module="${moduleId}"]`);
+    for (const el of document.querySelectorAll(".module-block.is-current")) {
+      el.classList.remove("is-current");
+    }
+    block?.classList.add("is-current");
+    block?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function closeSetup() {
-  if (els.setup.open) els.setup.close();
+  if (els.setup?.open) els.setup.close();
 }
 
 function startFromSetup() {
-  prefs.lessons[setupLessonId] = { ...setupDraft };
-  prefs = persistLessonTempo(prefs, setupLessonId, setupDraft.tempo);
-  prefs = markLessonStarted(prefs, setupLessonId, setupDraft.startKeyId);
-  persist();
-  halt();
-  applySession(createSession({
-    lessonId: setupLessonId,
-    ...setupDraft,
-    displayMode: prefs.displayMode,
-    clef: prefs.clef,
-    swing: prefs.swing,
-    metronome: prefs.metronome,
-    guideTones: prefs.guideTones,
-  }));
-  closeSetup();
+  startLesson(setupLessonId);
 }
 
 function exitSession() {
@@ -378,6 +443,7 @@ function applySession(next, { autoStart = false } = {}) {
 async function start(resume = false) {
   if (!session || session.screen !== "session") return;
   els.primary.disabled = true;
+  audioError = "";
   try {
     await transport.ensure();
     if (!resume) resetPitchTake();
@@ -386,6 +452,9 @@ async function start(resume = false) {
       await monitor.start(transport.ctx);
     }
     await transport.start(sessionAudioConfig(session), { resume });
+  } catch {
+    audioError = "Audio failed to load.";
+    renderMeter();
   } finally {
     els.primary.disabled = false;
   }
@@ -395,7 +464,7 @@ function runPrimary() {
   if (!session || session.screen !== "session") return;
   const action = sessionPrimaryAction(session, playback);
   if (!action) return;
-  if (action.id === "pause") transport.pause();
+  if (action.id === "pause") halt();
   else if (action.id === "resume") start(true);
   else start(false);
 }
@@ -447,8 +516,7 @@ function navigateCard(delta) {
 
 function anyDialogOpen() {
   return Boolean(
-    els.setup?.open
-    || els.settings?.open
+    els.settings?.open
     || els.quickView?.open
     || els.leaveConfirm?.open,
   );
@@ -531,6 +599,10 @@ function renderHome() {
     myTunesBlock(tunePathNodes(prefs, keys)),
     moreLicksSoon(),
   );
+  const first = els.lessonList.querySelector(".module-block");
+  if (first && !els.lessonList.querySelector(".module-block.is-current")) {
+    first.classList.add("is-current");
+  }
   requestAnimationFrame(paintPathTrail);
 }
 
@@ -648,35 +720,38 @@ function chipRow(host, options, current, onPick) {
 }
 
 function renderSetup() {
-  const lesson = lessonById(setupLessonId);
-  els.setup.dataset.sleeve = lesson.sleeve;
-  els.setupTitle.textContent = lesson.title;
-  els.setupSummary.textContent = lesson.summary;
-  chipRow(els.keyModes, KEY_MODES, setupDraft.keyMode, (id) => {
-    setupDraft.keyMode = id;
-    renderSetup();
+  renderSettings();
+}
+
+function renderSettings() {
+  if (els.settingsSummary) els.settingsSummary.textContent = settingsSummary(prefs);
+  chipRow(els.keyModes, KEY_MODES, prefs.keyMode, (id) => {
+    prefs.keyMode = id;
+    persist();
+    renderSettings();
   });
+  if (!els.setupKeys) return;
   els.setupKeys.replaceChildren(
     ...TWELVE_KEY_IDS.map((id) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "key-btn";
-      const quality = applicationKeyQuality(lesson.applicationId);
-      btn.textContent = quality === "major" ? majorSpelling(getKey(id)).shortName : minorSpelling(getKey(id)).shortName;
-      btn.setAttribute("aria-pressed", String(id === setupDraft.startKeyId));
+      btn.textContent = minorSpelling(getKey(id)).shortName;
+      btn.setAttribute("aria-pressed", String(id === prefs.startKeyId));
       btn.addEventListener("click", () => {
-        setupDraft.startKeyId = id;
-        renderSetup();
+        prefs.startKeyId = id;
+        persist();
+        renderSettings();
       });
       return btn;
     }),
   );
-  chipRow(els.cardSets, CARD_SETS, setupDraft.cardSet, (id) => {
-    setupDraft.cardSet = id;
-    renderSetup();
+  chipRow(els.cardSets, CARD_SETS, prefs.cardSet, (id) => {
+    prefs.cardSet = id;
+    persist();
+    renderSettings();
   });
-  els.tempoReadout.textContent = String(setupDraft.tempo);
-  renderSetupLinks(lesson);
+  if (els.tempoReadout) els.tempoReadout.textContent = String(prefs.tempo);
 }
 
 function renderSetupLinks(lesson) {
@@ -733,22 +808,27 @@ function renderSetupLinks(lesson) {
 
 function renderSessionOctave() {
   if (!els.sessionOctave || !session) return;
-  els.sessionOctave.replaceChildren(
-    ...MELODY_REGISTERS.map((option) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chip";
-      btn.textContent = option.id === 0 ? "Original" : option.id === 1 ? "+1" : "−1";
-      btn.setAttribute("aria-pressed", String(option.id === session.melodyRegister));
-      btn.addEventListener("click", () => applyMelodyOctave(option.id));
-      return btn;
-    }),
-  );
+  const current = session.melodyRegister;
+  const down = document.createElement("button");
+  down.type = "button";
+  down.className = "chip";
+  down.textContent = "−";
+  down.setAttribute("aria-label", "Octave down");
+  down.disabled = current <= -1;
+  down.addEventListener("click", () => applyMelodyOctave(current - 1));
+  const up = document.createElement("button");
+  up.type = "button";
+  up.className = "chip";
+  up.textContent = "+";
+  up.setAttribute("aria-label", "Octave up");
+  up.disabled = current >= 1;
+  up.addEventListener("click", () => applyMelodyOctave(current + 1));
+  els.sessionOctave.replaceChildren(down, up);
 }
 
 function applyMelodyOctave(register) {
   if (!session || session.screen !== "session") return;
-  const melodyRegister = register === -1 || register === 1 ? register : 0;
+  const melodyRegister = register <= -1 ? -1 : register >= 1 ? 1 : 0;
   if (melodyRegister === session.melodyRegister) return;
   const restart = playback.playing || playback.paused;
   halt();
@@ -763,19 +843,37 @@ function applyMelodyOctave(register) {
 function renderSessionChrome() {
   const card = currentCard(session);
   const ordinal = keyOrdinal(session);
-  const cards = cardCounter(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
-  els.cardBadge.textContent = CARDS[card].kicker;
+  els.cardBadge.textContent = cardKicker(card, session.lessonId);
   els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
-  els.sessionCardCount.textContent = `${cards.index}/${cards.total}`;
-  els.sessionProgressFill.style.width = `${((session.cardIndex) / cards.total) * 100}%`;
+  const progress = sessionProgress(session);
+  els.sessionProgressFill.style.width = `${progress.ratio * 100}%`;
   if (els.sessionBack) {
     els.sessionBack.disabled = !canGoBack(session);
   }
   if (els.sessionNext) {
     els.sessionNext.disabled = !canGoNext(session);
   }
+}
+
+function chordTimingsFor(target) {
+  if (!target) return [];
+  const lesson = lessonById(target.lessonId);
+  const concertKey = getKey(currentKeyId(target));
+  const isolated = lesson.kind === "learn";
+  const chords = isolated
+    ? learnChords(concertKey, target.displayMode, lesson.applicationId)
+    : chorusChords(concertKey, target.displayMode, lesson.applicationId);
+  const length = isolated
+    ? learnBeatsFor(lesson.applicationId)
+    : formBeatsFor(lesson.applicationId);
+  return chords.map((chord, index) => ({
+    startBeat: chord.startBeat,
+    durationBeats: chord.durationBeats,
+    endBeat: chords[index + 1]?.startBeat ?? length,
+    name: chord.name,
+  }));
 }
 
 function staffWidth() {
@@ -786,63 +884,30 @@ function notationRoot(svg) {
   return svg.querySelector("[data-staff-fit]") ?? svg;
 }
 
-function ensurePlayhead(svg) {
-  const ns = "http://www.w3.org/2000/svg";
-  const root = notationRoot(svg);
-  let line = svg.querySelector("#playhead");
-  let glow = svg.querySelector("#bar-glow");
-  if (!glow) {
-    glow = document.createElementNS(ns, "rect");
-    glow.id = "bar-glow";
-    glow.setAttribute("fill", "rgba(96, 57, 45, 0.14)");
-    root.insertBefore(glow, root.firstChild);
-  }
-  if (!line) {
-    line = document.createElementNS(ns, "line");
-    line.id = "playhead";
-    line.setAttribute("stroke", "#60392d");
-    line.setAttribute("stroke-width", "2");
-    root.append(line);
-  }
-  return { line, glow };
-}
-
 function updatePlayhead(snap = transport.snapshot()) {
   const svg = els.notation.querySelector("svg");
   if (!svg || !session) return;
-  const { line, glow } = ensurePlayhead(svg);
-  const staffs = [...els.notation.querySelectorAll(".staff")];
-  const active = (snap.playing || snap.paused) && !snap.inCountIn && staffs.length;
+  const active = (snap.playing || snap.paused) && !snap.inCountIn;
   if (!active) {
-    line.setAttribute("opacity", "0");
-    glow.setAttribute("opacity", "0");
+    applySoundingHighlight(svg, []);
     lastPlayheadSystem = null;
     return;
   }
+  const beats = Math.max(0, snap.beats ?? 0);
+  applySoundingHighlight(svg, soundingIdsAt(lastTimemap, beats));
+  highlightActiveChords(svg, beats, lastChordTimings);
   const view = sessionPresentation(session);
   const barsOnStaff = lastNotationLayout?.barsPerLine
     ?? (view.audioStage === "learn" ? 2 : 4);
   const barIndex = Math.max(0, (snap.bar ?? 1) - 1);
-  const system = Math.min(staffs.length - 1, Math.floor(barIndex / barsOnStaff));
-  const barInSystem = barIndex % barsOnStaff;
-  const staff = staffs[system];
-  const box = staff.getBBox();
-  const barWidth = box.width / barsOnStaff;
-  const beatFrac = ((snap.beatInBar ?? 1) - 1) / 4;
-  const x = box.x + barInSystem * barWidth + beatFrac * barWidth;
-  glow.setAttribute("x", String(box.x + barInSystem * barWidth));
-  glow.setAttribute("y", String(box.y - 8));
-  glow.setAttribute("width", String(barWidth));
-  glow.setAttribute("height", String(box.height + 28));
-  glow.setAttribute("opacity", "1");
-  line.setAttribute("x1", String(x));
-  line.setAttribute("x2", String(x));
-  line.setAttribute("y1", String(box.y - 6));
-  line.setAttribute("y2", String(box.y + box.height + 18));
-  line.setAttribute("opacity", "1");
-  if (lastPlayheadSystem !== system) {
+  const system = Math.min(
+    Math.max(0, els.notation.querySelectorAll(".staff").length - 1),
+    Math.floor(barIndex / barsOnStaff),
+  );
+  const staff = els.notation.querySelectorAll(".staff")[system];
+  if (staff && lastPlayheadSystem !== system) {
     lastPlayheadSystem = system;
-    staff.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    staff.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }
 }
 
@@ -860,6 +925,8 @@ function renderNotation() {
   els.notation.hidden = hideStaff;
   els.session.dataset.card = currentCard(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
+  lastTimemap = [];
+  lastChordTimings = chordTimingsFor(session);
   if (hideStaff) {
     notationGen += 1;
     els.notation.replaceChildren();
@@ -882,7 +949,15 @@ function renderNotation() {
     phraseStartBar: view.application?.phraseStartBar ?? 7,
     phraseBars: phraseSpanBars(lesson.applicationId),
   };
-  const mei = view.showLandingNotation
+  const mei = view.showChordsOnly
+    ? chordsOnlyMEI(
+      concertKey,
+      session.displayMode,
+      lesson.applicationId,
+      session.clef,
+      { barsPerLine: layout.barsPerLine, isolated: lesson.kind === "learn" },
+    )
+    : view.showLandingNotation
     ? chorusStaffMEI({
       concertKey,
       displayMode: session.displayMode,
@@ -937,6 +1012,7 @@ function renderNotation() {
       phraseBars: lastNotationLayout.phraseBars,
     };
     lastEngraveMs = engraved.elapsedMs;
+    lastTimemap = engraved.timemap ?? [];
     updatePlayhead();
   }).catch(() => {
     if (gen !== notationGen) return;
@@ -946,7 +1022,7 @@ function renderNotation() {
 
 function renderCopy(snap = transport.snapshot()) {
   const clefLabel = prefs.clef === "bass" ? "Bass clef" : "Treble clef";
-  els.displayChip.textContent = `${prefs.displayMode === "bb-written" ? "B♭ written" : "Concert"} · ${clefLabel}`;
+  if (els.settingsSummary) els.settingsSummary.textContent = settingsSummary(prefs);
   els.swing.checked = prefs.swing;
   els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
@@ -968,27 +1044,28 @@ function renderPrimary() {
   const action = sessionPrimaryAction(session, playback);
   els.primary.hidden = !action;
   if (action) {
-    els.primary.dataset.action = action.id;
-    els.primary.textContent = action.label;
+    const playing = action.id === "pause" || action.id === "stop";
+    els.primary.dataset.action = playing ? "stop" : action.id;
+    els.primary.classList.toggle("is-stop", playing);
+    els.primary.setAttribute("aria-label", playing ? "Stop" : action.label);
+    if (els.primaryLabel) els.primaryLabel.textContent = action.label;
   }
 }
 
 function renderMeter(snap = transport.snapshot()) {
   if (!session || session.screen !== "session") return;
-  const concert = { name: displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)) };
+  if (audioError) {
+    els.meter.hidden = false;
+    els.meter.textContent = audioError;
+    return;
+  }
   if (snap.inCountIn) {
+    els.meter.hidden = false;
     els.meter.textContent = `Count-in · ${Math.max(1, Math.ceil(-snap.beats))}`;
     return;
   }
-  if (snap.playing) {
-    els.meter.textContent = `Bar ${snap.bar} · Beat ${snap.beatInBar} · ${concert.name}`;
-    return;
-  }
-  if (snap.paused) {
-    els.meter.textContent = `Paused · bar ${snap.bar} beat ${snap.beatInBar}`;
-    return;
-  }
-  els.meter.textContent = playback.ended ? "Ready when you are" : sessionMeterExtras(session);
+  els.meter.hidden = true;
+  els.meter.textContent = "";
 }
 
 function resultLabel(row) {
@@ -1088,16 +1165,16 @@ function applyDeepLink() {
     monitor.setState(mic);
   }
   if (screen === "setup") {
-    openSetup(lessonId);
+    openSettings();
     return;
   }
   if (screen === "session" || screen === "wrapup") {
     session = createSession({
       lessonId,
       keyMode,
-      startKeyId: params.get("key") || prefs.lessons[lessonById(lessonId).id].startKeyId,
-      cardSet: params.get("cards") || "all",
-      tempo: prefs.lessons[lessonById(lessonId).id].tempo,
+      startKeyId: params.get("key") || prefs.startKeyId,
+      cardSet: params.get("cards") || prefs.cardSet,
+      tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       displayMode: prefs.displayMode,
       clef: prefs.clef,
@@ -1198,11 +1275,8 @@ transport.onEnded = () => {
   window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
 
-els.displayChip.addEventListener("click", () => els.settings.showModal());
-els.startLesson.addEventListener("click", (event) => {
-  event.preventDefault();
-  startFromSetup();
-});
+els.displayChip.addEventListener("click", () => openSettings());
+els.homeSettingsBtn?.addEventListener("click", () => openSettings());
 els.sessionExit.addEventListener("click", exitSession);
 els.sessionBack?.addEventListener("click", () => navigateCard(-1));
 els.sessionNext?.addEventListener("click", () => navigateCard(1));
@@ -1225,17 +1299,17 @@ els.againKey.addEventListener("click", () => {
 });
 els.doneSession.addEventListener("click", exitSession);
 
-els.tempoDown.addEventListener("click", () => {
-  setupDraft.tempo = Math.max(60, setupDraft.tempo - 4);
-  prefs = persistLessonTempo(prefs, setupLessonId, setupDraft.tempo);
+els.tempoDown?.addEventListener("click", () => {
+  prefs.tempo = Math.max(60, prefs.tempo - 4);
+  prefs = persistLessonTempo(prefs, setupLessonId, prefs.tempo);
   persist();
-  renderSetup();
+  renderSettings();
 });
-els.tempoUp.addEventListener("click", () => {
-  setupDraft.tempo = Math.min(160, setupDraft.tempo + 4);
-  prefs = persistLessonTempo(prefs, setupLessonId, setupDraft.tempo);
+els.tempoUp?.addEventListener("click", () => {
+  prefs.tempo = Math.min(160, prefs.tempo + 4);
+  prefs = persistLessonTempo(prefs, setupLessonId, prefs.tempo);
   persist();
-  renderSetup();
+  renderSettings();
 });
 
 document.querySelectorAll("[name=displayMode]").forEach((input) => {

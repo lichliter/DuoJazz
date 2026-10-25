@@ -583,6 +583,13 @@ export async function engraveMei(target, mei, options = {}) {
   const pages = tk.getPageCount();
   const parts = [];
   for (let page = 1; page <= pages; page += 1) parts.push(tk.renderToSVG(page));
+  let timemap = [];
+  try {
+    const raw = tk.renderToTimemap?.({ includeRests: true }) ?? tk.renderToTimemap?.();
+    timemap = parseTimemap(raw);
+  } catch {
+    timemap = [];
+  }
   const svg = mountSvg(target, parts.join(""));
   if (svg) {
     recolor(svg);
@@ -597,7 +604,61 @@ export async function engraveMei(target, mei, options = {}) {
     layout: { ...layout, staffwidth: width },
     elapsedMs: performance.now() - started,
     pageCount: pages,
+    timemap,
   };
+}
+
+export function parseTimemap(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function soundingIdsAt(timemap, qstamp) {
+  if (!(qstamp >= 0) || !Array.isArray(timemap) || !timemap.length) return [];
+  const events = [...timemap].sort((a, b) => (a.qstamp ?? a.tstamp ?? 0) - (b.qstamp ?? b.tstamp ?? 0));
+  const on = new Set();
+  for (const ev of events) {
+    const at = ev.qstamp ?? 0;
+    if (at > qstamp + 1e-6) break;
+    for (const id of ev.off ?? []) on.delete(id);
+    for (const id of ev.on ?? []) on.add(id);
+  }
+  return [...on];
+}
+
+export function applySoundingHighlight(root, ids) {
+  const svg = root?.querySelector?.("svg") ?? root;
+  if (!svg?.querySelectorAll) return;
+  for (const el of svg.querySelectorAll(".sounding")) el.classList.remove("sounding");
+  for (const id of ids ?? []) {
+    const el = svg.querySelector(`[id="${id}"]`) ?? svg.querySelector(`#${id}`);
+    if (!el) continue;
+    el.classList.add("sounding");
+    for (const part of el.querySelectorAll(".notehead, .stem, .flag, .accid, .rest, .slash, use, path, text, tspan")) {
+      part.classList.add("sounding");
+    }
+  }
+}
+
+export function highlightActiveChords(svg, beats, chords = []) {
+  if (!svg) return [];
+  const harms = [...svg.querySelectorAll(".harm")];
+  const active = [];
+  for (const [index, harm] of harms.entries()) {
+    const chord = chords[index];
+    const start = chord?.startBeat ?? Number.NaN;
+    const end = chord?.endBeat ?? start + (chord?.durationBeats ?? 4);
+    const on = Number.isFinite(start) && beats >= start - 1e-6 && beats < end - 1e-6;
+    harm.classList.toggle("sounding", on);
+    if (on) active.push(index);
+  }
+  return active;
 }
 
 export function fiveLineStaffHeight(staff) {

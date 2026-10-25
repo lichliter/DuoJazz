@@ -8,10 +8,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/styles.css?v=79">
+  <link rel="stylesheet" href="./css/styles.css?v=81">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=79" defer></script>
-  <script type="module" src="./js/app.js?v=79"></script>
+  <script src="./js/verovio-bind.js?v=81" defer></script>
+  <script type="module" src="./js/app.js?v=81"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -22,13 +22,17 @@
         <p class="logo">duojazz</p>
       </div>
       <div class="masthead-actions">
-        <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view">Quick view</button>
-        <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Concert · Bass clef</button>
+        <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view" aria-label="Modules">Modules</button>
+        <button type="button" class="quiet" id="display-chip" aria-haspopup="dialog" aria-controls="settings">Settings</button>
       </div>
     </header>
 
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
+        <div class="home-settings" id="home-settings">
+          <p class="settings-summary" id="settings-summary">Original key · 96 bpm · 1-bar count-in · Swing on</p>
+          <button type="button" class="quiet" id="home-settings-btn" data-testid="home-settings-btn" aria-haspopup="dialog" aria-controls="settings">Settings</button>
+        </div>
         <section class="lesson-path" aria-label="Lesson path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
             <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
@@ -42,18 +46,17 @@
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
           <button type="button" class="icon-btn" id="session-exit" aria-label="Exit session">×</button>
-          <div class="session-nav">
-            <button type="button" class="session-nav-btn" id="session-back" data-testid="session-back">Back</button>
-            <div class="session-progress" aria-hidden="true"><span id="session-progress-fill"></span></div>
-            <button type="button" class="session-nav-btn" id="session-next" data-testid="session-next">Next</button>
-          </div>
           <p class="session-meta" id="session-key">G minor</p>
           <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
-          <p class="session-meta muted" id="session-card-count">1/4</p>
           <button type="button" class="quiet session-jump" id="session-quick-view" data-testid="session-quick-view" aria-haspopup="dialog" aria-controls="quick-view">Jump</button>
         </header>
-        <p class="card-badge" id="card-badge">LEARN</p>
         <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
+        <p class="card-badge" id="card-badge">LEARN</p>
+        <p class="cue-line" id="instruction" aria-live="polite"></p>
+        <p class="meter" id="meter" hidden></p>
+        <p class="mic-line" id="session-mic" hidden></p>
+        <p class="headphones-tip" id="headphones-tip" hidden>Headphones recommended so the backing does not leak into grading.</p>
+        <p class="grade-line" id="grade-line" hidden></p>
         <section class="chart-card" id="music-surface" aria-label="Music">
           <div class="chart-head">
             <p id="chart-title">Cry Me a River cell</p>
@@ -67,15 +70,19 @@
             <p class="listen-kicker" id="listen-kicker">Listening</p>
             <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
           </div>
-          <div class="chart-foot">
-            <button type="button" class="play" id="primary">Hear the cell</button>
-            <button type="button" class="text-link" id="continue-btn">Continue</button>
-          </div>
         </section>
-        <p class="cue-line" id="instruction" aria-live="polite"></p>
-        <p class="meter" id="meter">1-bar count-in · Swing on</p>
-        <p class="mic-line" id="session-mic">Microphone ready after you press Play. Headphones recommended.</p>
-        <p class="grade-line" id="grade-line" hidden></p>
+        <div class="session-transport">
+          <button type="button" class="play-round" id="primary" aria-label="Hear the cell">
+            <span class="play-round-icon" aria-hidden="true"></span>
+          </button>
+          <p class="play-round-label" id="primary-label">Hear the cell</p>
+          <button type="button" class="text-link" id="continue-btn">Continue</button>
+        </div>
+        <footer class="session-bottom">
+          <button type="button" class="session-nav-btn" id="session-back" data-testid="session-back">Back</button>
+          <div class="session-progress" aria-hidden="true"><span id="session-progress-fill"></span></div>
+          <button type="button" class="session-nav-btn" id="session-next" data-testid="session-next">Next</button>
+        </footer>
       </section>
 
       <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
@@ -121,17 +128,16 @@
   <dialog id="quick-view" class="setup-sheet quick-view-sheet" data-testid="quick-view" aria-labelledby="quick-view-title">
     <form method="dialog" class="settings-form setup-form">
       <p class="setup-handle" aria-hidden="true"></p>
-      <h2 id="quick-view-title">Quick view</h2>
+      <h2 id="quick-view-title">Modules</h2>
       <div class="quick-view-list" id="quick-view-list"></div>
       <button type="submit" class="text-link" value="close">Close</button>
     </form>
   </dialog>
 
-  <dialog id="setup" class="setup-sheet" data-testid="setup-sheet" data-sleeve="amber">
+  <dialog id="settings" class="setup-sheet" data-testid="settings-sheet">
     <form method="dialog" class="settings-form setup-form">
       <p class="setup-handle" aria-hidden="true"></p>
-      <h2 id="setup-title">Lesson setup</h2>
-      <p class="help" id="setup-summary"></p>
+      <h2>Settings</h2>
       <div class="field">
         <span id="key-mode-label">Keys</span>
         <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
@@ -153,18 +159,6 @@
           <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
         </div>
       </div>
-      <nav class="setup-links" id="setup-links" hidden data-testid="setup-links"></nav>
-      <p class="mic-status" id="mic-status">Microphone asks on Play. Headphones recommended so the backing does not leak into grading.</p>
-      <div class="setup-actions">
-        <button type="button" class="play start" id="start-lesson">Start</button>
-        <button type="submit" class="text-link" value="cancel">Cancel</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="settings">
-    <form method="dialog" class="settings-form">
-      <h2>Display</h2>
       <fieldset>
         <legend>Clef</legend>
         <label><input type="radio" name="clef" value="bass" checked> Bass (concert trombone, default)</label>
@@ -182,7 +176,7 @@
       <details>
         <summary>About this experiment</summary>
         <p>Browser prototype with getUserMedia + AudioWorklet (YIN) grading. Real microphone accuracy needs a check on an iPad with a horn. Space plays or pauses. R restarts.</p>
-        <p>Five modules from Essential Jazz Vocabulary. Each has Learn the lick plus two Integrate placements. Setup remembers choices per lesson.</p>
+        <p>Five modules from Essential Jazz Vocabulary. Settings are global and apply to the next lesson you start.</p>
       </details>
       <button type="submit" class="play compact" value="close">Close</button>
     </form>

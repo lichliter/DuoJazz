@@ -423,23 +423,26 @@ function renderFormMei({
 }) {
   const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
   const form = formForApplication(applicationId);
-  const chords = isolated && mode === "phrase"
+  const isolatedCell = isolated && (mode === "phrase" || mode === "chords");
+  const chords = isolatedCell
     ? learnChords(concertKey, displayMode, applicationId)
     : chorusChords(concertKey, displayMode, applicationId);
-  const barCount = isolated && mode === "phrase"
+  const barCount = isolatedCell
     ? Math.max(1, Math.ceil(learnBeatsFor(applicationId) / BEATS_PER_BAR))
     : form.bars.length;
   const items = pitchedItems(
     applicationId,
-    mode === "phrase" ? "landing" : mode,
-    isolated || mode === "phrase",
+    mode === "phrase" || mode === "chords" ? "landing" : mode,
+    isolated || mode === "phrase" || mode === "chords",
     concertKey.pc,
   );
   const slashRests = mode === "landing" || mode === "slash";
   const slashAll = mode === "slash";
   const measures = [];
 
-  const pickupNotes = items.filter((item) => item.type === "note" && item.beat < -1e-6);
+  const pickupNotes = mode === "chords"
+    ? []
+    : items.filter((item) => item.type === "note" && item.beat < -1e-6);
   if (pickupNotes.length) {
     ctx.barState = newBarState(ctx.shownKey);
     const start = pickupNotes[0].beat;
@@ -460,14 +463,16 @@ function renderFormMei({
   for (let bar = 0; bar < barCount; bar += 1) {
     ctx.barState = newBarState(ctx.shownKey);
     const barStart = bar * BEATS_PER_BAR;
-    const barEnd = isolated && mode === "phrase"
+    const barEnd = isolatedCell
       ? Math.min(learnBeatsFor(applicationId), barStart + BEATS_PER_BAR)
       : barStart + BEATS_PER_BAR;
     const barChords = chords.filter((chord) => (
       chord.startBeat < barEnd - 1e-6 && chord.startBeat + chord.durationBeats > barStart + 1e-6
     ));
     let tokens;
-    if (slashAll) {
+    if (mode === "chords") {
+      tokens = [{ beats: barEnd - barStart, beamable: false, xml: `<space ${durAttrs(barEnd - barStart)}/>` }];
+    } else if (slashAll) {
       tokens = restTokens(barStart, barEnd - barStart, true, ctx);
     } else if (useNotes) {
       tokens = sliceTokens(items, barStart, barEnd, ctx, slashRests);
@@ -574,6 +579,30 @@ export function landingMEI(
   });
 }
 
+export function chordsOnlyMEI(
+  concertKey,
+  displayMode,
+  applicationId = DEFAULT_APPLICATION_ID,
+  clef = DEFAULT_CLEF,
+  options = {},
+) {
+  const isolated = Boolean(options.isolated);
+  const barCount = isolated
+    ? Math.max(1, Math.ceil(learnBeatsFor(applicationId) / BEATS_PER_BAR))
+    : undefined;
+  return renderFormMei({
+    concertKey,
+    displayMode,
+    applicationId,
+    clef,
+    melodyRegister: DEFAULT_MELODY_REGISTER,
+    mode: "chords",
+    showCues: false,
+    barsPerLine: options.barsPerLine ?? (isolated ? Math.min(5, Math.max(2, barCount ?? 2)) : 4),
+    isolated,
+  });
+}
+
 export function chorusStaffMEI({
   concertKey,
   displayMode,
@@ -583,7 +612,11 @@ export function chorusStaffMEI({
   mode = "model",
   showCues = false,
   barsPerLine = 4,
+  isolated = false,
 }) {
+  if (mode === "chords") {
+    return chordsOnlyMEI(concertKey, displayMode, applicationId, clef, { barsPerLine, isolated });
+  }
   if (mode === "slash") {
     return slashMEI(concertKey, displayMode, applicationId, clef, { showCues, barsPerLine });
   }
