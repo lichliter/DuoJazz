@@ -198,6 +198,7 @@ function buildLesson(row) {
     summary: row.simplification,
     context: `${tune.title} · ${n === 1 ? `bar ${firstTuneBar}` : rangeLabel(row.start, row.bars)}`,
     defaultKeyId: tune.key,
+    tuneId: tune.id,
   };
 }
 

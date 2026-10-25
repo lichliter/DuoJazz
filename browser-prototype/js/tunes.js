@@ -29,6 +29,8 @@ export const TUNES = [
   {
     id: "nows-time",
     title: "Now's the Time / Billie's Bounce",
+    composer: "Charlie Parker",
+    style: "blues",
     key: "F",
     keyQuality: "major",
     chords: ireal("Now's the Time"),
@@ -60,6 +62,8 @@ export const TUNES = [
   {
     id: "four",
     title: "Four",
+    composer: "Miles Davis",
+    style: "swing",
     key: "Eb",
     keyQuality: "major",
     chords: ireal("Four"),
@@ -134,6 +138,8 @@ export const TUNES = [
   {
     id: "tune-up",
     title: "Tune Up",
+    composer: "Miles Davis",
+    style: "swing",
     key: "D",
     keyQuality: "major",
     chords: ireal("Tune Up"),
@@ -169,6 +175,8 @@ export const TUNES = [
   {
     id: "st-thomas",
     title: "St. Thomas",
+    composer: "Sonny Rollins",
+    style: "calypso",
     key: "C",
     keyQuality: "major",
     chords: ireal("St. Thomas"),
@@ -204,6 +212,8 @@ export const TUNES = [
   {
     id: "attya",
     title: "All the Things You Are",
+    composer: "Jerome Kern",
+    style: "swing",
     key: "Ab",
     keyQuality: "major",
     chords: ireal("All the Things You Are"),
@@ -281,6 +291,8 @@ export const TUNES = [
   {
     id: "autumn-leaves",
     title: "Autumn Leaves",
+    composer: "Joseph Kosma",
+    style: "swing",
     key: "G",
     keyQuality: "minor",
     chords: ireal("Autumn Leaves"),
@@ -337,6 +349,8 @@ export const TUNES = [
   {
     id: "so-what",
     title: "So What",
+    composer: "Miles Davis",
+    style: "modal",
     key: "D",
     keyQuality: "minor",
     chords: ireal("So What"),
@@ -372,6 +386,8 @@ export const TUNES = [
   {
     id: "another-you",
     title: "There Will Never Be Another You",
+    composer: "Harry Warren",
+    style: "swing",
     key: "Eb",
     keyQuality: "major",
     chords: ireal("There Will Never Be Another You"),
@@ -442,6 +458,8 @@ export const TUNES = [
   {
     id: "recordame",
     title: "Recordame",
+    composer: "Joe Henderson",
+    style: "bossa",
     key: "A",
     keyQuality: "minor",
     feel: "straight",
@@ -480,6 +498,8 @@ export const TUNES = [
   {
     id: "nutville",
     title: "Nutville",
+    composer: "Horace Silver",
+    style: "latin",
     key: "C",
     keyQuality: "minor",
     feel: "medium-up",

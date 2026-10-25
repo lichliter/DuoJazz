@@ -59,6 +59,7 @@ import {
   resolveQuickViewJump,
   cardCounter,
   settingsSummary,
+  settingsSummaryShort,
   sessionProgress,
   cardLabel,
   cardKicker,
@@ -652,6 +653,8 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "Piano · 140 bpm · 1-bar");
   assert.equal(settingsSummary(defaultPrefs()), "Piano · 96 bpm · 1-bar");
   assert.equal(settingsSummary({ instrumentId: "trumpet", tempo: 96 }), "Trumpet · 96 bpm · 1-bar");
+  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm");
+  assert.equal(settingsSummaryShort({ instrumentId: "trumpet", tempo: 140 }), "Trumpet · 140 bpm");
   assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
   assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
