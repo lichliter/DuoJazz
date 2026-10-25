@@ -29,6 +29,8 @@ import {
   landingABC,
   phraseNotes,
   phraseSpanBars,
+  pitchName,
+  conventionalMajorUsesFlats,
   TROMBONE_LOW_MIDI,
   TROMBONE_HIGH_MIDI,
 } from "./music.js";
@@ -241,7 +243,7 @@ const EXPECTED_CHORDS = {
   },
   nutville: {
     key: "C",
-    bars: 30,
+    bars: 24,
     sections: [
       { label: "A", startBar: 1 },
       { label: "B", startBar: 17 },
@@ -249,15 +251,14 @@ const EXPECTED_CHORDS = {
     chords: [
       ...Array.from({ length: 8 }, () => "Cm7"),
       "Fm7", "Fm7", "Fm7", "D♭7", "Cm7", "Cm7", "Cm7", "Cm7",
-      "A♭7", "A♭7", "G7", "G7", "G♭7", "G♭7", "F7", "F7",
-      "A♭7", "A♭7", "G7♭13", "G7♭13", "Cm7", "Cm7",
+      "A♭7", "G7", "G♭7", "F7", "A♭7", "G7♯5", "Cm7", "Cm7",
     ],
     spots: [
       { bar: 1, lickId: "mp" },
       { bar: 17, lickId: "cbc" },
+      { bar: 18, lickId: "cbc" },
       { bar: 19, lickId: "cbc" },
-      { bar: 21, lickId: "cbc" },
-      { bar: 23, lickId: "cbc" },
+      { bar: 20, lickId: "cbc" },
     ],
   },
 };
@@ -426,6 +427,27 @@ test("tempo is remembered per tune across lick and play-through lessons", () => 
   assert.equal(prefs.lessons["tune-four"].tempo, 120);
   assert.equal(prefs.lessons["tune-four-bo"].tempo, 120);
   assert.equal(prefs.lessons["tune-st-thomas"].tempo, 96);
+});
+
+test("Recordame walking ii–V–I steps keep one accidental family in every key", () => {
+  const g = chorusChords(getKey("G"), "concert", "tune-recordame").map((chord) => chord.name);
+  assert.deepEqual([g[13], g[14], g[15]], ["F♯m7", "B7", "Emaj7"]);
+  const steps = [[7, 8, 9], [10, 11, 12], [13, 14, 15], [16, 17, 18]];
+  for (const keyId of TWELVE_KEY_IDS) {
+    const chords = chorusChords(getKey(keyId), "concert", "tune-recordame");
+    for (const idxs of steps) {
+      const [ii, v, I] = idxs.map((index) => chords[index]);
+      const flats = conventionalMajorUsesFlats(I.concertRootPc);
+      for (const chord of [ii, v, I]) {
+        const expectedRoot = pitchName(chord.concertRootPc, flats);
+        assert.equal(
+          chord.name.startsWith(expectedRoot),
+          true,
+          `${keyId} ${chord.name} should start with ${expectedRoot}`,
+        );
+      }
+    }
+  }
 });
 
 test("existing mastery lesson ids are unchanged", () => {

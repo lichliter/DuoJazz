@@ -7,6 +7,11 @@ function C(intervalFromTonic, quality, durationBeats = 4, extra = {}) {
   return { intervalFromTonic, quality, durationBeats, ...extra };
 }
 
+/** Keep a walking ii–V–I in the destination I's accidental family. */
+function walkI(interval) {
+  return { spellFrom: interval };
+}
+
 function ireal(tune) {
   return `iReal Pro Jazz 1460 · ${tune}`;
 }
@@ -451,14 +456,14 @@ export const TUNES = [
           [C(3, "minor7")],
           [C(3, "minor7")],
           [C(3, "minor7")],
-          [C(3, "minor7", 2), C(8, "dominant7", 2)],
-          [C(1, "major7", 4, { usesFlats: true })],
-          [C(1, "minor7", 2, { usesFlats: true }), C(6, "dominant7", 2, { usesFlats: true })],
-          [C(11, "major7", 4, { usesFlats: true })],
-          [C(11, "minor7", 2, { usesFlats: true }), C(4, "dominant7", 2, { usesFlats: true })],
-          [C(9, "major7", 4, { usesFlats: true })],
-          [C(10, "minor7", 2), C(3, "dominant7", 2)],
-          [C(8, "major7")],
+          [C(3, "minor7", 2, walkI(1)), C(8, "dominant7", 2, walkI(1))],
+          [C(1, "major7", 4, walkI(1))],
+          [C(1, "minor7", 2, walkI(11)), C(6, "dominant7", 2, walkI(11))],
+          [C(11, "major7", 4, walkI(11))],
+          [C(11, "minor7", 2, walkI(9)), C(4, "dominant7", 2, walkI(9))],
+          [C(9, "major7", 4, walkI(9))],
+          [C(10, "minor7", 2, walkI(8)), C(3, "dominant7", 2, walkI(8))],
+          [C(8, "major7", 4, walkI(8))],
           [C(7, "dominant7s9")],
         ],
       },
@@ -478,7 +483,7 @@ export const TUNES = [
     key: "C",
     keyQuality: "minor",
     feel: "medium-up",
-    chords: "reharmonize.app · Nutville (Horace Silver). Concert C minor, medium-up. A Latin 16; B swing, bar lengths TODO-verify (coded as 2 bars each).",
+    chords: "iReal Pro Jazz 1460 · Nutville Solo (Brian's chart). Concert C minor, medium-up swing. A 16 Latin; B 8 swing, one bar each.",
     sections: [
       {
         label: "A",
@@ -498,20 +503,13 @@ export const TUNES = [
       {
         label: "B",
         feel: "swing",
-        todoVerify: true,
         bars: [
           [C(8, "dominant7")],
-          [C(8, "dominant7")],
-          [C(7, "dominant7")],
           [C(7, "dominant7")],
           [C(6, "dominant7", 4, { usesFlats: true })],
-          [C(6, "dominant7", 4, { usesFlats: true })],
-          [C(5, "dominant7")],
           [C(5, "dominant7")],
           [C(8, "dominant7")],
-          [C(8, "dominant7")],
-          [C(7, "dominant7b13")],
-          [C(7, "dominant7b13")],
+          [C(7, "dominant7s5")],
           [C(0, "minor7")],
           [C(0, "minor7")],
         ],
@@ -520,9 +518,9 @@ export const TUNES = [
     spots: [
       { bar: 1, lickId: "mp", anchor: 0 },
       { bar: 17, lickId: "cbc", anchor: 1 },
-      { bar: 19, lickId: "cbc", anchor: 0 },
-      { bar: 21, lickId: "cbc", anchor: 11 },
-      { bar: 23, lickId: "cbc", anchor: 10 },
+      { bar: 18, lickId: "cbc", anchor: 0 },
+      { bar: 19, lickId: "cbc", anchor: 11 },
+      { bar: 20, lickId: "cbc", anchor: 10 },
     ],
   },
 ];

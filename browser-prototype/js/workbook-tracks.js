@@ -18,11 +18,11 @@ const RECORDAME_WALK = [
 const RECORDAME_WALK_NOTE = "Same cell on each descending Recordame step: Cm7 F7 | B♭maj7, B♭m7 E♭7 | A♭maj7, A♭m7 D♭7 | G♭maj7, then a half step Gm7 C7 | Fmaj7. ii and V are 2 beats each. Chart from reharmonize.app / allsolos.com (Page One).";
 const NUTVILLE_DOMS = [
   { bar: 1, anchor: 1 },
-  { bar: 3, anchor: 0 },
-  { bar: 5, anchor: 11 },
-  { bar: 7, anchor: 10 },
+  { bar: 2, anchor: 0 },
+  { bar: 3, anchor: 11 },
+  { bar: 4, anchor: 10 },
 ];
-const NUTVILLE_DOM_NOTE = "Same V cell on Nutville's descending dominants: A♭7, G7, G♭7, F7, down a half step each time. B-section bar lengths assumed 2 each (TODO-verify). Source reharmonize.app.";
+const NUTVILLE_DOM_NOTE = "Same V cell on Nutville's descending dominants: A♭7, G7, G♭7, F7, one bar each. Source iReal Pro (Brian's chart).";
 
 function ireal(tune) {
   return `iReal Pro Jazz 1460 · ${tune}`;
@@ -65,7 +65,6 @@ export const WORKBOOK_TRACKS = [
   { lickId: "cbc", tuneId: "nutville", start: 17, bars: 8, spots: NUTVILLE_DOMS, simplification: NUTVILLE_DOM_NOTE },
 
   { lickId: "jcdp", tuneId: "tune-up", start: 1, bars: 8, spots: [{ bar: 2, anchor: 0 }], simplification: "3-bar V♯9 | V♯9 | I cell over A7 | Dmaj7 | Dmaj7. Tune Up has one V bar, then two of I." },
-  { lickId: "jcdp", tuneId: "nutville", start: 17, bars: 14, spots: [{ bar: 11, anchor: 0 }], simplification: "3-bar V | V | I over G7♭13 | G7♭13 | Cm7. Workbook I is maj7; Nutville resolves to i. B bars assumed 2 each (TODO-verify)." },
 
   { lickId: "tdp", tuneId: "tune-up", start: 1, bars: 8, spots: [{ bar: 2, anchor: 0 }], simplification: "Diminished pattern on V: A7. Workbook quality is 7♯9." },
   { lickId: "tdp", tuneId: "autumn-leaves", start: 1, bars: 8, spots: [{ bar: 6, anchor: 0 }], simplification: "V cell on D7♭13. Workbook quality is 7♯9." },
@@ -102,7 +101,7 @@ export const WORKBOOK_TRACKS = [
 
   { lickId: "ae", tuneId: "tune-up", start: 1, bars: 8, spots: [{ bar: 2, anchor: 0 }], simplification: "1-bar Valt–I cell played on A7; I is the next bar (Dmaj7). Workbook writes Valt and I in one bar." },
   { lickId: "ae", tuneId: "autumn-leaves", start: 1, bars: 8, spots: [{ bar: 6, anchor: 0 }], simplification: "Valt–I cell on D7♭13; i (Gm6) is the next bar." },
-  { lickId: "ae", tuneId: "nutville", start: 17, bars: 14, spots: [{ bar: 11, anchor: 0 }], simplification: "Valt–I cell on G7♭13; i (Cm7) is the next two bars. B bars assumed 2 each (TODO-verify)." },
+  { lickId: "ae", tuneId: "nutville", start: 17, bars: 8, spots: [{ bar: 6, anchor: 0 }], simplification: "Valt–I cell on G7♯5; i (Cm7) is the next bar (B bars 6–7). Source iReal Pro (Brian's chart)." },
 
   { lickId: "fe", tuneId: "four", start: 1, bars: 8, spots: [{ bar: 1, anchor: 0 }], simplification: "I enclosure on E♭maj7." },
   { lickId: "fe", tuneId: "tune-up", start: 1, bars: 8, spots: [{ bar: 3, anchor: 0 }], simplification: "I enclosure on Dmaj7." },

@@ -34,7 +34,6 @@ import { expectedNotesFor, gradeSession, synthTrack } from "./grade.js";
 
 const LOOSE_TAILS = new Set([
   "jcdp-tune-up",
-  "jcdp-nutville",
   "dct-four",
   "dct-another-you",
   "dss-nows-time",
@@ -136,25 +135,29 @@ test("new placements stay on or above C3 in twelve keys", () => {
   }
 });
 
-test("Nutville is C minor, 16-bar Latin A plus a TODO-verify swing B, with descending dominants", () => {
+test("Nutville is C minor, 24 bars, with one-bar B-section dominants and G7♯5", () => {
   const tune = tuneById("nutville");
-  assert.equal(tuneBarCount(tune), 30);
+  assert.equal(tuneBarCount(tune), 24);
   assert.equal(tune.key, "C");
   assert.equal(tune.keyQuality, "minor");
   assert.equal(tune.feel, "medium-up");
-  assert.equal(tune.sections[1].todoVerify, true);
-  assert.match(tune.chords, /TODO-verify/);
+  assert.equal(tune.sections[1].todoVerify, undefined);
+  assert.match(tune.chords, /iReal Pro Jazz 1460 · Nutville Solo/);
+  assert.doesNotMatch(tune.chords, /TODO-verify/);
   assert.deepEqual(
     chorusChords(getKey("C"), "concert", "tune-nutville").map((chord) => chord.name),
     [
       ...Array.from({ length: 8 }, () => "Cm7"),
       "Fm7", "Fm7", "Fm7", "D♭7", "Cm7", "Cm7", "Cm7", "Cm7",
-      "A♭7", "A♭7", "G7", "G7", "G♭7", "G♭7", "F7", "F7",
-      "A♭7", "A♭7", "G7♭13", "G7♭13", "Cm7", "Cm7",
+      "A♭7", "G7", "G♭7", "F7", "A♭7", "G7♯5", "Cm7", "Cm7",
     ],
   );
-  const row = WORKBOOK_TRACKS.find((item) => item.lickId === "cbc" && item.tuneId === "nutville");
-  assert.deepEqual(row.spots.map((spot) => spot.anchor), [1, 0, 11, 10]);
+  const walk = WORKBOOK_TRACKS.find((item) => item.lickId === "cbc" && item.tuneId === "nutville");
+  assert.deepEqual(walk.spots.map((spot) => spot.bar), [1, 2, 3, 4]);
+  assert.deepEqual(walk.spots.map((spot) => spot.anchor), [1, 0, 11, 10]);
+  const resolution = WORKBOOK_TRACKS.find((item) => item.lickId === "ae" && item.tuneId === "nutville");
+  assert.deepEqual(resolution.spots, [{ bar: 6, anchor: 0 }]);
+  assert.equal(WORKBOOK_TRACKS.some((item) => item.lickId === "jcdp" && item.tuneId === "nutville"), false);
   const session = jumpToCard(createSession({
     lessonId: "cbc-integrate-nutville",
     startKeyId: "C",
