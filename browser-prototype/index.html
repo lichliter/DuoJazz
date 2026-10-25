@@ -8,17 +8,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=95">
-  <link rel="stylesheet" href="./css/styles.css?v=95">
-  <link rel="stylesheet" href="./css/hig.css?v=95">
+  <link rel="stylesheet" href="./css/tokens.css?v=96">
+  <link rel="stylesheet" href="./css/styles.css?v=96">
+  <link rel="stylesheet" href="./css/hig.css?v=96">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=95" defer></script>
-  <script type="module" src="./js/app.js?v=95"></script>
+  <script src="./js/verovio-bind.js?v=96" defer></script>
+  <script type="module" src="./js/app.js?v=96"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <div class="app-shell" id="app-shell" data-screen="home">
+  <div class="app-shell" id="app-shell" data-screen="home" data-tab="licks">
     <header class="masthead" id="masthead">
       <div class="brand">
         <p class="logo">duojazz</p>
@@ -27,16 +27,25 @@
         <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view">Modules</button>
       </div>
     </header>
+    <nav class="app-tab-bar" id="app-tab-bar" data-testid="app-tab-bar" aria-label="Main">
+        <button type="button" class="app-tab" data-tab="licks" data-testid="tab-licks" aria-current="page">
+          <svg class="app-tab-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 18.2a2.7 2.7 0 1 1-2.2-.6V7.1l11-2.5v9.3a2.7 2.7 0 1 1-2.2-.6V7.7L9 9.4v8.8z"/></svg>
+          <span>Licks</span>
+        </button>
+        <button type="button" class="app-tab" data-tab="charts" data-testid="tab-charts">
+          <svg class="app-tab-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"/></svg>
+          <span>Charts</span>
+        </button>
+        <button type="button" class="app-tab" data-tab="settings" data-testid="tab-settings">
+          <svg class="app-tab-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.04 7.04 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.5.42l-.36 2.54c-.59.22-1.14.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.8 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.92 14.1a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.49.41 1.04.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.8c.24 0 .45-.18.5-.42l.36-2.54c.59-.22 1.14-.53 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/></svg>
+          <span>Settings</span>
+        </button>
+      </nav>
 
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
         <div class="home-settings">
-          <button type="button" class="settings-summary" id="settings-summary-btn" data-testid="settings-summary-btn" aria-haspopup="dialog" aria-controls="settings" aria-label="Settings">
-            <svg class="settings-gear" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-              <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.04 7.04 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.5.42l-.36 2.54c-.59.22-1.14.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.8 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.92 14.1a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.49.41 1.04.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.8c.24 0 .45-.18.5-.42l.36-2.54c.59-.22 1.14-.53 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
-            </svg>
-            <span id="settings-summary">Piano · 96 bpm · 1-bar</span>
-          </button>
+          <button type="button" class="home-summary" id="home-summary" data-testid="home-summary">Piano · 96 bpm</button>
         </div>
         <section class="lesson-path" aria-label="Lesson path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -46,6 +55,74 @@
           <div class="path-rail" aria-hidden="true"></div>
           <div class="lesson-list" id="lesson-list"></div>
         </section>
+      </section>
+
+      <section class="screen charts-screen" id="screen-charts" data-testid="screen-charts" aria-label="Charts" hidden>
+        <div id="charts-list" class="chart-list" data-testid="charts-list"></div>
+        <article id="chart-detail" class="chart-detail" data-testid="chart-detail" hidden>
+          <button type="button" class="text-link chart-back" id="chart-back" data-testid="chart-back">Charts</button>
+          <header class="chart-heading">
+            <h1 id="chart-heading-title">Chart</h1>
+            <p id="chart-heading-meta" class="help"></p>
+          </header>
+          <div class="chart-key-row">
+            <p class="group-label" id="chart-key-label">Key</p>
+            <div class="row wrap" id="chart-keys" role="group" aria-labelledby="chart-key-label"></div>
+          </div>
+          <div id="chart-grid" class="ireal-grid" data-testid="chart-grid"></div>
+          <section class="chart-licks" aria-labelledby="chart-licks-heading">
+            <h2 id="chart-licks-heading">Licks for this tune</h2>
+            <div id="chart-licks-list" data-testid="chart-licks-list"></div>
+          </section>
+        </article>
+      </section>
+
+      <section class="screen settings-screen" id="screen-settings" data-testid="settings-sheet" aria-label="Settings" hidden>
+        <form class="sheet-form settings-page" id="settings-form">
+          <h1 class="settings-title">Settings</h1>
+          <section class="inset-group">
+            <h2 class="group-label" id="instrument-label">Instrument</h2>
+            <div id="instrument-list" role="radiogroup" aria-labelledby="instrument-label"></div>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label" id="key-mode-label">Keys</h2>
+            <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
+            <div class="group-row">
+              <span id="start-key-label">Start key</span>
+            </div>
+            <div class="row wrap" id="setup-keys" role="group" aria-labelledby="start-key-label"></div>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label">Tempo</h2>
+            <div class="tempo-field">
+              <div class="tempo">
+                <button type="button" class="stepper" id="tempo-down" aria-label="Slower">−</button>
+                <span id="tempo-readout">96</span>
+                <span class="unit">bpm</span>
+                <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
+              </div>
+            </div>
+            <div class="group-row">
+              <span>Count-in</span>
+              <span class="row-value">1 bar</span>
+            </div>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label">Playback</h2>
+            <label class="group-row"><span>Swing eighths</span><input type="checkbox" id="swing" checked></label>
+            <label class="group-row"><span>Guide tones on the helped chorus</span><input type="checkbox" id="guideTones" checked></label>
+            <label class="group-row"><span>Click during the music</span><input type="checkbox" id="metronome"></label>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label" id="card-set-label">Cards</h2>
+            <div class="row wrap" id="card-sets" role="group" aria-labelledby="card-set-label"></div>
+          </section>
+          <details class="about-block">
+            <summary>About this experiment</summary>
+            <p>Browser prototype with getUserMedia + AudioWorklet (YIN) grading. Real microphone accuracy needs a check on an iPad with a horn. Space plays or pauses. R restarts.</p>
+            <p>Thirty modules from Essential Jazz Vocabulary. Settings are global and apply to the next lesson you start.</p>
+          </details>
+        </form>
       </section>
 
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
@@ -153,61 +230,5 @@
     </form>
   </dialog>
 
-  <dialog id="settings" class="form-sheet" data-testid="settings-sheet">
-    <form method="dialog" class="sheet-form">
-      <header class="sheet-toolbar">
-        <h2>Settings</h2>
-        <button type="submit" class="sheet-done" value="close">Done</button>
-      </header>
-
-      <section class="inset-group">
-        <h3 class="group-label" id="instrument-label">Instrument</h3>
-        <div id="instrument-list" role="radiogroup" aria-labelledby="instrument-label"></div>
-      </section>
-
-      <section class="inset-group">
-        <h3 class="group-label" id="key-mode-label">Keys</h3>
-        <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
-        <div class="group-row">
-          <span id="start-key-label">Start key</span>
-        </div>
-        <div class="row wrap" id="setup-keys" role="group" aria-labelledby="start-key-label"></div>
-      </section>
-
-      <section class="inset-group">
-        <h3 class="group-label">Tempo</h3>
-        <div class="tempo-field">
-          <div class="tempo">
-            <button type="button" class="stepper" id="tempo-down" aria-label="Slower">−</button>
-            <span id="tempo-readout">96</span>
-            <span class="unit">bpm</span>
-            <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
-          </div>
-        </div>
-        <div class="group-row">
-          <span>Count-in</span>
-          <span class="row-value">1 bar</span>
-        </div>
-      </section>
-
-      <section class="inset-group">
-        <h3 class="group-label">Playback</h3>
-        <label class="group-row"><span>Swing eighths</span><input type="checkbox" id="swing" checked></label>
-        <label class="group-row"><span>Guide tones on the helped chorus</span><input type="checkbox" id="guideTones" checked></label>
-        <label class="group-row"><span>Click during the music</span><input type="checkbox" id="metronome"></label>
-      </section>
-
-      <section class="inset-group">
-        <h3 class="group-label" id="card-set-label">Cards</h3>
-        <div class="row wrap" id="card-sets" role="group" aria-labelledby="card-set-label"></div>
-      </section>
-
-      <details class="about-block">
-        <summary>About this experiment</summary>
-        <p>Browser prototype with getUserMedia + AudioWorklet (YIN) grading. Real microphone accuracy needs a check on an iPad with a horn. Space plays or pauses. R restarts.</p>
-        <p>Thirty modules from Essential Jazz Vocabulary. Settings are global and apply to the next lesson you start.</p>
-      </details>
-    </form>
-  </dialog>
 </body>
 </html>

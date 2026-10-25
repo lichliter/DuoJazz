@@ -72,9 +72,9 @@ import {
   skipRemainingCards,
   resolveQuickViewJump,
   persistLessonTempo,
-  settingsSummary,
   wrapupNextModule,
   homeNextModule,
+  settingsSummaryShort,
   setInstrument,
   cardLabel,
   sessionScreenTitle,
@@ -91,6 +91,8 @@ import {
   learnLessonIdForLick,
   tunePlayLessonId,
 } from "./tunes.js";
+import { parseTabState, tabSearch } from "./tabs.js";
+import { chartTuneList, chartGrid, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import {
@@ -129,21 +131,38 @@ let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
 let selectedModuleId = MODULES[0]?.id ?? "cmar";
+let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
+let lastChartTune = nav.tune;
+let chartConcertKeyId = null;
+const tabScroll = { licks: 0, charts: 0, settings: 0 };
 
 const els = {
   shell: document.getElementById("app-shell"),
   masthead: document.getElementById("masthead"),
   home: document.getElementById("screen-home"),
+  charts: document.getElementById("screen-charts"),
+  settingsScreen: document.getElementById("screen-settings"),
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
+  tabBar: document.getElementById("app-tab-bar"),
+  homeSummary: document.getElementById("home-summary"),
+  chartsList: document.getElementById("charts-list"),
+  chartDetail: document.getElementById("chart-detail"),
+  chartBack: document.getElementById("chart-back"),
+  chartHeadingTitle: document.getElementById("chart-heading-title"),
+  chartHeadingMeta: document.getElementById("chart-heading-meta"),
+  chartKeys: document.getElementById("chart-keys"),
+  chartGrid: document.getElementById("chart-grid"),
+  chartLicksList: document.getElementById("chart-licks-list"),
   lessonList: document.getElementById("lesson-list"),
   instrumentList: document.getElementById("instrument-list"),
-  settings: document.getElementById("settings"),
+  settings: document.getElementById("screen-settings"),
   setup: document.getElementById("setup"),
   setupTitle: document.getElementById("setup-title"),
   setupSummary: document.getElementById("setup-summary"),
-  settingsSummary: document.getElementById("settings-summary"),
-  settingsSummaryBtn: document.getElementById("settings-summary-btn"),
+  settingsSummary: document.getElementById("home-summary"),
+  settingsSummaryBtn: document.getElementById("home-summary"),
+  settingsForm: document.getElementById("settings-form"),
   nextModule: document.getElementById("next-module"),
   quickViewBtn: document.getElementById("quick-view-btn"),
   quickViewTitle: document.getElementById("quick-view-title"),
@@ -317,8 +336,42 @@ function screenName() {
 }
 
 function openSettings() {
-  renderSettings();
-  if (els.settings && !els.settings.open) els.settings.showModal();
+  selectTab("settings");
+}
+
+function saveTabScroll() {
+  tabScroll[nav.tab] = window.scrollY;
+}
+
+function restoreTabScroll() {
+  window.scrollTo({ top: tabScroll[nav.tab] ?? 0, behavior: "auto" });
+}
+
+function writeTabUrl(replace) {
+  if (typeof history === "undefined") return;
+  const url = `${location.pathname}${tabSearch(nav, location.search)}${location.hash}`;
+  const method = replace ? "replaceState" : "pushState";
+  history[method]({ nav }, "", url);
+}
+
+function selectTab(tab, { tune = undefined, replace = false } = {}) {
+  saveTabScroll();
+  if (tab === "charts") {
+    if (tune !== undefined) lastChartTune = tune;
+    if (!lastChartTune) chartConcertKeyId = null;
+    nav = { tab: "charts", tune: lastChartTune };
+  } else {
+    nav = { tab, tune: null };
+  }
+  writeTabUrl(replace);
+  render();
+  restoreTabScroll();
+}
+
+function syncTabButtons() {
+  els.tabBar?.querySelectorAll(".app-tab").forEach((btn) => {
+    btn.setAttribute("aria-current", btn.dataset.tab === nav.tab ? "page" : "false");
+  });
 }
 
 function startLesson(lessonId) {
@@ -554,8 +607,7 @@ function navigateCard(delta) {
 
 function anyDialogOpen() {
   return Boolean(
-    els.settings?.open
-    || els.quickView?.open
+    els.quickView?.open
     || els.leaveConfirm?.open,
   );
 }
@@ -735,9 +787,9 @@ function renderSetup() {
 }
 
 function renderSettings() {
-  const summary = settingsSummary(prefs);
+  const summary = settingsSummaryShort(prefs);
+  if (els.homeSummary) els.homeSummary.textContent = summary;
   if (els.settingsSummary) els.settingsSummary.textContent = summary;
-  if (els.settingsSummaryBtn) els.settingsSummaryBtn.setAttribute("aria-label", `Settings, ${summary}`);
   chipRow(els.keyModes, KEY_MODES, prefs.keyMode, (id) => {
     prefs.keyMode = id;
     persist();
@@ -1072,7 +1124,9 @@ function applyInstrument(instrumentId) {
 }
 
 function renderCopy(snap = transport.snapshot()) {
-  if (els.settingsSummary) els.settingsSummary.textContent = settingsSummary(prefs);
+  const summary = settingsSummaryShort(prefs);
+  if (els.homeSummary) els.homeSummary.textContent = summary;
+  if (els.settingsSummary) els.settingsSummary.textContent = summary;
   els.swing.checked = prefs.swing;
   els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
@@ -1206,18 +1260,137 @@ function renderWrapup() {
   }
 }
 
+function renderChartList() {
+  if (!els.chartsList) return;
+  els.chartsList.hidden = false;
+  if (els.chartDetail) els.chartDetail.hidden = true;
+  els.chartsList.replaceChildren(
+    ...chartTuneList().map((row) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chart-row";
+      btn.dataset.testid = `chart-row-${row.id}`;
+      btn.innerHTML = `<span class="chart-row-title">${row.title}</span><span class="chart-row-key">${row.key}</span><span class="chart-row-meta">${row.composer} · ${row.style}</span>`;
+      btn.addEventListener("click", () => selectTab("charts", { tune: row.id }));
+      return btn;
+    }),
+  );
+}
+
+function renderChartDetail() {
+  const tune = tuneById(nav.tune);
+  if (!tune || !els.chartDetail) {
+    renderChartList();
+    return;
+  }
+  if (els.chartsList) els.chartsList.hidden = true;
+  els.chartDetail.hidden = false;
+  if (!chartConcertKeyId) chartConcertKeyId = tune.key;
+  const grid = chartGrid(tune, {
+    instrumentId: prefs.instrumentId,
+    concertKeyId: chartConcertKeyId,
+  });
+  if (els.chartHeadingTitle) els.chartHeadingTitle.textContent = grid.title;
+  if (els.chartHeadingMeta) {
+    els.chartHeadingMeta.textContent = `${grid.composer} · ${grid.style} · ${grid.writtenKeyName}`;
+  }
+  if (els.chartKeys) {
+    chipRow(els.chartKeys, TWELVE_KEY_IDS.map((id) => ({
+      id,
+      label: displayKey(getKey(id), prefs.instrumentId, tune.keyQuality === "major" ? "major" : "minor").shortName,
+    })), chartConcertKeyId, (id) => {
+      chartConcertKeyId = id;
+      renderChartDetail();
+    });
+  }
+  if (els.chartGrid) {
+    els.chartGrid.replaceChildren(
+      ...grid.rows.map((row) => {
+        const line = document.createElement("div");
+        line.className = "ireal-row";
+        for (const bar of row.bars) {
+          const cell = document.createElement("div");
+          cell.className = "ireal-bar";
+          if (bar.sectionLabel) {
+            const mark = document.createElement("span");
+            mark.className = "ireal-section";
+            mark.textContent = bar.sectionLabel;
+            cell.append(mark);
+          }
+          if (bar.repeatStart) {
+            const mark = document.createElement("span");
+            mark.className = "ireal-repeat start";
+            mark.textContent = "|:";
+            cell.append(mark);
+          }
+          if (bar.repeatEnd) {
+            const mark = document.createElement("span");
+            mark.className = "ireal-repeat end";
+            mark.textContent = ":|";
+            cell.append(mark);
+          }
+          const chords = document.createElement("div");
+          chords.className = "ireal-chords";
+          chords.textContent = bar.chords.map((chord) => chord.name).join("  ");
+          cell.append(chords);
+          line.append(cell);
+        }
+        return line;
+      }),
+    );
+  }
+  if (els.chartLicksList) {
+    const rows = licksForTune(tune.id);
+    if (!rows.length) {
+      const empty = document.createElement("p");
+      empty.className = "help";
+      empty.textContent = "No tune lessons for this chart yet.";
+      els.chartLicksList.replaceChildren(empty);
+    } else {
+      els.chartLicksList.replaceChildren(
+        ...rows.map((row) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "chart-lick-row";
+          btn.dataset.testid = `chart-lick-${row.lessonId}`;
+          btn.innerHTML = `<strong>${row.label}</strong><span>${row.detail}</span>`;
+          btn.addEventListener("click", () => startLesson(row.lessonId));
+          return btn;
+        }),
+      );
+    }
+  }
+}
+
+function renderCharts() {
+  if (nav.tune && tuneById(nav.tune)) renderChartDetail();
+  else renderChartList();
+}
+
 function render(snap = transport.snapshot()) {
   const screen = screenName();
   els.shell.dataset.screen = screen;
+  els.shell.dataset.tab = nav.tab;
   if (screen === "home") delete els.shell.dataset.sleeve;
-  els.home.setAttribute("aria-hidden", String(screen !== "home"));
+  const onLicks = screen === "home" && nav.tab === "licks";
+  const onCharts = screen === "home" && nav.tab === "charts";
+  const onSettings = screen === "home" && nav.tab === "settings";
+  els.home.hidden = !onLicks;
+  if (els.charts) els.charts.hidden = !onCharts;
+  if (els.settingsScreen) els.settingsScreen.hidden = !onSettings;
+  els.home.setAttribute("aria-hidden", String(!onLicks));
   els.session.setAttribute("aria-hidden", String(screen !== "session"));
   els.wrapup.setAttribute("aria-hidden", String(screen !== "wrapup"));
+  if (els.charts) els.charts.setAttribute("aria-hidden", String(!onCharts));
+  if (els.settingsScreen) els.settingsScreen.setAttribute("aria-hidden", String(!onSettings));
+  syncTabButtons();
   const moduleName = session ? moduleForLesson(session.lessonId).name : "DuoJazz";
   document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
   renderHeadphonesTip();
-  if (screen === "home") renderHome();
+  if (onLicks) renderHome();
+  if (onCharts) renderCharts();
+  if (onSettings || onLicks) renderSettings();
   if (screen === "session") {
     renderSessionChrome();
     renderSessionOctave();
@@ -1232,6 +1405,8 @@ function render(snap = transport.snapshot()) {
 
 function applyDeepLink() {
   const params = new URLSearchParams(location.search);
+  nav = parseTabState(location.search);
+  lastChartTune = nav.tune;
   const screen = params.get("screen");
   const lessonId = params.get("lesson") || "learn-lick";
   const card = params.get("card") || "learn";
@@ -1240,7 +1415,10 @@ function applyDeepLink() {
   if (moduleParam) {
     selectedModuleId = moduleParam;
   }
-  if (!screen) return;
+  if (!screen) {
+    writeTabUrl(true);
+    return;
+  }
   if (params.get("demo") === "grades" || params.get("demo") === "medal") {
     let next = emptyMastery();
     next = recordQuizPass(next, "learn-lick", "G");
@@ -1261,7 +1439,7 @@ function applyDeepLink() {
     monitor.setState(mic);
   }
   if (screen === "setup") {
-    openSettings();
+    selectTab("settings", { replace: true });
     return;
   }
   if (screen === "session" || screen === "wrapup") {
@@ -1370,7 +1548,18 @@ transport.onEnded = () => {
   window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
 
-els.settingsSummaryBtn?.addEventListener("click", () => openSettings());
+els.homeSummary?.addEventListener("click", () => selectTab("settings"));
+els.tabBar?.addEventListener("click", (event) => {
+  const btn = event.target.closest?.(".app-tab");
+  if (btn?.dataset.tab) selectTab(btn.dataset.tab);
+});
+els.chartBack?.addEventListener("click", () => selectTab("charts", { tune: null }));
+els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
+window.addEventListener("popstate", () => {
+  nav = parseTabState(location.search);
+  if (nav.tab === "charts") lastChartTune = nav.tune;
+  render();
+});
 els.quickViewBtn?.addEventListener("click", requestQuickView);
 els.sessionExit.addEventListener("click", exitSession);
 els.sessionBack?.addEventListener("click", () => navigateCard(-1));
@@ -1481,7 +1670,7 @@ els.session?.addEventListener("touchend", (event) => {
 
 window.addEventListener("resize", () => {
   if (session?.screen === "session") renderNotation();
-  else renderHome();
+  else render();
 });
 
 const lessonPath = document.querySelector(".lesson-path");
@@ -1493,6 +1682,8 @@ if (document.fonts?.ready) {
 }
 
 window.__DUOJAZZ__ = {
+  selectTab,
+  getNav: () => nav,
   getPrefs: () => prefs,
   getSession: () => session,
   lastEngraveMs: () => lastEngraveMs,

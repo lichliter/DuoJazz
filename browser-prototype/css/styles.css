@@ -859,7 +859,9 @@ input[type="checkbox"] {
   flex-direction: column;
 }
 
-.app-shell[data-screen="home"] #screen-home,
+.app-shell[data-screen="home"][data-tab="licks"] #screen-home,
+.app-shell[data-screen="home"][data-tab="charts"] #screen-charts,
+.app-shell[data-screen="home"][data-tab="settings"] #screen-settings,
 .app-shell[data-screen="session"] #screen-session,
 .app-shell[data-screen="wrapup"] #screen-wrapup {
   display: flex;

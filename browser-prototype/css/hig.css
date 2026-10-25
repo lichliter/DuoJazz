@@ -48,36 +48,286 @@ body {
   font: var(--text-body);
 }
 
-.home-settings .settings-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
+.home-settings .home-summary {
   border: 0;
-  border-radius: var(--radius-full);
-  background: var(--fill);
-  color: var(--label);
+  background: transparent;
+  color: var(--label-secondary);
   font: var(--text-callout);
-  text-align: left;
-  cursor: pointer;
   min-height: var(--tap);
-  min-width: var(--tap);
-  max-width: 100%;
-  flex: 0 1 auto;
-  padding: 0 0.9rem 0 0.7rem;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
-.home-settings .settings-gear {
-  flex: 0 0 auto;
+.app-tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  height: calc(49px + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--toolbar-bg);
+  border-top: 0.5px solid var(--separator);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.app-tab {
+  flex: 1 1 0;
+  min-height: 49px;
+  border: 0;
+  background: transparent;
+  color: var(--label-tertiary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font: var(--text-caption);
+  cursor: pointer;
+}
+
+.app-tab[aria-current="page"] {
   color: var(--tint);
 }
 
-.home-settings .settings-summary span {
+.app-tab-icon {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font: var(--text-callout);
+}
+
+.app-shell[data-screen="session"] .app-tab-bar,
+.app-shell[data-screen="wrapup"] .app-tab-bar {
+  display: none;
+}
+
+.app-shell[data-tab="charts"] #quick-view-btn,
+.app-shell[data-tab="settings"] #quick-view-btn {
+  visibility: hidden;
+}
+
+.charts-screen,
+.settings-screen {
+  gap: var(--space-4);
+  padding-bottom: 1rem;
+}
+
+.chart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.8rem;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
   color: var(--label);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.chart-row-title {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+
+.chart-row-meta {
+  color: var(--label-secondary);
+  font: var(--text-footnote);
+  grid-column: 1;
+}
+
+.chart-row-key {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--tint);
+  font: var(--text-headline);
+}
+
+.chart-heading h1,
+.settings-title,
+.chart-licks h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+}
+
+.settings-title {
+  font: var(--text-large-title);
+  font-family: var(--display);
+}
+
+.chart-heading h1 {
+  font: var(--text-title-1);
+  font-family: var(--display);
+}
+
+.ireal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ireal-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid color-mix(in srgb, var(--paper-ink) 16%, transparent);
+}
+
+.ireal-row:last-child {
+  border-bottom: 0;
+}
+
+.ireal-bar {
+  position: relative;
+  min-height: 4.4rem;
+  padding: 1.05rem 0.4rem 0.45rem;
+  border-right: 1px solid color-mix(in srgb, var(--paper-ink) 16%, transparent);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.ireal-bar:last-child {
+  border-right: 0;
+}
+
+.ireal-section {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.35rem;
+  font: var(--text-caption);
+  font-weight: 700;
+  color: var(--tint-solid);
+}
+
+.ireal-repeat {
+  position: absolute;
+  top: 0.15rem;
+  font: var(--text-headline);
+  color: var(--paper-ink);
+}
+
+.ireal-repeat.start {
+  left: 0.15rem;
+}
+
+.ireal-repeat.end {
+  right: 0.15rem;
+}
+
+.ireal-chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.45rem;
+}
+
+.chart-licks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chart-lick-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  color: var(--label);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.chart-lick-row strong {
+  font-family: var(--display);
+}
+
+.chart-lick-row span {
+  color: var(--label-secondary);
+  font: var(--text-footnote);
+}
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  html:has(.app-shell[data-screen="home"]) {
+    padding-bottom: calc(49px + var(--safe-bottom));
+  }
+
+  .masthead .app-tab-bar {
+    /* stays fixed to the bottom; keep masthead as brand + Modules */
+  }
+}
+
+@media (min-width: 768px) {
+  .app-tab-bar {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    top: calc(var(--safe-top) + 6px);
+    z-index: 9;
+    height: 40px;
+    padding: 3px;
+    width: max-content;
+    align-self: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--fill);
+    margin-top: -2.7rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .app-tab {
+    flex: 0 0 auto;
+    min-height: 34px;
+    min-width: 5.6rem;
+    flex-direction: row;
+    gap: 0.35rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    font: var(--text-footnote);
+    font-weight: 600;
+  }
+
+  .app-tab[aria-current="page"] {
+    background: var(--bg);
+    color: var(--tint);
+  }
+
+  .app-tab-icon {
+    display: none;
+  }
 }
 
 .app-shell[data-screen="session"] #screen-home,
@@ -668,14 +918,7 @@ body {
 }
 
 @media (max-width: 390px) {
-  .home-settings .settings-summary {
-    width: 100%;
-    max-width: 100%;
-    font: var(--text-callout);
-    padding-inline: 0.7rem;
-  }
-
-  .home-settings .settings-summary span {
+  .home-settings .home-summary {
     font: var(--text-callout);
   }
 
