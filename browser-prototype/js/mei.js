@@ -27,6 +27,7 @@ import {
   phraseTimeline,
   pitchName,
   restBeatsForSpan,
+  spellPitchInKey,
   usesFlatsForChord,
   withSpotOctaves,
 } from "./music.js";
@@ -60,6 +61,8 @@ function meiClef(clef) {
 }
 
 function accidentalValue(name) {
+  if (name.includes("𝄪")) return 2;
+  if (name.includes("𝄫")) return -2;
   if (name.includes("♯")) return 1;
   if (name.includes("♭")) return -1;
   return 0;
@@ -131,14 +134,18 @@ function notePitchAttrs(item, ctx) {
   const pc = ((shownMidi % 12) + 12) % 12;
   const oct = Math.floor(shownMidi / 12) - 1;
   const chord = chordAtEventBeat(ctx.chords, item.beat);
-  const name = pitchName(pc, usesFlatsForChord(ctx.shownKey, chord));
-  const letter = name[0];
-  const acc = accidentalValue(name);
+  const flats = usesFlatsForChord(ctx.shownKey, chord);
+  const spelled = flats === Boolean(ctx.shownKey?.usesFlats)
+    ? spellPitchInKey(pc, ctx.shownKey)
+    : null;
+  const name = spelled?.name ?? pitchName(pc, flats);
+  const letter = spelled?.letter ?? name[0];
+  const acc = spelled?.acc ?? accidentalValue(name);
   const sig = ctx.barState.sig?.[letter] ?? 0;
   const current = ctx.barState.written.has(letter) ? ctx.barState.written.get(letter) : sig;
   let accid = "";
   if (acc !== current) {
-    accid = acc === 1 ? "s" : acc === -1 ? "f" : "n";
+    accid = acc === 2 ? "ss" : acc === 1 ? "s" : acc === -1 ? "f" : acc === -2 ? "ff" : "n";
     ctx.barState.written.set(letter, acc);
   }
   return {

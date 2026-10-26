@@ -5,8 +5,10 @@ import {
   chartTuneList,
   chartTuneRow,
   chartGrid,
+  chartKeyChoices,
   licksForTune,
 } from "./charts.js";
+import { TWELVE_KEY_IDS } from "./session.js";
 import { MODULES } from "./registry.js";
 
 test("chart list rows cover every tune with title, composer, style, and key", () => {
@@ -90,4 +92,37 @@ test("licks-for-tune index lists road tune lessons with module name and bars", (
   assert.deepEqual(unknown, []);
   assert.equal(MODULES.length, 30);
   assert.equal(tuneBarCount(tuneById("nutville")), 24);
+});
+
+test("chart key picker uses the spelling table, including C♯m and F♯m", () => {
+  const minor = chartKeyChoices("minor");
+  assert.deepEqual(minor.map((row) => row.label), [
+    "Cm", "C♯m", "Dm", "E♭m", "Em", "Fm", "F♯m", "Gm", "A♭m", "Am", "B♭m", "Bm",
+  ]);
+  assert.equal(minor.some((row) => row.label === "D♭m" || row.label === "G♭m"), false);
+  const major = chartKeyChoices("major", "trumpet");
+  assert.equal(major.length, 12);
+  assert.ok(major.every((row) => TWELVE_KEY_IDS.includes(row.id)));
+  assert.equal(major.find((row) => row.id === "C").label, "D");
+});
+
+test("chart chord symbols keep root, quality, and alteration together", () => {
+  const names = new Set();
+  for (const tune of TUNES) {
+    for (const keyId of TWELVE_KEY_IDS) {
+      const tuneId = tune.id;
+      const grid = chartGrid(tuneId, { concertKeyId: keyId });
+      for (const row of grid.rows) {
+        for (const bar of row.bars) {
+          for (const chord of bar.chords) {
+            names.add(chord.name);
+            assert.doesNotMatch(chord.name, /\s/, `${tuneId} ${keyId} ${chord.name}`);
+          }
+        }
+      }
+    }
+  }
+  for (const expected of ["E7♯9", "A7♭9", "F♯°7"]) {
+    assert.equal(names.has(expected), true, expected);
+  }
 });

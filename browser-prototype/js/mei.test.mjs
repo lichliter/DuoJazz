@@ -136,8 +136,8 @@ test("MEI beams eighths inside a half-bar and never a u/v bowing artic", () => {
 test("Learn MEI spells against the key signature in C, G, B♭, F♯, and E♭", () => {
   const samples = [
     { app: "cmar-learn", keysig: { C: "3f", G: "2f", Bb: "5f", "F#": "3s", Eb: "6f" } },
-    { app: "gts-learn", keysig: { C: "0", G: "1s", Bb: "2f", "F#": "6s", Eb: "3f" } },
-    { app: "bo-learn", keysig: { C: "0", G: "1s", Bb: "2f", "F#": "6s", Eb: "3f" } },
+    { app: "gts-learn", keysig: { C: "0", G: "1s", Bb: "2f", "F#": "6f", Eb: "3f" } },
+    { app: "bo-learn", keysig: { C: "0", G: "1s", Bb: "2f", "F#": "6f", Eb: "3f" } },
   ];
   for (const sample of samples) {
     for (const [keyId, sig] of Object.entries(sample.keysig)) {
