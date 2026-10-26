@@ -83,7 +83,7 @@ import {
   sessionModeHeading,
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
-} from "./session.js";
+} from "./session.js?v=102";
 import {
   tuneById,
   licksInTune,

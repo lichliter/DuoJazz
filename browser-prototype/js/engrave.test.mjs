@@ -92,7 +92,7 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /class="session-bottom"/);
   assert.match(index, /id="home-summary"/);
   assert.match(index, /id="home-mode"/);
-  assert.match(index, /id="card-badge">Learn</);
+  assert.match(index, /id="card-badge">Play</);
   assert.match(index, /class="session-links"/);
   assert.match(index, /id="continue-btn">Skip</);
   assert.match(index, /id="hear-it"[^>]*>Hear it</);

@@ -475,8 +475,8 @@ test("Learn and Practice render the staff at the same size", () => {
     assert.equal(learn.showPhraseNotation, practice.showPhraseNotation, lessonId);
     assert.equal(learn.memory, false, lessonId);
     assert.equal(practice.memory, true, lessonId);
-    assert.equal(sessionModeHeading(createSession({ lessonId, studyMode: "learn" })), "Learn");
-    assert.equal(sessionModeHeading(createSession({ lessonId, studyMode: "practice" })), "Practice");
+    assert.equal(sessionModeHeading(createSession({ lessonId, studyMode: "learn" })), "Play");
+    assert.equal(sessionModeHeading(createSession({ lessonId, studyMode: "practice" })), "Play");
     for (const viewport of viewports) {
       const learnLayout = notationLayout({
         staffWidth: viewport.staffWidth,
