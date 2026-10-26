@@ -249,20 +249,65 @@ export function cueCaption(bar, applicationId = DEFAULT_APPLICATION_ID) {
 
 const SHARP_ORDER = ["F", "C", "G", "D", "A", "E", "B"];
 const FLAT_ORDER = ["B", "E", "A", "D", "G", "C", "F"];
+const LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+const NATURAL_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const MAJOR_SIG_COUNT = {
   C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, "F#": 6, "C#": 7,
   F: -1, Bb: -2, Eb: -3, Ab: -4, Db: -5, Gb: -6, Cb: -7,
 };
 
+/**
+ * One spelling for every pitch class. Flat-leaning, trombone-friendly, at most
+ * six accidentals — except A♭ minor, which Brian wants as seven flats.
+ * C♯ and F♯ minor stay sharp; D♭ and G♭ minor would need double flats.
+ */
+export const MAJOR_SPELLINGS = [
+  { pc: 0, id: "C", name: "C", abc: "C", usesFlats: false, sigCount: 0 },
+  { pc: 1, id: "Db", name: "D♭", abc: "Db", usesFlats: true, sigCount: -5 },
+  { pc: 2, id: "D", name: "D", abc: "D", usesFlats: false, sigCount: 2 },
+  { pc: 3, id: "Eb", name: "E♭", abc: "Eb", usesFlats: true, sigCount: -3 },
+  { pc: 4, id: "E", name: "E", abc: "E", usesFlats: false, sigCount: 4 },
+  { pc: 5, id: "F", name: "F", abc: "F", usesFlats: true, sigCount: -1 },
+  { pc: 6, id: "Gb", name: "G♭", abc: "Gb", usesFlats: true, sigCount: -6 },
+  { pc: 7, id: "G", name: "G", abc: "G", usesFlats: false, sigCount: 1 },
+  { pc: 8, id: "Ab", name: "A♭", abc: "Ab", usesFlats: true, sigCount: -4 },
+  { pc: 9, id: "A", name: "A", abc: "A", usesFlats: false, sigCount: 3 },
+  { pc: 10, id: "Bb", name: "B♭", abc: "Bb", usesFlats: true, sigCount: -2 },
+  { pc: 11, id: "B", name: "B", abc: "B", usesFlats: false, sigCount: 5 },
+];
+
+export const MINOR_SPELLINGS = [
+  { pc: 0, id: "C", name: "C", short: "Cm", abc: "Cmin", usesFlats: true, sigCount: -3 },
+  { pc: 1, id: "C#", name: "C♯", short: "C♯m", abc: "C#min", usesFlats: false, sigCount: 4 },
+  { pc: 2, id: "D", name: "D", short: "Dm", abc: "Dmin", usesFlats: true, sigCount: -1 },
+  { pc: 3, id: "Eb", name: "E♭", short: "E♭m", abc: "Ebmin", usesFlats: true, sigCount: -6 },
+  { pc: 4, id: "E", name: "E", short: "Em", abc: "Emin", usesFlats: false, sigCount: 1 },
+  { pc: 5, id: "F", name: "F", short: "Fm", abc: "Fmin", usesFlats: true, sigCount: -4 },
+  { pc: 6, id: "F#", name: "F♯", short: "F♯m", abc: "F#min", usesFlats: false, sigCount: 3 },
+  { pc: 7, id: "G", name: "G", short: "Gm", abc: "Gmin", usesFlats: true, sigCount: -2 },
+  { pc: 8, id: "Ab", name: "A♭", short: "A♭m", abc: "Abmin", usesFlats: true, sigCount: -7 },
+  { pc: 9, id: "A", name: "A", short: "Am", abc: "Amin", usesFlats: false, sigCount: 0 },
+  { pc: 10, id: "Bb", name: "B♭", short: "B♭m", abc: "Bbmin", usesFlats: true, sigCount: -5 },
+  { pc: 11, id: "B", name: "B", short: "Bm", abc: "Bmin", usesFlats: false, sigCount: 2 },
+];
+
+export function spellingRow(pc, quality = "minor") {
+  const table = quality === "major" ? MAJOR_SPELLINGS : MINOR_SPELLINGS;
+  return table.find((row) => row.pc === wrapPc(pc)) ?? table[0];
+}
+
 export function keySignatureCount(shownKey) {
-  if (String(shownKey.abc ?? "").endsWith("min")) {
-    const relativePc = wrapPc(shownKey.pc + 3);
+  if (Number.isFinite(shownKey?.sigCount)) return shownKey.sigCount;
+  const minor = String(shownKey?.abc ?? "").endsWith("min");
+  if (Number.isFinite(shownKey?.pc)) return spellingRow(shownKey.pc, minor ? "minor" : "major").sigCount;
+  if (minor) {
+    const relativePc = wrapPc((shownKey?.pc ?? 0) + 3);
     const relative = KEYS.find((key) => key.pc === relativePc && key.usesFlats === shownKey.usesFlats)
       ?? KEYS.find((key) => key.pc === relativePc)
       ?? shownKey;
-    return MAJOR_SIG_COUNT[relative.abc] ?? 0;
+    return MAJOR_SIG_COUNT[relative?.abc] ?? 0;
   }
-  return MAJOR_SIG_COUNT[shownKey.abc] ?? 0;
+  return MAJOR_SIG_COUNT[shownKey?.abc] ?? 0;
 }
 
 export function keySignatureByLetter(shownKey) {
@@ -274,6 +319,26 @@ export function keySignatureByLetter(shownKey) {
     for (let i = 0; i < -n && i < FLAT_ORDER.length; i += 1) map[FLAT_ORDER[i]] = -1;
   }
   return map;
+}
+
+const ACCIDENTAL_GLYPH = { "-2": "𝄫", "-1": "♭", 0: "", 1: "♯", 2: "𝄪" };
+
+/** Spell a pitch class with the key signature's letters (C♭, F♭) instead of an enharmonic. */
+export function spellPitchInKey(pc, shownKey) {
+  const target = wrapPc(pc);
+  const sig = keySignatureByLetter(shownKey);
+  const prefer = shownKey?.usesFlats ? -1 : 1;
+  let best = null;
+  for (const letter of LETTERS) {
+    for (const acc of [-2, -1, 0, 1, 2]) {
+      if (wrapPc(NATURAL_PC[letter] + acc) !== target) continue;
+      const delta = Math.abs(acc - (sig[letter] ?? 0));
+      const cost = delta * 10 + Math.abs(acc) + (acc === prefer || acc === 0 ? 0 : 0.5);
+      if (!best || cost < best.cost) best = { letter, acc, cost };
+    }
+  }
+  const name = `${best.letter}${ACCIDENTAL_GLYPH[best.acc] ?? ""}`;
+  return { name, letter: best.letter, acc: best.acc };
 }
 
 export function newBarState(shownKey) {
@@ -289,33 +354,36 @@ export function pitchName(pc, usesFlats) {
 }
 
 export function minorSpelling(key) {
-  const relativeMajorPc = wrapPc(key.pc + 3);
-  const relative = KEYS.find((item) => item.pc === relativeMajorPc && item.usesFlats)
-    ?? KEYS.find((item) => item.pc === relativeMajorPc)
-    ?? key;
+  const row = spellingRow(key.pc, "minor");
   return {
     ...key,
-    usesFlats: relative.usesFlats,
-    abc: `${key.abc}min`,
-    name: `${key.name} minor`,
-    shortName: `${key.name}m`,
+    pc: row.pc,
+    usesFlats: row.usesFlats,
+    abc: row.abc,
+    name: `${row.name} minor`,
+    shortName: row.short,
+    sigCount: row.sigCount,
   };
 }
 
 export function majorSpelling(key) {
+  const row = spellingRow(key.pc, "major");
   return {
     ...key,
-    abc: key.abc,
-    name: `${key.name} major`,
-    shortName: key.name,
+    pc: row.pc,
+    usesFlats: row.usesFlats,
+    abc: row.abc,
+    name: `${row.name} major`,
+    shortName: row.name,
+    sigCount: row.sigCount,
   };
 }
 
 export function writtenKeyFromConcert(concertKey, semitones = 2) {
   const amount = typeof semitones === "number" ? semitones : writtenSemitones(semitones);
   const writtenPc = wrapPc(concertKey.pc + amount);
-  const match = KEYS.find((key) => key.pc === writtenPc && key.usesFlats === concertKey.usesFlats);
-  return match ?? KEYS.find((key) => key.pc === writtenPc) ?? concertKey;
+  const match = KEYS.find((key) => key.pc === writtenPc) ?? concertKey;
+  return { ...match, pc: writtenPc };
 }
 
 export function displayKey(concertKey, displayMode, quality = "minor") {
@@ -338,7 +406,7 @@ export function chordDisplayName(concertTonic, intervalFromTonic, quality, displ
   const shownKey = displayKey(concertTonic, displayMode, "minor");
   const usesFlats = displayKey(concertTonic, displayMode, applicationKeyQualityFromTonic(concertTonic)).usesFlats
     ?? shownKey.usesFlats;
-  return `${pitchName(shown, usesFlats)}${QUALITY_ASCII[quality] ?? QUALITY_ASCII.dominant7}`;
+  return `${spellChordRoot(shown, shownKey, usesFlats)}${QUALITY_ASCII[quality] ?? QUALITY_ASCII.dominant7}`;
 }
 
 function applicationKeyQualityFromTonic() {
@@ -608,8 +676,9 @@ function materializeChord(concertKey, displayMode, spec, startBeat, quality) {
   const keyQuality = quality ?? "minor";
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const flats = chordSymbolFlats(concertKey, displayMode, spec, keyQuality);
-  const name = `${pitchName(
+  const name = `${spellChordRoot(
     shownPc(chordRootPc(concertKey.pc, spec.intervalFromTonic), displayMode),
+    shownKey,
     flats,
   )}${QUALITY_ASCII[spec.quality] ?? ""}${slashBassName(concertKey, spec, displayMode, { ...shownKey, usesFlats: flats })}`;
   return {
@@ -684,7 +753,7 @@ export function cellTonicSpelling(concertKey, displayMode, applicationId = DEFAU
   const shownKey = displayKey(concertKey, displayMode, quality);
   const concertPc = wrapPc(concertKey.pc + app.cellTonicInterval);
   const shown = shownPc(concertPc, displayMode);
-  const name = pitchName(shown, shownKey.usesFlats);
+  const name = spellChordRoot(shown, shownKey, shownKey.usesFlats);
   if (quality === "major") {
     return { name, minorName: `${name} major`, shortName: name, quality };
   }
@@ -839,9 +908,26 @@ function almost(a, b, eps = 1e-6) {
 }
 
 function accidentalValue(name) {
-  if (name.includes("♯")) return 1;
-  if (name.includes("♭")) return -1;
+  if (String(name).includes("𝄪")) return 2;
+  if (String(name).includes("𝄫")) return -2;
+  if (String(name).includes("♯")) return 1;
+  if (String(name).includes("♭")) return -1;
   return 0;
+}
+
+function abcAccidentalPrefix(acc) {
+  if (acc === 2) return "^^";
+  if (acc === 1) return "^";
+  if (acc === -1) return "_";
+  if (acc === -2) return "__";
+  return "=";
+}
+
+/** Chord roots and melody notes use the key's letters. A forced family (ii–V, ♭9) stays generic. */
+export function spellChordRoot(pc, shownKey, flats = null) {
+  const forced = flats != null && Boolean(flats) !== Boolean(shownKey?.usesFlats);
+  if (!forced && shownKey && Number.isFinite(shownKey.pc)) return spellPitchInKey(pc, shownKey).name;
+  return pitchName(pc, flats != null ? flats : Boolean(shownKey?.usesFlats));
 }
 
 function abcOctaveLetter(letter, octave) {
@@ -854,19 +940,19 @@ function abcOctaveLetter(letter, octave) {
 function abcNote(midi, shownKey, barState) {
   const pc = wrapPc(midi);
   const octave = Math.floor(midi / 12) - 1;
-  const usesFlats = typeof shownKey === "boolean" ? shownKey : Boolean(shownKey?.usesFlats);
-  const name = pitchName(pc, usesFlats);
-  const letter = name[0];
-  const acc = accidentalValue(name);
+  const spelled = typeof shownKey === "object" && shownKey ? spellPitchInKey(pc, shownKey) : null;
+  const name = spelled?.name ?? pitchName(pc, Boolean(shownKey));
+  const letter = spelled?.letter ?? name[0];
+  const acc = spelled?.acc ?? accidentalValue(name);
   if (!barState) {
-    const prefix = acc === 1 ? "^" : acc === -1 ? "_" : "";
+    const prefix = acc === 0 ? "" : abcAccidentalPrefix(acc);
     return `${prefix}${abcOctaveLetter(letter, octave)}`;
   }
   const sig = barState.sig?.[letter] ?? 0;
   const current = barState.written.has(letter) ? barState.written.get(letter) : sig;
   let prefix = "";
   if (acc !== current) {
-    prefix = acc === 1 ? "^" : acc === -1 ? "_" : "=";
+    prefix = abcAccidentalPrefix(acc);
     barState.written.set(letter, acc);
   }
   return `${prefix}${abcOctaveLetter(letter, octave)}`;
@@ -908,7 +994,7 @@ export function jazzChordRootParts(text) {
 function slashBassName(concertTonic, spec, displayMode, shownKey) {
   if (spec?.slashIntervalFromTonic == null) return "";
   const concertPc = chordRootPc(concertTonic.pc, spec.slashIntervalFromTonic);
-  return `/${pitchName(shownPc(concertPc, displayMode), shownKey.usesFlats)}`;
+  return `/${spellChordRoot(shownPc(concertPc, displayMode), shownKey, shownKey.usesFlats)}`;
 }
 
 export function chordSymbolName(concertTonic, intervalFromTonic, quality, displayMode, keyQuality = "minor", slashIntervalFromTonic = null, forceFlats = null, spellFrom = null) {
@@ -916,7 +1002,7 @@ export function chordSymbolName(concertTonic, intervalFromTonic, quality, displa
   const shown = shownPc(concertRoot, displayMode);
   const shownKey = displayKey(concertTonic, displayMode, keyQuality);
   const flats = chordSymbolFlats(concertTonic, displayMode, { usesFlats: forceFlats, spellFrom }, keyQuality);
-  const root = pitchName(shown, flats);
+  const root = spellChordRoot(shown, shownKey, flats);
   const slash = slashBassName(concertTonic, { slashIntervalFromTonic }, displayMode, { ...shownKey, usesFlats: flats });
   return `${root}${QUALITY_ABC[quality] ?? ""}${slash}`;
 }
@@ -998,7 +1084,11 @@ function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase
   const shownKey = displayKey(concertKey, displayMode, keyQuality);
   const concertMidi = eventMelodyMidi(concertKey, item, melodyRegister, octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
-  const pitch = abcNote(shownMidi, usesFlatsOverride ?? shownKey.usesFlats, barState);
+  const pitch = abcNote(
+    shownMidi,
+    usesFlatsOverride == null ? shownKey : usesFlatsOverride,
+    barState,
+  );
   const dur = item.tuplet === 3 ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);
   return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
 }

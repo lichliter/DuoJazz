@@ -6,7 +6,16 @@ import { getKey, displayKey, chordSymbolName } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
 import { TUNES, tuneById, tuneFormId } from "./tunes.js";
 import { MODULES, applicationById } from "./registry.js";
-import { visibleModuleLessons } from "./session.js";
+import { TWELVE_KEY_IDS, visibleModuleLessons } from "./session.js";
+
+/** Key picker labels from the shared spelling table (minor: C♯m and F♯m, not D♭m and G♭m). */
+export function chartKeyChoices(quality = "minor", instrumentId = "piano") {
+  const mode = quality === "major" ? "major" : "minor";
+  return TWELVE_KEY_IDS.map((id) => ({
+    id,
+    label: displayKey(getKey(id), instrumentId, mode).shortName,
+  }));
+}
 
 const BARS_PER_ROW = 4;
 

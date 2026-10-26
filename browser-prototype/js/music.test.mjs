@@ -39,12 +39,21 @@ import {
   applicationContext,
   jazzChordRootParts,
   displayKey,
+  keySignatureByLetter,
+  keySignatureCount,
+  chordSymbolName,
+  learnChords,
+  spellPitchInKey,
+  MAJOR_SPELLINGS,
+  MINOR_SPELLINGS,
+  applicationKeyQuality,
   lickNoun,
   restBeatsForSpan,
   beamGroupsCrossBeat3,
   abcHasBareBowing,
   phraseMeasureCount,
 } from "./music.js";
+import { LESSONS } from "./registry.js";
 
 test("Cry Me a River cell is one bar of 9–1–5–♭3–2–1, not the repo enclosure", () => {
   assert.equal(phraseDurationBeats(), 4);
@@ -672,4 +681,56 @@ test("Donna Lee Resolution over G7♭9 spells altered tones as flats, not sharps
   assert.match(abc, /_B/);
   assert.doesNotMatch(abc, /\^G/);
   assert.doesNotMatch(abc, /\^A/);
+});
+
+test("key spelling table is flat-leaning, with C♯m F♯m and A♭m", () => {
+  assert.deepEqual(MAJOR_SPELLINGS.map((row) => row.name), [
+    "C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B",
+  ]);
+  assert.deepEqual(MINOR_SPELLINGS.map((row) => row.short), [
+    "Cm", "C♯m", "Dm", "E♭m", "Em", "Fm", "F♯m", "Gm", "A♭m", "Am", "B♭m", "Bm",
+  ]);
+  const dbMinor = displayKey(getKey("Db"), "concert", "minor");
+  assert.equal(dbMinor.name, "C♯ minor");
+  assert.equal(dbMinor.shortName, "C♯m");
+  assert.equal(dbMinor.sigCount, 4);
+  assert.equal(keySignatureCount(dbMinor), 4);
+  assert.equal(displayKey(getKey("Gb"), "concert", "minor").shortName, "F♯m");
+  assert.equal(displayKey(getKey("Ab"), "concert", "minor").shortName, "A♭m");
+  assert.equal(displayKey(getKey("Ab"), "concert", "minor").sigCount, -7);
+  assert.equal(displayKey(getKey("Eb"), "concert", "minor").shortName, "E♭m");
+  assert.equal(displayKey(getKey("Bb"), "concert", "minor").shortName, "B♭m");
+  const cell = learnChords(getKey("Db"), "concert", "cmar-learn");
+  assert.match(cell[0].name, /^C♯/);
+  assert.doesNotMatch(cell[0].name, /\s/);
+});
+
+test("every lesson and key keeps the label, signature, and tonic chord on one spelling", () => {
+  const instruments = ["piano", "trumpet", "alto-sax"];
+  for (const lesson of LESSONS) {
+    const quality = applicationKeyQuality(lesson.applicationId);
+    for (const keyId of ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]) {
+      for (const instrumentId of instruments) {
+        const shown = displayKey(getKey(keyId), instrumentId, quality);
+        const token = shown.shortName.replace(/m$/, "");
+        const letter = token[0];
+        const acc = token.includes("♭") ? -1 : token.includes("♯") ? 1 : 0;
+        assert.equal(
+          keySignatureByLetter(shown)[letter],
+          acc,
+          `${lesson.id} ${keyId} ${instrumentId} ${shown.name}`,
+        );
+        assert.equal(spellPitchInKey(shown.pc, shown).name, token, `${lesson.id} ${keyId} ${instrumentId}`);
+        const home = chordSymbolName(
+          getKey(keyId),
+          0,
+          quality === "major" ? "major7" : "minor7",
+          instrumentId,
+          quality,
+        );
+        assert.ok(home.startsWith(token), `${lesson.id} ${keyId} ${instrumentId} ${home} vs ${token}`);
+        assert.doesNotMatch(home, /\s/);
+      }
+    }
+  }
 });
