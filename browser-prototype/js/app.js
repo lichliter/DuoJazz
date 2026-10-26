@@ -15,12 +15,13 @@ import { chordsOnlyMEI, chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
   compactChordSymbol,
+  fillMusicLabel,
   engraveMei,
   highlightActiveChords,
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js";
+} from "./engrave.js?v=99";
 import {
   PREFS_KEY,
   MODULE,
@@ -847,7 +848,7 @@ function chipRow(host, options, current, onPick) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "chip";
-      btn.textContent = option.label;
+      fillMusicLabel(btn, option.label);
       btn.setAttribute("aria-pressed", String(option.id === current));
       btn.addEventListener("click", () => onPick(option.id));
       return btn;
@@ -874,7 +875,7 @@ function renderSettings() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "key-btn";
-      btn.textContent = displayKey(getKey(id), prefs.displayMode, "minor").shortName;
+      fillMusicLabel(btn, displayKey(getKey(id), prefs.displayMode, "minor").shortName);
       btn.setAttribute("aria-pressed", String(id === prefs.startKeyId));
       btn.addEventListener("click", () => {
         prefs.startKeyId = id;
@@ -997,7 +998,10 @@ function renderSessionChrome() {
     ));
   }
   if (els.sessionTitle) els.sessionTitle.textContent = sessionScreenTitle(session);
-  els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
+  fillMusicLabel(
+    els.sessionKey,
+    displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
+  );
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
   const progress = sessionProgress(session);
   els.sessionProgressFill.style.width = `${progress.ratio * 100}%`;
@@ -1069,7 +1073,7 @@ function renderNotation() {
   const copy = sessionChartCopy(session);
   const lesson = lessonById(session.lessonId);
   els.chartTitle.textContent = copy.title;
-  els.chartMeta.textContent = copy.meta;
+  fillMusicLabel(els.chartMeta, copy.meta);
   const hideStaff = Boolean(view.hideStaff);
   els.hiddenAnswer.hidden = !hideStaff;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
@@ -1356,7 +1360,16 @@ function renderChartList() {
       btn.type = "button";
       btn.className = "chart-row";
       btn.dataset.testid = `chart-row-${row.id}`;
-      btn.innerHTML = `<span class="chart-row-title">${row.title}</span><span class="chart-row-key">${row.key}</span><span class="chart-row-meta">${row.composer} · ${row.style}</span>`;
+      const title = document.createElement("span");
+      title.className = "chart-row-title";
+      title.textContent = row.title;
+      const key = document.createElement("span");
+      key.className = "chart-row-key";
+      fillMusicLabel(key, row.key);
+      const meta = document.createElement("span");
+      meta.className = "chart-row-meta";
+      meta.textContent = `${row.composer} · ${row.style}`;
+      btn.append(title, key, meta);
       btn.addEventListener("click", () => selectTab("charts", { tune: row.id }));
       return btn;
     }),
@@ -1378,7 +1391,7 @@ function renderChartDetail() {
   });
   if (els.chartHeadingTitle) els.chartHeadingTitle.textContent = grid.title;
   if (els.chartHeadingMeta) {
-    els.chartHeadingMeta.textContent = `${grid.composer} · ${grid.style} · ${grid.writtenKeyName}`;
+    fillMusicLabel(els.chartHeadingMeta, `${grid.composer} · ${grid.style} · ${grid.writtenKeyName}`);
   }
   if (els.chartKeys) {
     chipRow(els.chartKeys, chartKeyChoices(
@@ -1420,7 +1433,7 @@ function renderChartDetail() {
           for (const chord of bar.chords) {
             const symbol = document.createElement("span");
             symbol.className = "chord-symbol";
-            symbol.textContent = compactChordSymbol(chord.name);
+            fillMusicLabel(symbol, compactChordSymbol(chord.name));
             chords.append(symbol);
           }
           cell.append(chords);
