@@ -1380,6 +1380,8 @@ input[type="checkbox"] {
   grid-column: 1 / -1;
   min-height: 3.4rem;
   font-size: 1.15rem;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .wrapup-actions .chip,
@@ -2027,7 +2029,7 @@ input[type="checkbox"] {
   justify-items: stretch;
   justify-self: center;
   width: min(100%, 22rem);
-  padding: 0.85rem 0 1.1rem;
+  padding: 0.85rem 0.75rem 1.35rem;
 }
 
 .path-end-next {
@@ -2047,7 +2049,10 @@ input[type="checkbox"] {
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.2;
+  white-space: normal;
+  text-align: center;
   text-wrap: balance;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
