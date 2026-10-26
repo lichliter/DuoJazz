@@ -48,8 +48,6 @@ import {
   sessionPresentation,
   sessionAudioConfig,
   sessionPrimaryAction,
-  sessionChartCopy,
-  sessionCue,
   wrapupCopy,
   listenStateCopy,
   displayKeyName,
@@ -78,17 +76,12 @@ import {
   homeNextModule,
   moduleStudyMode,
   setModuleStudyMode,
-  setSessionStudyMode,
   STUDY_MODES,
   settingsSummaryShort,
   setInstrument,
   cardLabel,
   sessionScreenTitle,
-  sessionProgress,
   LEGACY_PREFS_KEY,
-  HEADPHONES_TIP_KEY,
-  headphonesTipIsDismissed,
-  dismissHeadphonesTip,
 } from "./session.js";
 import {
   tuneById,
@@ -154,6 +147,7 @@ const els = {
   wrapup: document.getElementById("screen-wrapup"),
   tabBar: document.getElementById("app-tab-bar"),
   homeSummary: document.getElementById("home-summary"),
+  homeMode: document.getElementById("home-mode"),
   chartsList: document.getElementById("charts-list"),
   chartDetail: document.getElementById("chart-detail"),
   chartBack: document.getElementById("chart-back"),
@@ -305,35 +299,6 @@ function renderMic() {
   }
   if (els.micStatus) els.micStatus.textContent = copy;
   fillListenState();
-  renderHeadphonesTip();
-}
-
-function headphonesStorageFlag() {
-  try {
-    return localStorage.getItem(HEADPHONES_TIP_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function headphonesTipSeen() {
-  return headphonesTipIsDismissed(prefs, headphonesStorageFlag());
-}
-
-function markHeadphonesTipSeen() {
-  prefs = dismissHeadphonesTip(prefs);
-  try {
-    localStorage.setItem(HEADPHONES_TIP_KEY, "1");
-  } catch {
-    // private mode
-  }
-  persist();
-}
-
-function renderHeadphonesTip() {
-  if (!els.headphonesTip) return;
-  const show = session?.screen === "session" && !headphonesTipSeen();
-  els.headphonesTip.hidden = !show;
 }
 
 monitor.onState = () => renderMic();
@@ -646,11 +611,7 @@ function moduleBanner(module, stats) {
   );
   const mark = homeMedalMark(count, stats.medal);
   badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
-  section.append(copy, badge, studySwitch(module.id, moduleStudyMode(prefs, module.id), (mode) => {
-    prefs = setModuleStudyMode(prefs, module.id, mode);
-    persist();
-    renderHome();
-  }));
+  section.append(copy, badge);
   return section;
 }
 
@@ -737,6 +698,15 @@ function homeNextModuleButton(link) {
   return wrap;
 }
 
+function renderHomeMode(module) {
+  if (!els.homeMode || !module) return;
+  els.homeMode.replaceChildren(studySwitch(module.id, moduleStudyMode(prefs, module.id), (mode) => {
+    prefs = setModuleStudyMode(prefs, module.id, mode);
+    persist();
+    renderHome();
+  }));
+}
+
 function renderHome() {
   if (!MODULES.some((module) => module.id === selectedModuleId)) {
     selectedModuleId = MODULES[0].id;
@@ -744,6 +714,7 @@ function renderHome() {
   const module = moduleById(selectedModuleId) ?? MODULES[0];
   const keys = keysByLesson(mastery);
   const nodes = moduleRoadNodes(module, prefs, keys);
+  renderHomeMode(module);
   els.lessonList.replaceChildren(
     moduleBlock(module, nodes, moduleMastery(mastery, module.id)),
     homeNextModuleButton(homeNextModule(module, keys)),
@@ -962,7 +933,10 @@ function renderSessionOctave() {
   up.setAttribute("aria-label", "Octave up");
   up.disabled = current >= 1;
   up.addEventListener("click", () => applyMelodyOctave(current + 1));
-  els.sessionOctave.replaceChildren(down, up);
+  const label = document.createElement("span");
+  label.className = "octave-label";
+  label.textContent = "Octave";
+  els.sessionOctave.replaceChildren(down, label, up);
 }
 
 function applyMelodyOctave(register) {
@@ -982,35 +956,13 @@ function applyMelodyOctave(register) {
 function renderSessionChrome() {
   const ordinal = keyOrdinal(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
-  els.cardBadge.textContent = session.studyMode === "practice" ? "Practice" : "Learn";
-  if (els.sessionMode) {
-    els.sessionMode.replaceChildren(studySwitch(
-      moduleForLesson(session.lessonId).id,
-      session.studyMode,
-      (mode) => {
-        const moduleId = moduleForLesson(session.lessonId).id;
-        prefs = setModuleStudyMode(prefs, moduleId, mode);
-        persist();
-        halt();
-        applySession(setSessionStudyMode(session, mode));
-      },
-      "session-mode-switch",
-    ));
-  }
+  if (els.cardBadge) els.cardBadge.textContent = "Play";
   if (els.sessionTitle) els.sessionTitle.textContent = sessionScreenTitle(session);
   fillMusicLabel(
     els.sessionKey,
     displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
   );
-  els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
-  const progress = sessionProgress(session);
-  els.sessionProgressFill.style.width = `${progress.ratio * 100}%`;
-  if (els.sessionBack) {
-    els.sessionBack.disabled = !canGoBack(session);
-  }
-  if (els.sessionNext) {
-    els.sessionNext.disabled = !canGoNext(session);
-  }
+  if (els.sessionKeyCount) els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
 }
 
 function chordTimingsFor(target) {
@@ -1070,10 +1022,7 @@ function updatePlayhead(snap = transport.snapshot()) {
 function renderNotation() {
   if (!session || session.screen !== "session") return;
   const view = sessionPresentation(session);
-  const copy = sessionChartCopy(session);
   const lesson = lessonById(session.lessonId);
-  els.chartTitle.textContent = copy.title;
-  fillMusicLabel(els.chartMeta, copy.meta);
   const hideStaff = Boolean(view.hideStaff);
   els.hiddenAnswer.hidden = !hideStaff;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
@@ -1221,8 +1170,6 @@ function renderCopy(snap = transport.snapshot()) {
   els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
   renderInstruments();
-  if (!session || session.screen !== "session") return;
-  els.instruction.textContent = sessionCue(session, snap);
 }
 
 function renderPrimary(snap = transport.snapshot()) {
@@ -1491,7 +1438,6 @@ function render(snap = transport.snapshot()) {
   const moduleName = session ? moduleForLesson(session.lessonId).name : "DuoJazz";
   document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
-  renderHeadphonesTip();
   if (onLicks) renderHome();
   if (onCharts) renderCharts();
   if (onSettings || onLicks) renderSettings();
@@ -1666,13 +1612,6 @@ window.addEventListener("popstate", () => {
 });
 els.quickViewBtn?.addEventListener("click", requestQuickView);
 els.sessionExit.addEventListener("click", exitSession);
-els.sessionBack?.addEventListener("click", () => navigateCard(-1));
-els.sessionNext?.addEventListener("click", () => navigateCard(1));
-els.headphonesDismiss?.addEventListener("click", () => {
-  markHeadphonesTipSeen();
-  renderHeadphonesTip();
-});
-els.sessionQuickView?.addEventListener("click", requestQuickView);
 els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
 });
