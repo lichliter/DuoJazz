@@ -639,7 +639,7 @@ test("short Learn licks stay on one system up to five bars", () => {
 test("empty bars draw a whole rest instead of a blank spacer", () => {
   const integrate = modelABC(getKey("C"), "concert", "cmar-blue-bossa");
   assert.match(integrate, /"Cm7"yyz8/);
-  assert.match(integrate, /"Dø7"yyz8/);
+  assert.match(integrate, /"Dm7♭5"yyz8/);
   assert.doesNotMatch(integrate, /\bx8\b/);
   const learn = phraseABC(getKey("D"), "concert", "bo-learn");
   assert.match(learn, /z8/);

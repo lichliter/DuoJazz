@@ -543,6 +543,43 @@ export const TUNES = [
       { bar: 20, lickId: "cbc", anchor: 10 },
     ],
   },
+  {
+    id: "blue-bossa",
+    title: "Blue Bossa",
+    composer: "Kenny Dorham",
+    style: "bossa",
+    key: "C",
+    keyQuality: "minor",
+    feel: "straight",
+    chords: "Jazzwire lead sheet and Real Book · Blue Bossa (Kenny Dorham). Concert C minor, 16 bars, bossa / straight 8ths, 4/4.",
+    sections: [
+      {
+        bars: [
+          [C(0, "minor7")],
+          [C(0, "minor7")],
+          [C(5, "minor7")],
+          [C(5, "minor7")],
+          [C(2, "minor7b5")],
+          [C(7, "dominant7b9")],
+          [C(0, "minor7")],
+          [C(0, "minor7")],
+          [C(3, "minor7")],
+          [C(8, "dominant7")],
+          [C(1, "major7")],
+          [C(1, "major7")],
+          [C(2, "minor7b5")],
+          [C(7, "dominant7b9")],
+          [C(0, "minor7")],
+          [C(2, "minor7b5", 2), C(7, "dominant7b9", 2)],
+        ],
+      },
+    ],
+    spots: [
+      { bar: 1, lickId: "cmar", anchor: 0 },
+      { bar: 3, lickId: "cmar", anchor: 5 },
+      { bar: 7, lickId: "cmar", anchor: 0 },
+    ],
+  },
 ];
 
 export function tuneById(id) {

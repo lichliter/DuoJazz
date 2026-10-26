@@ -261,18 +261,32 @@ const EXPECTED_CHORDS = {
       { bar: 20, lickId: "cbc" },
     ],
   },
+  "blue-bossa": {
+    key: "C",
+    bars: 16,
+    sections: [],
+    chords: [
+      "Cm7", "Cm7", "Fm7", "Fm7", "Dm7♭5", "G7♭9", "Cm7", "Cm7",
+      "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dm7♭5", "G7♭9", "Cm7", "Dm7♭5", "G7♭9",
+    ],
+    spots: [
+      { bar: 1, lickId: "cmar" },
+      { bar: 3, lickId: "cmar" },
+      { bar: 7, lickId: "cmar" },
+    ],
+  },
 };
 
-test("there are ten tunes with the briefed bar counts, sections, and chords", () => {
+test("there are eleven tunes with the briefed bar counts, sections, and chords", () => {
   assert.deepEqual(TUNES.map((tune) => tune.id), [
-    "nows-time", "four", "tune-up", "st-thomas", "attya", "autumn-leaves", "so-what", "another-you", "recordame", "nutville",
+    "nows-time", "four", "tune-up", "st-thomas", "attya", "autumn-leaves", "so-what", "another-you", "recordame", "nutville", "blue-bossa",
   ]);
   for (const tune of TUNES) {
     const expected = EXPECTED_CHORDS[tune.id];
     assert.equal(tuneBarCount(tune), expected.bars, tune.id);
     assert.equal(tuneFormBars(tune).length, expected.bars, tune.id);
     assert.deepEqual(tuneSectionMeta(tune), expected.sections, `${tune.id} sections`);
-    assert.match(tune.chords, /iReal Pro Jazz 1460|reharmonize\.app/);
+    assert.match(tune.chords, /iReal Pro Jazz 1460|reharmonize\.app|Jazzwire lead sheet and Real Book/);
     const appId = tuneApplicationId(tune.id);
     const form = formById(applicationById(appId).formId);
     assert.equal(form.bars.length, expected.bars, `${tune.id} form`);
@@ -282,6 +296,31 @@ test("there are ten tunes with the briefed bar counts, sections, and chords", ()
       `${tune.id} chords`,
     );
   }
+});
+
+const BLUE_BOSSA_CHORDS = [
+  "Cm7", "Cm7", "Fm7", "Fm7", "Dm7♭5", "G7♭9", "Cm7", "Cm7",
+  "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dm7♭5", "G7♭9", "Cm7", "Dm7♭5", "G7♭9",
+];
+
+test("Blue Bossa form has 16 bars with the lead-sheet chords", () => {
+  const tune = tuneById("blue-bossa");
+  assert.equal(tune.composer, "Kenny Dorham");
+  assert.equal(tune.style, "bossa");
+  assert.equal(tune.key, "C");
+  assert.equal(tune.keyQuality, "minor");
+  assert.equal(tuneBarCount(tune), 16);
+  assert.equal(tuneFormBars(tune).length, 16);
+  assert.deepEqual(
+    chorusChords(getKey("C"), "concert", tuneApplicationId("blue-bossa")).map((chord) => chord.name),
+    BLUE_BOSSA_CHORDS,
+  );
+  const lesson = LESSONS.find((item) => item.id === "cmar-integrate-blue-bossa");
+  assert.deepEqual(
+    chorusChords(getKey("C"), "concert", lesson.applicationId).map((chord) => chord.name),
+    BLUE_BOSSA_CHORDS.slice(0, 8),
+  );
+  assert.deepEqual(spotsFor(lesson.applicationId).map((spot) => spot.bar), [1, 3, 7]);
 });
 
 test("spots land on the listed bars and pickups, with no overlaps", () => {
@@ -336,7 +375,7 @@ test("derived Your tunes lessons match the brief and each play-through has every
       );
     }
   }
-  assert.equal(TUNE_LESSONS.length, 10);
+  assert.equal(TUNE_LESSONS.length, 11);
   for (const lesson of TUNE_LESSONS) {
     const tune = tuneById(lesson.tuneId);
     assert.equal(lesson.id, tunePlayLessonId(tune.id));
