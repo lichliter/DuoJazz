@@ -19,7 +19,7 @@ import {
   verovioOptions,
   whenVerovioReady,
 } from "./engrave.js";
-import { notationLayout, STAFF_PX } from "./lesson.js";
+import { notationLayout, PORTRAIT_STAFF_PX, STAFF_PX } from "./lesson.js";
 
 test("Verovio options use encoded breaks and justify every system, including the last", () => {
   const chorus = verovioOptions({
@@ -92,7 +92,7 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /class="session-bottom"/);
   assert.match(index, /id="home-summary"/);
   assert.match(index, /id="home-mode"/);
-  assert.match(index, /id="card-badge">Play</);
+  assert.match(index, /id="card-badge">Learn</);
   assert.match(index, /class="session-links"/);
   assert.match(index, /id="continue-btn">Skip</);
   assert.match(index, /id="hear-it"[^>]*>Hear it</);
@@ -277,7 +277,8 @@ test("accidentals are split out so a font that has them can sit tight", async ()
   assert.match(app, /textContent = "Octave"/);
   assert.match(app, /setAttribute\("aria-label", "Octave down"\)/);
   assert.match(app, /setAttribute\("aria-label", "Octave up"\)/);
-  assert.match(app, /cardBadge\.textContent = "Play"/);
+  assert.match(app, /sessionModeHeading\(session\)/);
+  assert.doesNotMatch(app, /cardBadge\.textContent = "Play"/);
   assert.match(app, /renderHomeMode\(/);
   assert.doesNotMatch(app, /section\.append\(copy, badge, studySwitch/);
 });
@@ -348,6 +349,22 @@ test("timemap highlight picks the event covering the current quarter", () => {
   assert.deepEqual(soundingIdsAt(timemap, -1), []);
 });
 
+test("home controls and session paper match the simplify revision", async () => {
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  assert.match(hig, /\.study-switch-btn\s*\{[^}]*min-height:\s*44px/);
+  assert.match(hig, /\.study-switch-btn\s*\{[^}]*font:\s*600 16px\/20px/);
+  assert.match(hig, /\.app-tab\s*\{[^}]*min-height:\s*44px/);
+  assert.match(hig, /\.app-tab\s*\{[^}]*font:\s*600 16px\/20px/);
+  assert.match(hig, /--content-max:\s*900px/);
+  assert.match(hig, /\.paper\.notation-memory \.note/);
+  assert.match(styles, /\.sleeve-context\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(styles, /\.sleeve-context\s*\{[^}]*text-overflow:\s*ellipsis/);
+  assert.match(app, /sessionEngraveSpec\(session\)/);
+  assert.match(app, /fitNotationInView\(\)/);
+});
+
 test("notation size presets keep four bars per line and scale the staff together", () => {
   for (const size of [1, 1.2, 1.4, 1.6]) {
     const layout = notationLayout({
@@ -360,8 +377,8 @@ test("notation size presets keep four bars per line and scale the staff together
     });
     assert.equal(layout.barsPerLine, 4, `${size} bars`);
     assert.equal(layout.notationScale, size);
-    assert.equal(layout.minStaffPx, Math.round(STAFF_PX * size));
+    assert.equal(layout.minStaffPx, Math.round(PORTRAIT_STAFF_PX * size));
     const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);
-    assert.ok(Math.abs(staff - STAFF_PX * size) < 1.5, `${size} staff ${staff}`);
+    assert.ok(Math.abs(staff - PORTRAIT_STAFF_PX * size) < 1.5, `${size} staff ${staff}`);
   }
 });

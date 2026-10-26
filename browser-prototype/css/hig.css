@@ -117,7 +117,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1px;
-  font: var(--text-caption);
+  font: 600 16px/20px var(--font);
   cursor: pointer;
 }
 
@@ -301,15 +301,14 @@ body {
 }
 
 .study-switch-btn {
-  min-height: 32px;
+  min-height: 44px;
   min-width: 4.5rem;
   border: 0;
   border-radius: var(--radius-full);
   background: transparent;
   color: var(--label-secondary);
-  font: var(--text-footnote);
-  font-weight: 600;
-  padding: 0 0.7rem;
+  font: 600 16px/20px var(--font);
+  padding: 0 0.85rem;
 }
 
 .study-switch-btn[aria-pressed="true"] {
@@ -389,7 +388,8 @@ body {
     bottom: auto;
     top: calc(var(--safe-top) + 6px);
     z-index: 9;
-    height: 40px;
+    height: auto;
+    min-height: 50px;
     padding: 3px;
     width: max-content;
     align-self: center;
@@ -403,14 +403,13 @@ body {
 
   .app-tab {
     flex: 0 0 auto;
-    min-height: 34px;
+    min-height: 44px;
     min-width: 5.6rem;
     flex-direction: row;
     gap: 0.35rem;
     padding: 0 0.85rem;
     border-radius: 999px;
-    font: var(--text-footnote);
-    font-weight: 600;
+    font: 600 16px/20px var(--font);
   }
 
   .app-tab[aria-current="page"] {
@@ -666,7 +665,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: var(--space-4) var(--margin-regular) var(--space-3);
-  overflow: auto;
+  overflow: hidden;
   max-width: calc(var(--content-max) + 2 * var(--margin-regular));
   width: 100%;
   margin-inline: auto;
@@ -711,6 +710,28 @@ body {
 
 .session-screen .paper {
   min-height: 0;
+}
+
+.session-screen .paper.notation-memory .ledgerLines,
+.session-screen .paper.notation-memory .note,
+.session-screen .paper.notation-memory .rest,
+.session-screen .paper.notation-memory .mRest,
+.session-screen .paper.notation-memory .beam,
+.session-screen .paper.notation-memory .slur,
+.session-screen .paper.notation-memory .tie,
+.session-screen .paper.notation-memory .hairpin,
+.session-screen .paper.notation-memory .dynam,
+.session-screen .paper.notation-memory .artic,
+.session-screen .paper.notation-memory .tuplet,
+.session-screen .paper.notation-memory .fermata,
+.session-screen .paper.notation-memory .dir {
+  visibility: hidden;
+}
+
+@media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
+  .session-screen {
+    --content-max: 900px;
+  }
 }
 
 .session-screen .paper-wrap {

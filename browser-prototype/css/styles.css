@@ -2020,8 +2020,11 @@ input[type="checkbox"] {
   background: var(--bg);
   padding: 0.05rem 0.45rem 0.12rem;
   border-radius: 999px;
-  max-width: calc(var(--sleeve-size) + var(--vinyl-size) * 0.28);
+  max-width: min(18rem, calc(100vw - 5.5rem));
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .path-end {

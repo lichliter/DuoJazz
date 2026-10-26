@@ -18,6 +18,8 @@ import {
   isStandPortrait,
   isStandLandscape,
   notationLayout,
+  notationCssWidth,
+  baseStaffPx,
   nextEngravingWidth,
   nextStaffsep,
   estimatedStaffHeightCss,
@@ -26,6 +28,7 @@ import {
   slashFitsStaff,
   STAFF_PX,
   STAFF_PX_NARROW,
+  PORTRAIT_STAFF_PX,
   parseNotationScale,
   persistNotationScale,
   resolveNotationScale,
@@ -33,6 +36,8 @@ import {
   NOTATION_SCALE_KEY,
   NOTATION_SCALE_VALUES,
 } from "./lesson.js";
+import { createSession, sessionEngraveSpec, sessionModeHeading } from "./session.js";
+import { staffCssFromPage, verovioOptions } from "./engrave.js";
 
 const helpState = { ...defaultState(), support: "help" };
 const freeState = { ...defaultState(), support: "free" };
@@ -340,10 +345,11 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
   assert.equal(stand.fillAxis, "fit");
   assert.equal(stand.naturalWidth, false);
   assert.equal(stand.staffsep, 96);
-  assert.equal(stand.minStaffPx, STAFF_PX);
+  assert.equal(stand.minStaffPx, PORTRAIT_STAFF_PX);
+  assert.ok(stand.minStaffPx >= 96, "portrait staff must read from a meter away");
   assert.ok(stand.fillRatio >= 0.7);
-  const staffCss = estimatedStaffHeightCss(stand, 980);
-  assert.ok(staffCss >= 38 && staffCss <= 42, `staff ${staffCss}`);
+  const staffCss = estimatedStaffHeightCss(stand, 900);
+  assert.equal(staffCss, PORTRAIT_STAFF_PX);
   const landscape = notationLayout({
     staffWidth: 980,
     viewportWidth: 1366,
@@ -406,25 +412,32 @@ test("chorus layout keeps bars intact: 4 per line wherever width allows, never a
   }
 });
 
-test("focused two-bar cell keeps the same 38–42px staff and natural width", () => {
+test("focused cells fill the card at the same staff size as the chorus", () => {
+  const chorus = notationLayout({
+    staffWidth: 900,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: false,
+    showEntranceCues: false,
+  });
   const phrase = notationLayout({
-    staffWidth: 980,
+    staffWidth: 900,
     viewportWidth: 1024,
     viewportHeight: 1366,
     showPhraseNotation: true,
     showEntranceCues: false,
+    phraseBars: 2,
   });
   assert.equal(phrase.barsPerLine, 2);
   assert.equal(phrase.stretchlast, false);
   assert.equal(phrase.fitToPaper, false);
-  assert.equal(phrase.fillAxis, "width");
-  assert.equal(phrase.naturalWidth, true);
-  assert.equal(phrase.minStaffPx, STAFF_PX);
-  const staffCss = estimatedStaffHeightCss(phrase, 980);
-  assert.ok(staffCss >= 38 && staffCss <= 42, `phrase staff ${staffCss}`);
-  assert.ok(phrase.chordCssPx >= 16 && phrase.chordCssPx <= 18);
+  assert.equal(phrase.fillAxis, "fit");
+  assert.equal(phrase.naturalWidth, false);
+  assert.equal(phrase.minStaffPx, chorus.minStaffPx);
+  assert.equal(phrase.minStaffPx, PORTRAIT_STAFF_PX);
+  assert.equal(phrase.chordCssPx, chorus.chordCssPx);
   const gts = notationLayout({
-    staffWidth: 980,
+    staffWidth: 900,
     viewportWidth: 1024,
     viewportHeight: 1366,
     showPhraseNotation: true,
@@ -432,11 +445,11 @@ test("focused two-bar cell keeps the same 38–42px staff and natural width", ()
     phraseBars: 3,
   });
   assert.equal(gts.barsPerLine, 3);
-  assert.equal(gts.naturalWidth, true);
-  assert.equal(gts.minStaffPx, STAFF_PX);
+  assert.equal(gts.naturalWidth, false);
+  assert.equal(gts.minStaffPx, chorus.minStaffPx);
   assert.equal(gts.stretchlast, false);
   const five = notationLayout({
-    staffWidth: 980,
+    staffWidth: 900,
     viewportWidth: 1024,
     viewportHeight: 1366,
     showPhraseNotation: true,
@@ -445,7 +458,60 @@ test("focused two-bar cell keeps the same 38–42px staff and natural width", ()
   });
   assert.equal(five.barsPerLine, 5);
   assert.equal(five.naturalWidth, false);
-  assert.equal(five.minStaffPx, STAFF_PX);
+  assert.equal(five.minStaffPx, chorus.minStaffPx);
+});
+
+test("Learn and Practice render the staff at the same size", () => {
+  const viewports = [
+    { name: "iPad portrait", staffWidth: 900, viewportWidth: 1024, viewportHeight: 1366 },
+    { name: "iPad landscape", staffWidth: 640, viewportWidth: 1366, viewportHeight: 1024 },
+    { name: "laptop", staffWidth: 640, viewportWidth: 1280, viewportHeight: 720 },
+    { name: "phone", staffWidth: 340, viewportWidth: 375, viewportHeight: 812 },
+  ];
+  for (const lessonId of ["learn-lick", "integrate-minor-home"]) {
+    const learn = sessionEngraveSpec(createSession({ lessonId, studyMode: "learn" }));
+    const practice = sessionEngraveSpec(createSession({ lessonId, studyMode: "practice" }));
+    assert.equal(learn.mei, practice.mei, lessonId);
+    assert.equal(learn.showPhraseNotation, practice.showPhraseNotation, lessonId);
+    assert.equal(learn.memory, false, lessonId);
+    assert.equal(practice.memory, true, lessonId);
+    assert.equal(sessionModeHeading(createSession({ lessonId, studyMode: "learn" })), "Learn");
+    assert.equal(sessionModeHeading(createSession({ lessonId, studyMode: "practice" })), "Practice");
+    for (const viewport of viewports) {
+      const learnLayout = notationLayout({
+        staffWidth: viewport.staffWidth,
+        viewportWidth: viewport.viewportWidth,
+        viewportHeight: viewport.viewportHeight,
+        showPhraseNotation: learn.showPhraseNotation,
+        showEntranceCues: learn.showEntranceCues,
+        phraseBars: learn.phraseBars,
+      });
+      const practiceLayout = notationLayout({
+        staffWidth: viewport.staffWidth,
+        viewportWidth: viewport.viewportWidth,
+        viewportHeight: viewport.viewportHeight,
+        showPhraseNotation: practice.showPhraseNotation,
+        showEntranceCues: practice.showEntranceCues,
+        phraseBars: practice.phraseBars,
+      });
+      assert.equal(learnLayout.minStaffPx, practiceLayout.minStaffPx, `${lessonId} ${viewport.name}`);
+      assert.equal(learnLayout.naturalWidth, false, viewport.name);
+      assert.equal(practiceLayout.naturalWidth, false, viewport.name);
+      assert.equal(learnLayout.chordCssPx, practiceLayout.chordCssPx, viewport.name);
+      assert.equal(learnLayout.barsPerLine, practiceLayout.barsPerLine, `${lessonId} ${viewport.name}`);
+      const hasSb = learnLayout.barsPerLine < 8;
+      const learnPage = verovioOptions(learnLayout, viewport.staffWidth, { hasSb }).pageWidth;
+      const practicePage = verovioOptions(practiceLayout, viewport.staffWidth, { hasSb }).pageWidth;
+      assert.equal(learnPage, practicePage, `${lessonId} ${viewport.name}`);
+      const learnStaff = staffCssFromPage(learnPage, viewport.staffWidth);
+      const practiceStaff = staffCssFromPage(practicePage, viewport.staffWidth);
+      assert.ok(Math.abs(learnStaff - practiceStaff) < 0.5, `${lessonId} ${viewport.name}`);
+      assert.ok(Math.abs(learnStaff - learnLayout.minStaffPx) < 1.5, `${viewport.name} ${learnStaff}`);
+    }
+  }
+  assert.equal(baseStaffPx({ staffWidth: 900, viewportWidth: 1024, viewportHeight: 1366 }), PORTRAIT_STAFF_PX);
+  assert.equal(notationCssWidth(900, 420, 300), Math.floor(900 * 300 / 420));
+  assert.equal(notationCssWidth(900, 280, 400), 900);
 });
 
 test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {
