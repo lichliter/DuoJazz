@@ -14,6 +14,7 @@ import { notationLayout, resolveNotationScale } from "./lesson.js";
 import { chordsOnlyMEI, chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
+  compactChordSymbol,
   engraveMei,
   highlightActiveChords,
   measureEngraving,
@@ -74,6 +75,10 @@ import {
   persistLessonTempo,
   wrapupNextModule,
   homeNextModule,
+  moduleStudyMode,
+  setModuleStudyMode,
+  setSessionStudyMode,
+  STUDY_MODES,
   settingsSummaryShort,
   setInstrument,
   cardLabel,
@@ -92,7 +97,7 @@ import {
   tunePlayLessonId,
 } from "./tunes.js";
 import { parseTabState, tabSearch } from "./tabs.js";
-import { chartTuneList, chartGrid, licksForTune } from "./charts.js";
+import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import {
@@ -102,6 +107,8 @@ import {
   loadMastery,
   saveMastery,
   recordQuizPass,
+  recordLearnPass,
+  moduleRingMarks,
   lessonPassedKeys,
   normalizeMastery,
   moduleMastery,
@@ -191,6 +198,8 @@ const els = {
   sessionKeyCount: document.getElementById("session-key-count"),
   sessionProgressFill: document.getElementById("session-progress-fill"),
   cardBadge: document.getElementById("card-badge"),
+  sessionMode: document.getElementById("session-mode"),
+  hearIt: document.getElementById("hear-it"),
   notation: document.getElementById("notation"),
   hiddenAnswer: document.getElementById("hidden-answer"),
   listenState: document.getElementById("listen-state"),
@@ -387,6 +396,7 @@ function startLesson(lessonId) {
     keyMode: prefs.keyMode,
     startKeyId: prefs.startKeyId || fallback,
     cardSet: prefs.cardSet,
+    studyMode: moduleStudyMode(prefs, moduleForLesson(lesson.id).id),
     tempo: prefs.tempo,
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
     instrumentId: prefs.instrumentId,
@@ -424,11 +434,7 @@ function renderQuickView() {
       const copy = document.createElement("span");
       copy.className = "module-sheet-copy";
       copy.innerHTML = `<span class="module-sheet-name">${module.lickName}</span><span class="module-sheet-meta">${module.keysMastered} of 12 keys mastered</span>`;
-      const ring = document.createElement("span");
-      ring.className = "mastery-ring";
-      ring.style.setProperty("--progress", String((module.keysMastered / 12) * 100));
-      ring.innerHTML = `<span>${module.keysMastered}</span>`;
-      ring.setAttribute("aria-label", `${module.keysMastered} of 12 keys mastered`);
+      const ring = masteryRing(moduleRingMarks(mastery, module.id));
       btn.append(num, copy, ring);
       btn.addEventListener("click", () => jumpFromQuickView(module.id));
       return btn;
@@ -561,8 +567,11 @@ function runPrimary() {
 }
 
 function recordPassIfNeeded(result) {
-  if (!result?.passed || !session || currentCard(session) !== "quiz") return;
-  wrapupBanner = recordQuizPass(mastery, session.lessonId, currentKeyId(session));
+  if (!result?.passed || !session) return;
+  const keyId = currentKeyId(session);
+  wrapupBanner = session.studyMode === "practice"
+    ? recordQuizPass(mastery, session.lessonId, keyId)
+    : recordLearnPass(mastery, session.lessonId, keyId);
   mastery = wrapupBanner;
   saveMastery(mastery);
 }
@@ -636,8 +645,72 @@ function moduleBanner(module, stats) {
   );
   const mark = homeMedalMark(count, stats.medal);
   badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
-  section.append(copy, badge);
+  section.append(copy, badge, studySwitch(module.id, moduleStudyMode(prefs, module.id), (mode) => {
+    prefs = setModuleStudyMode(prefs, module.id, mode);
+    persist();
+    renderHome();
+  }));
   return section;
+}
+
+function studySwitch(moduleId, mode, onChange, testId = `study-switch-${moduleId}`) {
+  const group = document.createElement("div");
+  group.className = "study-switch";
+  group.dataset.testid = testId;
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", "Learn or Practice");
+  for (const item of STUDY_MODES) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "study-switch-btn";
+    btn.dataset.mode = item.id;
+    btn.textContent = item.label;
+    btn.setAttribute("aria-pressed", String(item.id === mode));
+    btn.addEventListener("click", () => onChange(item.id));
+    group.append(btn);
+  }
+  return group;
+}
+
+function masteryRing(marks) {
+  const ring = document.createElement("span");
+  ring.className = "mastery-ring segments";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 36 36");
+  svg.setAttribute("aria-hidden", "true");
+  marks.forEach((mark, index) => {
+    const start = -Math.PI / 2 + (index * 2 * Math.PI) / 12 + 0.06;
+    const end = start + (2 * Math.PI) / 12 - 0.12;
+    const radius = 14;
+    const cx = 18;
+    const cy = 18;
+    const arc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const x1 = cx + radius * Math.cos(start);
+    const y1 = cy + radius * Math.sin(start);
+    const x2 = cx + radius * Math.cos(end);
+    const y2 = cy + radius * Math.sin(end);
+    arc.setAttribute("d", `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`);
+    arc.setAttribute("fill", "none");
+    arc.setAttribute("stroke-linecap", "butt");
+    arc.dataset.mark = mark.mark;
+    if (mark.mark === "filled") {
+      arc.setAttribute("stroke", "var(--tint)");
+      arc.setAttribute("stroke-width", "4");
+    } else if (mark.mark === "outline") {
+      arc.setAttribute("stroke", "var(--tint)");
+      arc.setAttribute("stroke-width", "1.5");
+    } else {
+      arc.setAttribute("stroke", "var(--fill)");
+      arc.setAttribute("stroke-width", "4");
+    }
+    svg.append(arc);
+  });
+  const filled = marks.filter((mark) => mark.mark === "filled").length;
+  const label = document.createElement("span");
+  label.textContent = String(filled);
+  ring.append(svg, label);
+  ring.setAttribute("aria-label", `${filled} of 12 keys mastered in Practice`);
+  return ring;
 }
 
 function moduleBlock(module, nodes, stats) {
@@ -906,10 +979,23 @@ function applyMelodyOctave(register) {
 }
 
 function renderSessionChrome() {
-  const card = currentCard(session);
   const ordinal = keyOrdinal(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
-  els.cardBadge.textContent = cardLabel(card, session.lessonId);
+  els.cardBadge.textContent = session.studyMode === "practice" ? "Practice" : "Learn";
+  if (els.sessionMode) {
+    els.sessionMode.replaceChildren(studySwitch(
+      moduleForLesson(session.lessonId).id,
+      session.studyMode,
+      (mode) => {
+        const moduleId = moduleForLesson(session.lessonId).id;
+        prefs = setModuleStudyMode(prefs, moduleId, mode);
+        persist();
+        halt();
+        applySession(setSessionStudyMode(session, mode));
+      },
+      "session-mode-switch",
+    ));
+  }
   if (els.sessionTitle) els.sessionTitle.textContent = sessionScreenTitle(session);
   els.sessionKey.textContent = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
@@ -1295,10 +1381,10 @@ function renderChartDetail() {
     els.chartHeadingMeta.textContent = `${grid.composer} · ${grid.style} · ${grid.writtenKeyName}`;
   }
   if (els.chartKeys) {
-    chipRow(els.chartKeys, TWELVE_KEY_IDS.map((id) => ({
-      id,
-      label: displayKey(getKey(id), prefs.instrumentId, tune.keyQuality === "major" ? "major" : "minor").shortName,
-    })), chartConcertKeyId, (id) => {
+    chipRow(els.chartKeys, chartKeyChoices(
+      tune.keyQuality === "major" ? "major" : "minor",
+      prefs.instrumentId,
+    ), chartConcertKeyId, (id) => {
       chartConcertKeyId = id;
       renderChartDetail();
     });
@@ -1331,7 +1417,12 @@ function renderChartDetail() {
           }
           const chords = document.createElement("div");
           chords.className = "ireal-chords";
-          chords.textContent = bar.chords.map((chord) => chord.name).join("  ");
+          for (const chord of bar.chords) {
+            const symbol = document.createElement("span");
+            symbol.className = "chord-symbol";
+            symbol.textContent = compactChordSymbol(chord.name);
+            chords.append(symbol);
+          }
           cell.append(chords);
           line.append(cell);
         }
@@ -1573,6 +1664,13 @@ els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
 });
 els.primary.addEventListener("click", runPrimary);
+els.hearIt?.addEventListener("click", () => {
+  if (!session || session.screen !== "session") return;
+  halt();
+  session = { ...session, demo: true };
+  render();
+  start(false);
+});
 els.continueBtn.addEventListener("click", goContinue);
 els.nextModule?.addEventListener("click", () => {
   if (!session) return;

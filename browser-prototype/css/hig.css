@@ -238,6 +238,69 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.15rem 0.45rem;
+  letter-spacing: 0;
+}
+
+.chord-symbol {
+  font-family: "Noto Sans", "Source Sans 3", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.study-switch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--fill);
+  gap: 2px;
+}
+
+.study-switch-btn {
+  min-height: 32px;
+  min-width: 4.5rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--label-secondary);
+  font: var(--text-footnote);
+  font-weight: 600;
+  padding: 0 0.7rem;
+}
+
+.study-switch-btn[aria-pressed="true"] {
+  background: var(--bg);
+  color: var(--tint);
+}
+
+.module-banner .study-switch-btn {
+  color: #f8ead8;
+}
+
+.module-banner .study-switch-btn[aria-pressed="true"] {
+  background: #fff6ea;
+  color: #8a3a24;
+}
+
+.module-banner {
+  flex-wrap: wrap;
+}
+
+.module-banner .study-switch {
+  flex: 1 0 100%;
+  background: color-mix(in srgb, #201712 28%, transparent);
+}
+
+.session-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.session-heading .session-title {
+  width: 100%;
 }
 
 .chart-licks {
@@ -349,6 +412,21 @@ body {
   background:
     conic-gradient(var(--tint) calc(var(--progress) * 1%), var(--fill) 0);
   position: relative;
+}
+
+.mastery-ring.segments {
+  background: none;
+}
+
+.mastery-ring.segments::after {
+  content: none;
+}
+
+.mastery-ring.segments svg {
+  position: absolute;
+  inset: 0;
+  width: 28px;
+  height: 28px;
 }
 
 .mastery-ring::after {

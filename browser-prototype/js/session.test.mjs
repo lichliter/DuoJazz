@@ -122,63 +122,39 @@ test("one key cycle is a single starting key", () => {
   assert.deepEqual(nextLapQueue("one", queue), ["F"]);
 });
 
-test("card sets are all four cards or Listen + Quiz only", () => {
-  assert.deepEqual(cardsFor("all", "integrate-minor-home"), ["learn", "play", "listen", "quiz"]);
-  assert.deepEqual(cardsFor("listen-quiz", "integrate-minor-home"), ["listen", "quiz"]);
-  assert.deepEqual(cardsFor("all", "learn-lick"), ["learn", "play", "quiz"]);
-  assert.deepEqual(cardsFor("listen-quiz", "learn-lick"), ["learn", "play", "quiz"]);
+test("every lesson is one play-along card", () => {
+  assert.deepEqual(cardsFor("all", "integrate-minor-home"), ["play"]);
+  assert.deepEqual(cardsFor("listen-quiz", "integrate-minor-home"), ["play"]);
+  assert.deepEqual(cardsFor("all", "learn-lick"), ["play"]);
+  assert.deepEqual(cardsFor("listen-quiz", "learn-lick"), ["play"]);
 });
 
-test("completing cards advances, then wrap-up after the last card of a key", () => {
-  let session = createSession({ lessonId: "learn-lick", keyMode: "fourths", startKeyId: "G" });
+test("finishing the card of a one-key session opens wrap-up", () => {
+  let session = createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "G" });
   assert.equal(session.screen, "session");
-  assert.equal(currentCard(session), "learn");
+  assert.equal(currentCard(session), "play");
   assert.equal(currentKeyId(session), "G");
-  assert.deepEqual(keyOrdinal(session), { index: 1, total: 12 });
-
-  session = completeCard(session);
-  assert.equal(currentCard(session), "play");
-  session = completeCard(session);
-  assert.equal(currentCard(session), "quiz");
   session = completeCard(session);
   assert.equal(session.screen, "wrapup");
-  assert.equal(session.cardResults.length, 3);
-  assert.ok(session.cardResults.every((row) => row.outcome === "completed"));
+  assert.deepEqual(session.cardResults.map((row) => row.cardId), ["play"]);
 });
 
-test("Listen + Quiz sessions skip Learn and Play", () => {
-  let session = createSession({
-    lessonId: "integrate-minor-home",
-    cardSet: "listen-quiz",
-    keyMode: "one",
-  });
-  assert.deepEqual(session.cards, ["listen", "quiz"]);
-  session = completeCard(session);
-  assert.equal(currentCard(session), "quiz");
-  session = completeCard(session);
+test("playback of a one-key card wraps up; a demo stays on the key", () => {
+  const session = createSession({ lessonId: "integrate-minor-home", keyMode: "one" });
+  const done = handlePlaybackEnded(session, { graded: true, passed: true, outcome: "passed" });
+  assert.equal(done.autoStart, false);
+  assert.equal(done.session.screen, "wrapup");
+  const demo = handlePlaybackEnded({ ...session, demo: true });
+  assert.equal(demo.autoStart, false);
+  assert.equal(demo.session.screen, "session");
+  assert.equal(demo.session.demo, false);
+  assert.equal(currentKeyId(demo.session), currentKeyId(session));
+});
+
+test("skipping the only card wraps up and records a skip", () => {
+  let session = createSession({ lessonId: "learn-lick", keyMode: "one" });
+  session = skipCard(session);
   assert.equal(session.screen, "wrapup");
-  assert.deepEqual(session.cardResults.map((row) => row.cardId), ["listen", "quiz"]);
-});
-
-test("listen playback ending starts the echo stage, then completes the card", () => {
-  let session = jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "listen");
-  const afterHear = handlePlaybackEnded(session);
-  assert.equal(afterHear.session.listenStage, "echo");
-  assert.equal(afterHear.autoStart, true);
-  assert.equal(currentCard(afterHear.session), "listen");
-  const afterEcho = handlePlaybackEnded(afterHear.session);
-  assert.equal(afterEcho.autoStart, false);
-  assert.equal(currentCard(afterEcho.session), "quiz");
-  assert.equal(afterEcho.session.listenStage, "hear");
-});
-
-test("skipping a card still auto-advances without requiring playback", () => {
-  let session = createSession({ lessonId: "learn-lick" });
-  session = skipCard(session);
-  assert.equal(currentCard(session), "play");
-  assert.equal(session.cardResults[0].outcome, "completed");
-  session = skipCard(session);
-  assert.equal(currentCard(session), "quiz");
   assert.equal(session.cardResults.find((row) => row.cardId === "play")?.outcome, "skipped");
   assert.equal(session.cardResults.find((row) => row.cardId === "play")?.passed, false);
 });
@@ -193,12 +169,12 @@ test("wrap-up Next key walks the cycle; Again repeats the same key; one-key has 
   const next = advanceKey(session);
   assert.equal(next.screen, "session");
   assert.equal(currentKeyId(next), "Ab");
-  assert.equal(currentCard(next), "learn");
+  assert.equal(currentCard(next), "play");
   assert.deepEqual(keyOrdinal(next), { index: 2, total: 12 });
 
   const again = repeatKey(session);
   assert.equal(currentKeyId(again), "G");
-  assert.equal(currentCard(again), "learn");
+  assert.equal(currentCard(again), "play");
   assert.equal(again.cardResults.length, 0);
 
   const one = createSession({ keyMode: "one", startKeyId: "D" });
@@ -261,57 +237,43 @@ test("recommended start is the first lesson not yet 12/12", () => {
   assert.equal(recommendedLessonId(allComplete), null);
 });
 
-test("learn-the-lick cards use isolated cell audio; integration cards use the eight-bar form", () => {
-  const learn = createSession({ lessonId: "learn-lick" });
-  const learnState = practiceStateFor(learn);
-  assert.equal(learnState.goal, "learn");
+test("learn-the-lick uses the cell; integration uses the form, with Hear it as a demo", () => {
+  const learn = createSession({ lessonId: "learn-lick", studyMode: "learn" });
+  assert.equal(practiceStateFor(learn).cellMode, "echo");
   assert.equal(sessionAudioConfig(learn).lengthBeats, 8);
-  assert.equal(sessionAudioConfig(learn).includeModel, true);
+  assert.equal(sessionAudioConfig(learn).includeModel, false);
+  const demo = { ...learn, demo: true };
+  assert.equal(sessionAudioConfig(demo).includeModel, true);
 
-  const play = jumpToCard(learn, "play");
-  assert.equal(practiceStateFor(play).cellMode, "echo");
-  assert.equal(sessionAudioConfig(play).includeModel, false);
-
-  const integrate = createSession({ lessonId: "integrate-minor-home" });
+  const integrate = createSession({ lessonId: "integrate-minor-home", studyMode: "learn" });
   assert.equal(practiceStateFor(integrate).goal, "integrate");
   assert.equal(sessionAudioConfig(integrate).lengthBeats, 32);
-  const integratePlay = jumpToCard(integrate, "play");
-  assert.equal(practiceStateFor(integratePlay).support, "help");
-  const playView = sessionPresentation(integratePlay);
+  assert.equal(practiceStateFor(integrate).support, "help");
+  const playView = sessionPresentation(integrate);
   assert.equal(playView.showLandingNotation, true);
   assert.equal(playView.showSlashNotation, true);
   assert.equal(playView.showEntranceCues, true);
   assert.equal(playView.showModelNotation, false);
-  const events = scheduleChorus(sessionAudioConfig(integratePlay));
+  const events = scheduleChorus(sessionAudioConfig(integrate));
   assert.equal(events.filter((event) => event.type === "melody").length, 0);
   assert.ok(events.some((event) => event.type === "cue"));
 });
 
-test("listen and quiz hide lick notation; quiz does not leak the door in idle copy", () => {
-  const learnMemory = jumpToCard(createSession({ lessonId: "learn-lick" }), "quiz");
+test("Practice hides lick notation and keeps the staff for chords", () => {
+  const learnMemory = createSession({ lessonId: "learn-lick", studyMode: "practice" });
   const learnView = sessionPresentation(learnMemory);
   assert.equal(learnView.hideStaff, false);
   assert.equal(learnView.showChordsOnly, true);
   assert.equal(learnView.showPhraseNotation, false);
   assert.equal(learnView.showModelNotation, false);
 
-  const integrateListen = jumpToCard(createSession({ lessonId: "integrate-altered-dominant" }), "listen");
-  const integrateView = sessionPresentation(integrateListen);
-  assert.equal(integrateView.hideStaff, false);
-  assert.equal(integrateView.showSlashNotation, true);
-  assert.equal(integrateView.showModelNotation, false);
-  assert.equal(integrateView.showEntranceCues, false);
-  assert.equal(sessionAudioConfig(integrateListen).includeModel, true);
-
-  const quiz = jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "quiz");
+  const quiz = createSession({ lessonId: "integrate-minor-home", studyMode: "practice" });
   const quizView = sessionPresentation(quiz);
   assert.equal(quizView.showEntranceCues, false);
   assert.equal(quizView.showModelNotation, false);
   assert.equal(quizView.showLandingNotation, false);
+  assert.equal(quizView.showChordsOnly, true);
   assert.equal(sessionAudioConfig(quiz).includeModel, false);
-  const cue = sessionCue(quiz);
-  assert.equal(leaksTargetBar(cue), false);
-  assert.doesNotMatch(cue, /Gm6|bar 7/i);
 });
 
 test("wrap-up lists per-card completion and names the next key", () => {
@@ -321,9 +283,8 @@ test("wrap-up lists per-card completion and names the next key", () => {
     startKeyId: "G",
   }));
   const copy = wrapupCopy(session);
-  assert.equal(copy.results.length, 3);
-  assert.equal(copy.results[0].label, "Hear it");
-  assert.equal(copy.results[2].label, "Play it from memory");
+  assert.equal(copy.results.length, 1);
+  assert.equal(copy.results[0].label, "Play it");
   assert.equal(copy.heading, "G minor");
   assert.equal(copy.kicker, "Key complete");
   assert.equal(copy.detail, "Learn the lick");
@@ -334,14 +295,8 @@ test("wrap-up lists per-card completion and names the next key", () => {
   assert.equal(one.nextKeyLabel, null);
 });
 
-test("Listen and Quiz expose a listening-state copy for the feedback area", () => {
-  const listen = jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "listen");
-  const hear = listenStateCopy(listen);
-  assert.equal(hear.kicker, "Listening");
-  const echo = listenStateCopy({ ...listen, listenStage: "echo" });
-  assert.equal(echo.kicker, "Your turn");
-  const quiz = listenStateCopy(jumpToCard(createSession({ lessonId: "integrate-minor-home" }), "quiz"));
-  assert.equal(quiz.kicker, "Quiz");
+test("the single card does not use the old Listen or Quiz feedback stages", () => {
+  assert.equal(listenStateCopy(createSession({ lessonId: "integrate-minor-home" })), null);
   assert.equal(listenStateCopy(createSession({ lessonId: "learn-lick" })), null);
 });
 
@@ -502,81 +457,52 @@ test("a graded card with no take is Skipped and is not a pass", () => {
   const wrapped = wrapupCopy({
     ...jumpToWrapup(play),
     cardResults: [
-      { cardId: "learn", outcome: "completed" },
       { cardId: "play", outcome: "skipped", graded: false, passed: false },
-      { cardId: "quiz", outcome: "skipped", graded: false, passed: false },
     ],
   });
   assert.equal(wrapped.results.find((row) => row.cardId === "play")?.summary, "Skipped");
-  assert.equal(wrapped.results.find((row) => row.cardId === "learn")?.summary, "Completed");
   assert.equal(cardResultLabel({ graded: true, passed: false, percent: 0, correction: "1st note didn't speak", outcome: "missed" }), "0% · miss · 1st note didn't speak");
 });
 
-test("Back is disabled on card 1 and Next on the last card", () => {
+test("Back and Next stay put on the single card", () => {
   const first = createSession({ lessonId: "learn-lick" });
   assert.equal(canGoBack(first), false);
-  assert.equal(canGoNext(first), true);
-  assert.deepEqual(cardCounter(first), { index: 1, total: 3 });
+  assert.equal(canGoNext(first), false);
+  assert.deepEqual(cardCounter(first), { index: 1, total: 1 });
   const backNoop = goBack(first);
   assert.equal(backNoop.moved, false);
-  assert.equal(backNoop.session.cardIndex, 0);
   assert.equal(backNoop.stopAudio, false);
-
-  const last = { ...first, cardIndex: 2 };
-  assert.equal(currentCard(last), "quiz");
-  assert.equal(canGoBack(last), true);
-  assert.equal(canGoNext(last), false);
-  const nextNoop = goNext(last);
+  const nextNoop = goNext(first);
   assert.equal(nextNoop.moved, false);
-  assert.equal(nextNoop.session.cardIndex, 2);
   assert.equal(nextNoop.session.screen, "session");
 });
 
-test("leaving a graded card with no take marks it Skipped", () => {
-  const play = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
-  const moved = goNext(play, { hasTake: false });
-  assert.equal(moved.moved, true);
-  assert.equal(currentCard(moved.session), "quiz");
-  assert.deepEqual(keyOrdinal(moved.session), { index: 1, total: 1 });
-  assert.deepEqual(cardCounter(moved.session), { index: 3, total: 3 });
-  const skipped = resultForCard(moved.session, "play");
+test("the play-along card with no take is Skipped", () => {
+  const play = createSession({ lessonId: "learn-lick" });
+  const skipped = leaveCardOutcome(play, { hasTake: false });
   assert.equal(skipped.outcome, "skipped");
   assert.equal(skipped.passed, false);
-  const learnLeave = leaveCardOutcome(createSession({ lessonId: "learn-lick" }), { hasTake: false });
-  assert.equal(learnLeave.outcome, "completed");
 });
 
-test("going back shows the last result and a retake replaces the grade", () => {
-  let session = jumpToCard(createSession({ lessonId: "learn-lick" }), "play");
-  session = goNext(session, {
-    hasTake: true,
-    takeResult: { outcome: "passed", graded: true, passed: true, percent: 90 },
-  }).session;
+test("a stored play-along grade can be replaced", () => {
+  let session = createSession({ lessonId: "learn-lick" });
+  session = {
+    ...session,
+    cardResults: [{ cardId: "play", outcome: "passed", graded: true, passed: true, percent: 90 }],
+  };
   assert.equal(resultForCard(session, "play").percent, 90);
-  const back = goBack(session);
-  assert.equal(back.moved, true);
-  assert.equal(currentCard(back.session), "play");
-  assert.equal(resultForCard(back.session, "play").percent, 90);
-  session = goNext(back.session, {
+  const replaced = leaveCardOutcome(session, {
     hasTake: true,
     takeResult: { outcome: "missed", graded: true, passed: false, percent: 40 },
-  }).session;
-  assert.equal(resultForCard(session, "play").percent, 40);
-  assert.equal(resultForCard(session, "play").passed, false);
-  const keep = goBack(session, { hasTake: false }).session;
-  assert.equal(resultForCard(keep, "play").percent, 40);
+  });
+  assert.equal(replaced.percent, 40);
+  assert.equal(replaced.passed, false);
 });
 
-test("moving cards stops audio, the count-in, and the mic", () => {
+test("card navigation with nowhere to go does not halt audio", () => {
   const next = goNext(createSession({ lessonId: "learn-lick" }));
-  assert.equal(next.moved, true);
-  assert.equal(next.stopAudio, true);
-  assert.equal(next.stopCountIn, true);
-  assert.equal(next.stopMic, true);
-  const back = goBack(next.session);
-  assert.equal(back.stopAudio, true);
-  assert.equal(back.stopCountIn, true);
-  assert.equal(back.stopMic, true);
+  assert.equal(next.moved, false);
+  assert.equal(next.stopAudio, false);
 });
 
 test("module road hides Your tunes and re-numbers the remaining sleeves", () => {
@@ -634,18 +560,15 @@ test("quick view jump targets resolve to the right module or lesson id", () => {
   assert.equal(resolveQuickViewJump("missing-id"), null);
 });
 
-test("abandoning a session marks unfinished graded cards Skipped", () => {
-  let session = goNext(createSession({ lessonId: "learn-lick" }), { hasTake: false }).session;
-  session = skipRemainingCards(session);
-  assert.equal(resultForCard(session, "learn").outcome, "completed");
+test("abandoning a session marks the unfinished card Skipped", () => {
+  const session = skipRemainingCards(createSession({ lessonId: "learn-lick" }));
   assert.equal(resultForCard(session, "play").outcome, "skipped");
-  assert.equal(resultForCard(session, "quiz").outcome, "skipped");
 });
 
-test("count-in keeps Hear it copy instead of a second Count-in line", () => {
+test("count-in keeps the play-along prompt instead of a second Count-in line", () => {
   const session = createSession({ lessonId: "learn-lick" });
   const during = sessionCue(session, { playing: true, inCountIn: true, beats: -2 });
-  assert.match(during, /Hear the cell/);
+  assert.match(during, /Your turn/);
   assert.doesNotMatch(during, /Count-in/);
 });
 
@@ -661,12 +584,11 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(sessionScreenTitle(createSession({ lessonId: "learn-lick" })), "Cry Me a River · Lesson 1");
   assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Lesson 2");
   const twelve = createSession({ lessonId: "learn-lick", keyMode: "fourths" });
-  assert.deepEqual(sessionProgress(twelve), { index: 1, total: 36, ratio: 0 });
+  assert.deepEqual(sessionProgress(twelve), { index: 1, total: 12, ratio: 0 });
   const hear = createSession({ lessonId: "learn-lick" });
-  assert.equal(sessionPrimaryAction(hear, {}).label, "Hear it");
+  assert.equal(sessionPrimaryAction(hear, {}).label, "Count me in");
   assert.equal(sessionPrimaryAction(hear, { playing: true }).id, "pause");
-  assert.equal(sessionPrimaryAction(hear, { playing: true }).label, "Hear it");
-  assert.equal(sessionPrimaryAction(jumpToCard(hear, "play"), {}).label, "Count me in");
+  assert.equal(sessionPrimaryAction({ ...hear, demo: true }, {}).label, "Hear it");
   const shifted = setMelodyRegister(createSession({
     lessonId: "learn-lick",
     keyMode: "fourths",

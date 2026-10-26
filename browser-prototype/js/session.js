@@ -62,6 +62,35 @@ export const CARD_SETS = [
   { id: "listen-quiz", label: "Listen + Quiz" },
 ];
 
+export const STUDY_MODES = [
+  { id: "learn", label: "Learn" },
+  { id: "practice", label: "Practice" },
+];
+
+export function normalizeStudyMode(mode) {
+  return mode === "practice" ? "practice" : "learn";
+}
+
+export function moduleStudyMode(prefs, moduleId) {
+  return normalizeStudyMode(prefs?.modules?.[moduleId]?.studyMode);
+}
+
+export function setModuleStudyMode(prefs, moduleId, mode) {
+  const next = normalizePrefs(prefs);
+  const module = MODULES.find((item) => item.id === moduleId) ?? moduleForLesson(moduleId);
+  const id = module?.id ?? moduleId;
+  next.modules[id] = {
+    ...(next.modules[id] ?? {}),
+    studyMode: normalizeStudyMode(mode),
+  };
+  return next;
+}
+
+export function setSessionStudyMode(session, mode) {
+  if (!session) return session;
+  return { ...session, studyMode: normalizeStudyMode(mode), demo: false };
+}
+
 export const CARD_ORDER = ["learn", "play", "listen", "quiz"];
 export const GRADED_CARD_IDS = new Set(["play", "listen", "quiz"]);
 
@@ -204,9 +233,9 @@ export function keyModeById(id) {
   return KEY_MODES.find((mode) => mode.id === id) ?? KEY_MODES[0];
 }
 
-export function cardsFor(cardSet, lessonId) {
-  if (lessonId && isLearnLesson(lessonId)) return [...LEARN_CARDS];
-  return cardSet === "listen-quiz" ? ["listen", "quiz"] : [...CARD_ORDER];
+/** One play-along card. Learn vs Practice is a mode, not a stack of cards. */
+export function cardsFor() {
+  return ["play"];
 }
 
 export function normalizeKeyId(id) {
@@ -338,6 +367,13 @@ export function normalizePrefs(raw) {
     };
   }
   merged.progress = raw?.progress && typeof raw.progress === "object" ? raw.progress : {};
+  merged.modules = {};
+  for (const module of MODULES) {
+    const incoming = raw?.modules?.[module.id] ?? {};
+    merged.modules[module.id] = {
+      studyMode: normalizeStudyMode(incoming.studyMode),
+    };
+  }
   return merged;
 }
 
@@ -390,6 +426,7 @@ export function createSession({
   swing = true,
   metronome = false,
   guideTones = true,
+  studyMode = "learn",
   rng = Math.random,
 } = {}) {
   const lesson = lessonById(lessonId);
@@ -402,6 +439,8 @@ export function createSession({
     keyMode: keyModeById(keyMode).id,
     startKeyId: normalizeKeyId(startKeyId),
     cardSet: cardSet === "listen-quiz" ? "listen-quiz" : "all",
+    studyMode: normalizeStudyMode(studyMode),
+    demo: false,
     cards,
     cardIndex: 0,
     keyQueue,
@@ -579,14 +618,33 @@ export function completeCard(session, result = {}) {
   };
 }
 
-export function handlePlaybackEnded(session, result = {}) {
-  if (session.screen !== "session") {
+/**
+ * Count-in → play → grade → next key, with no extra tap.
+ * A Hear it demo ends back on the same key. The last key opens wrap-up.
+ */
+export function handlePlaybackEnded(session, result = {}, rng = Math.random) {
+  if (!session || session.screen !== "session") {
     return { session, autoStart: false };
   }
-  if (currentCard(session) === "listen" && session.listenStage === "hear") {
-    return { session: { ...session, listenStage: "echo" }, autoStart: true };
+  if (session.demo) {
+    return { session: { ...session, demo: false }, autoStart: false };
   }
-  return { session: completeCard(session, result), autoStart: false };
+  const recorded = {
+    ...session,
+    demo: false,
+    cardResults: [
+      {
+        cardId: currentCard(session),
+        outcome: result.outcome ?? "completed",
+        ...result,
+      },
+    ],
+  };
+  const moreKeys = session.keyMode !== "one" && session.keyIndex + 1 < session.keyQueue.length;
+  if (moreKeys) {
+    return { session: advanceKey(recorded, rng), autoStart: true };
+  }
+  return { session: { ...recorded, screen: "wrapup" }, autoStart: false };
 }
 
 export function skipCard(session) {
@@ -832,7 +890,6 @@ export function markLessonStarted(prefs, lessonId, keyId) {
 /** Lesson.js-compatible state so audio scheduling and existing tests stay intact. */
 export function practiceStateFor(session) {
   const lesson = lessonById(session.lessonId);
-  const card = currentCard(session);
   const isolated = lesson.kind === "learn";
   const base = {
     ...defaultState(),
@@ -848,36 +905,28 @@ export function practiceStateFor(session) {
     looping: false,
   };
 
-  if (isolated) {
-    if (card === "play" || (card === "listen" && session.listenStage === "echo")) {
-      return { ...base, goal: "learn", cellMode: "echo" };
-    }
-    if (card === "quiz") {
-      return { ...base, goal: "check", checkKind: "recall", revealed: false };
-    }
-    return { ...base, goal: "learn", cellMode: "hear" };
-  }
-
-  if (card === "play") return { ...base, goal: "integrate", support: "help" };
-  if (card === "listen") {
-    return session.listenStage === "echo"
-      ? { ...base, goal: "integrate", support: "free" }
+  if (session.demo) {
+    return isolated
+      ? { ...base, goal: "learn", cellMode: "hear" }
       : { ...base, goal: "integrate", support: "listen" };
   }
-  if (card === "quiz") {
-    return { ...base, goal: "check", checkKind: "application", revealed: false };
+  if (session.studyMode === "practice") {
+    return isolated
+      ? { ...base, goal: "check", checkKind: "recall", revealed: false }
+      : { ...base, goal: "check", checkKind: "application", revealed: false };
   }
-  return { ...base, goal: "integrate", support: "listen" };
+  return isolated
+    ? { ...base, goal: "learn", cellMode: "echo" }
+    : { ...base, goal: "integrate", support: "help" };
 }
 
 export function sessionPresentation(session) {
   const lesson = lessonById(session.lessonId);
-  const card = currentCard(session);
   const view = presentation(practiceStateFor(session));
   const isolated = lesson.kind === "learn";
-  const hideMelody = card === "listen" || card === "quiz";
+  const memory = session.studyMode === "practice" && !session.demo;
 
-  if (isolated && card === "quiz") {
+  if (memory) {
     return {
       ...view,
       looping: false,
@@ -892,32 +941,38 @@ export function sessionPresentation(session) {
     };
   }
 
-  if (!hideMelody) {
-    if (!isolated && card === "play") {
-      return {
-        ...view,
-        looping: false,
-        hideStaff: false,
-        showLandingNotation: true,
-        showSlashNotation: true,
-        showEntranceCues: true,
-        showPhraseNotation: false,
-        showModelNotation: false,
-      };
-    }
-    return { ...view, looping: false, hideStaff: false, showLandingNotation: false };
+  if (isolated) {
+    return {
+      ...view,
+      looping: false,
+      hideStaff: false,
+      showPhraseNotation: true,
+      showChordsOnly: false,
+      showModelNotation: false,
+      showLandingNotation: false,
+    };
+  }
+
+  if (session.demo) {
+    return {
+      ...view,
+      looping: false,
+      hideStaff: false,
+      showModelNotation: true,
+      showLandingNotation: false,
+      showChordsOnly: false,
+    };
   }
 
   return {
     ...view,
     looping: false,
+    hideStaff: false,
+    showLandingNotation: true,
+    showSlashNotation: true,
+    showEntranceCues: true,
     showPhraseNotation: false,
     showModelNotation: false,
-    showSlashNotation: !isolated,
-    showLandingNotation: false,
-    showEntranceCues: false,
-    hideStaff: isolated,
-    hideAnswers: card === "quiz",
   };
 }
 
@@ -940,67 +995,32 @@ export function hearBarsLabel(barCount) {
 }
 
 export function sessionPrimaryAction(session, playback) {
-  const idle = primaryAction(practiceStateFor(session), {});
   const live = primaryAction(practiceStateFor(session), playback);
-  const lesson = lessonById(session.lessonId);
-  const card = currentCard(session);
-  let label = idle.label;
-  if (lesson.kind === "learn") {
-    label = card === "learn" ? "Hear it" : "Count me in";
-  } else if (card === "learn") {
-    if (lesson.group === "my-tunes") label = "Hear the tune";
-    else if (lesson.group === "your-tunes") {
-      label = `Hear it in ${lesson.coverTitle ?? lesson.title}`;
-    } else {
-      const ctx = applicationContext(
-        getKey(currentKeyId(session)),
-        session.displayMode,
-        lesson.applicationId,
-      );
-      label = hearBarsLabel(ctx.formBars);
-    }
-  }
-  if (live.id === "pause" || live.id === "resume" || live.id === "stop") {
-    return { ...live, label };
-  }
-  return { ...idle, label };
+  if (live.id === "pause" || live.id === "resume" || live.id === "stop") return live;
+  if (session.demo) return { id: "start", label: "Hear it" };
+  return { id: "start", label: "Count me in" };
 }
 
 export function sessionChartCopy(session) {
   const lesson = lessonById(session.lessonId);
-  const card = currentCard(session);
   const ctx = applicationContext(
     getKey(currentKeyId(session)),
     session.displayMode,
     lesson.applicationId,
   );
   const formName = ctx.formTitle ?? "the form";
+  const mode = session.studyMode === "practice" ? "Practice" : "Learn";
+  if (session.studyMode === "practice") {
+    return { title: "From memory", meta: `${ctx.tuneName} · chords stay` };
+  }
   if (lesson.kind === "learn") {
-    const noun = ctx.noun ?? "lick";
-    if (card === "learn") return { title: ctx.lickName ?? "The lick", meta: `${ctx.tuneName} · hear it` };
-    if (card === "play") return { title: `Your turn on the ${noun}`, meta: `${ctx.tuneName} · with notation` };
-    if (card === "listen") {
-      return {
-        title: session.listenStage === "echo" ? "Play it back by ear" : "Listen, then play it back",
-        meta: ctx.tuneName,
-      };
-    }
-    return { title: "From memory", meta: ctx.tuneName };
+    return { title: ctx.lickName ?? "The lick", meta: `${ctx.tuneName} · ${mode}` };
   }
-  if (card === "learn") return { title: "Hear it in the changes", meta: `${formName} · ${ctx.tuneName}` };
-  if (card === "play") return { title: "Play it in the form", meta: ctx.placement };
-  if (card === "listen") {
-    return {
-      title: session.listenStage === "echo" ? "Play it back by ear" : "Hear it, then play it back",
-      meta: ctx.shapeOver,
-    };
-  }
-  return { title: "Bring it in cold", meta: `${formName} · ${ctx.tuneName}` };
+  return { title: "Play it in the form", meta: `${formName} · ${ctx.tuneName}` };
 }
 
 export function sessionCue(session, snap = {}) {
   const lesson = lessonById(session.lessonId);
-  const card = currentCard(session);
   const ctx = applicationContext(
     getKey(currentKeyId(session)),
     session.displayMode,
@@ -1009,25 +1029,21 @@ export function sessionCue(session, snap = {}) {
   const playing = Boolean(snap.playing || snap.paused);
   if (playing) return livePrompt(practiceStateFor(session), snap);
 
+  if (session.studyMode === "practice") {
+    const noun = ctx.noun ?? "lick";
+    return lesson.kind === "learn"
+      ? `Play the ${noun} from memory. Chord symbols and the bar stay.`
+      : `From memory. Chords stay. Bring the phrase in bar ${ctx.enterBar}.`;
+  }
+
+  if (lesson.group === "my-tunes" || lesson.group === "your-tunes") {
+    return `First spot: bar ${ctx.enterBar}, ${ctx.spotLickName} on ${ctx.targetChord}.`;
+  }
   if (lesson.kind === "learn") {
     const noun = ctx.noun ?? "lick";
-    if (card === "learn") return `Hear the ${noun} in ${ctx.tuneName}.`;
-    if (card === "play") return `Play the ${noun}. The staff is there if you need it.`;
-    return `Play the ${noun} from memory. Chord symbols and bar lines stay.`;
+    return `Play the ${noun}. The staff is there if you need it.`;
   }
-  if (card === "learn") {
-    if (lesson.group === "my-tunes" || lesson.group === "your-tunes") {
-      return `First spot: bar ${ctx.enterBar}, ${ctx.spotLickName} on ${ctx.targetChord}.`;
-    }
-    return `Hear the phrase land in bar ${ctx.enterBar} on ${ctx.targetChord}.`;
-  }
-  if (card === "play") return `Get ready in bar ${ctx.readyBar}. Bring the phrase in bar ${ctx.enterBar}.`;
-  if (card === "listen") {
-    return session.listenStage === "echo"
-      ? "Your turn. Play it back by ear over the changes."
-      : "Listen to the model. No lick notation — chords only.";
-  }
-  return `Chords and a prompt only. Bring the lick in at the right bar.`;
+  return `Get ready in bar ${ctx.readyBar}. Bring the phrase in bar ${ctx.enterBar}.`;
 }
 
 export function sessionMeterExtras(session) {

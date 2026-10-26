@@ -14,7 +14,7 @@ function emptyModuleMastery() {
 
 export function emptyMastery() {
   return {
-    lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, { passedKeys: [] }])),
+    lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, { passedKeys: [], learnedKeys: [] }])),
     masteredKeys: [],
     medal: "none",
     modules: emptyModuleMastery(),
@@ -26,7 +26,9 @@ export function normalizeMastery(raw) {
   if (!raw || typeof raw !== "object") return base;
   for (const lesson of LESSONS) {
     const passed = (raw.lessons?.[lesson.id]?.passedKeys ?? []).map(normalizeKeyId);
+    const learned = (raw.lessons?.[lesson.id]?.learnedKeys ?? []).map(normalizeKeyId);
     base.lessons[lesson.id].passedKeys = [...new Set(passed)];
+    base.lessons[lesson.id].learnedKeys = [...new Set(learned)];
   }
   base.masteredKeys = [...new Set((raw.masteredKeys ?? []).map(normalizeKeyId))];
   base.medal = medalForCount(base.masteredKeys.length);
@@ -67,7 +69,10 @@ export function reconcileMastery(mastery) {
     lessons: Object.fromEntries(
       LESSONS.map((lesson) => [
         lesson.id,
-        { passedKeys: [...(mastery.lessons[lesson.id]?.passedKeys ?? [])] },
+        {
+          passedKeys: [...(mastery.lessons[lesson.id]?.passedKeys ?? [])],
+          learnedKeys: [...(mastery.lessons[lesson.id]?.learnedKeys ?? [])],
+        },
       ]),
     ),
     masteredKeys: [...(mastery.masteredKeys ?? [])],
@@ -93,6 +98,38 @@ export function reconcileMastery(mastery) {
   next.masteredKeys = [...next.modules.cmar.masteredKeys];
   next.medal = next.modules.cmar.medal;
   return next;
+}
+
+/** Learn-mode pass. Outlined on the record; does not count toward 12-key mastery. */
+export function recordLearnPass(mastery, lessonId, keyId) {
+  const next = normalizeMastery(mastery);
+  const lesson = next.lessons[lessonId];
+  if (!lesson) return next;
+  const id = normalizeKeyId(keyId);
+  if (!lesson.learnedKeys.includes(id)) lesson.learnedKeys.push(id);
+  return reconcileMastery(next);
+}
+
+export function lessonLearnedKeys(mastery, lessonId) {
+  return [...(normalizeMastery(mastery).lessons[lessonId]?.learnedKeys ?? [])];
+}
+
+/** Filled = Practice mastery. Outline = Learn pass only. */
+export function moduleRingMarks(mastery, moduleId) {
+  const normalized = normalizeMastery(mastery);
+  const module = normalized.modules[moduleId];
+  const mastered = new Set(module?.masteredKeys ?? []);
+  const outlined = new Set();
+  for (const lesson of LESSONS) {
+    if (moduleForLesson(lesson.id).id !== moduleId) continue;
+    for (const keyId of normalized.lessons[lesson.id]?.learnedKeys ?? []) {
+      if (!mastered.has(keyId)) outlined.add(keyId);
+    }
+  }
+  return TWELVE_KEY_IDS.map((id) => ({
+    id,
+    mark: mastered.has(id) ? "filled" : outlined.has(id) ? "outline" : "none",
+  }));
 }
 
 export function recordQuizPass(mastery, lessonId, keyId) {
