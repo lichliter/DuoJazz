@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TUNES, tuneById, tuneBarCount } from "./tunes.js";
+import { TUNES, tuneById, tuneBarCount, tuneFormBars, spotsForTune } from "./tunes.js";
 import {
   chartTuneList,
   chartTuneRow,
@@ -8,8 +8,8 @@ import {
   chartKeyChoices,
   licksForTune,
 } from "./charts.js";
-import { TWELVE_KEY_IDS } from "./session.js";
-import { MODULES } from "./registry.js";
+import { TWELVE_KEY_IDS, visibleModuleLessons } from "./session.js";
+import { MODULES, applicationById, formById, spotsFor } from "./registry.js";
 
 test("chart list rows cover every tune with title, composer, style, and key", () => {
   const rows = chartTuneList();
@@ -110,6 +110,43 @@ test("licks-for-tune index lists road tune lessons with module name and bars", (
   assert.deepEqual(unknown, []);
   assert.equal(MODULES.length, 30);
   assert.equal(tuneBarCount(tuneById("nutville")), 24);
+
+  const blueBossa = licksForTune("blue-bossa");
+  const blueIds = blueBossa.map((row) => row.lessonId);
+  assert.ok(blueIds.includes("cmar-integrate-blue-bossa"));
+  assert.ok(blueIds.includes("emr-integrate-blue-bossa"));
+  const cry = blueBossa.find((row) => row.lessonId === "cmar-integrate-blue-bossa");
+  assert.equal(cry.moduleNumber, 1);
+  assert.equal(cry.moduleName, "Cry Me a River");
+  assert.match(cry.bars, /Blue Bossa/);
+});
+
+test("tune spots and chart lessons come from the same tune data", () => {
+  const tune = tuneById("blue-bossa");
+  const eight = formById("blue-bossa-8");
+  const sixteen = formById("blue-bossa-16");
+  assert.equal(eight.tuneId, "blue-bossa");
+  assert.equal(sixteen.tuneId, "blue-bossa");
+  assert.deepEqual(eight.bars, tuneFormBars(tune).slice(0, 8));
+  assert.deepEqual(sixteen.bars, tuneFormBars(tune));
+  assert.deepEqual(
+    spotsFor("cmar-blue-bossa").map((spot) => ({ bar: spot.bar, anchor: spot.anchorInterval, lickId: spot.lickId })),
+    spotsForTune(tune, "cmar").map((spot) => ({ bar: spot.bar, anchor: spot.anchorInterval, lickId: spot.lickId })),
+  );
+  assert.deepEqual(spotsFor("emr-blue-bossa").map((spot) => spot.bar), [6, 14]);
+
+  for (const item of TUNES) {
+    const listed = new Set(licksForTune(item.id).map((row) => row.lessonId));
+    for (const module of MODULES) {
+      for (const lesson of visibleModuleLessons(module)) {
+        const app = applicationById(lesson.applicationId);
+        const form = app?.formId ? formById(app.formId) : null;
+        const linked = lesson.tuneId === item.id || app?.tuneId === item.id || form?.tuneId === item.id;
+        if (!linked) continue;
+        assert.equal(listed.has(lesson.id), true, `${item.id} missing ${lesson.id}`);
+      }
+    }
+  }
 });
 
 test("chart key picker uses the spelling table, including C♯m and F♯m", () => {

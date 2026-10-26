@@ -629,6 +629,22 @@ export function tuneFormBars(tune) {
   return tune.sections.flatMap((section) => section.bars.map((chords) => ({ chords })));
 }
 
+/** Excerpt form whose bars are a slice of the tune, so the chart and the lesson cannot drift. */
+export function tuneExcerptForm({ id, title, tuneId, start = 1, count, source }) {
+  const tune = tuneById(tuneId);
+  const bars = tuneFormBars(tune).slice(start - 1, start - 1 + count);
+  return {
+    id,
+    title: title ?? `${tune.title} · bars ${start}–${start + bars.length - 1}`,
+    shortTitle: tune.title,
+    source: source ?? tune.chords,
+    keyQuality: tune.keyQuality,
+    bars,
+    tuneId: tune.id,
+    excerptStartBar: start,
+  };
+}
+
 export function tuneSectionMeta(tune) {
   const sections = [];
   let startBar = 1;

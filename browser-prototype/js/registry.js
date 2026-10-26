@@ -10,6 +10,9 @@ import {
   deriveTuneApplications,
   deriveYourTunesLessons,
   deriveMyTunesLessons,
+  tuneById,
+  tuneExcerptForm,
+  spotsForTune,
 } from "./tunes.js";
 import {
   WORKBOOK_LICKS,
@@ -203,23 +206,14 @@ export const FORMS = {
       bar([chord(2, "minor7")]),
     ],
   },
-  "blue-bossa-8": {
+  "blue-bossa-8": tuneExcerptForm({
     id: "blue-bossa-8",
     title: "Blue Bossa · bars 1–8",
-    shortTitle: "Blue Bossa",
+    tuneId: "blue-bossa",
+    start: 1,
+    count: 8,
     source: ireal("Blue Bossa"),
-    keyQuality: "minor",
-    bars: [
-      bar([chord(0, "minor7")]),
-      bar([chord(0, "minor7")]),
-      bar([chord(5, "minor7")]),
-      bar([chord(5, "minor7")]),
-      bar([chord(2, "minor7b5")]),
-      bar([chord(7, "dominant7b9")]),
-      bar([chord(0, "minor7")]),
-      bar([chord(0, "minor7")]),
-    ],
-  },
+  }),
   "fly-me-a-8": {
     id: "fly-me-a-8",
     title: "Fly Me to the Moon · A, bars 1–8",
@@ -288,31 +282,14 @@ export const FORMS = {
       bar([chord(0, "minor6")]),
     ],
   },
-  "blue-bossa-16": {
+  "blue-bossa-16": tuneExcerptForm({
     id: "blue-bossa-16",
     title: "Blue Bossa · bars 1–16",
-    shortTitle: "Blue Bossa",
+    tuneId: "blue-bossa",
+    start: 1,
+    count: 16,
     source: ireal("Blue Bossa"),
-    keyQuality: "minor",
-    bars: [
-      bar([chord(0, "minor7")]),
-      bar([chord(0, "minor7")]),
-      bar([chord(5, "minor7")]),
-      bar([chord(5, "minor7")]),
-      bar([chord(2, "minor7b5")]),
-      bar([chord(7, "dominant7b9")]),
-      bar([chord(0, "minor7")]),
-      bar([chord(0, "minor7")]),
-      bar([chord(3, "minor7")]),
-      bar([chord(8, "dominant7")]),
-      bar([chord(1, "major7")]),
-      bar([chord(1, "major7")]),
-      bar([chord(2, "minor7b5")]),
-      bar([chord(7, "dominant7b9")]),
-      bar([chord(0, "minor7")]),
-      bar([chord(2, "minor7b5", 2), chord(7, "dominant7b9", 2)]),
-    ],
-  },
+  }),
   "softly-a-9": {
     id: "softly-a-9",
     title: "Softly, As in a Morning Sunrise · A, bars 1–9",
@@ -795,11 +772,7 @@ export const ALL_APPLICATIONS = [
     cellTonicInterval: 0,
     phraseStartBar: 1,
     copyKind: "place",
-    spots: [
-      { bar: 1, fragment: "full", anchorInterval: 0 },
-      { bar: 3, fragment: "full", anchorInterval: 5 },
-      { bar: 7, fragment: "full", anchorInterval: 0 },
-    ],
+    tuneId: "blue-bossa",
   },
   {
     id: "cmar-fly-me",
@@ -872,6 +845,7 @@ export const ALL_APPLICATIONS = [
     cellTonicInterval: 0,
     phraseStartBar: 6,
     copyKind: "place",
+    tuneId: "blue-bossa",
     spots: [
       { bar: 6, fragment: "full", anchorInterval: 0 },
       { bar: 14, fragment: "full", anchorInterval: 0 },
@@ -1484,6 +1458,15 @@ export function spotsFor(applicationId) {
       lickId: spot.lickId ?? app.lickId,
       ...spot,
     }));
+  }
+  if (app.tuneId) {
+    const form = formById(app.formId);
+    const start = form?.excerptStartBar ?? 1;
+    const end = start + (form?.bars?.length ?? 1) - 1;
+    const derived = spotsForTune(tuneById(app.tuneId), app.lickId)
+      .filter((spot) => spot.bar >= start && spot.bar <= end)
+      .map((spot) => ({ ...spot, bar: spot.bar - start + 1 }));
+    if (derived.length) return derived;
   }
   return [{
     bar: app.phraseStartBar ?? 1,

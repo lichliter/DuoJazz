@@ -5,7 +5,7 @@
 import { getKey, displayKey, chordSymbolName } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
 import { TUNES, tuneById, tuneFormId } from "./tunes.js";
-import { MODULES, applicationById } from "./registry.js";
+import { MODULES, applicationById, formById } from "./registry.js";
 import { TWELVE_KEY_IDS, visibleModuleLessons } from "./session.js";
 
 /** Key picker labels from the shared spelling table (minor: C♯m and F♯m, not D♭m and G♭m). */
@@ -136,6 +136,9 @@ export function licksForTune(tuneId, modules = MODULES) {
 function lessonUsesTune(lesson, tuneId) {
   if (lesson.tuneId === tuneId) return true;
   const app = applicationById(lesson.applicationId);
-  if (app?.tuneId === tuneId) return true;
-  return app?.formId === tuneFormId(tuneId);
+  if (!app) return false;
+  if (app.tuneId === tuneId) return true;
+  if (app.formId === tuneFormId(tuneId)) return true;
+  const form = formById(app.formId);
+  return form?.tuneId === tuneId || form?.id === tuneFormId(tuneId);
 }
