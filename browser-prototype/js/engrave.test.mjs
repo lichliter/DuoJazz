@@ -2,10 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  accidentalFontSize,
+  accidentalKern,
+  boxesIntersect,
   capCueText,
   CHORD_FONT_VU,
   compactChordSymbol,
   musicTextParts,
+  placeCueBoxes,
   CUE_FONT_VU,
   chordFontVU,
   cueFontVU,
@@ -20,6 +24,9 @@ import {
   whenVerovioReady,
 } from "./engrave.js";
 import { notationLayout, PORTRAIT_STAFF_PX, STAFF_PX } from "./lesson.js";
+import { cueCaption } from "./music.js";
+import { MODULES, formForApplication } from "./registry.js";
+import { visibleModuleLessons } from "./session.js";
 
 test("Verovio options use encoded breaks and justify every system, including the last", () => {
   const chorus = verovioOptions({
@@ -267,7 +274,10 @@ test("accidentals are split out so a font that has them can sit tight", async ()
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   assert.match(hig, /\.accidental\s*\{[^}]*Noto Music/);
-  assert.match(hig, /\.accidental\s*\{[^}]*letter-spacing:\s*-/);
+  assert.match(hig, /\.accidental\s*\{[^}]*margin-left:\s*-/);
+  assert.ok(accidentalKern(400, "pull") < 0);
+  assert.ok(accidentalKern(400, "trail") < 0);
+  assert.ok(accidentalFontSize(400) > 400);
   assert.match(hig, /grid-template-areas:[\s\S]*"links links links"/);
   assert.match(hig, /\.session-links\s*\{[^}]*grid-area:\s*links/);
   assert.match(app, /fillMusicLabel\(symbol,/);
@@ -283,6 +293,83 @@ test("accidentals are split out so a font that has them can sit tight", async ()
   assert.doesNotMatch(app, /section\.append\(copy, badge, studySwitch/);
 });
 
+function cueTextWidth(text, font = 330) {
+  const measured = { HERE: 790 / 330, "Get ready": 1356 / 330 };
+  const em = measured[text] ?? Math.max(2.2, text.length * 0.55);
+  return em * font;
+}
+
+test("cue label boxes in an engraved tune lesson do not intersect", () => {
+  const engraved = placeCueBoxes([
+    { text: "HERE", x: 2473, y: 2655, width: 790, height: 471, barX: 2100, barRight: 3913, obstacleBottom: 2580 },
+    { text: "Get ready", x: 3913, y: 2655, width: 1356, height: 471, barX: 3913, barRight: 5058, obstacleBottom: 2580 },
+    { text: "HERE", x: 5058, y: 2655, width: 790, height: 471, barX: 5058, barRight: 6400, obstacleBottom: 3000 },
+    { text: "Get ready", x: 3182, y: 5986, width: 1356, height: 471, barX: 3000, barRight: 4489, obstacleBottom: 5900 },
+    { text: "HERE", x: 4489, y: 5986, width: 790, height: 471, barX: 4489, barRight: 5900, obstacleBottom: 6400 },
+  ], { gap: 46 });
+  for (let i = 0; i < engraved.length; i += 1) {
+    for (let j = i + 1; j < engraved.length; j += 1) {
+      assert.equal(boxesIntersect(engraved[i], engraved[j]), false, `${engraved[i].text} ∩ ${engraved[j].text}`);
+    }
+    assert.ok(engraved[i].x + engraved[i].width <= engraved[i].barRight, engraved[i].text);
+  }
+  assert.ok(engraved[2].y >= 3000, "HERE clears the beamed notes under the staff");
+
+  const viewports = [
+    { barsPerLine: 4, barWidth: 1145 },
+    { barsPerLine: 4, barWidth: 1500 },
+    { barsPerLine: 2, barWidth: 2200 },
+    { barsPerLine: 4, barWidth: 900 },
+  ];
+  for (const module of MODULES) {
+    for (const lesson of visibleModuleLessons(module)) {
+      const appId = lesson.applicationId;
+      const barCount = formForApplication(appId).bars.length;
+      for (const viewport of viewports) {
+        const boxes = [];
+        for (let bar = 1; bar <= barCount; bar += 1) {
+          const text = cueCaption(bar, appId);
+          if (!text) continue;
+          const col = (bar - 1) % viewport.barsPerLine;
+          const row = Math.floor((bar - 1) / viewport.barsPerLine);
+          const barX = col * viewport.barWidth;
+          boxes.push({
+            text,
+            x: barX + 36,
+            y: row * 3600 + 700,
+            width: cueTextWidth(text),
+            height: 471,
+            barX,
+            barRight: barX + viewport.barWidth,
+            obstacleBottom: row * 3600 + 980,
+          });
+        }
+        const placed = placeCueBoxes(boxes, { gap: 46 });
+        for (let i = 0; i < placed.length; i += 1) {
+          const note = {
+            x: placed[i].barX,
+            y: placed[i].obstacleBottom - 200,
+            width: placed[i].barRight - placed[i].barX,
+            height: 200,
+          };
+          assert.equal(
+            boxesIntersect(placed[i], note),
+            false,
+            `${lesson.id} ${viewport.barWidth} ${placed[i].text} overlaps notes`,
+          );
+          for (let j = i + 1; j < placed.length; j += 1) {
+            assert.equal(
+              boxesIntersect(placed[i], placed[j]),
+              false,
+              `${lesson.id} ${viewport.barWidth} ${placed[i].text} ∩ ${placed[j].text}`,
+            );
+          }
+        }
+      }
+    }
+  }
+});
+
 test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {
   assert.equal(CUE_FONT_VU, 330);
   assert.equal(cueFontVU(), 330);
@@ -294,6 +381,8 @@ test("cue labels are ~13–14px italic drawing units, not the round-2 9px size",
 test("engraving restyles chords then separates overlapping symbols", async () => {
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
   assert.match(src, /separateChordSymbols\(svg\)/);
+  assert.match(src, /layoutCueLabels\(svg\)/);
+  assert.match(src, /Noto Music/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);

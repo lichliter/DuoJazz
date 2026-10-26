@@ -7,7 +7,10 @@ import { STAFF_PX } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
 
 const INK = "#2b211a";
+const SVG_NS = "http://www.w3.org/2000/svg";
 const READY_TIMEOUT_MS = 20000;
+/** Noto Music accidental sidebearing, as a fraction of its em. */
+const ACCIDENTAL_SIDE = 0.051;
 export const VEROVIO_UNIT = 12;
 export const STAFF_USER_UNITS = 8 * VEROVIO_UNIT;
 
@@ -326,20 +329,54 @@ function textAnchor(el) {
   };
 }
 
+/** Accidental em relative to the chord letters, so the flat/sharp cap matches Noto Sans. */
+export function accidentalFontSize(chordVU) {
+  return Math.round(Number(chordVU) * 1.36);
+}
+
+/**
+ * Negative dx that pulls a Noto Music accidental against the neighboring letter.
+ * `edge` is "pull" (before the glyph) or "trail" (the text that follows it).
+ */
+export function accidentalKern(chordVU, edge = "pull") {
+  const letters = Number(chordVU) || 0;
+  const acc = accidentalFontSize(letters);
+  const side = ACCIDENTAL_SIDE * acc;
+  const neighbor = 0.055 * letters;
+  const keep = 0.004 * letters;
+  const pull = Math.max(0, side + neighbor - keep);
+  const amount = edge === "trail" ? pull * 0.9 : pull;
+  return -Math.round(amount);
+}
+
 function paintChordText(text, compact, chordVU, x, y) {
   text.replaceChildren();
-  const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-  tspan.textContent = compact;
-  tspan.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
-  tspan.setAttribute("font-weight", "700");
-  tspan.setAttribute("font-size", `${chordVU}px`);
-  tspan.setAttribute("fill", INK);
-  tspan.setAttribute("letter-spacing", "0");
-  tspan.setAttribute("kerning", "0");
-  tspan.setAttribute("xml:space", "preserve");
-  if (x != null) tspan.setAttribute("x", x);
-  if (y != null) tspan.setAttribute("y", y);
-  text.append(tspan);
+  const parts = musicTextParts(compact);
+  const runs = parts.length ? parts : [{ text: compact }];
+  runs.forEach((part, index) => {
+    const accidental = Boolean(part.accidental);
+    const tspan = document.createElementNS(SVG_NS, "tspan");
+    tspan.textContent = accidental ? part.accidental : part.text;
+    const size = accidental ? accidentalFontSize(chordVU) : chordVU;
+    tspan.setAttribute("font-family", accidental
+      ? "Noto Music, sans-serif"
+      : "Noto Sans, Source Sans 3, sans-serif");
+    tspan.setAttribute("font-weight", accidental ? "400" : "700");
+    tspan.setAttribute("font-size", `${size}px`);
+    tspan.setAttribute("fill", INK);
+    tspan.setAttribute("letter-spacing", "0");
+    tspan.setAttribute("kerning", "0");
+    if (!accidental) tspan.setAttribute("xml:space", "preserve");
+    if (index === 0) {
+      if (x != null) tspan.setAttribute("x", x);
+      if (y != null) tspan.setAttribute("y", y);
+    } else if (accidental) {
+      tspan.setAttribute("dx", String(accidentalKern(chordVU, "pull")));
+    } else if (runs[index - 1]?.accidental) {
+      tspan.setAttribute("dx", String(accidentalKern(chordVU, "trail")));
+    }
+    text.append(tspan);
+  });
   text.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
   text.setAttribute("font-weight", "700");
   text.setAttribute("font-size", `${chordVU}px`);
@@ -626,12 +663,20 @@ export async function engraveMei(target, mei, options = {}) {
     timemap = [];
   }
   const svg = mountSvg(target, parts.join(""));
+  if (svg && typeof document !== "undefined" && document.fonts?.ready) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Fall back to whatever faces are already available.
+    }
+  }
   if (svg) {
     recolor(svg);
     restyleText(svg, layout);
     mergeSplitChordSymbols(svg);
     separateChordSymbols(svg);
     centerSlashNoteheads(svg);
+    layoutCueLabels(svg);
     applyFixedStaffSize(target, svg, layout);
   }
   return {
@@ -783,6 +828,202 @@ export function measureEngraving(root) {
     svgWidth: svgBox.width,
     viewBoxWidth: vb?.width ?? 0,
   };
+}
+
+export function boxesIntersect(a, b, pad = 0) {
+  if (!a || !b || !a.width || !a.height || !b.width || !b.height) return false;
+  return a.x + pad < b.x + b.width
+    && a.x + a.width > b.x + pad
+    && a.y + pad < b.y + b.height
+    && a.y + a.height > b.y + pad;
+}
+
+/**
+ * Fit cue labels inside their bars and below anything hanging under the staff.
+ * Coordinates are the engraving's user units. `y` is the top of the label.
+ */
+export function placeCueBoxes(cues, { gap = 36 } = {}) {
+  const placed = cues.map((cue) => ({ ...cue, scale: cue.scale ?? 1 }));
+  const rows = [];
+  for (const cue of [...placed].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    const row = rows.find((items) => Math.abs(items[0].y - cue.y) < Math.max(40, items[0].height * 0.45));
+    if (row) row.push(cue);
+    else rows.push([cue]);
+  }
+  for (const row of rows) {
+    row.sort((a, b) => a.x - b.x);
+    for (let i = 0; i < row.length; i += 1) {
+      const cue = row[i];
+      const next = row[i + 1];
+      const inset = cue.gap ?? gap;
+      const barLimit = Number.isFinite(cue.barRight) ? cue.barRight - inset : Infinity;
+      const nextLimit = next ? next.x - inset : Infinity;
+      const limit = Math.min(barLimit, nextLimit);
+      const room = limit - cue.x;
+      if (room > 8 && cue.width > room) {
+        const fit = room / cue.width;
+        cue.scale *= fit;
+        cue.width *= fit;
+        cue.height *= fit;
+      }
+    }
+  }
+  for (const cue of placed) {
+    if (cue.obstacleBottom == null) continue;
+    const pad = Math.max(10, (cue.gap ?? gap) * 0.28);
+    const minY = cue.obstacleBottom + pad;
+    if (cue.y >= minY) continue;
+    const maxY = cue.nextTop == null ? minY : cue.nextTop - pad - cue.height;
+    cue.y = maxY >= minY ? minY : Math.max(cue.y, maxY);
+  }
+  return placed;
+}
+
+function svgBox(el) {
+  if (!el || typeof el.getBBox !== "function") return null;
+  try {
+    const box = el.getBBox();
+    if (!box || !Number.isFinite(box.width)) return null;
+    return box;
+  } catch {
+    return null;
+  }
+}
+
+function setCueFontSize(text, size) {
+  const px = `${Math.round(size)}px`;
+  text.setAttribute("font-size", px);
+  for (const el of text.querySelectorAll?.("tspan") ?? []) el.setAttribute("font-size", px);
+}
+
+function translateSvg(el, dx, dy) {
+  if (!el || (Math.abs(dx) < 0.4 && Math.abs(dy) < 0.4)) return;
+  const prev = el.getAttribute("transform") || "";
+  el.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
+}
+
+function measureAt(measures, x, y) {
+  let best = null;
+  for (const measure of measures) {
+    const box = svgBox(measure);
+    if (!box || box.width < 8 || box.height < 8) continue;
+    if (box.x > x + 12 || box.x + box.width < x + 8) continue;
+    if (Number.isFinite(y) && (y < box.y - 40 || y > box.y + box.height + 40)) continue;
+    const inset = x - box.x;
+    if (inset < -12) continue;
+    if (!best || inset < best.inset) best = { measure, box, inset };
+  }
+  return best;
+}
+
+function inkBelowStaff(measure, cueBox, staffBottom) {
+  let bottom = null;
+  for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag") ?? []) {
+    const box = svgBox(el);
+    if (!box || box.height < 0.4 || box.width < 0.4) continue;
+    if (staffBottom != null && box.y + box.height <= staffBottom + 6) continue;
+    if (box.x + box.width < cueBox.x - 8 || box.x > cueBox.x + cueBox.width + 8) continue;
+    const edge = box.y + box.height;
+    if (edge > cueBox.y - 48) bottom = bottom == null ? edge : Math.max(bottom, edge);
+  }
+  return bottom;
+}
+
+function cueSpecs(svg) {
+  const measures = [...svg.querySelectorAll(".measure")];
+  const staffs = [...svg.querySelectorAll(".staff")].map((staff) => {
+    const lines = staffLineYs(staff);
+    return lines.length ? { y: lines[0] } : null;
+  }).filter(Boolean);
+  return [...svg.querySelectorAll(".dir.cue")].map((cue) => {
+    const text = cue.querySelector("text") ?? cue;
+    const box = svgBox(text) ?? svgBox(cue);
+    if (!box) return null;
+    const host = measureAt(measures, box.x, box.y);
+    const fontSize = parseFloat(text.getAttribute?.("font-size") || "330") || 330;
+    const gap = fontSize * 0.42;
+    let obstacleBottom = null;
+    let nextTop = null;
+    if (host) {
+      const staffEl = host.measure.querySelector(".staff");
+      const lines = staffLineYs(staffEl);
+      const staffBottom = lines.length ? lines[lines.length - 1] : null;
+      const staffTop = lines.length ? lines[0] : null;
+      obstacleBottom = inkBelowStaff(host.measure, box, staffBottom);
+      const origin = staffTop ?? host.box.y;
+      nextTop = staffs.reduce((nearest, item) => (
+        item.y > origin + 40 && item.y < nearest ? item.y : nearest
+      ), Infinity);
+      if (!Number.isFinite(nextTop)) nextTop = null;
+    }
+    return {
+      cue,
+      text,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      barX: host ? host.box.x : box.x,
+      barRight: host ? host.box.x + host.box.width : box.x + box.width + gap,
+      obstacleBottom,
+      nextTop,
+      gap,
+    };
+  }).filter(Boolean);
+}
+
+function polishCueLabels(svg) {
+  const rect = svg.getBoundingClientRect?.();
+  const vb = svg.viewBox?.baseVal;
+  if (!rect?.width || !vb?.width) return;
+  const scale = rect.width / vb.width;
+  const gap = 6;
+  const cues = [...svg.querySelectorAll(".dir.cue")];
+  const staffTops = [...svg.querySelectorAll(".staff")].map((staff) => {
+    const lines = [...staff.querySelectorAll(":scope > path")].filter((path) => {
+      const box = path.getBoundingClientRect();
+      return box.width > 20 && box.width > box.height * 6;
+    });
+    if (!lines.length) return null;
+    const top = Math.min(...lines.map((line) => line.getBoundingClientRect().top));
+    return Number.isFinite(top) ? top : null;
+  }).filter((top) => top != null).sort((a, b) => a - b);
+  for (const cue of cues) {
+    const box = cue.getBoundingClientRect();
+    const measure = cue.closest?.(".measure");
+    let floor = box.top;
+    for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag") ?? []) {
+      const ob = el.getBoundingClientRect();
+      if (ob.width < 0.4 || ob.height < 0.4) continue;
+      const overlaps = box.left < ob.right - 0.5 && box.right > ob.left + 0.5
+        && box.top < ob.bottom + 3 && box.bottom > ob.top + 0.5;
+      if (overlaps) floor = Math.max(floor, ob.bottom + gap);
+    }
+    const nextStaff = staffTops.find((top) => top > box.top + box.height * 0.3);
+    const maxTop = nextStaff == null ? floor : nextStaff - gap - box.height;
+    const target = Math.min(floor, Math.max(box.top, maxTop));
+    if (target > box.top + 0.5) translateSvg(cue, 0, (target - box.top) / scale);
+  }
+}
+
+/** Keep engraved cue labels off each other and off noteheads and beams. */
+export function layoutCueLabels(svg) {
+  if (!svg?.querySelectorAll) return;
+  const specs = cueSpecs(svg);
+  if (!specs.length) return;
+  const placed = placeCueBoxes(specs);
+  specs.forEach((spec, index) => {
+    const next = placed[index];
+    if (!next) return;
+    if (next.scale && next.scale < 0.98) {
+      const size = parseFloat(spec.text.getAttribute?.("font-size") || "330") || 330;
+      setCueFontSize(spec.text, size * next.scale);
+    }
+    const box = svgBox(spec.text);
+    if (!box) return;
+    translateSvg(spec.cue, next.x - box.x, next.y - box.y);
+  });
+  polishCueLabels(svg);
 }
 
 export function capCueText(text, barWidth, fontPx) {
