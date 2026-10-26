@@ -10,6 +10,7 @@ import {
   applicationContext,
   displayKey,
   applicationKeyQuality,
+  phraseMeasureCount,
 } from "./music.js";
 import {
   DEFAULT_INSTRUMENT_ID,
@@ -130,6 +131,38 @@ export function sessionScreenTitle(session) {
   const module = moduleForLesson(session.lessonId);
   const index = Math.max(1, (module.lessons ?? []).findIndex((item) => item.id === lesson.id) + 1);
   return `${module.name} · Lesson ${index}`;
+}
+
+/** Session heading. Learn and Practice are modes, not a mid-session control. */
+export function sessionModeHeading(session) {
+  return session?.studyMode === "practice" ? "Practice" : "Learn";
+}
+
+/**
+ * Learn and Practice engrave the same MEI and the same staff metrics.
+ * Practice only hides the note ink (`memory`), so chord symbols stay put.
+ */
+export function sessionEngraveSpec(session) {
+  const lesson = lessonById(session.lessonId);
+  const view = sessionPresentation(session);
+  const memory = Boolean(view.showChordsOnly);
+  const phrase = lesson.kind === "learn";
+  let mei = "landing";
+  if (phrase) mei = "phrase";
+  else if (!memory && view.showModelNotation) mei = "model";
+  else if (!memory && view.showSlashNotation && !view.showLandingNotation) mei = "slash";
+  const showEntranceCues = phrase
+    ? false
+    : memory
+      ? true
+      : Boolean(view.showEntranceCues);
+  return {
+    memory,
+    showPhraseNotation: phrase,
+    showEntranceCues,
+    phraseBars: phrase ? phraseMeasureCount(lesson.applicationId) : undefined,
+    mei,
+  };
 }
 
 export const PATH_ALIGNS = ["left", "center", "right"];

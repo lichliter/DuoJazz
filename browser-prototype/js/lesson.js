@@ -398,10 +398,15 @@ export function afterRoundActions(stateOrGoal) {
   return actions;
 }
 
-/** 5-line staff height in CSS px (top line to bottom line) at 1024×1366, 1.0×. */
+/** 5-line staff height in CSS px (top line to bottom line) on landscape and laptop, 1.0×. */
 export const STAFF_PX = 40;
 /** Slightly larger on a phone so two-bar lines stay readable. */
 export const STAFF_PX_NARROW = 46;
+/**
+ * iPad portrait reading size. About 21mm on a 12.9" iPad, large enough to
+ * read from a music-stand distance, and shared by Learn and Practice.
+ */
+export const PORTRAIT_STAFF_PX = 108;
 /** Chord cap height as a fraction of staff height (~16–18px at STAFF_PX). */
 export const CHORD_CAP_RATIO = 0.42;
 /** Cue labels sit just under the lowest stem, in CSS px at 1.0×. */
@@ -465,6 +470,26 @@ export function staffPxForScale(scale = 1, { narrow = false } = {}) {
   return Math.round(base * (parseNotationScale(scale) ?? 1));
 }
 
+/** Staff height for a session viewport. Learn and Practice both use this. */
+export function baseStaffPx({ staffWidth = 0, viewportWidth = 0, viewportHeight = 0 } = {}) {
+  const narrow = staffWidth < 520 || (viewportWidth > 0 && viewportWidth < 520);
+  if (narrow) return STAFF_PX_NARROW;
+  if (isStandPortrait(viewportWidth, viewportHeight)) return PORTRAIT_STAFF_PX;
+  return STAFF_PX;
+}
+
+/**
+ * Shrink a full-width engraving so the staff, chords, and the transport under
+ * it stay in the viewport. Returns the CSS width to apply.
+ */
+export function notationCssWidth(renderedWidth, renderedHeight, availableHeight) {
+  if (!renderedWidth || !renderedHeight || !availableHeight || availableHeight <= 0) {
+    return renderedWidth || 0;
+  }
+  if (renderedHeight <= availableHeight + 1) return renderedWidth;
+  return Math.max(1, Math.floor(renderedWidth * availableHeight / renderedHeight));
+}
+
 /** iPad Pro 12.9" portrait CSS px is 1024×1366. That is the primary lesson-1 target. */
 export function isStandPortrait(viewportWidth, viewportHeight) {
   return viewportWidth >= 900 && viewportWidth <= 1180 && viewportHeight >= 1200;
@@ -486,20 +511,17 @@ export function notationLayout({
 }) {
   const size = parseNotationScale(notationScale) ?? 1;
   const narrow = staffWidth < 520;
-  const staffPx = staffPxForScale(size, { narrow });
+  const staffPx = Math.round(baseStaffPx({ staffWidth, viewportWidth, viewportHeight }) * size);
   const chordCssPx = Math.round(staffPx * CHORD_CAP_RATIO);
   const annotationPx = Math.round(CUE_PX * size);
 
   if (showPhraseNotation) {
-    // Same staff size as chorus/tune pages. Short 2–3 bar Learn cells stay
-    // at that size and take their natural width (centered), instead of
-    // scaling up to fill the card. Four- and five-bar phrases still pack
-    // onto one justified system.
+    // Same staff size, page width, and chord lane as Practice. Short cells
+    // justify to the card instead of sitting at their natural width.
     const requested = Number(phraseBars);
     const barsPerLine = narrow
       ? 2
       : Math.min(5, Math.max(2, Number.isFinite(requested) && requested > 0 ? requested : 2));
-    const longPhrase = barsPerLine >= 4;
     return {
       scale: 1,
       notationScale: size,
@@ -519,8 +541,8 @@ export function notationLayout({
       engravingRatio: 1,
       minEngravingRatio: 1,
       fitToPaper: false,
-      fillAxis: "width",
-      naturalWidth: !narrow && !longPhrase,
+      fillAxis: "fit",
+      naturalWidth: false,
       staffsep: Math.round(96 * size),
       fillRatio: 1,
       minStaffPx: staffPx,

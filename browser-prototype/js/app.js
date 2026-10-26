@@ -1,7 +1,6 @@
 import {
   getKey,
   displayKey,
-  phraseMeasureCount,
   phraseSpanBars,
   chorusChords,
   learnChords,
@@ -10,8 +9,8 @@ import {
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
 import { Transport } from "./audio.js";
-import { notationLayout, resolveNotationScale } from "./lesson.js";
-import { chordsOnlyMEI, chorusStaffMEI, phraseMEI } from "./mei.js";
+import { notationCssWidth, notationLayout, resolveNotationScale } from "./lesson.js";
+import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
   compactChordSymbol,
@@ -80,6 +79,8 @@ import {
   settingsSummaryShort,
   setInstrument,
   cardLabel,
+  sessionEngraveSpec,
+  sessionModeHeading,
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
 } from "./session.js";
@@ -956,7 +957,7 @@ function applyMelodyOctave(register) {
 function renderSessionChrome() {
   const ordinal = keyOrdinal(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
-  if (els.cardBadge) els.cardBadge.textContent = "Play";
+  if (els.cardBadge) els.cardBadge.textContent = sessionModeHeading(session);
   if (els.sessionTitle) els.sessionTitle.textContent = sessionScreenTitle(session);
   fillMusicLabel(
     els.sessionKey,
@@ -1019,6 +1020,39 @@ function updatePlayhead(snap = transport.snapshot()) {
   }
 }
 
+function fitNotationInView() {
+  const svg = els.notation?.querySelector("svg");
+  const body = els.session?.querySelector(".session-body");
+  const stage = body?.querySelector(".session-stage");
+  if (!svg || !body || !stage || els.notation.hidden) return;
+  svg.style.setProperty("width", "100%", "important");
+  svg.style.setProperty("max-width", "100%", "important");
+  svg.style.setProperty("height", "auto", "important");
+  svg.style.setProperty("margin-inline", "auto", "important");
+  const style = getComputedStyle(body);
+  const pad = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+  const card = stage.querySelector(".chart-card");
+  let reserved = pad + 8;
+  for (const el of stage.children) {
+    if (el === card || el.hidden) continue;
+    const elStyle = getComputedStyle(el);
+    reserved += el.offsetHeight
+      + (parseFloat(elStyle.marginTop) || 0)
+      + (parseFloat(elStyle.marginBottom) || 0);
+  }
+  const wrap = els.notation.parentElement;
+  const wrapStyle = wrap ? getComputedStyle(wrap) : null;
+  const wrapPad = wrapStyle
+    ? (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0)
+    : 0;
+  const available = body.clientHeight - reserved - wrapPad;
+  const box = svg.getBoundingClientRect();
+  const next = notationCssWidth(box.width, box.height, available);
+  if (next > 0 && next < box.width - 1) {
+    svg.style.setProperty("width", `${Math.round(next)}px`, "important");
+  }
+}
+
 function renderNotation() {
   if (!session || session.screen !== "session") return;
   const view = sessionPresentation(session);
@@ -1029,7 +1063,9 @@ function renderNotation() {
   fillListenState();
   els.notation.hidden = hideStaff;
   els.session.dataset.card = currentCard(session);
+  const spec = sessionEngraveSpec(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
+  els.notation.classList.toggle("notation-memory", spec.memory);
   lastTimemap = [];
   lastChordTimings = chordTimingsFor(session);
   if (hideStaff) {
@@ -1043,9 +1079,9 @@ function renderNotation() {
     staffWidth: width,
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
-    showPhraseNotation: view.showPhraseNotation,
-    showEntranceCues: view.showEntranceCues,
-    phraseBars: view.showPhraseNotation ? phraseMeasureCount(lesson.applicationId) : undefined,
+    showPhraseNotation: spec.showPhraseNotation,
+    showEntranceCues: spec.showEntranceCues,
+    phraseBars: spec.phraseBars,
     notationScale: resolveNotationScale(),
   });
   const concertKey = getKey(currentKeyId(session));
@@ -1054,54 +1090,25 @@ function renderNotation() {
     phraseStartBar: view.application?.phraseStartBar ?? 7,
     phraseBars: phraseSpanBars(lesson.applicationId),
   };
-  const mei = view.showChordsOnly
-    ? chordsOnlyMEI(
+  const mei = spec.mei === "phrase"
+    ? phraseMEI(
       concertKey,
       session.displayMode,
       lesson.applicationId,
       session.clef,
-      { barsPerLine: layout.barsPerLine, isolated: lesson.kind === "learn" },
+      session.melodyRegister,
+      { barsPerLine: layout.barsPerLine },
     )
-    : view.showLandingNotation
-    ? chorusStaffMEI({
+    : chorusStaffMEI({
       concertKey,
       displayMode: session.displayMode,
       applicationId: lesson.applicationId,
       clef: session.clef,
       melodyRegister: session.melodyRegister,
-      mode: "landing",
-      showCues: view.showEntranceCues,
+      mode: spec.mei,
+      showCues: spec.showEntranceCues,
       barsPerLine: layout.barsPerLine,
-    })
-    : view.showModelNotation
-      ? chorusStaffMEI({
-        concertKey,
-        displayMode: session.displayMode,
-        applicationId: lesson.applicationId,
-        clef: session.clef,
-        melodyRegister: session.melodyRegister,
-        mode: "model",
-        showCues: view.showEntranceCues,
-        barsPerLine: layout.barsPerLine,
-      })
-      : view.showSlashNotation
-        ? chorusStaffMEI({
-          concertKey,
-          displayMode: session.displayMode,
-          applicationId: lesson.applicationId,
-          clef: session.clef,
-          mode: "slash",
-          showCues: view.showEntranceCues,
-          barsPerLine: layout.barsPerLine,
-        })
-        : phraseMEI(
-          concertKey,
-          session.displayMode,
-          lesson.applicationId,
-          session.clef,
-          session.melodyRegister,
-          { barsPerLine: layout.barsPerLine },
-        );
+    });
   const gen = notationGen += 1;
   whenVerovioReady().then(() => {
     if (gen !== notationGen || !session || session.screen !== "session") return;
@@ -1118,6 +1125,7 @@ function renderNotation() {
     };
     lastEngraveMs = engraved.elapsedMs;
     lastTimemap = engraved.timemap ?? [];
+    fitNotationInView();
     updatePlayhead();
   }).catch(() => {
     if (gen !== notationGen) return;
