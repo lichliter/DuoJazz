@@ -371,7 +371,7 @@ const EXCERPTS = [
     bars: 8,
     spots: [1, 3, 7],
     key: "C",
-    chords: ["Cm7", "Cm7", "Fm7", "Fm7", "Dø7", "G7♭9", "Cm7", "Cm7"],
+    chords: ["Cm7", "Cm7", "Fm7", "Fm7", "Dm7♭5", "G7♭9", "Cm7", "Cm7"],
     source: "Blue Bossa",
   },
   {
@@ -415,8 +415,8 @@ const EXCERPTS = [
     spots: [6, 14],
     key: "C",
     chords: [
-      "Cm7", "Cm7", "Fm7", "Fm7", "Dø7", "G7♭9", "Cm7", "Cm7",
-      "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dø7", "G7♭9", "Cm7", "Dø7", "G7♭9",
+      "Cm7", "Cm7", "Fm7", "Fm7", "Dm7♭5", "G7♭9", "Cm7", "Cm7",
+      "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dm7♭5", "G7♭9", "Cm7", "Dm7♭5", "G7♭9",
     ],
     source: "Blue Bossa",
   },

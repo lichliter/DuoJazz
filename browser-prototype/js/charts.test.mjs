@@ -14,7 +14,12 @@ import { MODULES } from "./registry.js";
 test("chart list rows cover every tune with title, composer, style, and key", () => {
   const rows = chartTuneList();
   assert.deepEqual(rows.map((row) => row.id), TUNES.map((tune) => tune.id));
-  assert.equal(rows.length, 10);
+  assert.equal(rows.length, 11);
+  const blueBossa = rows.find((row) => row.id === "blue-bossa");
+  assert.equal(blueBossa.title, "Blue Bossa");
+  assert.equal(blueBossa.composer, "Kenny Dorham");
+  assert.equal(blueBossa.style, "bossa");
+  assert.equal(blueBossa.key, "Cm");
   const recordame = rows.find((row) => row.id === "recordame");
   assert.equal(recordame.title, "Recordame");
   assert.equal(recordame.composer, "Joe Henderson");
@@ -55,6 +60,19 @@ test("chart grid is four bars per row with section letters and concert chords", 
   assert.equal(recordame.rows[1].bars[3].chords.map((chord) => chord.name).join(" "), "Cm7 F7");
   assert.equal(recordame.rows[2].bars[0].chords[0].name, "B♭maj7");
   assert.equal(recordame.writtenKey, "Am");
+
+  const blueBossa = chartGrid("blue-bossa");
+  assert.equal(blueBossa.barCount, 16);
+  assert.equal(blueBossa.rows.length, 4);
+  assert.equal(blueBossa.writtenKey, "Cm");
+  assert.deepEqual(
+    blueBossa.rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
+    [
+      "Cm7", "Cm7", "Fm7", "Fm7", "Dm7♭5", "G7♭9", "Cm7", "Cm7",
+      "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dm7♭5", "G7♭9", "Cm7", "Dm7♭5", "G7♭9",
+    ],
+  );
+  assert.equal(blueBossa.rows[3].bars[3].chords.map((chord) => chord.beats).join(" "), "2 2");
 });
 
 test("chart grid transposes into the selected instrument's written key", () => {

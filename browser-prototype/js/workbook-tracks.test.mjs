@@ -180,5 +180,5 @@ test("wrap-up of a module’s last lesson offers the next module", () => {
   assert.equal(homeNextModule(last, {}).id, first.id);
   assert.ok(tuneById("recordame"));
   assert.ok(tuneById("nutville"));
-  assert.equal(TUNES.at(-1).id, "nutville");
+  assert.equal(TUNES.at(-1).id, "blue-bossa");
 });
