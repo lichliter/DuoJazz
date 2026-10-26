@@ -5,6 +5,7 @@ import {
   capCueText,
   CHORD_FONT_VU,
   compactChordSymbol,
+  musicTextParts,
   CUE_FONT_VU,
   chordFontVU,
   cueFontVU,
@@ -219,6 +220,40 @@ test("chord symbols compact figbass and internal gaps", () => {
   assert.equal(compactChordSymbol("F#o7"), "F♯°7");
   assert.equal(smuflChordChar("#E260"), "♭");
   assert.equal(smuflChordChar("E870"), "°");
+});
+
+test("accidentals are split out so a font that has them can sit tight", async () => {
+  assert.deepEqual(musicTextParts("E7♯9"), [
+    { text: "E7" },
+    { accidental: "♯" },
+    { text: "9" },
+  ]);
+  assert.deepEqual(musicTextParts("B♭maj7"), [
+    { text: "B" },
+    { accidental: "♭" },
+    { text: "maj7" },
+  ]);
+  assert.deepEqual(musicTextParts("D♭ minor"), [
+    { text: "D" },
+    { accidental: "♭" },
+    { text: " minor" },
+  ]);
+  assert.deepEqual(musicTextParts("C♯m"), [
+    { text: "C" },
+    { accidental: "♯" },
+    { text: "m" },
+  ]);
+  assert.deepEqual(musicTextParts("Am7"), [{ text: "Am7" }]);
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  assert.match(hig, /\.accidental\s*\{[^}]*Noto Music/);
+  assert.match(hig, /\.accidental\s*\{[^}]*letter-spacing:\s*-/);
+  assert.match(hig, /grid-template-areas:[\s\S]*"\. hear \."[\s\S]*"\. continue \."/);
+  assert.match(hig, /\.session-transport \.hear-it\s*\{[^}]*grid-area:\s*hear/);
+  assert.match(app, /fillMusicLabel\(symbol,/);
+  assert.match(app, /fillMusicLabel\(\s*els\.sessionKey/);
+  assert.match(app, /fillMusicLabel\(els\.chartMeta/);
+  assert.match(app, /fillMusicLabel\(btn, option\.label\)/);
 });
 
 test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {

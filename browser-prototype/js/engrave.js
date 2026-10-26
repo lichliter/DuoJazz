@@ -219,6 +219,41 @@ export function smuflChordChar(href) {
   return SMUFL_CHORD[code] ?? "";
 }
 
+/** Split chord and key labels so each accidental can use a font that actually has the glyph. */
+export function musicTextParts(text) {
+  const value = String(text ?? "");
+  const parts = [];
+  const re = /[♭♯♮𝄫𝄪]/gu;
+  let last = 0;
+  for (const match of value.matchAll(re)) {
+    const index = match.index ?? 0;
+    if (index > last) parts.push({ text: value.slice(last, index) });
+    parts.push({ accidental: match[0] });
+    last = index + match[0].length;
+  }
+  if (last < value.length) parts.push({ text: value.slice(last) });
+  return parts;
+}
+
+export function fillMusicLabel(el, text) {
+  if (!el) return;
+  const parts = musicTextParts(text);
+  el.replaceChildren();
+  if (!parts.length) return;
+  for (const part of parts) {
+    if (part.accidental) {
+      const span = document.createElement("span");
+      span.className = part.accidental === "♯" || part.accidental === "𝄪"
+        ? "accidental is-sharp"
+        : "accidental";
+      span.textContent = part.accidental;
+      el.append(span);
+    } else if (part.text) {
+      el.append(part.text);
+    }
+  }
+}
+
 export function compactChordSymbol(text) {
   let s = decodeFigbassText(text)
     .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "");
