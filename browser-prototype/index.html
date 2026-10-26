@@ -10,10 +10,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/tokens.css?v=98">
   <link rel="stylesheet" href="./css/styles.css?v=98">
-  <link rel="stylesheet" href="./css/hig.css?v=99">
+  <link rel="stylesheet" href="./css/hig.css?v=100">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
   <script src="./js/verovio-bind.js?v=98" defer></script>
-  <script type="module" src="./js/app.js?v=99"></script>
+  <script type="module" src="./js/app.js?v=100"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -24,7 +24,9 @@
         <p class="logo">duojazz</p>
       </div>
       <div class="masthead-actions">
-        <button type="button" class="quiet" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view">Modules</button>
+        <button type="button" class="icon-btn modules-menu" id="quick-view-btn" data-testid="quick-view-btn" aria-haspopup="dialog" aria-controls="quick-view" aria-label="Modules">
+          <svg class="modules-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+        </button>
       </div>
     </header>
     <nav class="app-tab-bar" id="app-tab-bar" data-testid="app-tab-bar" aria-label="Main">
@@ -44,8 +46,9 @@
 
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
-        <div class="home-settings">
+        <div class="home-settings" data-testid="home-tools">
           <button type="button" class="home-summary" id="home-summary" data-testid="home-summary">Piano · 96 bpm</button>
+          <div class="home-mode" id="home-mode" data-testid="home-mode"></div>
         </div>
         <section class="lesson-path" aria-label="Lesson path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -130,30 +133,19 @@
           <button type="button" class="icon-btn" id="session-exit" aria-label="Close">×</button>
           <div class="session-heading">
             <h1 class="session-title" id="session-title">Lesson</h1>
-            <div class="study-switch" id="session-mode" data-testid="session-mode" role="group" aria-label="Learn or Practice"></div>
           </div>
           <div class="session-end">
             <p class="session-meta" id="session-key">G minor</p>
             <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
-            <button type="button" class="toolbar-btn session-jump" id="session-quick-view" data-testid="session-quick-view" aria-haspopup="dialog" aria-controls="quick-view">Jump</button>
           </div>
         </header>
-        <aside class="headphones-banner" id="headphones-tip" hidden>
-          <p>Headphones recommended so the backing does not leak into grading.</p>
-          <button type="button" class="headphones-dismiss" id="headphones-dismiss" aria-label="Dismiss headphones tip">×</button>
-        </aside>
         <div class="session-body">
           <div class="session-stage">
-            <h2 class="session-step" id="card-badge">Hear it</h2>
-            <p class="cue-line" id="instruction" aria-live="polite"></p>
+            <h2 class="session-step" id="card-badge">Play</h2>
             <p class="meter" id="meter" hidden></p>
             <p class="mic-line" id="session-mic" hidden></p>
             <p class="grade-line" id="grade-line" hidden></p>
             <section class="chart-card" id="music-surface" aria-label="Music">
-              <div class="chart-head">
-                <p id="chart-title">Cry Me a River cell</p>
-                <p id="chart-meta">G minor</p>
-              </div>
               <div class="paper-wrap">
                 <div id="notation" class="paper" aria-label="Staff notation"></div>
                 <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
@@ -165,21 +157,18 @@
             </section>
             <div class="session-transport">
               <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
-              <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Hear the cell">
+              <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Play">
                 <span class="play-round-icon" aria-hidden="true"></span>
                 <span class="play-round-count" id="primary-count" hidden></span>
               </button>
-              <p class="play-round-label" id="primary-label">Hear the cell</p>
-              <button type="button" class="text-link hear-it" id="hear-it" data-testid="hear-it">Hear it</button>
-              <button type="button" class="text-link" id="continue-btn">Continue</button>
+              <div class="session-links">
+                <button type="button" class="text-link hear-it" id="hear-it" data-testid="hear-it">Hear it</button>
+                <span class="session-links-dot" aria-hidden="true">·</span>
+                <button type="button" class="text-link" id="continue-btn">Skip</button>
+              </div>
             </div>
           </div>
         </div>
-        <footer class="session-bottom">
-          <button type="button" class="session-nav-btn" id="session-back" data-testid="session-back">Back</button>
-          <div class="session-progress" aria-hidden="true"><span id="session-progress-fill"></span></div>
-          <button type="button" class="session-nav-btn" id="session-next" data-testid="session-next">Next</button>
-        </footer>
       </section>
 
       <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
