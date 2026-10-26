@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=97">
-  <link rel="stylesheet" href="./css/styles.css?v=97">
-  <link rel="stylesheet" href="./css/hig.css?v=97">
+  <link rel="stylesheet" href="./css/tokens.css?v=98">
+  <link rel="stylesheet" href="./css/styles.css?v=98">
+  <link rel="stylesheet" href="./css/hig.css?v=98">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=97" defer></script>
-  <script type="module" src="./js/app.js?v=97"></script>
+  <script src="./js/verovio-bind.js?v=98" defer></script>
+  <script type="module" src="./js/app.js?v=98"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -128,7 +128,10 @@
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
           <button type="button" class="icon-btn" id="session-exit" aria-label="Close">×</button>
-          <h1 class="session-title" id="session-title">Lesson</h1>
+          <div class="session-heading">
+            <h1 class="session-title" id="session-title">Lesson</h1>
+            <div class="study-switch" id="session-mode" data-testid="session-mode" role="group" aria-label="Learn or Practice"></div>
+          </div>
           <div class="session-end">
             <p class="session-meta" id="session-key">G minor</p>
             <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
@@ -167,6 +170,7 @@
                 <span class="play-round-count" id="primary-count" hidden></span>
               </button>
               <p class="play-round-label" id="primary-label">Hear the cell</p>
+              <button type="button" class="text-link hear-it" id="hear-it" data-testid="hear-it">Hear it</button>
               <button type="button" class="text-link" id="continue-btn">Continue</button>
             </div>
           </div>

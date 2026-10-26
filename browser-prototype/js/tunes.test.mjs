@@ -408,16 +408,16 @@ test("Play-card landing for Billie's Bounce does not put a half rest in the firs
 test("tune-page and Your-tunes copy names the first spot instead of eight bars", () => {
   const idle = { playing: false, paused: false };
   const st = createSession({ lessonId: "tune-st-thomas", startKeyId: "C" });
-  assert.equal(sessionPrimaryAction(st, idle).label, "Hear the tune");
+  assert.equal(sessionPrimaryAction(st, idle).label, "Count me in");
   assert.equal(sessionCue(st), "First spot: bar 2, Guide tone sequence on Em7.");
   const yours = createSession({ lessonId: "tune-st-thomas-gts", startKeyId: "C" });
-  assert.equal(sessionPrimaryAction(yours, idle).label, "Hear it in St. Thomas");
+  assert.equal(sessionPrimaryAction(yours, idle).label, "Count me in");
   assert.equal(sessionCue(yours), "First spot: bar 2, Guide tone sequence on Em7.");
   const eight = createSession({ lessonId: "integrate-minor-home", startKeyId: "G" });
-  assert.equal(sessionPrimaryAction(eight, idle).label, "Hear the eight bars");
-  assert.match(sessionCue(eight), /Hear the phrase land in bar 7 on Gm6/);
+  assert.equal(sessionPrimaryAction(eight, idle).label, "Count me in");
+  assert.match(sessionCue(eight), /Bring the phrase in bar 7/);
   const billies = createSession({ lessonId: "bo-integrate-billies", startKeyId: "F" });
-  assert.equal(sessionPrimaryAction(billies, idle).label, "Hear the twelve bars");
+  assert.equal(sessionPrimaryAction(billies, idle).label, "Count me in");
 });
 
 test("tempo is remembered per tune across lick and play-through lessons", () => {
