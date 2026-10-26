@@ -133,9 +133,9 @@ export function sessionScreenTitle(session) {
   return `${module.name} · Lesson ${index}`;
 }
 
-/** Session heading. Learn and Practice are modes, not a mid-session control. */
-export function sessionModeHeading(session) {
-  return session?.studyMode === "practice" ? "Practice" : "Learn";
+/** Session heading. Both modes say Play. The mode stays off this screen. */
+export function sessionModeHeading(_session) {
+  return "Play";
 }
 
 /**
