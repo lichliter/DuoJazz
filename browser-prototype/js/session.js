@@ -358,6 +358,7 @@ export function defaultPrefs() {
     startKeyId: DEFAULT_KEY_ID,
     cardSet: "all",
     tempo: 96,
+    auto: true,
     headphonesTipSeen: false,
     lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, defaultLessonPref(lesson.id)])),
     progress: {},
@@ -381,6 +382,7 @@ export function normalizePrefs(raw) {
   merged.startKeyId = normalizeKeyId(raw?.startKeyId ?? seed.startKeyId ?? DEFAULT_KEY_ID);
   merged.cardSet = raw?.cardSet === "listen-quiz" || seed.cardSet === "listen-quiz" ? "listen-quiz" : "all";
   merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
+  merged.auto = raw?.auto !== false;
   merged.headphonesTipSeen = Boolean(raw?.headphonesTipSeen)
     || raw?.headphonesTipSeen === "1"
     || raw?.headphonesTipSeen === "true";
