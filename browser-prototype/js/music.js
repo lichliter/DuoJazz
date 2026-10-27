@@ -341,6 +341,17 @@ export function spellPitchInKey(pc, shownKey) {
   return { name, letter: best.letter, acc: best.acc };
 }
 
+/** Scientific octave of the written letter. `acc` is that letter's accidental, from −2 to 2. */
+export function spelledOctave(midi, acc) {
+  return Math.floor((midi - acc) / 12) - 1;
+}
+
+/** Sounding MIDI for a written letter, accidental, and scientific octave. */
+export function midiForSpelledPitch(letter, acc, octave) {
+  const pc = NATURAL_PC[String(letter).toUpperCase()];
+  return (octave + 1) * 12 + pc + acc;
+}
+
 export function newBarState(shownKey) {
   return { sig: keySignatureByLetter(shownKey), written: new Map() };
 }
@@ -521,9 +532,26 @@ export function concertMidiToWritten(midi, displayMode) {
 }
 
 export function spellMidi(midi, usesFlats) {
+  const spelled = spellShownMidi(midi, Boolean(usesFlats));
+  return { name: spelled.name, octave: spelled.octave, pc: spelled.pc };
+}
+
+/**
+ * Spell a sounding MIDI on a letter, then take the octave from that letter.
+ * C♭4 is MIDI 59 and B♯3 is MIDI 60. A boolean `shownKey` selects only flat or sharp names.
+ */
+export function spellShownMidi(midi, shownKey, usesFlats = null) {
   const pc = wrapPc(midi);
-  const octave = Math.floor(midi / 12) - 1;
-  return { name: pitchName(pc, usesFlats), octave, pc };
+  const key = shownKey && typeof shownKey === "object" ? shownKey : null;
+  const flats = usesFlats == null
+    ? Boolean(key ? key.usesFlats : shownKey)
+    : Boolean(usesFlats);
+  const keyed = Boolean(key) && (usesFlats == null || flats === Boolean(key.usesFlats));
+  const spelled = keyed ? spellPitchInKey(pc, key) : null;
+  const name = spelled?.name ?? pitchName(pc, flats);
+  const letter = spelled?.letter ?? name[0];
+  const acc = spelled?.acc ?? accidentalValue(name);
+  return { name, letter, acc, octave: spelledOctave(midi, acc), pc };
 }
 
 export function rhythmLabel(beats) {
@@ -632,8 +660,8 @@ export function phraseNotes(
     const concertMidi = eventMelodyMidi(concertKey, event, melodyRegister, octaveBase);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     const chord = chordAtEventBeat(chords, event.beat);
-    const spelled = spellMidi(shownMidi, usesFlatsForChord(shownKey, chord));
-    const concertSpelled = spellMidi(concertMidi, usesFlatsForChord(concertSpell, chord));
+    const spelled = spellShownMidi(shownMidi, shownKey, usesFlatsForChord(shownKey, chord));
+    const concertSpelled = spellShownMidi(concertMidi, concertSpell, usesFlatsForChord(concertSpell, chord));
     return {
       index,
       startBeat: event.beat,
@@ -937,13 +965,14 @@ function abcOctaveLetter(letter, octave) {
   return `${letter.toLowerCase()}${"'".repeat(octave - 5)}`;
 }
 
+function abcSpellingContext(shownKey, usesFlats) {
+  if (typeof usesFlats === "boolean" && usesFlats !== Boolean(shownKey?.usesFlats)) return usesFlats;
+  return shownKey;
+}
+
 function abcNote(midi, shownKey, barState) {
-  const pc = wrapPc(midi);
-  const octave = Math.floor(midi / 12) - 1;
-  const spelled = typeof shownKey === "object" && shownKey ? spellPitchInKey(pc, shownKey) : null;
-  const name = spelled?.name ?? pitchName(pc, Boolean(shownKey));
-  const letter = spelled?.letter ?? name[0];
-  const acc = spelled?.acc ?? accidentalValue(name);
+  const spelled = spellShownMidi(midi, shownKey);
+  const { letter, acc, octave } = spelled;
   if (!barState) {
     const prefix = acc === 0 ? "" : abcAccidentalPrefix(acc);
     return `${prefix}${abcOctaveLetter(letter, octave)}`;
@@ -1086,7 +1115,7 @@ function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase
   const shownMidi = concertMidiToWritten(concertMidi, displayMode);
   const pitch = abcNote(
     shownMidi,
-    usesFlatsOverride == null ? shownKey : usesFlatsOverride,
+    abcSpellingContext(shownKey, usesFlatsOverride),
     barState,
   );
   const dur = item.tuplet === 3 ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);

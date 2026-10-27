@@ -44,6 +44,10 @@ import {
   chordSymbolName,
   learnChords,
   spellPitchInKey,
+  spellMidi,
+  spellShownMidi,
+  spelledOctave,
+  midiForSpelledPitch,
   MAJOR_SPELLINGS,
   MINOR_SPELLINGS,
   applicationKeyQuality,
@@ -703,6 +707,51 @@ test("key spelling table is flat-leaning, with C♯m F♯m and A♭m", () => {
   const cell = learnChords(getKey("Db"), "concert", "cmar-learn");
   assert.match(cell[0].name, /^C♯/);
   assert.doesNotMatch(cell[0].name, /\s/);
+});
+
+test("spelled octave follows the written letter for C-flat, B-sharp, and double accidentals", () => {
+  const ab = displayKey(getKey("Ab"), "concert", "minor");
+  const cb = spellShownMidi(59, ab);
+  assert.equal(cb.name, "C♭");
+  assert.equal(cb.letter, "C");
+  assert.equal(cb.acc, -1);
+  assert.equal(cb.octave, 4);
+  assert.equal(midiForSpelledPitch(cb.letter, cb.acc, cb.octave), 59);
+  assert.equal(spellMidi(59, true).name, "B");
+  assert.equal(spellMidi(59, true).octave, 3);
+
+  const sevenSharps = { pc: 1, usesFlats: false, sigCount: 7 };
+  const bSharp = spellShownMidi(60, sevenSharps);
+  assert.equal(bSharp.name, "B♯");
+  assert.equal(bSharp.letter, "B");
+  assert.equal(bSharp.acc, 1);
+  assert.equal(bSharp.octave, 3);
+  assert.equal(midiForSpelledPitch(bSharp.letter, bSharp.acc, bSharp.octave), 60);
+
+  assert.equal(spelledOctave(58, -2), 4);
+  assert.equal(midiForSpelledPitch("C", -2, 4), 58);
+  assert.equal(spelledOctave(61, 2), 3);
+  assert.equal(midiForSpelledPitch("B", 2, 3), 61);
+});
+
+test("Cry Me a River Lesson 1 in A-flat minor spells C-flat 4 on trombone and piano", () => {
+  const lesson = LESSONS.find((item) => item.id === "learn-lick");
+  assert.equal(lesson.applicationId, "minor-home");
+  const expected = [70, 68, 63, 59, 58, 56];
+  const names = ["B♭4", "A♭4", "E♭4", "C♭4", "B♭3", "A♭3"];
+  for (const instrumentId of ["trombone", "piano"]) {
+    const notes = phraseNotes(getKey("Ab"), instrumentId, lesson.applicationId);
+    assert.deepEqual(notes.map((note) => note.shownMidi), expected, instrumentId);
+    assert.deepEqual(notes.map((note) => note.shownName), names, instrumentId);
+    assert.ok(expected.every((midi, index) => index === 0 || midi < expected[index - 1]));
+  }
+  const abc = phraseABC(getKey("Ab"), "trombone", lesson.applicationId, "bass");
+  assert.match(abc, /K:Abmin clef=bass/);
+  assert.match(abc, /B2 \(3AEC B,A, z2/);
+  assert.doesNotMatch(abc.split("K:")[1], /C,|=B/);
+  const treble = phraseABC(getKey("Ab"), "piano", lesson.applicationId, "treble");
+  assert.match(treble, /clef=treble/);
+  assert.match(treble, /B2 \(3AEC B,A, z2/);
 });
 
 test("every lesson and key keeps the label, signature, and tonic chord on one spelling", () => {
