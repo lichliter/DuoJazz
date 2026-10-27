@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>DuoJazz</title>
-  <meta name="description" content="Practice jazz licks in all 12 keys. Browser prototype, not the native DuoJazz iPad app.">
+  <meta name="description" content="Practice jazz licks in all 12 keys.">
+  <meta property="og:title" content="DuoJazz">
+  <meta property="og:description" content="Practice jazz licks in all 12 keys.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DuoJazz">
+  <meta name="twitter:card" content="summary">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
@@ -13,7 +18,7 @@
   <link rel="stylesheet" href="./css/hig.css?v=106">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
   <script src="./js/verovio-bind.js?v=98" defer></script>
-  <script type="module" src="./js/app.js?v=108"></script>
+  <script type="module" src="./js/app.js?v=109"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -121,8 +126,8 @@
             <div class="row wrap" id="card-sets" role="group" aria-labelledby="card-set-label"></div>
           </section>
           <details class="about-block">
-            <summary>About this experiment</summary>
-            <p>Browser prototype with getUserMedia + AudioWorklet (YIN) grading. Real microphone accuracy needs a check on an iPad with a horn. Space plays or pauses. R restarts.</p>
+            <summary>About</summary>
+            <p>Play into your mic. DuoJazz listens for each note in order and moves you to the next key. Space plays or pauses. R restarts.</p>
             <p>Thirty modules from Essential Jazz Vocabulary. Settings are global and apply to the next lesson you start.</p>
           </details>
         </form>
