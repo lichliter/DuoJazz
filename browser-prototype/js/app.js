@@ -95,15 +95,17 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, describeAttempt, stepFollower, tickFollower } from "./follow.js";
+import { createFollower, debugTextForKey, describeAttempt, stepFollower, tickFollower } from "./follow.js?v=108";
 import {
   CHECK_MS,
   RETRY_MS,
   afterFail,
   afterPass,
+  isLastRapidKey,
   rapidFireButton,
+  rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js";
+} from "./rapid.js?v=108";
 import {
   emptyMastery,
   displayMedal,
@@ -117,7 +119,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js";
+import { PitchMonitor, micCopy } from "./pitch.js?v=108";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -287,6 +289,23 @@ function halt() {
   if (els.primary) els.primary.disabled = false;
 }
 
+function releaseMic(reason) {
+  if (rapidMicStep(monitor.isLive(), reason) !== "release") return;
+  const held = session?.keyIndex ?? 0;
+  const onSession = session?.screen === "session";
+  halt();
+  if (!onSession || !session || reason === "leave") return;
+  session = {
+    ...session,
+    keyIndex: held,
+    demo: reason === "hide" ? false : session.demo,
+  };
+  rapidPhase = "idle";
+  cue = null;
+  renderCue();
+  renderPrimary();
+}
+
 function clearGradeLine() {
   liveGrade = null;
   if (cue || sessionShot === "check" || sessionShot === "retry") return;
@@ -350,11 +369,13 @@ function renderDebug() {
     return;
   }
   const shown = shownKeyForSession();
-  const source = attempt ?? (lastDebug ? null : createFollower(expectedNotesFor(session).map((note) => note.midi)));
+  const fresh = describeAttempt(
+    createFollower(expectedNotesFor(session).map((note) => note.midi)),
+    shown,
+  ).text;
   els.debugStrip.hidden = false;
   if (attempt) els.debugStrip.textContent = describeAttempt(attempt, shown).text;
-  else if (lastDebug) els.debugStrip.textContent = lastDebug.text;
-  else if (source) els.debugStrip.textContent = describeAttempt(source, shown).text;
+  else els.debugStrip.textContent = debugTextForKey(lastDebug, currentKeyId(session), fresh);
 }
 
 function renderAuto() {
@@ -383,14 +404,22 @@ function finishRapid(generation, result) {
   rapidPhase = "settling";
   if (attemptTimer) window.clearInterval(attemptTimer);
   attemptTimer = null;
-  monitor.holdSignal = false;
-  monitor.onFrame = () => {};
-  monitor.stop();
   const shown = shownKeyForSession();
-  lastDebug = describeAttempt(result, shown);
+  lastDebug = session
+    ? { ...describeAttempt(result, shown), keyId: currentKeyId(session) }
+    : null;
   attempt = null;
-  renderDebug();
   const passed = Boolean(result.passed);
+  const step = rapidMicStep(
+    monitor.isLive(),
+    passed && isLastRapidKey(session) ? "wrapup" : "attempt",
+  );
+  monitor.onFrame = () => {};
+  if (step === "release") {
+    monitor.holdSignal = false;
+    monitor.stop();
+  }
+  renderDebug();
   if (passed) recordRapidPass();
   const auto = prefs.auto !== false;
   const token = startGen;
@@ -440,22 +469,23 @@ async function beginListening() {
   cue = null;
   audioError = "";
   rapidPhase = "listening";
-  monitor.stop();
   attempt = createFollower(expectedNotesFor(session).map((note) => note.midi), performance.now());
+  monitor.holdSignal = true;
+  monitor.now = () => performance.now();
+  monitor.onFrame = (frame) => {
+    if (generation !== startGen || rapidPhase !== "listening" || !attempt || attempt.ended) return;
+    attempt = stepFollower(attempt, frame);
+    if (attempt?.ended) finishRapid(generation, attempt);
+  };
   renderCue();
   renderPrimary();
   renderDebug();
   try {
     await transport.ensure();
     if (generation !== startGen) return;
-    monitor.holdSignal = true;
-    monitor.now = () => performance.now();
-    monitor.onFrame = (frame) => {
-      if (generation !== startGen || rapidPhase !== "listening" || !attempt || attempt.ended) return;
-      attempt = stepFollower(attempt, frame);
-      if (attempt?.ended) finishRapid(generation, attempt);
-    };
-    await monitor.start(transport.ctx);
+    const step = rapidMicStep(monitor.isLive() && monitor.processing === false, "attempt");
+    if (step === "reset") monitor.reset();
+    else await monitor.start(transport.ctx, { processing: false });
     if (generation !== startGen) return;
     if (monitor.state === "denied" || monitor.state === "unsupported") {
       rapidPhase = "idle";
@@ -686,7 +716,7 @@ function startFromSetup() {
 }
 
 function exitSession() {
-  halt();
+  releaseMic("leave");
   resetPitchTake();
   lastSessionSlot = "";
   session = null;
@@ -765,13 +795,7 @@ function runPrimary() {
   if (rapidPhase === "check" || rapidPhase === "settling") return;
   if (rapidPhase === "listening") {
     sessionShot = null;
-    const held = session.keyIndex;
-    halt();
-    session = session ? { ...session, keyIndex: held } : session;
-    rapidPhase = "idle";
-    cue = null;
-    renderCue();
-    renderPrimary();
+    releaseMic("pause");
     return;
   }
   beginListening();
@@ -1438,7 +1462,7 @@ function renderPrimary(snap = transport.snapshot()) {
     els.primary.disabled = false;
     els.primary.dataset.action = action.id;
     els.primary.dataset.state = listening ? "listening" : "idle";
-    els.primary.classList.toggle("is-stop", listening);
+    els.primary.classList.remove("is-stop");
     els.primary.classList.remove("is-count");
     delete els.primary.dataset.passed;
     if (els.primaryCount) {
@@ -1920,8 +1944,10 @@ els.autoToggle?.addEventListener("click", () => {
 });
 els.hearIt?.addEventListener("click", () => {
   if (!session || session.screen !== "session") return;
-  halt();
-  session = { ...session, demo: true };
+  const held = session.keyIndex;
+  releaseMic("hear");
+  if (!session) return;
+  session = { ...session, keyIndex: held, demo: true };
   render();
   start(false);
 });
@@ -2023,6 +2049,10 @@ els.session?.addEventListener("touchend", (event) => {
 window.addEventListener("resize", () => {
   if (session?.screen === "session") renderNotation();
   else render();
+});
+window.addEventListener("pagehide", () => releaseMic("hide"));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") releaseMic("hide");
 });
 
 const lessonPath = document.querySelector(".lesson-path");
