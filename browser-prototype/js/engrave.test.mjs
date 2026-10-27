@@ -2,13 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  accidentalFontSize,
-  accidentalKern,
   boxesIntersect,
   capCueText,
   CHORD_FONT_VU,
   compactChordSymbol,
-  musicTextParts,
+  MUSIC_FONT_FAMILY,
   placeCueBoxes,
   CUE_FONT_VU,
   chordFontVU,
@@ -249,35 +247,22 @@ test("chord symbols compact figbass and internal gaps", () => {
   assert.equal(smuflChordChar("E870"), "°");
 });
 
-test("accidentals are split out so a font that has them can sit tight", async () => {
-  assert.deepEqual(musicTextParts("E7♯9"), [
-    { text: "E7" },
-    { accidental: "♯" },
-    { text: "9" },
-  ]);
-  assert.deepEqual(musicTextParts("B♭maj7"), [
-    { text: "B" },
-    { accidental: "♭" },
-    { text: "maj7" },
-  ]);
-  assert.deepEqual(musicTextParts("D♭ minor"), [
-    { text: "D" },
-    { accidental: "♭" },
-    { text: " minor" },
-  ]);
-  assert.deepEqual(musicTextParts("C♯m"), [
-    { text: "C" },
-    { accidental: "♯" },
-    { text: "m" },
-  ]);
-  assert.deepEqual(musicTextParts("Am7"), [{ text: "Am7" }]);
+test("accidentals stay in the same font run as the letters", async () => {
+  assert.match(MUSIC_FONT_FAMILY, /DuoJazz Music/);
+  assert.doesNotMatch(MUSIC_FONT_FAMILY, /Noto Music/);
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const tokens = await readFile(new URL("../css/tokens.css", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
-  assert.match(hig, /\.accidental\s*\{[^}]*Noto Music/);
-  assert.match(hig, /\.accidental\s*\{[^}]*margin-left:\s*-/);
-  assert.ok(accidentalKern(400, "pull") < 0);
-  assert.ok(accidentalKern(400, "trail") < 0);
-  assert.ok(accidentalFontSize(400) > 400);
+  const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
+  assert.match(hig, /\.music-label[\s\S]*var\(--music-font\)/);
+  assert.match(tokens, /font-family:\s*"DuoJazz Music"/);
+  assert.doesNotMatch(hig, /Noto Music/);
+  assert.doesNotMatch(hig, /margin-left:\s*-/);
+  assert.doesNotMatch(hig, /letter-spacing:\s*-/);
+  assert.doesNotMatch(src, /Noto Music/);
+  assert.doesNotMatch(src, /accidentalKern/);
+  assert.doesNotMatch(src, /margin-left/);
+  assert.match(src, /tspan\.textContent = compact/);
   assert.match(hig, /grid-template-areas:[\s\S]*"links links links"/);
   assert.match(hig, /\.session-links\s*\{[^}]*grid-area:\s*links/);
   assert.match(app, /fillMusicLabel\(symbol,/);
@@ -382,7 +367,7 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
   assert.match(src, /separateChordSymbols\(svg\)/);
   assert.match(src, /layoutCueLabels\(svg\)/);
-  assert.match(src, /Noto Music/);
+  assert.match(src, /MUSIC_FONT_FAMILY/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);

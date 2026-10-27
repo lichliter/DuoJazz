@@ -271,36 +271,21 @@ body {
   letter-spacing: 0;
 }
 
-.chord-symbol {
-  font-family: "Noto Sans", "Source Sans 3", sans-serif;
-  font-weight: 700;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-/* Noto Sans and the UI font have no ♯/♭. Noto Music's glyph is small in the em
-   and carries sidebearing, which reads as a gap. Scale it up to the letter cap
-   and pull that sidebearing back in. */
-.accidental {
-  font-family: "Noto Music", sans-serif;
-  font-weight: 400;
-  font-style: normal;
+.music-label,
+.chord-symbol,
+.chart-row-key,
+#session-key,
+#chart-heading-meta,
+#next-key,
+#wrapup-heading {
+  font-family: var(--music-font);
   font-synthesis: none;
-  display: inline-block;
-  font-size: 1.36em;
-  line-height: 1;
   letter-spacing: 0;
-  vertical-align: -0.02em;
-  margin-left: -0.13em;
-  margin-right: -0.1em;
 }
 
-.accidental.is-sharp {
-  position: relative;
-  top: -0.06em;
-  vertical-align: -0.2em;
-  margin-left: -0.11em;
-  margin-right: -0.09em;
+.chord-symbol {
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .study-switch {

@@ -9,8 +9,8 @@ import { meiHasBowing } from "./mei.js";
 const INK = "#2b211a";
 const SVG_NS = "http://www.w3.org/2000/svg";
 const READY_TIMEOUT_MS = 20000;
-/** Noto Music accidental sidebearing, as a fraction of its em. */
-const ACCIDENTAL_SIDE = 0.051;
+/** One face for chord letters and accidentals. DejaVu subset, see css/tokens.css. */
+export const MUSIC_FONT_FAMILY = '"DuoJazz Music", "DejaVu Sans", sans-serif';
 export const VEROVIO_UNIT = 12;
 export const STAFF_USER_UNITS = 8 * VEROVIO_UNIT;
 
@@ -175,7 +175,7 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     leftMarginAccid: 2,
     rightMarginAccid: 1.2,
     xmlIdSeed: 1,
-    svgCss: `.harm, .harm text, .harm tspan { font-family: "Noto Sans", "Source Sans 3", sans-serif; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
+    svgCss: `.harm, .harm text, .harm tspan { font-family: ${MUSIC_FONT_FAMILY}; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
   };
 }
 
@@ -222,39 +222,22 @@ export function smuflChordChar(href) {
   return SMUFL_CHORD[code] ?? "";
 }
 
-/** Split chord and key labels so each accidental can use a font that actually has the glyph. */
-export function musicTextParts(text) {
-  const value = String(text ?? "");
-  const parts = [];
-  const re = /[♭♯♮𝄫𝄪]/gu;
-  let last = 0;
-  for (const match of value.matchAll(re)) {
-    const index = match.index ?? 0;
-    if (index > last) parts.push({ text: value.slice(last, index) });
-    parts.push({ accidental: match[0] });
-    last = index + match[0].length;
-  }
-  if (last < value.length) parts.push({ text: value.slice(last) });
-  return parts;
-}
+const ACCIDENTAL = /[♭♯♮𝄫𝄪°øΔ]/u;
 
+/** Write a chord or key as one run so the accidental uses the same face as the letters. */
 export function fillMusicLabel(el, text) {
   if (!el) return;
-  const parts = musicTextParts(text);
-  el.replaceChildren();
-  if (!parts.length) return;
-  for (const part of parts) {
-    if (part.accidental) {
-      const span = document.createElement("span");
-      span.className = part.accidental === "♯" || part.accidental === "𝄪"
-        ? "accidental is-sharp"
-        : "accidental";
-      span.textContent = part.accidental;
-      el.append(span);
-    } else if (part.text) {
-      el.append(part.text);
-    }
-  }
+  const value = String(text ?? "");
+  el.textContent = value;
+  const surface = el.classList?.contains("chord-symbol")
+    || el.classList?.contains("chart-row-key")
+    || el.classList?.contains("key-btn")
+    || el.id === "session-key"
+    || el.id === "chart-heading-meta"
+    || el.id === "next-key"
+    || el.id === "wrapup-heading"
+    || (typeof el.closest === "function" && el.closest("#chart-keys, #setup-keys"));
+  el.classList?.toggle("music-label", Boolean(surface) || ACCIDENTAL.test(value));
 }
 
 export function compactChordSymbol(text) {
@@ -329,55 +312,21 @@ function textAnchor(el) {
   };
 }
 
-/** Accidental em relative to the chord letters, so the flat/sharp cap matches Noto Sans. */
-export function accidentalFontSize(chordVU) {
-  return Math.round(Number(chordVU) * 1.36);
-}
-
-/**
- * Negative dx that pulls a Noto Music accidental against the neighboring letter.
- * `edge` is "pull" (before the glyph) or "trail" (the text that follows it).
- */
-export function accidentalKern(chordVU, edge = "pull") {
-  const letters = Number(chordVU) || 0;
-  const acc = accidentalFontSize(letters);
-  const side = ACCIDENTAL_SIDE * acc;
-  const neighbor = 0.055 * letters;
-  const keep = 0.004 * letters;
-  const pull = Math.max(0, side + neighbor - keep);
-  const amount = edge === "trail" ? pull * 0.9 : pull;
-  return -Math.round(amount);
-}
-
 function paintChordText(text, compact, chordVU, x, y) {
   text.replaceChildren();
-  const parts = musicTextParts(compact);
-  const runs = parts.length ? parts : [{ text: compact }];
-  runs.forEach((part, index) => {
-    const accidental = Boolean(part.accidental);
-    const tspan = document.createElementNS(SVG_NS, "tspan");
-    tspan.textContent = accidental ? part.accidental : part.text;
-    const size = accidental ? accidentalFontSize(chordVU) : chordVU;
-    tspan.setAttribute("font-family", accidental
-      ? "Noto Music, sans-serif"
-      : "Noto Sans, Source Sans 3, sans-serif");
-    tspan.setAttribute("font-weight", accidental ? "400" : "700");
-    tspan.setAttribute("font-size", `${size}px`);
-    tspan.setAttribute("fill", INK);
-    tspan.setAttribute("letter-spacing", "0");
-    tspan.setAttribute("kerning", "0");
-    if (!accidental) tspan.setAttribute("xml:space", "preserve");
-    if (index === 0) {
-      if (x != null) tspan.setAttribute("x", x);
-      if (y != null) tspan.setAttribute("y", y);
-    } else if (accidental) {
-      tspan.setAttribute("dx", String(accidentalKern(chordVU, "pull")));
-    } else if (runs[index - 1]?.accidental) {
-      tspan.setAttribute("dx", String(accidentalKern(chordVU, "trail")));
-    }
-    text.append(tspan);
-  });
-  text.setAttribute("font-family", "Noto Sans, Source Sans 3, sans-serif");
+  const tspan = document.createElementNS(SVG_NS, "tspan");
+  tspan.textContent = compact;
+  tspan.setAttribute("font-family", MUSIC_FONT_FAMILY);
+  tspan.setAttribute("font-weight", "700");
+  tspan.setAttribute("font-size", `${chordVU}px`);
+  tspan.setAttribute("fill", INK);
+  tspan.setAttribute("letter-spacing", "0");
+  tspan.setAttribute("kerning", "0");
+  tspan.setAttribute("xml:space", "preserve");
+  if (x != null) tspan.setAttribute("x", x);
+  if (y != null) tspan.setAttribute("y", y);
+  text.append(tspan);
+  text.setAttribute("font-family", MUSIC_FONT_FAMILY);
   text.setAttribute("font-weight", "700");
   text.setAttribute("font-size", `${chordVU}px`);
   text.setAttribute("letter-spacing", "0");

@@ -20,7 +20,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=101";
+} from "./engrave.js?v=105";
 import {
   PREFS_KEY,
   MODULE,
@@ -807,7 +807,7 @@ function sleeveButton(node) {
 
   const context = document.createElement("span");
   context.className = "sleeve-context";
-  context.textContent = node.caption ?? sleeveCaption(node.context, node.passedCount);
+  fillMusicLabel(context, node.caption ?? sleeveCaption(node.context, node.passedCount));
   btn.append(context);
 
   btn.addEventListener("click", () => openSetup(node.id));
@@ -1262,7 +1262,7 @@ function renderWrapup() {
   const lesson = lessonById(session.lessonId);
   els.shell.dataset.sleeve = lesson.sleeve;
   if (els.wrapupKicker) els.wrapupKicker.textContent = copy.kicker;
-  els.wrapupHeading.textContent = copy.heading;
+  fillMusicLabel(els.wrapupHeading, copy.heading);
   els.wrapupDetail.textContent = copy.detail;
   if (els.wrapupSleeve) {
     els.wrapupSleeve.hidden = false;
@@ -1297,7 +1297,7 @@ function renderWrapup() {
       : (count ? `${count} of 12 keys mastered` : "No medal yet for this module");
   }
   els.nextKey.hidden = !copy.nextKeyLabel;
-  if (copy.nextKeyLabel) els.nextKey.textContent = copy.nextKeyLabel;
+  if (copy.nextKeyLabel) fillMusicLabel(els.nextKey, copy.nextKeyLabel);
   const nextModule = wrapupNextModule(session);
   if (els.nextModule) {
     els.nextModule.hidden = !nextModule;
