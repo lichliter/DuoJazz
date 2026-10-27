@@ -19,6 +19,8 @@ export class PitchMonitor {
     this.beatClock = () => 0;
     this.silentFrames = 0;
     this.ownsContext = false;
+    this.holdSignal = false;
+    this.now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
   }
 
   setState(state) {
@@ -93,18 +95,19 @@ export class PitchMonitor {
   handleFrame(data) {
     const hz = data?.hz ?? 0;
     const amp = data?.amp ?? 0;
-    if (amp < 0.01) {
+    const frame = { beat: this.beatClock(), hz, amp, t: this.now() };
+    if (amp < 0.01 || !(hz > 40 && hz < 2000)) {
       this.silentFrames += 1;
-      if (this.silentFrames > 12 && this.state === "listening") this.setState("no-signal");
+      if (!this.holdSignal && this.silentFrames > 12 && this.state === "listening") {
+        this.setState("no-signal");
+      }
+      this.onFrame(frame);
       return;
     }
     this.silentFrames = 0;
     if (this.state !== "listening") this.setState("listening");
-    if (hz > 40 && hz < 2000) {
-      const frame = { beat: this.beatClock(), hz, amp };
-      this.observations.push(frame);
-      this.onFrame(frame);
-    }
+    this.observations.push(frame);
+    this.onFrame(frame);
   }
 
   stop() {

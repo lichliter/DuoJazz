@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=105">
-  <link rel="stylesheet" href="./css/styles.css?v=105">
-  <link rel="stylesheet" href="./css/hig.css?v=105">
+  <link rel="stylesheet" href="./css/tokens.css?v=106">
+  <link rel="stylesheet" href="./css/styles.css?v=106">
+  <link rel="stylesheet" href="./css/hig.css?v=106">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
   <script src="./js/verovio-bind.js?v=98" defer></script>
-  <script type="module" src="./js/app.js?v=105"></script>
+  <script type="module" src="./js/app.js?v=107"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -144,7 +144,11 @@
             <h2 class="session-step" id="card-badge">Play</h2>
             <p class="meter" id="meter" hidden></p>
             <p class="mic-line" id="session-mic" hidden></p>
-            <p class="grade-line" id="grade-line" hidden></p>
+            <p class="grade-line" id="grade-line" hidden aria-live="polite">
+              <span id="grade-main"></span>
+              <span class="grade-hint" id="grade-hint" hidden></span>
+            </p>
+            <p class="debug-strip" id="debug-strip" data-testid="debug-strip" hidden></p>
             <section class="chart-card" id="music-surface" aria-label="Music">
               <div class="paper-wrap">
                 <div id="notation" class="paper" aria-label="Staff notation"></div>
@@ -161,6 +165,7 @@
                 <span class="play-round-icon" aria-hidden="true"></span>
                 <span class="play-round-count" id="primary-count" hidden></span>
               </button>
+              <button type="button" class="auto-toggle" id="auto-toggle" data-testid="auto-toggle" aria-pressed="true" aria-label="Auto">Auto</button>
               <div class="session-links">
                 <button type="button" class="text-link hear-it" id="hear-it" data-testid="hear-it">Hear it</button>
                 <span class="session-links-dot" aria-hidden="true">·</span>
