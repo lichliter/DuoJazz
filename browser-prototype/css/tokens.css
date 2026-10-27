@@ -25,7 +25,8 @@
   --play-size: 96px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, "DuoJazz Music", "DejaVu Sans", sans-serif;
+  --music-font: "DuoJazz Music", "DejaVu Sans", sans-serif;
   --display: Oswald, "Arial Narrow", sans-serif;
   --text-large-title: 600 34px/41px var(--font);
   --text-title-1: 700 28px/34px var(--font);
@@ -63,6 +64,23 @@
   --warning: #ff9500;
   --destructive: #ff3b30;
   color-scheme: dark;
+}
+
+/* Subset of DejaVu Sans, renamed. It has text-sized ♭ and ♯ on the same baseline as the letters. */
+@font-face {
+  font-family: "DuoJazz Music";
+  src: url("../fonts/DuoJazzMusic-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "DuoJazz Music";
+  src: url("../fonts/DuoJazzMusic-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 /* Legacy aliases used by existing screens until they are fully retokenized. */
