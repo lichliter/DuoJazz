@@ -2,7 +2,10 @@
  * Ordered note follower for rapid-fire Play.
  * A note counts when the pitch stays within 50 cents (any octave) for ~80 ms.
  * Wrong pitches do not fail the take. Timing is not judged.
- * The same pitch class again needs a new attack: a short gap or an amplitude dip.
+ * A frame is voiced when YIN confidence is high and the level clears an
+ * adaptive floor, so a quiet horn is not rejected by a fixed gate.
+ * The same pitch class again needs a new attack: a short gap, or a dip
+ * below half of that note's peak.
  */
 
 import { centsBetween, midiFromHz, wrapMidi } from "./grade.js";
@@ -16,6 +19,13 @@ export const REATTACK_GAP_MS = 40;
 export const HOLD_GAP_MS = 70;
 export const VOICED_MIN_HZ = 40;
 export const VOICED_MAX_HZ = 2000;
+/** Absolute level floor. A quiet horn can sit near 0.004 rms. */
+export const AMP_FLOOR = 0.0015;
+/** YIN confidence (1 - d[tau]) required before a frame counts as a note. */
+export const CONFIDENCE_MIN = 0.8;
+/** Voiced level must clear this multiple of the recent noise floor. */
+export const NOISE_RATIO = 3;
+const NOISE_WINDOW = 24;
 
 function ordinal(n) {
   const v = n % 100;
@@ -64,9 +74,40 @@ export function createFollower(expected, origin = null) {
     origin,
     lastVoicedT: null,
     peak: 0,
-    releaseAmp: 0.02,
+    releaseAmp: 0,
     sawRelease: false,
+    noise: [],
   };
+}
+
+function confidenceOf(frame) {
+  const value = frame?.confidence;
+  return typeof value === "number" && Number.isFinite(value) ? value : 1;
+}
+
+function rememberNoise(state, amp) {
+  if (!state.noise) state.noise = [];
+  state.noise.push(Math.max(0, amp));
+  if (state.noise.length > NOISE_WINDOW) state.noise.shift();
+}
+
+/** Low percentile of recent non-tonal frames, so a steady quiet note does not raise its own gate. */
+function noiseFloor(state) {
+  const samples = state.noise;
+  if (!samples?.length) return 0;
+  const sorted = samples.slice().sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * 0.2));
+  return sorted[index];
+}
+
+function frameIsVoiced(state, frame) {
+  const amp = frame?.amp ?? 0;
+  const hz = frame?.hz ?? 0;
+  const sure = confidenceOf(frame) >= CONFIDENCE_MIN;
+  const inBand = hz > VOICED_MIN_HZ && hz < VOICED_MAX_HZ;
+  if (!sure || !(amp > AMP_FLOOR)) rememberNoise(state, amp);
+  const gate = Math.max(AMP_FLOOR, noiseFloor(state) * NOISE_RATIO);
+  return sure && inBand && amp > gate;
 }
 
 function finish(state, reason) {
@@ -117,13 +158,14 @@ function confirm(state, match, frame) {
   state.index += 1;
   state.sustainMs = 0;
   state.closest = null;
-  state.peak = frame.amp;
+  const finishedPeak = Math.max(state.peak, frame.amp ?? 0);
+  state.peak = frame.amp ?? 0;
   if (state.index >= state.expected.length) return finish(state, "matched");
   const next = state.expected[state.index];
   state.sawRelease = false;
   if (wrapMidi(prev) === wrapMidi(next)) {
     state.armed = false;
-    state.releaseAmp = Math.max(0.02, state.peak * 0.5);
+    state.releaseAmp = finishedPeak * 0.5;
   } else {
     state.armed = true;
   }
@@ -148,7 +190,7 @@ export function stepFollower(state, frame) {
   if (state.origin == null) state.origin = t;
   const amp = frame.amp ?? 0;
   const hz = frame.hz ?? 0;
-  const voiced = amp > 0.01 && hz > VOICED_MIN_HZ && hz < VOICED_MAX_HZ;
+  const voiced = frameIsVoiced(state, frame);
   if (!voiced) {
     if (!state.armed && state.lastVoicedT != null && t - state.lastVoicedT >= REATTACK_GAP_MS) {
       state.sawRelease = true;
@@ -217,6 +259,25 @@ function formatHeard(midi, cents, shownKey) {
   const rounded = Math.round(cents);
   const body = rounded === 0 ? "0¢" : `${rounded > 0 ? "+" : "−"}${Math.abs(rounded)}¢`;
   return `${noteName(midi, shownKey)} ${body}`;
+}
+
+export function formatLevelDb(amp) {
+  if (!(amp > 0)) return "— dB";
+  const db = 20 * Math.log10(amp);
+  if (!Number.isFinite(db)) return "— dB";
+  return `${db.toFixed(1)} dB`;
+}
+
+/** Live debug line: rms, dB, nearest note and cents, YIN confidence. */
+export function formatLiveLine(frame, shownKey = null) {
+  const amp = frame?.rms ?? frame?.amp ?? 0;
+  const confidence = typeof frame?.confidence === "number" && Number.isFinite(frame.confidence)
+    ? frame.confidence.toFixed(2)
+    : "—";
+  const heard = frame?.hz > VOICED_MIN_HZ && frame.hz < VOICED_MAX_HZ ? heardPitch(frame.hz) : null;
+  const note = heard ? formatHeard(heard.midi, heard.cents, shownKey) : "—";
+  const level = Number.isFinite(amp) ? Number(amp).toFixed(4) : "0.0000";
+  return `${level} rms · ${formatLevelDb(amp)} · ${note} · conf ${confidence}`;
 }
 
 /** Expected names, and what was heard for each note (name and cents). */

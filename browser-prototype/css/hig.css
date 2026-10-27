@@ -1172,6 +1172,19 @@ body {
   color: var(--label-secondary);
 }
 
+.debug-live,
+.debug-attempt {
+  margin: 0;
+}
+
+.debug-live {
+  font-variant-numeric: tabular-nums;
+}
+
+.debug-save {
+  margin-top: 0.25rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .play-round:active {
     transform: none;

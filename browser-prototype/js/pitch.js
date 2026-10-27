@@ -3,7 +3,7 @@
  * iPad Safari: start only after a user gesture, same-origin worklet, silent tap to keep the graph alive.
  */
 
-const WORKLET_URL = new URL("./pitch-worklet.js", import.meta.url);
+const WORKLET_URL = new URL("./pitch-worklet.js?v=110", import.meta.url);
 
 /** Sound lab and demo playback. Voice processing stays on for those callers. */
 export const VOICE_MIC_CONSTRAINTS = Object.freeze({
@@ -12,11 +12,14 @@ export const VOICE_MIC_CONSTRAINTS = Object.freeze({
   autoGainControl: true,
 });
 
-/** Rapid fire only. Processing smears a sustained horn tone, and nothing plays back. */
+/**
+ * Rapid fire only. Echo cancellation and noise suppression smear a sustained
+ * horn tone. Auto gain stays on so a raw iPad input is not stuck near silence.
+ */
 export const RAPID_MIC_CONSTRAINTS = Object.freeze({
   echoCancellation: false,
   noiseSuppression: false,
-  autoGainControl: false,
+  autoGainControl: true,
 });
 
 export class PitchMonitor {
@@ -139,8 +142,17 @@ export class PitchMonitor {
 
   handleFrame(data) {
     const hz = data?.hz ?? 0;
-    const amp = data?.amp ?? 0;
-    const frame = { beat: this.beatClock(), hz, amp, t: this.now() };
+    const amp = data?.amp ?? data?.rms ?? 0;
+    const frame = {
+      beat: this.beatClock(),
+      hz,
+      amp,
+      rms: data?.rms ?? amp,
+      t: this.now(),
+    };
+    if (typeof data?.confidence === "number" && Number.isFinite(data.confidence)) {
+      frame.confidence = data.confidence;
+    }
     if (amp < 0.01 || !(hz > 40 && hz < 2000)) {
       this.silentFrames += 1;
       if (!this.holdSignal && this.silentFrames > 12 && this.state === "listening") {
