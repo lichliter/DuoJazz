@@ -83,7 +83,7 @@ import {
   sessionModeHeading,
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
-} from "./session.js?v=102";
+} from "./session.js?v=103";
 import {
   tuneById,
   licksInTune,
@@ -94,7 +94,16 @@ import {
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
-import { GRADED_CARDS, finishCard, gradeSession, hasPitchTake } from "./grade.js";
+import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
+import { createFollower, describeAttempt, stepFollower, tickFollower } from "./follow.js";
+import {
+  CHECK_MS,
+  RETRY_MS,
+  afterFail,
+  afterPass,
+  rapidFireButton,
+  shouldRecordMastery,
+} from "./rapid.js";
 import {
   emptyMastery,
   displayMedal,
@@ -132,6 +141,15 @@ let lastEngraveMs = 0;
 let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
+let cue = null;
+let rapidPhase = "idle";
+let attempt = null;
+let attemptTimer = null;
+let feedbackTimer = null;
+let finishing = false;
+let sessionShot = null;
+let lastDebug = null;
+const debugOn = new URLSearchParams(location.search).get("debug") === "1";
 let selectedModuleId = MODULES[0]?.id ?? "cmar";
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
@@ -208,6 +226,8 @@ const els = {
   instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
+  debugStrip: document.getElementById("debug-strip"),
+  autoToggle: document.getElementById("auto-toggle"),
   sessionMic: document.getElementById("session-mic"),
   medalMark: document.getElementById("medal-mark"),
   medalNote: document.getElementById("medal-note"),
@@ -242,9 +262,22 @@ function persist() {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
+function clearRapidTimers() {
+  if (attemptTimer) window.clearInterval(attemptTimer);
+  if (feedbackTimer) window.clearTimeout(feedbackTimer);
+  attemptTimer = null;
+  feedbackTimer = null;
+}
+
 function halt() {
   startGen += 1;
+  finishing = false;
   samplesLoading = false;
+  clearRapidTimers();
+  rapidPhase = "idle";
+  attempt = null;
+  monitor.holdSignal = false;
+  monitor.onFrame = () => {};
   transport.stop();
   monitor.stop();
   playback.playing = false;
@@ -256,9 +289,197 @@ function halt() {
 
 function clearGradeLine() {
   liveGrade = null;
+  if (cue || sessionShot === "check" || sessionShot === "retry") return;
   if (!els.gradeLine) return;
   els.gradeLine.hidden = true;
-  els.gradeLine.textContent = "";
+  delete els.gradeLine.dataset.kind;
+  const main = document.getElementById("grade-main");
+  const hint = document.getElementById("grade-hint");
+  if (main) main.textContent = "";
+  if (hint) {
+    hint.hidden = true;
+    hint.textContent = "";
+  }
+}
+
+function shownKeyForSession() {
+  if (!session) return null;
+  return displayKey(getKey(currentKeyId(session)), session.displayMode, sessionKeyQuality(session));
+}
+
+function visualPhase() {
+  if (sessionShot === "listening" || sessionShot === "check" || sessionShot === "retry" || sessionShot === "idle") {
+    return sessionShot === "idle" ? "idle" : sessionShot;
+  }
+  return rapidPhase;
+}
+
+function currentCue() {
+  if (sessionShot === "check") return { kind: "check" };
+  if (sessionShot === "retry") return { kind: "retry", hint: "3rd note" };
+  return cue;
+}
+
+function renderCue() {
+  const line = els.gradeLine;
+  if (!line) return;
+  const current = currentCue();
+  const main = document.getElementById("grade-main");
+  const hint = document.getElementById("grade-hint");
+  if (!current) {
+    if (liveGrade?.graded) return;
+    line.hidden = true;
+    delete line.dataset.kind;
+    line.removeAttribute("aria-label");
+    return;
+  }
+  line.hidden = false;
+  line.dataset.kind = current.kind;
+  if (main) main.textContent = current.kind === "check" ? "✓" : "Try again";
+  if (hint) {
+    hint.hidden = !current.hint;
+    hint.textContent = current.hint ?? "";
+  }
+  line.setAttribute("aria-label", current.kind === "check" ? "Pass" : `Try again. ${current.hint ?? ""}`.trim());
+}
+
+function renderDebug() {
+  if (!els.debugStrip) return;
+  if (!debugOn || !session || session.screen !== "session") {
+    els.debugStrip.hidden = true;
+    return;
+  }
+  const shown = shownKeyForSession();
+  const source = attempt ?? (lastDebug ? null : createFollower(expectedNotesFor(session).map((note) => note.midi)));
+  els.debugStrip.hidden = false;
+  if (attempt) els.debugStrip.textContent = describeAttempt(attempt, shown).text;
+  else if (lastDebug) els.debugStrip.textContent = lastDebug.text;
+  else if (source) els.debugStrip.textContent = describeAttempt(source, shown).text;
+}
+
+function renderAuto() {
+  if (!els.autoToggle) return;
+  const on = prefs.auto !== false;
+  els.autoToggle.setAttribute("aria-pressed", String(on));
+  els.autoToggle.textContent = "Auto";
+}
+
+function recordRapidPass() {
+  if (!session) return;
+  const keyId = currentKeyId(session);
+  if (shouldRecordMastery(session, true)) {
+    wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
+    mastery = wrapupBanner;
+  } else {
+    mastery = recordLearnPass(mastery, session.lessonId, keyId);
+    wrapupBanner = mastery;
+  }
+  saveMastery(mastery);
+}
+
+function finishRapid(generation, result) {
+  if (generation !== startGen || finishing || rapidPhase !== "listening") return;
+  finishing = true;
+  rapidPhase = "settling";
+  if (attemptTimer) window.clearInterval(attemptTimer);
+  attemptTimer = null;
+  monitor.holdSignal = false;
+  monitor.onFrame = () => {};
+  monitor.stop();
+  const shown = shownKeyForSession();
+  lastDebug = describeAttempt(result, shown);
+  attempt = null;
+  renderDebug();
+  const passed = Boolean(result.passed);
+  if (passed) recordRapidPass();
+  const auto = prefs.auto !== false;
+  const token = startGen;
+  if (passed) {
+    rapidPhase = "check";
+    cue = { kind: "check" };
+    renderCue();
+    renderPrimary();
+    feedbackTimer = window.setTimeout(() => {
+      if (token !== startGen) return;
+      finishing = false;
+      cue = null;
+      rapidPhase = "idle";
+      if (!session) return;
+      const next = afterPass(session, { auto });
+      applySession(next.session, { autoStart: false });
+      if (next.autoStart && next.session?.screen === "session") beginListening();
+    }, CHECK_MS);
+    return;
+  }
+  const failed = afterFail(session, { auto, hint: result.hint ?? "1st note" });
+  rapidPhase = "retry";
+  cue = { kind: "retry", hint: failed.hint };
+  renderCue();
+  renderPrimary();
+  if (failed.autoStart) {
+    feedbackTimer = window.setTimeout(() => {
+      if (token !== startGen) return;
+      finishing = false;
+      cue = null;
+      rapidPhase = "idle";
+      renderCue();
+      if (session?.screen === "session") beginListening();
+    }, RETRY_MS);
+    return;
+  }
+  finishing = false;
+}
+
+async function beginListening() {
+  if (!session || session.screen !== "session" || session.demo) return;
+  const generation = startGen + 1;
+  startGen = generation;
+  finishing = false;
+  clearRapidTimers();
+  sessionShot = null;
+  cue = null;
+  audioError = "";
+  rapidPhase = "listening";
+  monitor.stop();
+  attempt = createFollower(expectedNotesFor(session).map((note) => note.midi), performance.now());
+  renderCue();
+  renderPrimary();
+  renderDebug();
+  try {
+    await transport.ensure();
+    if (generation !== startGen) return;
+    monitor.holdSignal = true;
+    monitor.now = () => performance.now();
+    monitor.onFrame = (frame) => {
+      if (generation !== startGen || rapidPhase !== "listening" || !attempt || attempt.ended) return;
+      attempt = stepFollower(attempt, frame);
+      if (attempt?.ended) finishRapid(generation, attempt);
+    };
+    await monitor.start(transport.ctx);
+    if (generation !== startGen) return;
+    if (monitor.state === "denied" || monitor.state === "unsupported") {
+      rapidPhase = "idle";
+      attempt = null;
+      monitor.holdSignal = false;
+      renderPrimary();
+      renderMic();
+      return;
+    }
+    attemptTimer = window.setInterval(() => {
+      if (generation !== startGen || rapidPhase !== "listening" || !attempt || attempt.ended) return;
+      attempt = tickFollower(attempt, performance.now());
+      renderDebug();
+      if (attempt?.ended) finishRapid(generation, attempt);
+    }, 50);
+  } catch {
+    if (generation !== startGen) return;
+    audioError = "Microphone failed to start.";
+    rapidPhase = "idle";
+    attempt = null;
+    monitor.holdSignal = false;
+    renderMeter();
+    renderPrimary();
+  }
 }
 
 function resetPitchTake() {
@@ -484,6 +705,7 @@ function applySession(next, { autoStart = false } = {}) {
 
 async function start(resume = false) {
   if (!session || session.screen !== "session") return;
+  if (!session.demo) return beginListening();
   const generation = startGen + 1;
   startGen = generation;
   els.primary.disabled = true;
@@ -526,11 +748,33 @@ async function start(resume = false) {
 
 function runPrimary() {
   if (!session || session.screen !== "session") return;
-  const action = sessionPrimaryAction(session, playback);
-  if (!action) return;
-  if (action.id === "pause") halt();
-  else if (action.id === "resume") start(true);
-  else start(false);
+  if (sessionShot) {
+    sessionShot = null;
+    cue = null;
+    rapidPhase = "idle";
+    renderCue();
+    renderPrimary();
+    return;
+  }
+  if (session.demo && (playback.playing || playback.paused)) {
+    const action = sessionPrimaryAction(session, playback);
+    if (action.id === "pause") halt();
+    else if (action.id === "resume") start(true);
+    return;
+  }
+  if (rapidPhase === "check" || rapidPhase === "settling") return;
+  if (rapidPhase === "listening") {
+    sessionShot = null;
+    const held = session.keyIndex;
+    halt();
+    session = session ? { ...session, keyIndex: held } : session;
+    rapidPhase = "idle";
+    cue = null;
+    renderCue();
+    renderPrimary();
+    return;
+  }
+  beginListening();
 }
 
 function recordPassIfNeeded(result) {
@@ -944,7 +1188,7 @@ function applyMelodyOctave(register) {
   if (!session || session.screen !== "session") return;
   const melodyRegister = register <= -1 ? -1 : register >= 1 ? 1 : 0;
   if (melodyRegister === session.melodyRegister) return;
-  const restart = playback.playing || playback.paused;
+  const restart = playback.playing || playback.paused || rapidPhase === "listening";
   halt();
   resetPitchTake();
   session = setMelodyRegister(session, melodyRegister);
@@ -1157,7 +1401,7 @@ function renderInstruments() {
 
 function applyInstrument(instrumentId) {
   const instrument = instrumentOrDefault(instrumentId);
-  const restart = Boolean(session && (playback.playing || playback.paused));
+  const restart = Boolean(session && (playback.playing || playback.paused || rapidPhase === "listening"));
   prefs.instrumentId = instrument.id;
   prefs.displayMode = instrument.id;
   prefs.clef = instrument.clef;
@@ -1182,6 +1426,30 @@ function renderCopy(snap = transport.snapshot()) {
 
 function renderPrimary(snap = transport.snapshot()) {
   if (!session || session.screen !== "session") return;
+  renderAuto();
+  const phase = visualPhase();
+  if (els.session) els.session.dataset.rapid = phase;
+  const demoLive = Boolean(session.demo && (samplesLoading || playback.playing || playback.paused || snap.inCountIn));
+  if (!demoLive) {
+    const listening = phase === "listening";
+    const action = rapidFireButton({ listening });
+    const icon = els.primary.querySelector(".play-round-icon");
+    els.primary.hidden = false;
+    els.primary.disabled = false;
+    els.primary.dataset.action = action.id;
+    els.primary.dataset.state = listening ? "listening" : "idle";
+    els.primary.classList.toggle("is-stop", listening);
+    els.primary.classList.remove("is-count");
+    delete els.primary.dataset.passed;
+    if (els.primaryCount) {
+      els.primaryCount.hidden = true;
+      els.primaryCount.textContent = "";
+    }
+    if (icon) icon.hidden = false;
+    els.primary.setAttribute("aria-label", action.label);
+    if (els.primaryLabel) els.primaryLabel.textContent = action.label;
+    return;
+  }
   const action = sessionPrimaryAction(session, playback);
   const icon = els.primary.querySelector(".play-round-icon");
   els.primary.hidden = !action;
@@ -1456,7 +1724,10 @@ function render(snap = transport.snapshot()) {
     renderPrimary();
     renderMeter(snap);
     renderMic();
-    if (!liveGrade) restoreStoredGrade();
+    if (!liveGrade && !currentCue()) restoreStoredGrade();
+    renderCue();
+    renderDebug();
+    renderAuto();
   }
   if (screen === "wrapup") renderWrapup();
 }
@@ -1550,6 +1821,10 @@ function applyDeepLink() {
     }
     lastSessionSlot = sessionSlot(session);
     resetPitchTake();
+    const shot = params.get("shot");
+    sessionShot = shot === "idle" || shot === "listening" || shot === "check" || shot === "retry" ? shot : null;
+    if (params.get("auto") === "0") prefs.auto = false;
+    if (params.get("auto") === "1") prefs.auto = true;
   }
 }
 
@@ -1567,21 +1842,29 @@ transport.onUpdate = (snap) => {
 function showGrade(result) {
   liveGrade = result ?? null;
   fillListenState(result?.graded ? result : null);
+  if (cue || sessionShot === "check" || sessionShot === "retry") return;
   if (!els.gradeLine) return;
+  const main = document.getElementById("grade-main");
+  const hint = document.getElementById("grade-hint");
   if (result?.graded) {
     els.gradeLine.hidden = false;
+    els.gradeLine.dataset.kind = "legacy";
     const bits = [`${result.percent}%`, result.passed ? "pass" : "not yet"];
     if (result.correction) bits.push(result.correction);
-    els.gradeLine.textContent = bits.join(" · ");
+    if (main) main.textContent = bits.join(" · ");
+    if (hint) hint.hidden = true;
     return;
   }
   if (result?.outcome === "skipped") {
     els.gradeLine.hidden = false;
-    els.gradeLine.textContent = "Skipped";
+    els.gradeLine.dataset.kind = "legacy";
+    if (main) main.textContent = "Skipped";
+    if (hint) hint.hidden = true;
     return;
   }
   els.gradeLine.hidden = true;
-  els.gradeLine.textContent = "";
+  delete els.gradeLine.dataset.kind;
+  if (main) main.textContent = "";
 }
 
 function restoreStoredGrade() {
@@ -1598,6 +1881,12 @@ transport.onEnded = () => {
   playback.paused = false;
   playback.ended = true;
   if (!session || session.screen !== "session") return;
+  if (session.demo) {
+    monitor.stop();
+    const next = handlePlaybackEnded(session, {});
+    applySession(next.session, { autoStart: false });
+    return;
+  }
   const listenHear = currentCard(session) === "listen" && session.listenStage === "hear";
   const grade = listenHear ? {} : gradeCurrentCard();
   monitor.stop();
@@ -1624,6 +1913,11 @@ els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
 });
 els.primary.addEventListener("click", runPrimary);
+els.autoToggle?.addEventListener("click", () => {
+  prefs.auto = prefs.auto === false;
+  persist();
+  renderAuto();
+});
 els.hearIt?.addEventListener("click", () => {
   if (!session || session.screen !== "session") return;
   halt();
