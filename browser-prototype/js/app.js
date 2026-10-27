@@ -21,7 +21,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=99";
+} from "./engrave.js?v=100";
 import {
   PREFS_KEY,
   MODULE,
