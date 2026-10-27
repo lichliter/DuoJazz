@@ -5,6 +5,20 @@
 
 const WORKLET_URL = new URL("./pitch-worklet.js", import.meta.url);
 
+/** Sound lab and demo playback. Voice processing stays on for those callers. */
+export const VOICE_MIC_CONSTRAINTS = Object.freeze({
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+});
+
+/** Rapid fire only. Processing smears a sustained horn tone, and nothing plays back. */
+export const RAPID_MIC_CONSTRAINTS = Object.freeze({
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+});
+
 export class PitchMonitor {
   constructor() {
     this.ctx = null;
@@ -20,7 +34,14 @@ export class PitchMonitor {
     this.silentFrames = 0;
     this.ownsContext = false;
     this.holdSignal = false;
+    this.processing = true;
+    this.startToken = 0;
     this.now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+  }
+
+  isLive() {
+    const tracks = this.stream?.getTracks?.() ?? [];
+    return Boolean(this.node && tracks.some((track) => track.readyState === "live"));
   }
 
   setState(state) {
@@ -44,8 +65,26 @@ export class PitchMonitor {
     if (frames.length) this.setState("listening");
   }
 
-  async start(ctx) {
-    this.reset();
+  discardStream(stream) {
+    if (!stream || stream === this.stream) return;
+    for (const track of stream.getTracks?.() ?? []) track.stop();
+  }
+
+  async start(ctx, options = {}) {
+    const processing = options.processing !== false;
+    const sameGraph = this.isLive()
+      && this.processing === processing
+      && this.ctx
+      && (!ctx || ctx === this.ctx);
+    if (sameGraph) {
+      this.reset();
+      if (this.ctx.state === "suspended") await this.ctx.resume();
+      if (this.state !== "listening") this.setState("listening");
+      return;
+    }
+    this.stop();
+    const token = this.startToken;
+    this.processing = processing;
     if (!ctx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) {
@@ -59,25 +98,30 @@ export class PitchMonitor {
       this.ownsContext = false;
     }
     if (this.ctx.state === "suspended") await this.ctx.resume();
+    if (token !== this.startToken) return;
     if (typeof this.ctx.audioWorklet?.addModule !== "function") {
       this.setState("unsupported");
       return;
     }
     this.setState("requesting");
+    let stream = null;
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: processing ? VOICE_MIC_CONSTRAINTS : RAPID_MIC_CONSTRAINTS,
       });
     } catch (error) {
+      if (token !== this.startToken) return;
       this.setState(error?.name === "NotAllowedError" ? "denied" : "unsupported");
       return;
     }
+    if (token !== this.startToken) {
+      this.discardStream(stream);
+      return;
+    }
+    this.stream = stream;
     try {
       await this.ctx.audioWorklet.addModule(WORKLET_URL);
+      if (token !== this.startToken) return;
       this.source = this.ctx.createMediaStreamSource(this.stream);
       this.node = new AudioWorkletNode(this.ctx, "duojazz-pitch");
       this.mute = this.ctx.createGain();
@@ -86,9 +130,10 @@ export class PitchMonitor {
       this.node.connect(this.mute);
       this.mute.connect(this.ctx.destination);
       this.node.port.onmessage = (event) => this.handleFrame(event.data);
+      if (token !== this.startToken) return;
       this.setState("listening");
     } catch {
-      this.setState("unsupported");
+      if (token === this.startToken) this.setState("unsupported");
     }
   }
 
@@ -111,6 +156,7 @@ export class PitchMonitor {
   }
 
   stop() {
+    this.startToken += 1;
     try {
       this.node?.port.postMessage("stop");
     } catch {

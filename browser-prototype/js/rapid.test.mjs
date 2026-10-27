@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   CHECK_MS,
   RETRY_MS,
@@ -7,6 +8,7 @@ import {
   afterPass,
   pausePosition,
   rapidFireButton,
+  rapidMicStep,
   shouldRecordMastery,
 } from "./rapid.js";
 import { createSession, currentKeyId, normalizePrefs } from "./session.js";
@@ -85,6 +87,43 @@ test("Play toggles to Pause only while listening", () => {
   assert.equal(rapidFireButton({ listening: true }).id, "pause");
   assert.equal(CHECK_MS, 500);
   assert.ok(RETRY_MS >= 500);
+});
+
+test("the mic opens once and later attempts only reset the follower", () => {
+  assert.equal(rapidMicStep(false, "attempt"), "open");
+  assert.equal(rapidMicStep(true, "attempt"), "reset");
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.equal(rapidMicStep(attempt > 0, "attempt"), attempt === 0 ? "open" : "reset");
+  }
+  for (const reason of ["pause", "hear", "leave", "wrapup", "hide"]) {
+    assert.equal(rapidMicStep(true, reason), "release");
+    assert.equal(rapidMicStep(false, reason), "release");
+  }
+});
+
+test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-up, and hide", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const begin = app.slice(app.indexOf("async function beginListening"), app.indexOf("function resetPitchTake"));
+  const finish = app.slice(app.indexOf("function finishRapid"), app.indexOf("async function beginListening"));
+  assert.equal(begin.includes("monitor.stop("), false);
+  assert.match(begin, /step === "reset"\) monitor\.reset\(\)/);
+  assert.match(begin, /processing:\s*false/);
+  assert.equal(finish.split("monitor.stop(").length - 1, 1);
+  assert.match(finish, /"wrapup"/);
+  assert.match(finish, /step === "release"/);
+  assert.match(app, /releaseMic\("pause"\)/);
+  assert.match(app, /releaseMic\("hear"\)/);
+  assert.match(app, /releaseMic\("leave"\)/);
+  assert.match(app, /releaseMic\("hide"\)/);
+  assert.match(app, /pagehide/);
+  assert.match(app, /visibilitychange/);
+  assert.match(app, /await monitor\.start\(transport\.ctx\);/);
+  assert.equal(app.match(/processing:\s*false/g)?.length, 1);
+  assert.match(app, /debugTextForKey\(lastDebug, currentKeyId\(session\), fresh\)/);
+  assert.match(app, /classList\.remove\("is-stop"\)/);
+  assert.match(styles, /\.play-round\[data-action="pause"\] \.play-round-icon \{[^}]*linear-gradient\(currentColor, currentColor\) left center/);
+  assert.doesNotMatch(styles, /data-action="pause"\] \.play-round-icon,\s*\n\.play-round\[data-action="stop"\]/);
 });
 
 test("mastery is recorded only for a Practice pass", () => {

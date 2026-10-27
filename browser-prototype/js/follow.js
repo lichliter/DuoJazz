@@ -14,6 +14,8 @@ export const SILENCE_MS = 1000;
 export const NO_SOUND_MS = 8000;
 export const REATTACK_GAP_MS = 40;
 export const HOLD_GAP_MS = 70;
+export const VOICED_MIN_HZ = 40;
+export const VOICED_MAX_HZ = 2000;
 
 function ordinal(n) {
   const v = n % 100;
@@ -76,12 +78,32 @@ function finish(state, reason) {
   return state;
 }
 
+/** The note that was actually in the air, and how many cents it sits from that note. */
+export function heardPitch(hz) {
+  const midiFloat = midiFromHz(hz);
+  if (midiFloat == null) return null;
+  const midi = Math.round(midiFloat);
+  const cents = centsBetween(hz, midi);
+  if (cents == null) return null;
+  return { midi, cents, hz };
+}
+
 function rememberClosest(state, frame, expectedMidi) {
   const near = nearestPitch(frame.hz, expectedMidi);
-  if (!near) return;
-  if (!state.closest || state.closest.index !== state.index || Math.abs(near.cents) < Math.abs(state.closest.cents)) {
-    state.closest = { index: state.index, cents: near.cents, midi: near.midi, hz: frame.hz };
-  }
+  const heard = heardPitch(frame.hz);
+  if (!near || !heard) return;
+  const previous = state.closest;
+  const closer = !previous
+    || previous.index !== state.index
+    || Math.abs(near.cents) < Math.abs(previous.error);
+  if (!closer) return;
+  state.closest = {
+    index: state.index,
+    cents: heard.cents,
+    midi: heard.midi,
+    hz: frame.hz,
+    error: near.cents,
+  };
 }
 
 function confirm(state, match, frame) {
@@ -126,7 +148,7 @@ export function stepFollower(state, frame) {
   if (state.origin == null) state.origin = t;
   const amp = frame.amp ?? 0;
   const hz = frame.hz ?? 0;
-  const voiced = amp > 0.01 && hz > 0;
+  const voiced = amp > 0.01 && hz > VOICED_MIN_HZ && hz < VOICED_MAX_HZ;
   if (!voiced) {
     if (!state.armed && state.lastVoicedT != null && t - state.lastVoicedT >= REATTACK_GAP_MS) {
       state.sawRelease = true;
@@ -213,4 +235,10 @@ export function describeAttempt(state, shownKey = null) {
     heard,
     text: `Expected ${expected.join(" ")} · Heard ${heard.join(" · ")}`,
   };
+}
+
+/** Keep the strip only while it still belongs to this key. A new key gets a fresh line. */
+export function debugTextForKey(lastDebug, keyId, freshText) {
+  if (lastDebug && lastDebug.keyId === keyId && lastDebug.text) return lastDebug.text;
+  return freshText;
 }

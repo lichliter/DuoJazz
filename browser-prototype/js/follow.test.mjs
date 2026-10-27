@@ -7,7 +7,10 @@ import {
   NO_SOUND_MS,
   SILENCE_MS,
   SUSTAIN_MS,
+  VOICED_MAX_HZ,
+  VOICED_MIN_HZ,
   createFollower,
+  debugTextForKey,
   describeAttempt,
   matchPitch,
   runFollower,
@@ -77,8 +80,8 @@ test("60 cents flat does not match", () => {
   const shown = displayKey(getKey("G"), "concert", "minor");
   const described = describeAttempt(ended, shown);
   assert.match(described.text, /Expected/);
-  assert.match(described.text, /3rd|−60¢|60¢/);
-  assert.ok(described.heard[2].includes("60"));
+  assert.equal(described.heard[2], "G♭4 +40¢");
+  assert.doesNotMatch(described.heard[2], /−60¢/);
 });
 
 test("49 cents flat still matches", () => {
@@ -172,4 +175,59 @@ test("diagnostics name the expected notes and the cents that were heard", () => 
   assert.equal(described.expected[0].includes("C"), true);
   assert.match(described.heard[0], /−12¢/);
   assert.match(described.text, /Expected/);
+});
+
+test("pitches outside 40–2000 Hz are unvoiced and do not keep an attempt alive", () => {
+  assert.equal(VOICED_MIN_HZ, 40);
+  assert.equal(VOICED_MAX_HZ, 2000);
+  let quiet = createFollower([60], 0);
+  for (const hz of [0, 20, 40, 2000, 2500]) {
+    quiet = stepFollower(quiet, { t: 400, hz, amp: 0.5 });
+  }
+  assert.equal(quiet.started, false);
+  assert.equal(quiet.lastVoicedT, null);
+  assert.equal(quiet.ended, false);
+
+  const frames = [
+    ...tone(60, 0, 60),
+    { t: 80, hz: 20, amp: 0.5 },
+    { t: 90, hz: 2400, amp: 0.5 },
+    ...tone(60, 100, 40),
+  ];
+  assert.equal(play([60], frames).passed, true);
+
+  let noisy = play([60, 64], [...tone(60, 0, 60)]);
+  const voicedAt = noisy.lastVoicedT;
+  noisy = stepFollower(noisy, { t: voicedAt + 500, hz: 15, amp: 0.8 });
+  assert.equal(noisy.started, true);
+  assert.equal(noisy.lastVoicedT, voicedAt);
+  assert.equal(noisy.ended, false);
+  noisy = stepFollower(noisy, { t: voicedAt + SILENCE_MS, hz: 3000, amp: 0.8 });
+  assert.equal(noisy.lastVoicedT, voicedAt);
+  assert.equal(noisy.ended, true);
+  assert.equal(noisy.reason, "silence");
+});
+
+test("an unmatched note shows the heard pitch, not the target with a large cent error", () => {
+  const hz = hzFromMidi(73) * 2 ** (1 / 1200);
+  const frames = [];
+  for (let t = 0; t <= 160; t += 20) frames.push({ t, hz, amp: 0.3 });
+  const state = play([74], frames);
+  const shown = displayKey(getKey("D"), "concert", "major");
+  const described = describeAttempt(state, shown);
+  assert.equal(described.heard[0], "C♯5 +1¢");
+  assert.doesNotMatch(described.heard[0], /D/);
+  assert.doesNotMatch(described.heard[0], /99/);
+});
+
+test("the debug strip clears when the key advances", () => {
+  const gMinor = displayKey(getKey("G"), "concert", "minor");
+  const cMajor = displayKey(getKey("C"), "concert", "major");
+  const previous = describeAttempt(createFollower([67]), gMinor).text;
+  const next = describeAttempt(createFollower([60]), cMajor).text;
+  assert.notEqual(previous, next);
+  assert.match(next, /^Expected /);
+  assert.equal(debugTextForKey({ keyId: "G", text: previous }, "C", next), next);
+  assert.equal(debugTextForKey({ keyId: "G", text: previous }, "G", next), previous);
+  assert.equal(debugTextForKey(null, "C", next), next);
 });

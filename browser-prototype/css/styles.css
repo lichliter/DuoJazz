@@ -1234,7 +1234,6 @@ input[type="checkbox"] {
 }
 
 .play-round.is-stop .play-round-icon,
-.play-round[data-action="pause"] .play-round-icon,
 .play-round[data-action="stop"] .play-round-icon {
   width: 22px;
   height: 22px;
@@ -1242,6 +1241,17 @@ input[type="checkbox"] {
   margin: 0;
   background: currentColor;
   border-radius: 2px;
+}
+
+.play-round[data-action="pause"] .play-round-icon {
+  width: 18px;
+  height: 20px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(currentColor, currentColor) left center / 6px 100% no-repeat,
+    linear-gradient(currentColor, currentColor) right center / 6px 100% no-repeat;
 }
 
 .play-round-label {

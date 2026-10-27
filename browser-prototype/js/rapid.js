@@ -81,6 +81,18 @@ export function pausePosition(session) {
   };
 }
 
+const MIC_RELEASE = new Set(["pause", "hear", "leave", "wrapup", "hide"]);
+
+/**
+ * "open" calls getUserMedia. "reset" keeps that stream and only resets the follower.
+ * Pause, Hear it, leaving, wrap-up, and page hide release the tracks.
+ */
+export function rapidMicStep(live, reason) {
+  if (MIC_RELEASE.has(reason)) return "release";
+  if (reason === "attempt") return live ? "reset" : "open";
+  return "keep";
+}
+
 export function rapidFireButton({ listening = false, demoPlaying = false, pausedDemo = false } = {}) {
   if (demoPlaying) return { id: "pause", label: "Pause" };
   if (pausedDemo) return { id: "resume", label: "Resume" };
