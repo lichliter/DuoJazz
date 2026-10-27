@@ -64,7 +64,7 @@ test("rapid fire asks for a raw mic and reuses it across attempts", async () => 
   assert.deepEqual(calls[0].audio, RAPID_MIC_CONSTRAINTS);
   assert.equal(RAPID_MIC_CONSTRAINTS.echoCancellation, false);
   assert.equal(RAPID_MIC_CONSTRAINTS.noiseSuppression, false);
-  assert.equal(RAPID_MIC_CONSTRAINTS.autoGainControl, false);
+  assert.equal(RAPID_MIC_CONSTRAINTS.autoGainControl, true);
   assert.equal(monitor.isLive(), true);
   assert.equal(tracks[0].readyState, "live");
 

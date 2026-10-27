@@ -15,10 +15,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/tokens.css?v=106">
   <link rel="stylesheet" href="./css/styles.css?v=107">
-  <link rel="stylesheet" href="./css/hig.css?v=106">
+  <link rel="stylesheet" href="./css/hig.css?v=107">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
   <script src="./js/verovio-bind.js?v=98" defer></script>
-  <script type="module" src="./js/app.js?v=109"></script>
+  <script type="module" src="./js/app.js?v=110"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -153,7 +153,11 @@
               <span id="grade-main"></span>
               <span class="grade-hint" id="grade-hint" hidden></span>
             </p>
-            <p class="debug-strip" id="debug-strip" data-testid="debug-strip" hidden></p>
+            <div class="debug-strip" id="debug-strip" data-testid="debug-strip" hidden>
+              <p class="debug-live" id="debug-live" data-testid="debug-live"></p>
+              <p class="debug-attempt" id="debug-attempt" data-testid="debug-attempt"></p>
+              <button type="button" class="text-link debug-save" id="save-take" data-testid="save-take" hidden>Save take</button>
+            </div>
             <section class="chart-card" id="music-surface" aria-label="Music">
               <div class="paper-wrap">
                 <div id="notation" class="paper" aria-label="Staff notation"></div>

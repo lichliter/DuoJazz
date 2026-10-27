@@ -95,7 +95,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, stepFollower, tickFollower } from "./follow.js?v=108";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=110";
 import {
   CHECK_MS,
   RETRY_MS,
@@ -119,7 +119,16 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=108";
+import { PitchMonitor, micCopy } from "./pitch.js?v=110";
+import {
+  blobToBase64,
+  buildTakeRecord,
+  closeTakeRecorder,
+  createTakeLog,
+  deliverTake,
+  openTakeRecorder,
+  pushTakeFrame,
+} from "./take-dump.js?v=110";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -151,6 +160,10 @@ let feedbackTimer = null;
 let finishing = false;
 let sessionShot = null;
 let lastDebug = null;
+let takeLog = null;
+let lastTake = null;
+let sealToken = 0;
+let liveAt = 0;
 const debugOn = new URLSearchParams(location.search).get("debug") === "1";
 let selectedModuleId = MODULES[0]?.id ?? "cmar";
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
@@ -229,6 +242,9 @@ const els = {
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
   debugStrip: document.getElementById("debug-strip"),
+  debugLive: document.getElementById("debug-live"),
+  debugAttempt: document.getElementById("debug-attempt"),
+  saveTake: document.getElementById("save-take"),
   autoToggle: document.getElementById("auto-toggle"),
   sessionMic: document.getElementById("session-mic"),
   medalMark: document.getElementById("medal-mark"),
@@ -277,6 +293,11 @@ function halt() {
   samplesLoading = false;
   clearRapidTimers();
   rapidPhase = "idle";
+  if (debugOn && takeLog && !takeLog.recordSealed && attempt && takeLog.frames.length) {
+    sealTake(takeLog, attempt);
+  } else {
+    closeTakeRecorder(takeLog);
+  }
   attempt = null;
   monitor.holdSignal = false;
   monitor.onFrame = () => {};
@@ -362,6 +383,79 @@ function renderCue() {
   line.setAttribute("aria-label", current.kind === "check" ? "Pass" : `Try again. ${current.hint ?? ""}`.trim());
 }
 
+function renderLive(frame) {
+  if (!debugOn || !els.debugLive) return;
+  const now = frame?.t ?? performance.now();
+  if (liveAt && now - liveAt < 100) return;
+  liveAt = now;
+  els.debugLive.textContent = formatLiveLine(frame, shownKeyForSession());
+}
+
+function takeMeta(result, frames) {
+  const instrument = instrumentOrDefault(session?.instrumentId);
+  const track = monitor.stream?.getAudioTracks?.()?.[0];
+  let trackSettings = null;
+  try {
+    trackSettings = track?.getSettings ? { ...track.getSettings() } : null;
+  } catch {
+    trackSettings = null;
+  }
+  return {
+    userAgent: navigator.userAgent,
+    sampleRate: monitor.ctx?.sampleRate ?? transport.ctx?.sampleRate ?? null,
+    trackSettings,
+    instrument: instrument ? { id: instrument.id, label: instrument.label } : null,
+    lesson: session ? { id: session.lessonId, title: sessionScreenTitle(session) } : null,
+    key: session ? currentKeyId(session) : null,
+    expectedMidis: Array.isArray(result?.expected) ? result.expected.slice() : [],
+    frames,
+    result: {
+      passed: Boolean(result?.passed),
+      reason: result?.reason ?? null,
+      hint: result?.hint ?? null,
+      heard: Array.isArray(result?.heard) ? result.heard.map((row) => ({ ...row })) : [],
+    },
+  };
+}
+
+function sealTake(log, result) {
+  if (!debugOn || !log || log.recordSealed) return;
+  log.recordSealed = true;
+  const frames = log.frames.map((frame) => ({ ...frame }));
+  const meta = takeMeta(result, frames);
+  const token = sealToken + 1;
+  sealToken = token;
+  lastTake = null;
+  renderDebug();
+  closeTakeRecorder(log).then(async (blob) => {
+    if (token !== sealToken) return;
+    let audioBase64 = null;
+    let audioMimeType = null;
+    if (blob?.size) {
+      try {
+        audioBase64 = await blobToBase64(blob);
+        audioMimeType = blob.type || null;
+      } catch {
+        audioBase64 = null;
+      }
+    }
+    if (token !== sealToken) return;
+    lastTake = buildTakeRecord({ ...meta, audioBase64, audioMimeType });
+    renderDebug();
+  });
+}
+
+async function armDebugTake() {
+  if (!debugOn) return;
+  const previous = takeLog;
+  takeLog = createTakeLog();
+  liveAt = 0;
+  if (els.debugLive) els.debugLive.textContent = "Level —";
+  if (previous) await closeTakeRecorder(previous);
+  if (!monitor.stream) return;
+  openTakeRecorder(takeLog, monitor.stream);
+}
+
 function renderDebug() {
   if (!els.debugStrip) return;
   if (!debugOn || !session || session.screen !== "session") {
@@ -374,8 +468,15 @@ function renderDebug() {
     shown,
   ).text;
   els.debugStrip.hidden = false;
-  if (attempt) els.debugStrip.textContent = describeAttempt(attempt, shown).text;
-  else els.debugStrip.textContent = debugTextForKey(lastDebug, currentKeyId(session), fresh);
+  const line = attempt
+    ? describeAttempt(attempt, shown).text
+    : debugTextForKey(lastDebug, currentKeyId(session), fresh);
+  if (els.debugAttempt) els.debugAttempt.textContent = line;
+  if (els.debugLive && !els.debugLive.textContent) els.debugLive.textContent = "Level —";
+  if (els.saveTake) {
+    els.saveTake.hidden = !lastTake;
+    if (lastTake && els.saveTake.textContent !== "Could not save") els.saveTake.textContent = "Save take";
+  }
 }
 
 function renderAuto() {
@@ -408,6 +509,8 @@ function finishRapid(generation, result) {
   lastDebug = session
     ? { ...describeAttempt(result, shown), keyId: currentKeyId(session) }
     : null;
+  if (debugOn && takeLog && !takeLog.recordSealed) sealTake(takeLog, result);
+  else closeTakeRecorder(takeLog);
   attempt = null;
   const passed = Boolean(result.passed);
   const step = rapidMicStep(
@@ -474,6 +577,10 @@ async function beginListening() {
   monitor.now = () => performance.now();
   monitor.onFrame = (frame) => {
     if (generation !== startGen || rapidPhase !== "listening" || !attempt || attempt.ended) return;
+    if (debugOn) {
+      pushTakeFrame(takeLog, frame);
+      renderLive(frame);
+    }
     attempt = stepFollower(attempt, frame);
     if (attempt?.ended) finishRapid(generation, attempt);
   };
@@ -486,6 +593,8 @@ async function beginListening() {
     const step = rapidMicStep(monitor.isLive() && monitor.processing === false, "attempt");
     if (step === "reset") monitor.reset();
     else await monitor.start(transport.ctx, { processing: false });
+    if (generation !== startGen) return;
+    if (debugOn) await armDebugTake();
     if (generation !== startGen) return;
     if (monitor.state === "denied" || monitor.state === "unsupported") {
       rapidPhase = "idle";
@@ -1937,6 +2046,16 @@ els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
 });
 els.primary.addEventListener("click", runPrimary);
+els.saveTake?.addEventListener("click", () => {
+  if (!lastTake || !els.saveTake) return;
+  const button = els.saveTake;
+  button.textContent = "Save take";
+  deliverTake(lastTake).then(() => {
+    button.textContent = "Save take";
+  }).catch(() => {
+    button.textContent = "Could not save";
+  });
+});
 els.autoToggle?.addEventListener("click", () => {
   prefs.auto = prefs.auto === false;
   persist();

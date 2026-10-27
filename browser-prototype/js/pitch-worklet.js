@@ -1,8 +1,10 @@
 /**
  * YIN pitch detector for iPad Safari AudioWorklet.
- * Posts { hz, amp, rms } when a voiced frame is found.
+ * Runs whenever the frame is above the absolute floor and posts
+ * { hz, amp, rms, confidence } with confidence = 1 - d[tau].
  */
 const YIN_THRESHOLD = 0.15;
+const YIN_RMS_FLOOR = 0.0015;
 
 function rms(buf) {
   let sum = 0;
@@ -10,9 +12,10 @@ function rms(buf) {
   return Math.sqrt(sum / buf.length);
 }
 
-function yinFrequency(buf, sampleRate) {
+function yinPitch(buf, sampleRate) {
   const n = buf.length;
   const half = n >> 1;
+  if (half < 4 || !(sampleRate > 0)) return { hz: 0, confidence: 0 };
   const d = new Float32Array(half);
   for (let tau = 1; tau < half; tau += 1) {
     let sum = 0;
@@ -28,14 +31,20 @@ function yinFrequency(buf, sampleRate) {
     running += d[tau];
     d[tau] = running > 0 ? (d[tau] * tau) / running : 1;
   }
-  let tau = 2;
-  for (; tau < half; tau += 1) {
-    if (d[tau] < YIN_THRESHOLD) {
+  let tau = -1;
+  for (let i = 2; i < half; i += 1) {
+    if (d[i] < YIN_THRESHOLD) {
+      tau = i;
       while (tau + 1 < half && d[tau + 1] < d[tau]) tau += 1;
       break;
     }
   }
-  if (tau >= half - 1 || d[tau] >= YIN_THRESHOLD) return 0;
+  if (tau < 0 || tau >= half - 1) {
+    let best = 2;
+    for (let i = 3; i < half; i += 1) if (d[i] < d[best]) best = i;
+    const confidence = Math.max(0, Math.min(1, 1 - d[best]));
+    return { hz: 0, confidence };
+  }
   const x0 = tau - 1;
   const x2 = tau + 1;
   const s0 = d[x0];
@@ -43,8 +52,9 @@ function yinFrequency(buf, sampleRate) {
   const s2 = d[x2];
   const denom = 2 * s1 - s2 - s0;
   const better = denom ? tau + (s2 - s0) / (2 * denom) : tau;
-  if (better <= 0) return 0;
-  return sampleRate / better;
+  const confidence = Math.max(0, Math.min(1, 1 - d[tau]));
+  if (!(better > 0)) return { hz: 0, confidence };
+  return { hz: sampleRate / better, confidence };
 }
 
 class PitchProcessor extends AudioWorkletProcessor {
@@ -67,8 +77,14 @@ class PitchProcessor extends AudioWorkletProcessor {
       i += take;
       if (this.offset >= this.buffer.length) {
         const amp = rms(this.buffer);
-        const hz = amp > 0.008 ? yinFrequency(this.buffer, sampleRate) : 0;
-        this.port.postMessage({ hz, amp, rms: amp });
+        let hz = 0;
+        let confidence = 0;
+        if (amp > YIN_RMS_FLOOR) {
+          const pitch = yinPitch(this.buffer, sampleRate);
+          hz = pitch.hz;
+          confidence = pitch.confidence;
+        }
+        this.port.postMessage({ hz, amp, rms: amp, confidence });
         this.buffer.copyWithin(0, this.hop);
         this.offset = this.buffer.length - this.hop;
       }
