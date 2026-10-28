@@ -17,6 +17,7 @@ import {
   GOALS,
   isStandPortrait,
   isStandLandscape,
+  isTightNotation,
   notationLayout,
   notationCssWidth,
   baseStaffPx,
@@ -331,7 +332,7 @@ test("iPad Pro 12.9 portrait is the stand-portrait layout target", () => {
   assert.equal(isStandLandscape(1280, 720), false);
 });
 
-test("stand portrait uses two-bar systems so the lick has room", () => {
+test("stand portrait uses four-bar systems like landscape, at a smaller staff", () => {
   const stand = notationLayout({
     staffWidth: 980,
     viewportWidth: 1024,
@@ -339,14 +340,15 @@ test("stand portrait uses two-bar systems so the lick has room", () => {
     showPhraseNotation: false,
     showEntranceCues: true,
   });
-  assert.equal(stand.barsPerLine, 2);
+  assert.equal(stand.barsPerLine, 4);
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
   assert.equal(stand.naturalWidth, false);
   assert.equal(stand.staffsep, 96);
   assert.equal(stand.minStaffPx, PORTRAIT_STAFF_PX);
-  assert.ok(stand.minStaffPx >= 96, "portrait staff must read from a meter away");
+  assert.ok(stand.minStaffPx >= 56, "portrait staff must stay readable at music-stand distance");
+  assert.ok(stand.minStaffPx < 96, "portrait staff stays smaller than the old 21mm size");
   assert.ok(stand.fillRatio >= 0.7);
   const staffCss = estimatedStaffHeightCss(stand, 900);
   assert.equal(staffCss, PORTRAIT_STAFF_PX);
@@ -382,12 +384,29 @@ test("stand portrait uses two-bar systems so the lick has room", () => {
   assert.equal(narrow.wrap, null);
   assert.equal(narrow.minStaffPx, STAFF_PX_NARROW);
   assert.equal(narrow.fitToPaper, false);
+  const phone = notationLayout({
+    staffWidth: 560,
+    viewportWidth: 590,
+    viewportHeight: 900,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(isTightNotation(560, 590), true);
+  assert.equal(phone.barsPerLine, 2);
+  const justWider = notationLayout({
+    staffWidth: 620,
+    viewportWidth: 640,
+    viewportHeight: 900,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(justWider.barsPerLine, 4);
 });
 
 test("chorus layout keeps bars intact: 4 per line wherever width allows, never abcjs wrap", () => {
   const chorusBars = 8;
   const cases = [
-    { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 2 },
+    { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 4 },
     { name: "iPad landscape 1366×1024", staffWidth: 980, viewportWidth: 1366, viewportHeight: 1024, barsPerLine: 4 },
     { name: "laptop 1280×720", staffWidth: 760, viewportWidth: 1280, viewportHeight: 720, barsPerLine: 4 },
     { name: "phone 375×812", staffWidth: 340, viewportWidth: 375, viewportHeight: 812, barsPerLine: 2 },

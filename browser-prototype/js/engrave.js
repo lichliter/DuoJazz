@@ -568,6 +568,23 @@ export function chordLiftForGap(chordBottom, inkTop, em) {
   return gap - need;
 }
 
+function screenDeltaToLocal(el, dxScreen, dyScreen) {
+  if (typeof DOMPoint === "undefined") return null;
+  try {
+    const toScreen = typeof el.getScreenCTM === "function" ? el.getScreenCTM() : null;
+    if (!toScreen) return null;
+    const inv = toScreen.inverse();
+    const origin = new DOMPoint(0, 0).matrixTransform(inv);
+    const shifted = new DOMPoint(dxScreen || 0, dyScreen || 0).matrixTransform(inv);
+    const dx = shifted.x - origin.x;
+    const dy = shifted.y - origin.y;
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return null;
+    return { dx, dy };
+  } catch {
+    return null;
+  }
+}
+
 function screenDyToLocal(el, dyScreen) {
   if (!Number.isFinite(dyScreen) || Math.abs(dyScreen) < 0.35) return 0;
   if (typeof DOMPoint === "undefined") return null;
@@ -639,6 +656,11 @@ export function centerSlashNoteheads(svg) {
   }
 }
 
+function considerInkTop(inkTop, box) {
+  if (!box) return inkTop;
+  return inkTop == null ? box.top : Math.min(inkTop, box.top);
+}
+
 function highestInkTop(group) {
   let inkTop = null;
   for (const el of group.querySelectorAll(".notehead, .note, [class*='slash']")) {
@@ -652,9 +674,11 @@ function highestInkTop(group) {
       target = el;
     }
     if (!target) continue;
-    const box = screenBox(target);
-    if (!box) continue;
-    inkTop = inkTop == null ? box.top : Math.min(inkTop, box.top);
+    inkTop = considerInkTop(inkTop, screenBox(target));
+  }
+  // Triplet numerals sit above the beam. On treble they climb into the chords.
+  for (const el of group.querySelectorAll(".tupletNum, .tuplet-num, .tuplet text")) {
+    inkTop = considerInkTop(inkTop, screenBox(el));
   }
   return inkTop;
 }
@@ -696,6 +720,15 @@ function applyFixedStaffSize(target, svg, layout) {
   if (!svg || !vb?.width) return;
   target.classList.toggle("notation-natural", isNaturalWidth(layout));
   if (!isNaturalWidth(layout)) {
+    const measured = fiveLineStaffHeightCss(svg.querySelector(".staff"));
+    const drawn = svg.getBoundingClientRect();
+    if (measured > staffPx + 1.5 && drawn.width > 0) {
+      const cssW = drawn.width * staffPx / measured;
+      svg.style.setProperty("width", `${Math.max(1, Math.round(cssW))}px`, "important");
+      svg.style.setProperty("height", "auto", "important");
+      svg.style.setProperty("margin-inline", "auto", "important");
+      return;
+    }
     svg.style.setProperty("width", "100%", "important");
     svg.style.setProperty("height", "auto", "important");
     svg.style.removeProperty("margin-inline");
@@ -1002,7 +1035,7 @@ function measureAt(measures, x, y) {
 
 function inkBelowStaff(measure, cueBox, staffBottom) {
   let bottom = null;
-  for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag") ?? []) {
+  for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag, .tupletNum") ?? []) {
     const box = svgBox(el);
     if (!box || box.height < 0.4 || box.width < 0.4) continue;
     if (staffBottom != null && box.y + box.height <= staffBottom + 6) continue;
@@ -1076,7 +1109,7 @@ function polishCueLabels(svg) {
     const box = cue.getBoundingClientRect();
     const measure = cue.closest?.(".measure");
     let floor = box.top;
-    for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag") ?? []) {
+    for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag, .tupletNum") ?? []) {
       const ob = el.getBoundingClientRect();
       if (ob.width < 0.4 || ob.height < 0.4) continue;
       const overlaps = box.left < ob.right - 0.5 && box.right > ob.left + 0.5
@@ -1108,6 +1141,51 @@ export function layoutCueLabels(svg) {
     translateSvg(spec.cue, next.x - box.x, next.y - box.y);
   });
   polishCueLabels(svg);
+  clearCuesFromTupletNums(svg);
+}
+
+/** Keep the small HERE cue off the triplet numeral that hangs under a beam. */
+function clearCuesFromTupletNums(svg) {
+  const pad = 14;
+  const staffTops = [...svg.querySelectorAll(".staff")].map((staff) => {
+    const lines = [...staff.querySelectorAll(":scope > path")].filter((path) => {
+      const box = path.getBoundingClientRect();
+      return box.width > 20 && (box.height === 0 || box.width > box.height * 6);
+    });
+    if (!lines.length) return null;
+    const top = Math.min(...lines.map((line) => line.getBoundingClientRect().top));
+    return Number.isFinite(top) ? top : null;
+  }).filter((top) => top != null).sort((a, b) => a - b);
+
+  for (const cue of svg.querySelectorAll(".dir.cue")) {
+    let box = cue.getBoundingClientRect();
+    const measure = cue.closest(".measure");
+    const measureBox = measure?.getBoundingClientRect?.();
+    for (const num of measure?.querySelectorAll(".tupletNum") ?? []) {
+      const ob = num.getBoundingClientRect();
+      if (ob.width < 1 || ob.height < 1) continue;
+      const hGap = box.right <= ob.left ? ob.left - box.right : ob.right <= box.left ? box.left - ob.right : -1;
+      const vGap = box.bottom <= ob.top ? ob.top - box.bottom : ob.bottom <= box.top ? box.top - ob.bottom : -1;
+      if (hGap >= pad || vGap >= pad) continue;
+      const nextStaff = staffTops.find((top) => top > box.top + box.height * 0.5);
+      const desiredTop = Math.max(box.top, ob.bottom + pad);
+      const fitsBelow = nextStaff == null || desiredTop + box.height < nextStaff - 4;
+      if (desiredTop > box.top + 0.5 && fitsBelow) {
+        const delta = screenDeltaToLocal(cue, 0, desiredTop - box.top);
+        if (delta && Math.abs(delta.dy) > 0.35) translateSvg(cue, 0, delta.dy);
+        box = cue.getBoundingClientRect();
+      }
+      const gapNow = box.right <= ob.left ? ob.left - box.right : ob.right <= box.left ? box.left - ob.right : -1;
+      if (gapNow >= pad || ob.left < box.left) continue;
+      const shift = ob.left - pad - box.right;
+      const nextLeft = box.left + shift;
+      const delta = screenDeltaToLocal(cue, shift, 0);
+      if (delta && Math.abs(delta.dx) > 0.35 && (!measureBox || nextLeft > measureBox.left + 4)) {
+        translateSvg(cue, delta.dx, 0);
+        box = cue.getBoundingClientRect();
+      }
+    }
+  }
 }
 
 export function capCueText(text, barWidth, fontPx) {
