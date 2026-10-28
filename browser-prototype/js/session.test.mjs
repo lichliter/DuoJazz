@@ -48,6 +48,7 @@ import {
   listenStateCopy,
   chromaticOrder,
   fourthsOrder,
+  keyOrderPreview,
   canGoBack,
   canGoNext,
   goBack,
@@ -84,14 +85,23 @@ function rngFrom(values) {
   };
 }
 
-test("chromatic cycle from G visits twelve unique keys then wraps", () => {
-  const queue = buildKeyQueue("chromatic", "G");
-  assert.equal(queue[0], "G");
-  assert.equal(queue.length, 12);
-  assert.equal(new Set(queue).size, 12);
-  assert.deepEqual(queue, ["G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb"]);
-  assert.deepEqual(nextLapQueue("chromatic", queue), queue);
+test("chromatic cycle descends a half step from several starts", () => {
+  assert.deepEqual(chromaticOrder(), ["C", "B", "Bb", "A", "Ab", "G", "Gb", "F", "E", "Eb", "D", "Db"]);
+  const fromG = ["G", "Gb", "F", "E", "Eb", "D", "Db", "C", "B", "Bb", "A", "Ab"];
+  assert.deepEqual(buildKeyQueue("chromatic", "G"), fromG);
+  assert.deepEqual(nextLapQueue("chromatic", fromG), fromG);
   assert.deepEqual(buildKeyQueue("chromatic", "C"), chromaticOrder());
+  for (const start of ["C", "G", "Eb", "B", "Db"]) {
+    const queue = buildKeyQueue("chromatic", start);
+    assert.equal(queue[0], start);
+    assert.equal(queue.length, 12);
+    assert.equal(new Set(queue).size, 12);
+    for (let i = 1; i < queue.length; i += 1) {
+      assert.equal(getKey(queue[i]).pc, (getKey(queue[i - 1]).pc + 11) % 12);
+    }
+  }
+  assert.equal(keyOrderPreview("chromatic", "C"), "C · B · B♭ · A · A♭ · G · G♭ · F · E · E♭ · D · D♭");
+  assert.equal(keyOrderPreview("chromatic", "G"), "G · G♭ · F · E · E♭ · D · D♭ · C · B · B♭ · A · A♭");
 });
 
 test("fourths cycle from G is the circle of fourths", () => {
@@ -101,6 +111,12 @@ test("fourths cycle from G is the circle of fourths", () => {
   assert.deepEqual(queue, ["G", "C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D"]);
   assert.equal(fourthsOrder()[0], "C");
   assert.equal(getKey(queue[1]).pc, (getKey("G").pc + 5) % 12);
+  assert.equal(
+    keyOrderPreview("fourths", "C"),
+    "C · F · B♭ · E♭ · A♭ · D♭ · G♭ · B · E · A · D · G",
+  );
+  assert.equal(keyOrderPreview("random", "G"), "Shuffled");
+  assert.equal(keyOrderPreview("one", "F"), "F");
 });
 
 test("random cycle has no repeats in a lap and reshuffles the next lap", () => {
@@ -168,7 +184,7 @@ test("wrap-up Next key walks the cycle; Again repeats the same key; one-key has 
   assert.equal(hasNextKey(session), true);
   const next = advanceKey(session);
   assert.equal(next.screen, "session");
-  assert.equal(currentKeyId(next), "Ab");
+  assert.equal(currentKeyId(next), "Gb");
   assert.equal(currentCard(next), "play");
   assert.deepEqual(keyOrdinal(next), { index: 2, total: 12 });
 
