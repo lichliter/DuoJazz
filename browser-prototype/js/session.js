@@ -701,8 +701,27 @@ export function handlePlaybackEnded(session, result = {}, rng = Math.random) {
   return { session: { ...recorded, screen: "wrapup" }, autoStart: false };
 }
 
+/**
+ * Skip this key. The result is Skipped, never a pass.
+ * Another key in the cycle opens immediately. The last key, and a one-key
+ * session, open wrap-up with that skip recorded.
+ */
 export function skipCard(session) {
-  return completeCard(session, skipResult(session));
+  if (!session) return session;
+  const cardId = currentCard(session);
+  const recorded = {
+    ...session,
+    demo: false,
+    cardResults: [
+      ...session.cardResults.filter((row) => row.cardId !== cardId),
+      { cardId, ...skipResult(session) },
+    ],
+  };
+  const moreKeys = session.keyMode !== "one" && session.keyIndex + 1 < session.keyQueue.length;
+  if (!moreKeys) {
+    return { ...recorded, screen: "wrapup", listenStage: "hear" };
+  }
+  return advanceKey(recorded);
 }
 
 export function resultForCard(session, cardId = currentCard(session)) {
