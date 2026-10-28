@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hzFromMidi } from "./grade.js";
-import { displayKey, getKey } from "./music.js";
+import { expectedNotesFor, hzFromMidi } from "./grade.js";
+import { displayKey, getKey, midiForSpelledPitch } from "./music.js";
+import { createSession, currentKeyId, sessionKeyQuality, TWELVE_KEY_IDS } from "./session.js";
 import { rms, yinPitch } from "./sound-yin.js";
 import {
   AMP_FLOOR,
@@ -18,6 +19,7 @@ import {
   describeAttempt,
   formatLiveLine,
   matchPitch,
+  noteName,
   runFollower,
   stepFollower,
   tickFollower,
@@ -455,4 +457,42 @@ test("the debug strip clears when the key advances", () => {
   assert.equal(debugTextForKey({ keyId: "G", text: previous }, "C", next), next);
   assert.equal(debugTextForKey({ keyId: "G", text: previous }, "G", next), previous);
   assert.equal(debugTextForKey(null, "C", next), next);
+});
+
+function midiFromNoteLabel(label) {
+  const match = /^([A-G])(𝄫|♭|♯|𝄪)?(-?\d+)$/.exec(label);
+  assert.ok(match, label);
+  const acc = { "𝄫": -2, "♭": -1, "♯": 1, "𝄪": 2 }[match[2]] ?? 0;
+  return midiForSpelledPitch(match[1], acc, Number(match[3]));
+}
+
+test("debug note names keep the written octave with the letter", () => {
+  const abMinor = displayKey(getKey("Ab"), "concert", "minor");
+  assert.equal(noteName(59, abMinor), "C♭4");
+
+  const sevenSharps = { pc: 1, usesFlats: false, sigCount: 7 };
+  assert.equal(noteName(60, sevenSharps), "B♯3");
+
+  for (const keyId of TWELVE_KEY_IDS) {
+    const session = createSession({
+      lessonId: "learn-lick",
+      keyMode: "one",
+      startKeyId: keyId,
+    });
+    const shown = displayKey(
+      getKey(currentKeyId(session)),
+      session.displayMode,
+      sessionKeyQuality(session),
+    );
+    const notes = expectedNotesFor(session);
+    assert.ok(notes.length > 0, keyId);
+    for (const note of notes) {
+      const label = noteName(note.midi, shown);
+      assert.equal(
+        midiFromNoteLabel(label),
+        Math.round(note.midi),
+        `${keyId} ${note.midi} -> ${label}`,
+      );
+    }
+  }
 });
