@@ -403,15 +403,22 @@ export const STAFF_PX = 40;
 /** Slightly larger on a phone so two-bar lines stay readable. */
 export const STAFF_PX_NARROW = 46;
 /**
- * iPad portrait reading size. About 13mm on a 12.9" iPad: small enough that
- * four bars of Lesson 4 fit without noteheads touching, still easy to read
- * from a music-stand distance. Shared by Learn and Practice.
+ * iPad portrait reading size. Largest staff that still fits four bars of
+ * Lesson 4 without melody noteheads touching. Trombone in G minor is the
+ * tight case: about 74px (~15mm on a 12.9" iPad). Shared by Learn and Practice.
  */
-export const PORTRAIT_STAFF_PX = 64;
+export const PORTRAIT_STAFF_PX = 74;
 /** Viewports under this width keep two bars per system. iPad portrait is 1024. */
 export const PHONE_WIDTH = 600;
-/** Chord cap height as a fraction of staff height (~16–18px at STAFF_PX). */
+/** Chord cap height as a fraction of staff height (~17px at STAFF_PX, ~31px on iPad portrait). */
 export const CHORD_CAP_RATIO = 0.42;
+
+/** One chord size for every instrument at a given staff. Never under 16px. */
+export function chordTargetCss(staffPx) {
+  const px = Number(staffPx);
+  if (!(px > 0)) return 16;
+  return Math.max(16, Math.round(px * CHORD_CAP_RATIO));
+}
 /** Cue labels sit just under the lowest stem, in CSS px at 1.0×. */
 export const CUE_PX = 12;
 
@@ -520,7 +527,7 @@ export function notationLayout({
   const size = parseNotationScale(notationScale) ?? 1;
   const tight = isTightNotation(staffWidth, viewportWidth);
   const staffPx = Math.round(baseStaffPx({ staffWidth, viewportWidth, viewportHeight }) * size);
-  const chordCssPx = Math.round(staffPx * CHORD_CAP_RATIO);
+  const chordCssPx = chordTargetCss(staffPx);
   const annotationPx = Math.round(CUE_PX * size);
 
   if (showPhraseNotation) {
