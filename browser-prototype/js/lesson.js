@@ -410,7 +410,7 @@ export const PORTRAIT_STAFF_PX = 108;
 /** Chord cap height as a fraction of staff height (~16–18px at STAFF_PX). */
 export const CHORD_CAP_RATIO = 0.42;
 /** Cue labels sit just under the lowest stem, in CSS px at 1.0×. */
-export const CUE_PX = 14;
+export const CUE_PX = 12;
 
 /** Sheet-music 1.0× plus the three larger try-on presets. */
 export const NOTATION_SCALE_VALUES = Object.freeze([1, 1.2, 1.4, 1.6]);
@@ -549,11 +549,10 @@ export function notationLayout({
     };
   }
 
-  // Keep bars intact at every viewport: 4 per line wherever the paper is
-  // wide enough (8-bar chart → 2 systems). Phones drop to 2 bars per line.
-  // Line breaks come from encoded <sb/> in MEI. Full 4-bar systems,
-  // including a rest-heavy last line, justify to the card width.
-  const barsPerLine = narrow ? 2 : 4;
+  // Phones and iPad portrait use 2 bars per system so a lick, its slashes,
+  // and the chord symbols each get a rhythmic share of the width. Wider
+  // layouts keep 4 (8-bar chart → 2 systems). Breaks are encoded <sb/>.
+  const barsPerLine = narrow || isStandPortrait(viewportWidth, viewportHeight) ? 2 : 4;
 
   return {
     scale: 1,

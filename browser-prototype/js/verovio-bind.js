@@ -18,3 +18,9 @@
     vrv.__duojazzReady = true;
   }
 })(globalThis.verovio);
+
+// Duration should move notes apart. engrave.js reads this when it builds options.
+globalThis.DUOJAZZ_VEROVIO_SPACING = Object.freeze({
+  spacingLinear: 0.7,
+  spacingNonLinear: 0.35,
+});

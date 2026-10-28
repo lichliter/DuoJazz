@@ -437,9 +437,8 @@ test("Play-card landing for Billie's Bounce does not put a half rest in the firs
   assert.equal(/z4/.test(firstSpot), false, firstSpot);
   assert.equal(/z2/.test(firstSpot), false, firstSpot);
   assert.match(firstSpot, /F,2/);
-  const ready = measures.find((measure) => measure.includes("Get ready")) ?? "";
-  assert.match(ready, /z4z2zC,/);
-  const empty = measures.find((measure) => measure.includes("B♭7") && !measure.includes("HERE") && !measure.includes("Get ready")) ?? "";
+  assert.equal(measures.some((measure) => measure.includes("Get ready")), false);
+  const empty = measures.find((measure) => measure.includes("B♭7") && !measure.includes("HERE")) ?? "";
   assert.match(empty, /z8/);
   assert.doesNotMatch(empty, /z2z2z2z2/);
 });
