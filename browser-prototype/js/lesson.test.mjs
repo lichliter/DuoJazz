@@ -29,6 +29,7 @@ import {
   slashFitsStaff,
   STAFF_PX,
   STAFF_PX_NARROW,
+  chordTargetCss,
   PORTRAIT_STAFF_PX,
   parseNotationScale,
   persistNotationScale,
@@ -349,6 +350,8 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
   assert.equal(stand.minStaffPx, PORTRAIT_STAFF_PX);
   assert.ok(stand.minStaffPx >= 56, "portrait staff must stay readable at music-stand distance");
   assert.ok(stand.minStaffPx < 96, "portrait staff stays smaller than the old 21mm size");
+  assert.ok(stand.chordCssPx >= 16, "portrait chords stay at least 16px");
+  assert.equal(stand.chordCssPx, chordTargetCss(PORTRAIT_STAFF_PX));
   assert.ok(stand.fillRatio >= 0.7);
   const staffCss = estimatedStaffHeightCss(stand, 900);
   assert.equal(staffCss, PORTRAIT_STAFF_PX);
@@ -363,6 +366,8 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
   assert.equal(landscape.wrap, null);
   assert.equal(landscape.fitToPaper, false);
   assert.equal(landscape.minStaffPx, STAFF_PX);
+  assert.equal(landscape.chordCssPx, chordTargetCss(STAFF_PX));
+  assert.ok(landscape.chordCssPx >= 16);
   assert.equal(landscape.scale, 1);
   const desktop = notationLayout({
     staffWidth: 760,

@@ -3,7 +3,7 @@
  * Layout numbers come from lesson.notationLayout; MEI comes from mei.js.
  */
 
-import { STAFF_PX } from "./lesson.js";
+import { chordTargetCss, STAFF_PX } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
 
 const INK = "#2b211a";
@@ -436,58 +436,59 @@ function harmTextEl(harm) {
   return harm.querySelector("text") ?? harm;
 }
 
-export function separateChordSymbols(svg) {
+function paintChordSize(harm, size) {
+  const px = `${size}px`;
+  for (const el of harm.querySelectorAll("text, tspan")) {
+    el.setAttribute("font-size", px);
+    el.setAttribute("font-weight", "700");
+    el.setAttribute("font-family", MUSIC_FONT_FAMILY);
+    el.setAttribute("font-stretch", "normal");
+  }
+}
+
+/**
+ * Draw every chord symbol at one size and one weight. A later symbol that
+ * still collides is nudged sideways. Nothing is shrunk on its own, so the
+ * last bar cannot come out larger or heavier than the rest, and bass and
+ * treble stay the same size at the same staff.
+ */
+export function separateChordSymbols(svg, layout = {}) {
   if (!svg?.querySelectorAll) return;
   const harms = [...svg.querySelectorAll(".harm")];
-  const floor = 160;
-  const shrink = (harm) => {
-    let changed = false;
-    for (const el of harm.querySelectorAll("text, tspan")) {
-      const size = parseFloat(el.getAttribute("font-size") || "0");
-      if (size <= floor) continue;
-      el.setAttribute("font-size", `${Math.max(floor, size * 0.88)}px`);
-      changed = true;
-    }
-    return changed;
-  };
+  if (!harms.length) return;
+  const measuredStaff = fiveLineStaffHeightCss(svg.querySelector(".staff"));
+  const target = chordTargetCss(measuredStaff || staffPxOf(layout));
+  const sample = harmTextEl(harms[0]);
+  const sampleBox = screenBox(sample);
+  const sampleSize = parseFloat(sample.getAttribute("font-size") || "0");
+  const size = sampleBox?.height > 0 && sampleSize > 0
+    ? sampleSize * target / sampleBox.height
+    : sampleSize;
+  if (size > 0) {
+    for (const harm of harms) paintChordSize(harm, size);
+  }
   const userPerPx = (() => {
     const rect = svg.getBoundingClientRect?.();
     const box = svg.viewBox?.baseVal;
     if (rect?.width && box?.width) return box.width / rect.width;
     return 1;
   })();
-  const emPx = (harm) => {
-    const text = harmTextEl(harm);
-    const computed = parseFloat(text.ownerDocument?.defaultView?.getComputedStyle?.(text)?.fontSize || "");
-    if (computed > 0) return computed;
-    const size = parseFloat(text.getAttribute("font-size") || "0");
-    return size > 0 ? size : 16;
-  };
+  const gap = 4;
   for (let i = 0; i < harms.length - 1; i += 1) {
-    for (let step = 0; step < 12; step += 1) {
-      let boxA;
-      let boxB;
-      try {
-        boxA = harmTextEl(harms[i]).getBoundingClientRect();
-        boxB = harmTextEl(harms[i + 1]).getBoundingClientRect();
-      } catch {
-        break;
-      }
-      if (!boxA.width || !boxB.width) break;
-      if (Math.abs((boxA.y + boxA.height / 2) - (boxB.y + boxB.height / 2)) > Math.max(boxA.height, boxB.height) * 0.8) {
-        break;
-      }
-      const gap = Math.max(emPx(harms[i]), emPx(harms[i + 1]));
-      if (boxA.right + gap <= boxB.left) break;
-      const movedA = shrink(harms[i]);
-      const movedB = shrink(harms[i + 1]);
-      if (movedA || movedB) {
-        void harmTextEl(harms[i]).getBoundingClientRect();
-        continue;
-      }
-      translateSvg(harms[i + 1], (boxA.right + gap - boxB.left) * userPerPx, 0);
+    let boxA;
+    let boxB;
+    try {
+      boxA = harmTextEl(harms[i]).getBoundingClientRect();
+      boxB = harmTextEl(harms[i + 1]).getBoundingClientRect();
+    } catch {
       break;
     }
+    if (!boxA.width || !boxB.width) break;
+    if (Math.abs((boxA.top + boxA.height / 2) - (boxB.top + boxB.height / 2)) > Math.max(boxA.height, boxB.height)) {
+      continue;
+    }
+    if (boxA.right + gap <= boxB.left) continue;
+    translateSvg(harms[i + 1], (boxA.right + gap - boxB.left) * userPerPx, 0);
   }
 }
 
@@ -790,7 +791,7 @@ export async function engraveMei(target, mei, options = {}) {
     recolor(svg);
     restyleText(svg, layout);
     mergeSplitChordSymbols(svg);
-    separateChordSymbols(svg);
+    separateChordSymbols(svg, layout);
     centerSlashNoteheads(svg);
     clearChordInkGap(svg);
     layoutCueLabels(svg);
@@ -996,195 +997,83 @@ export function placeCueBoxes(cues, { gap = 36 } = {}) {
   return placed;
 }
 
-function svgBox(el) {
-  if (!el || typeof el.getBBox !== "function") return null;
-  try {
-    const box = el.getBBox();
-    if (!box || !Number.isFinite(box.width)) return null;
-    return box;
-  } catch {
-    return null;
-  }
-}
-
-function setCueFontSize(text, size) {
-  const px = `${Math.round(size)}px`;
-  text.setAttribute("font-size", px);
-  for (const el of text.querySelectorAll?.("tspan") ?? []) el.setAttribute("font-size", px);
-}
-
 function translateSvg(el, dx, dy) {
   if (!el || (Math.abs(dx) < 0.4 && Math.abs(dy) < 0.4)) return;
   const prev = el.getAttribute("transform") || "";
   el.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
 }
 
-function measureAt(measures, x, y) {
-  let best = null;
-  for (const measure of measures) {
-    const box = svgBox(measure);
-    if (!box || box.width < 8 || box.height < 8) continue;
-    if (box.x > x + 12 || box.x + box.width < x + 8) continue;
-    if (Number.isFinite(y) && (y < box.y - 40 || y > box.y + box.height + 40)) continue;
-    const inset = x - box.x;
-    if (inset < -12) continue;
-    if (!best || inset < best.inset) best = { measure, box, inset };
+function firstLickHead(measure) {
+  for (const note of measure?.querySelectorAll?.(".note") ?? []) {
+    const cls = note.getAttribute("class") || "";
+    if (/\bcue\b/.test(cls) || isSlashHead(note)) continue;
+    return note.querySelector(".notehead") ?? note;
   }
-  return best;
+  return null;
 }
 
-function inkBelowStaff(measure, cueBox, staffBottom) {
-  let bottom = null;
-  for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag, .tupletNum") ?? []) {
-    const box = svgBox(el);
-    if (!box || box.height < 0.4 || box.width < 0.4) continue;
-    if (staffBottom != null && box.y + box.height <= staffBottom + 6) continue;
-    if (box.x + box.width < cueBox.x - 8 || box.x > cueBox.x + cueBox.width + 8) continue;
-    const edge = box.y + box.height;
-    if (edge > cueBox.y - 48) bottom = bottom == null ? edge : Math.max(bottom, edge);
+/**
+ * Screen-pixel move that parks a cue just under the staff, centered on the
+ * first lick note. `noteBottom` lets a note that already hangs below the
+ * staff keep the word clear of that notehead. The result stays inside
+ * `maxBottom` so the last system cannot clip the word.
+ */
+export function cueJustBelowStaff(cue, staffBottom, noteCenterX, limits = {}) {
+  const gap = Number.isFinite(limits.gap) ? limits.gap : 6;
+  const noteBottom = Number.isFinite(limits.noteBottom) ? limits.noteBottom : staffBottom;
+  const floor = Math.max(staffBottom, noteBottom);
+  let top = floor + gap;
+  if (Number.isFinite(limits.maxBottom) && top + cue.height > limits.maxBottom) {
+    top = Math.max(staffBottom + 2, limits.maxBottom - cue.height);
   }
-  return bottom;
+  let left = noteCenterX - cue.width / 2;
+  if (Number.isFinite(limits.minLeft)) left = Math.max(limits.minLeft, left);
+  if (Number.isFinite(limits.maxRight)) left = Math.min(left, limits.maxRight - cue.width);
+  return { dx: left - cue.left, dy: top - cue.top, top, left };
 }
 
-function cueSpecs(svg) {
-  const measures = [...svg.querySelectorAll(".measure")];
-  const staffs = [...svg.querySelectorAll(".staff")].map((staff) => {
-    const lines = staffLineYs(staff);
-    return lines.length ? { y: lines[0] } : null;
-  }).filter(Boolean);
-  return [...svg.querySelectorAll(".dir.cue")].map((cue) => {
-    const text = cue.querySelector("text") ?? cue;
-    const box = svgBox(text) ?? svgBox(cue);
-    if (!box) return null;
-    const host = measureAt(measures, box.x, box.y);
-    const fontSize = parseFloat(text.getAttribute?.("font-size") || "330") || 330;
-    const gap = fontSize * 0.42;
-    let obstacleBottom = null;
-    let nextTop = null;
-    if (host) {
-      const staffEl = host.measure.querySelector(".staff");
-      const lines = staffLineYs(staffEl);
-      const staffBottom = lines.length ? lines[lines.length - 1] : null;
-      const staffTop = lines.length ? lines[0] : null;
-      obstacleBottom = inkBelowStaff(host.measure, box, staffBottom);
-      const origin = staffTop ?? host.box.y;
-      nextTop = staffs.reduce((nearest, item) => (
-        item.y > origin + 40 && item.y < nearest ? item.y : nearest
-      ), Infinity);
-      if (!Number.isFinite(nextTop)) nextTop = null;
-    }
-    return {
-      cue,
-      text,
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
-      barX: host ? host.box.x : box.x,
-      barRight: host ? host.box.x + host.box.width : box.x + box.width + gap,
-      obstacleBottom,
-      nextTop,
-      gap,
-    };
-  }).filter(Boolean);
-}
-
-function polishCueLabels(svg) {
-  const rect = svg.getBoundingClientRect?.();
-  const vb = svg.viewBox?.baseVal;
-  if (!rect?.width || !vb?.width) return;
-  const scale = rect.width / vb.width;
-  const gap = 6;
-  const cues = [...svg.querySelectorAll(".dir.cue")];
-  const staffTops = [...svg.querySelectorAll(".staff")].map((staff) => {
-    const lines = [...staff.querySelectorAll(":scope > path")].filter((path) => {
-      const box = path.getBoundingClientRect();
-      return box.width > 20 && box.width > box.height * 6;
-    });
-    if (!lines.length) return null;
-    const top = Math.min(...lines.map((line) => line.getBoundingClientRect().top));
-    return Number.isFinite(top) ? top : null;
-  }).filter((top) => top != null).sort((a, b) => a - b);
-  for (const cue of cues) {
-    const box = cue.getBoundingClientRect();
-    const measure = cue.closest?.(".measure");
-    let floor = box.top;
-    for (const el of measure?.querySelectorAll?.(".notehead, .beam, .stem, .flag, .tupletNum") ?? []) {
-      const ob = el.getBoundingClientRect();
-      if (ob.width < 0.4 || ob.height < 0.4) continue;
-      const overlaps = box.left < ob.right - 0.5 && box.right > ob.left + 0.5
-        && box.top < ob.bottom + 3 && box.bottom > ob.top + 0.5;
-      if (overlaps) floor = Math.max(floor, ob.bottom + gap);
-    }
-    const nextStaff = staffTops.find((top) => top > box.top + box.height * 0.3);
-    const maxTop = nextStaff == null ? floor : nextStaff - gap - box.height;
-    const target = Math.min(floor, Math.max(box.top, maxTop));
-    if (target > box.top + 0.5) translateSvg(cue, 0, (target - box.top) / scale);
-  }
-}
-
-/** Keep engraved cue labels off each other and off noteheads and beams. */
+/** Park each HERE just below its staff, under the first lick note, inside the paper. */
 export function layoutCueLabels(svg) {
   if (!svg?.querySelectorAll) return;
-  const specs = cueSpecs(svg);
-  if (!specs.length) return;
-  const placed = placeCueBoxes(specs);
-  specs.forEach((spec, index) => {
-    const next = placed[index];
-    if (!next) return;
-    if (next.scale && next.scale < 0.98) {
-      const size = parseFloat(spec.text.getAttribute?.("font-size") || "330") || 330;
-      setCueFontSize(spec.text, size * next.scale);
-    }
-    const box = svgBox(spec.text);
-    if (!box) return;
-    translateSvg(spec.cue, next.x - box.x, next.y - box.y);
-  });
-  polishCueLabels(svg);
-  clearCuesFromTupletNums(svg);
-}
-
-/** Keep the small HERE cue off the triplet numeral that hangs under a beam. */
-function clearCuesFromTupletNums(svg) {
-  const pad = 14;
-  const staffTops = [...svg.querySelectorAll(".staff")].map((staff) => {
-    const lines = [...staff.querySelectorAll(":scope > path")].filter((path) => {
-      const box = path.getBoundingClientRect();
-      return box.width > 20 && (box.height === 0 || box.width > box.height * 6);
-    });
-    if (!lines.length) return null;
-    const top = Math.min(...lines.map((line) => line.getBoundingClientRect().top));
-    return Number.isFinite(top) ? top : null;
-  }).filter((top) => top != null).sort((a, b) => a - b);
-
+  const svgBox = screenBox(svg);
+  const staffBottoms = [];
+  for (const staff of svg.querySelectorAll(".staff")) {
+    const lines = staffLineScreenCenters(staff);
+    if (lines.length >= 2) staffBottoms.push(lines[lines.length - 1]);
+  }
   for (const cue of svg.querySelectorAll(".dir.cue")) {
-    let box = cue.getBoundingClientRect();
     const measure = cue.closest(".measure");
-    const measureBox = measure?.getBoundingClientRect?.();
-    for (const num of measure?.querySelectorAll(".tupletNum") ?? []) {
-      const ob = num.getBoundingClientRect();
-      if (ob.width < 1 || ob.height < 1) continue;
-      const hGap = box.right <= ob.left ? ob.left - box.right : ob.right <= box.left ? box.left - ob.right : -1;
-      const vGap = box.bottom <= ob.top ? ob.top - box.bottom : ob.bottom <= box.top ? box.top - ob.bottom : -1;
-      if (hGap >= pad || vGap >= pad) continue;
-      const nextStaff = staffTops.find((top) => top > box.top + box.height * 0.5);
-      const desiredTop = Math.max(box.top, ob.bottom + pad);
-      const fitsBelow = nextStaff == null || desiredTop + box.height < nextStaff - 4;
-      if (desiredTop > box.top + 0.5 && fitsBelow) {
-        const delta = screenDeltaToLocal(cue, 0, desiredTop - box.top);
-        if (delta && Math.abs(delta.dy) > 0.35) translateSvg(cue, 0, delta.dy);
-        box = cue.getBoundingClientRect();
-      }
-      const gapNow = box.right <= ob.left ? ob.left - box.right : ob.right <= box.left ? box.left - ob.right : -1;
-      if (gapNow >= pad || ob.left < box.left) continue;
-      const shift = ob.left - pad - box.right;
-      const nextLeft = box.left + shift;
-      const delta = screenDeltaToLocal(cue, shift, 0);
-      if (delta && Math.abs(delta.dx) > 0.35 && (!measureBox || nextLeft > measureBox.left + 4)) {
-        translateSvg(cue, delta.dx, 0);
-        box = cue.getBoundingClientRect();
-      }
-    }
+    const lines = staffLineScreenCenters(measure?.querySelector(".staff"));
+    if (lines.length < 2) continue;
+    const staffTop = lines[0];
+    const staffBottom = lines[lines.length - 1];
+    const staffH = staffBottom - staffTop;
+    const head = firstLickHead(measure);
+    const headBox = screenBox(head);
+    const text = cue.querySelector("text") ?? cue;
+    const cueBox = screenBox(text) ?? screenBox(cue);
+    if (!cueBox) continue;
+    const noteCenter = headBox
+      ? headBox.left + headBox.width / 2
+      : cueBox.left + cueBox.width / 2;
+    const measureBox = screenBox(measure);
+    const nextStaff = staffBottoms
+      .map((bottom) => bottom - staffH)
+      .filter((top) => top > staffBottom + staffH * 0.45)
+      .sort((a, b) => a - b)[0];
+    const maxBottom = Math.min(
+      svgBox ? svgBox.bottom - 1 : Infinity,
+      Number.isFinite(nextStaff) ? nextStaff - 2 : Infinity,
+    );
+    const move = cueJustBelowStaff(cueBox, staffBottom, noteCenter, {
+      gap: Math.max(4, staffH * 0.08),
+      noteBottom: headBox?.bottom,
+      minLeft: measureBox ? measureBox.left + 2 : undefined,
+      maxRight: measureBox ? measureBox.right - 2 : undefined,
+      maxBottom: Number.isFinite(maxBottom) ? maxBottom : undefined,
+    });
+    const delta = screenDeltaToLocal(cue, move.dx, move.dy);
+    if (delta) translateSvg(cue, delta.dx, delta.dy);
   }
 }
 

@@ -7,6 +7,7 @@ import {
   CHORD_FONT_VU,
   compactChordSymbol,
   MUSIC_FONT_FAMILY,
+  cueJustBelowStaff,
   placeCueBoxes,
   CUE_FONT_VU,
   chordFontVU,
@@ -367,6 +368,25 @@ test("slash recentering uses the middle staff line and chords keep a half-em gap
   assert.equal(chordLiftForGap(100, 109, 20), 109 - 100 - 10);
 });
 
+test("HERE sits just under the staff and stays inside the paper", () => {
+  const cue = { left: 100, top: 400, width: 48, height: 16 };
+  const parked = cueJustBelowStaff(cue, 210, 160, {
+    gap: 6,
+    noteBottom: 198,
+    minLeft: 20,
+    maxRight: 400,
+    maxBottom: 500,
+  });
+  assert.equal(parked.top, 216);
+  assert.equal(parked.left, 136);
+  assert.equal(parked.dy, 216 - 400);
+  const lowNote = cueJustBelowStaff(cue, 210, 160, { gap: 6, noteBottom: 240, maxBottom: 500 });
+  assert.equal(lowNote.top, 246);
+  const clipped = cueJustBelowStaff(cue, 210, 160, { gap: 6, noteBottom: 240, maxBottom: 230 });
+  assert.ok(clipped.top + cue.height <= 230);
+  assert.ok(clipped.top >= 212);
+});
+
 test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {
   assert.equal(CUE_FONT_VU, 330);
   assert.equal(cueFontVU(), 330);
@@ -377,12 +397,12 @@ test("cue labels are ~13–14px italic drawing units, not the round-2 9px size",
 
 test("engraving restyles chords then separates overlapping symbols", async () => {
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
-  assert.match(src, /separateChordSymbols\(svg\)/);
   assert.match(src, /layoutCueLabels\(svg\)/);
   assert.match(src, /MUSIC_FONT_FAMILY/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
   assert.match(src, /clearChordInkGap\(svg\)/);
-  assert.match(src, /clearCuesFromTupletNums\(svg\)/);
+  assert.match(src, /cueJustBelowStaff\(/);
+  assert.match(src, /separateChordSymbols\(svg, layout\)/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);
   assert.match(src, /applyFixedStaffSize\(/);
