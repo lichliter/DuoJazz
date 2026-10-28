@@ -19,10 +19,11 @@ import {
   highlightActiveChords,
   fiveLineStaffHeightCss,
   markFirstMelodyNote,
+  padViewBoxToInk,
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=118";
+} from "./engrave.js?v=119";
 import {
   PREFS_KEY,
   MODULE,
@@ -86,7 +87,7 @@ import {
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
   keyOrderPreview,
-} from "./session.js?v=118";
+} from "./session.js?v=119";
 import {
   tuneById,
   licksInTune,
@@ -98,7 +99,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=118";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=119";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -109,7 +110,7 @@ import {
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js?v=118";
+} from "./rapid.js?v=119";
 import {
   emptyMastery,
   displayMedal,
@@ -123,7 +124,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=118";
+import { PitchMonitor, micCopy } from "./pitch.js?v=119";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -132,7 +133,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=118";
+} from "./take-dump.js?v=119";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -1525,6 +1526,7 @@ function fitNotationInView() {
   if (next > 0 && next < box.width - 1) {
     svg.style.setProperty("width", `${Math.round(next)}px`, "important");
   }
+  padViewBoxToInk(svg);
 }
 
 function renderNotation() {

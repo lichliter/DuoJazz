@@ -796,6 +796,12 @@ export async function engraveMei(target, mei, options = {}) {
     clearChordInkGap(svg);
     layoutCueLabels(svg);
     applyFixedStaffSize(target, svg, layout);
+    // The width lock changes the scale. Measure after that, then once more
+    // after the new viewBox has been laid out, so a HERE under the last system
+    // is inside the page rather than clipped by it.
+    padViewBoxToInk(svg);
+    for (const el of svg.querySelectorAll(".dir.cue, .harm, .system")) el.getBoundingClientRect();
+    padViewBoxToInk(svg);
   }
   return {
     svg,
@@ -1003,44 +1009,90 @@ function translateSvg(el, dx, dy) {
   el.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
 }
 
-function firstLickHead(measure) {
+function firstLickNote(measure) {
   for (const note of measure?.querySelectorAll?.(".note") ?? []) {
     const cls = note.getAttribute("class") || "";
     if (/\bcue\b/.test(cls) || isSlashHead(note)) continue;
-    return note.querySelector(".notehead") ?? note;
+    return note;
   }
   return null;
 }
 
+function firstLickHead(measure) {
+  const note = firstLickNote(measure);
+  return note?.querySelector(".notehead") ?? note;
+}
+
+/** Lowest ink at or below the staff that shares the cue's horizontal span. */
+function inkFloor(measure, x0, x1, staffBottom) {
+  let floor = staffBottom;
+  const consider = (el) => {
+    if (!el || el.closest?.(".dir")) return;
+    let box;
+    try {
+      box = el.getBoundingClientRect();
+    } catch {
+      return;
+    }
+    if (!box || box.height < 0.4) return;
+    if (box.bottom < staffBottom - 0.5) return;
+    if (box.right < x0 - 1 || box.left > x1 + 1) return;
+    floor = Math.max(floor, box.bottom);
+  };
+  for (const note of measure?.querySelectorAll?.(".note") ?? []) {
+    const cls = note.getAttribute("class") || "";
+    if (/\bcue\b/.test(cls) || isSlashHead(note)) continue;
+    consider(note);
+  }
+  for (const el of measure?.querySelectorAll?.(".beam, .tuplet, .tupletNum, .flag, .accid, .ledgerLines") ?? []) {
+    consider(el);
+  }
+  return floor;
+}
+
+function nextHarmTop(svg, below) {
+  let top = null;
+  for (const harm of svg.querySelectorAll(".harm")) {
+    const box = screenBox(harmTextEl(harm));
+    if (!box || box.top < below + 12) continue;
+    top = top == null ? box.top : Math.min(top, box.top);
+  }
+  return top;
+}
+
 /**
- * Screen-pixel move that parks a cue just under the staff, centered on the
- * first lick note. `noteBottom` lets a note that already hangs below the
- * staff keep the word clear of that notehead. The result stays inside
- * `maxBottom` so the last system cannot clip the word.
+ * Screen-pixel move that parks a cue below the lick ink, centered on the
+ * first note. `inkBottom` / `noteBottom` are the lowest ink that shares the
+ * word's horizontal span (beam, tuplet numeral, stem). The word stays below
+ * that ink instead of climbing back into it when the next system is close.
  */
 export function cueJustBelowStaff(cue, staffBottom, noteCenterX, limits = {}) {
   const gap = Number.isFinite(limits.gap) ? limits.gap : 6;
   const noteBottom = Number.isFinite(limits.noteBottom) ? limits.noteBottom : staffBottom;
-  const floor = Math.max(staffBottom, noteBottom);
-  let top = floor + gap;
-  if (Number.isFinite(limits.maxBottom) && top + cue.height > limits.maxBottom) {
-    top = Math.max(staffBottom + 2, limits.maxBottom - cue.height);
-  }
+  const inkBottom = Number.isFinite(limits.inkBottom) ? limits.inkBottom : noteBottom;
+  const floor = Math.max(staffBottom, noteBottom, inkBottom);
+  const top = floor + gap;
   let left = noteCenterX - cue.width / 2;
   if (Number.isFinite(limits.minLeft)) left = Math.max(limits.minLeft, left);
   if (Number.isFinite(limits.maxRight)) left = Math.min(left, limits.maxRight - cue.width);
   return { dx: left - cue.left, dy: top - cue.top, top, left };
 }
 
-/** Park each HERE just below its staff, under the first lick note, inside the paper. */
+/** Grow a viewBox in user units so top or bottom overflow becomes padding. Width stays put, so the staff scale does not change. */
+export function expandedViewBox(viewBox, { top = 0, bottom = 0 } = {}) {
+  const growTop = top > 0 ? top : 0;
+  const growBottom = bottom > 0 ? bottom : 0;
+  return {
+    x: viewBox.x,
+    y: viewBox.y - growTop,
+    width: viewBox.width,
+    height: viewBox.height + growTop + growBottom,
+  };
+}
+
+/** Park each HERE below the first lick note's beam, stems, and tuplet numeral. */
 export function layoutCueLabels(svg) {
   if (!svg?.querySelectorAll) return;
-  const svgBox = screenBox(svg);
-  const staffBottoms = [];
-  for (const staff of svg.querySelectorAll(".staff")) {
-    const lines = staffLineScreenCenters(staff);
-    if (lines.length >= 2) staffBottoms.push(lines[lines.length - 1]);
-  }
   for (const cue of svg.querySelectorAll(".dir.cue")) {
     const measure = cue.closest(".measure");
     const lines = staffLineScreenCenters(measure?.querySelector(".staff"));
@@ -1057,24 +1109,71 @@ export function layoutCueLabels(svg) {
       ? headBox.left + headBox.width / 2
       : cueBox.left + cueBox.width / 2;
     const measureBox = screenBox(measure);
-    const nextStaff = staffBottoms
-      .map((bottom) => bottom - staffH)
-      .filter((top) => top > staffBottom + staffH * 0.45)
-      .sort((a, b) => a - b)[0];
-    const maxBottom = Math.min(
-      svgBox ? svgBox.bottom - 1 : Infinity,
-      Number.isFinite(nextStaff) ? nextStaff - 2 : Infinity,
-    );
+    const minLeft = measureBox ? measureBox.left + 2 : undefined;
+    const maxRight = measureBox ? measureBox.right - 2 : undefined;
+    let left = noteCenter - cueBox.width / 2;
+    if (Number.isFinite(minLeft)) left = Math.max(minLeft, left);
+    if (Number.isFinite(maxRight)) left = Math.min(left, maxRight - cueBox.width);
+    const inkBottom = inkFloor(measure, left, left + cueBox.width, staffBottom);
+    const gap = Math.max(6, staffH * 0.1);
     const move = cueJustBelowStaff(cueBox, staffBottom, noteCenter, {
-      gap: Math.max(4, staffH * 0.08),
+      gap,
       noteBottom: headBox?.bottom,
-      minLeft: measureBox ? measureBox.left + 2 : undefined,
-      maxRight: measureBox ? measureBox.right - 2 : undefined,
-      maxBottom: Number.isFinite(maxBottom) ? maxBottom : undefined,
+      inkBottom,
+      minLeft,
+      maxRight,
     });
+    const ceiling = nextHarmTop(svg, staffBottom);
+    if (ceiling != null && move.top + cueBox.height + gap > ceiling) {
+      const drop = move.top + cueBox.height + gap - ceiling;
+      for (const system of svg.querySelectorAll(".system")) {
+        const box = screenBox(system);
+        if (!box || box.top < staffBottom) continue;
+        const shift = screenDeltaToLocal(system, 0, drop);
+        if (shift) translateSvg(system, shift.dx, shift.dy);
+      }
+    }
     const delta = screenDeltaToLocal(cue, move.dx, move.dy);
     if (delta) translateSvg(cue, delta.dx, delta.dy);
   }
+}
+
+/**
+ * Pull chord symbols and cue words that hang outside the page back inside it.
+ * Extra room is added as viewBox padding. The width is unchanged, so the staff
+ * and chord size stay the same when nothing was clipped.
+ */
+function inkUserBounds(svg) {
+  try {
+    const box = svg.getBBox();
+    if (box && box.width > 0 && box.height > 0) return box;
+  } catch {
+    // SVG not laid out yet.
+  }
+  return null;
+}
+
+export function padViewBoxToInk(svg, { topPad = 8, bottomPad = 8 } = {}) {
+  const vb = svg?.viewBox?.baseVal;
+  const rect = svg?.getBoundingClientRect?.();
+  if (!vb?.width || !(rect?.width > 0)) return;
+  const userPerPx = vb.width / rect.width;
+  const ink = inkUserBounds(svg);
+  let overflowTop = ink ? vb.y - ink.y : 0;
+  let overflowBottom = ink ? (ink.y + ink.height) - (vb.y + vb.height) : 0;
+  for (const el of svg.querySelectorAll(".harm, .dir.cue")) {
+    const box = screenBox(el.querySelector("text") ?? el);
+    if (!box) continue;
+    overflowTop = Math.max(overflowTop, (rect.top - box.top) * userPerPx);
+    overflowBottom = Math.max(overflowBottom, (box.bottom - rect.bottom) * userPerPx);
+  }
+  const next = expandedViewBox(vb, {
+    top: overflowTop > 0.5 ? overflowTop + topPad * userPerPx : 0,
+    bottom: overflowBottom > 0.5 ? overflowBottom + bottomPad * userPerPx : 0,
+  });
+  if (next.y === vb.y && next.height === vb.height) return;
+  const n = (value) => Math.round(value * 100) / 100;
+  svg.setAttribute("viewBox", `${n(next.x)} ${n(next.y)} ${n(next.width)} ${n(next.height)}`);
 }
 
 export function capCueText(text, barWidth, fontPx) {
