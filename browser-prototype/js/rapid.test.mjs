@@ -202,11 +202,17 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.match(app, /debugTextForKey\(lastDebug, currentKeyId\(session\), fresh\)/);
   assert.match(app, /classList\.remove\("is-stop"\)/);
   assert.match(styles, /\.play-round\[data-action="pause"\] \.play-round-icon \{[^}]*linear-gradient\(currentColor, currentColor\) left center/);
+  assert.match(styles, /\.play-round\[data-action="pause"\] \.play-round-icon \{[^}]*border:\s*0/);
   assert.doesNotMatch(styles, /data-action="pause"\] \.play-round-icon,\s*\n\.play-round\[data-action="stop"\]/);
   assert.match(styles, /\.play-round-icon \{[^}]*border-radius:\s*50%/);
   assert.match(styles, /\.play-round-icon \{[^}]*background:\s*var\(--destructive\)/);
   assert.match(styles, /\.play-round-icon \{[^}]*width:\s*calc\(var\(--play-size\) \* 0\.34\)/);
+  assert.match(styles, /\.play-round-icon \{[^}]*border:\s*calc\(var\(--play-size\) \* 0\.05\) solid currentColor/);
   assert.doesNotMatch(styles, /border-width:\s*calc\(var\(--play-size\) \* 0\.14\)/);
+  assert.match(styles, /\.session-screen #card-badge \{[^}]*position:\s*absolute/);
+  assert.match(styles, /\.session-screen #card-badge \{[^}]*clip-path:\s*inset\(50%\)/);
+  assert.doesNotMatch(styles, /\.session-screen #card-badge \{[^}]*display:\s*none/);
+  assert.match(index, /id="card-badge">Play</);
   assert.match(index, /id="primary"[^>]*aria-label="Record"/);
   const hear = index.slice(index.indexOf('id="hear-it"'), index.indexOf('id="session-octave"'));
   assert.match(hear, /aria-label="Hear it"/);
