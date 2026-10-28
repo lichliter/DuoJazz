@@ -1061,10 +1061,11 @@ input[type="checkbox"] {
 }
 
 .session-screen {
-  gap: 0.28rem;
+  --play-goal: 200px;
+  gap: 0;
   overflow: hidden;
   min-height: 0;
-  padding-bottom: calc(3.4rem + env(safe-area-inset-bottom));
+  padding-bottom: 0;
 }
 
 .session-top {
@@ -1176,19 +1177,19 @@ input[type="checkbox"] {
 
 .session-octave {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  justify-content: flex-end;
+  gap: 8px;
   flex: 0 0 auto;
 }
 
 .session-octave .octave-btn {
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  min-height: 56px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -1198,8 +1199,8 @@ input[type="checkbox"] {
 }
 
 .octave-glyph {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   display: block;
   fill: currentColor;
 }
@@ -1212,21 +1213,22 @@ input[type="checkbox"] {
 .session-transport {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem 0.85rem;
-  flex: 0 0 auto;
+  gap: 0;
+  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
-  padding: 0.15rem 0 0;
+  min-height: 0;
+  padding: 10px 0 12px;
 }
 
 .play-round {
-  width: 96px;
-  height: 96px;
-  min-width: 96px;
-  min-height: 96px;
+  width: var(--play-size);
+  height: var(--play-size);
+  min-width: 0;
+  min-height: 0;
   border: 0;
   border-radius: 50%;
   background: var(--selected);
@@ -1246,15 +1248,15 @@ input[type="checkbox"] {
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 14px 0 14px 24px;
+  border-width: calc(var(--play-size) * 0.14) 0 calc(var(--play-size) * 0.14) calc(var(--play-size) * 0.24);
   border-color: transparent transparent transparent currentColor;
-  margin-left: 5px;
+  margin-left: calc(var(--play-size) * 0.05);
 }
 
 .play-round.is-stop .play-round-icon,
 .play-round[data-action="stop"] .play-round-icon {
-  width: 22px;
-  height: 22px;
+  width: 26%;
+  height: 26%;
   border: 0;
   margin: 0;
   background: currentColor;
@@ -1262,14 +1264,14 @@ input[type="checkbox"] {
 }
 
 .play-round[data-action="pause"] .play-round-icon {
-  width: 18px;
-  height: 20px;
+  width: 26%;
+  height: 30%;
   margin: 0;
   border: 0;
   border-radius: 0;
   background:
-    linear-gradient(currentColor, currentColor) left center / 6px 100% no-repeat,
-    linear-gradient(currentColor, currentColor) right center / 6px 100% no-repeat;
+    linear-gradient(currentColor, currentColor) left center / 32% 100% no-repeat,
+    linear-gradient(currentColor, currentColor) right center / 32% 100% no-repeat;
 }
 
 .play-round-label {

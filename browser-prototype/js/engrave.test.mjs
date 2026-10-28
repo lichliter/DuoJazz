@@ -102,7 +102,11 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /id="home-summary"/);
   assert.match(index, /id="home-mode"/);
   assert.match(index, /id="card-badge">Play</);
-  assert.match(index, /class="session-transport"/);
+  assert.match(index, /class="session-transport play-well"/);
+  assert.match(index, /class="lick-tools"/);
+  assert.match(index, /class="session-footer"/);
+  assert.match(index, /id="key-cycle"[^>]*aria-label="Key 1 of 12"/);
+  assert.match(index, /play-well/);
   assert.match(index, /id="continue-btn"[^>]*aria-label="Skip"/);
   assert.match(index, /id="continue-btn"[^>]*title="Skip"/);
   assert.match(index, /id="hear-it"[^>]*aria-label="Hear it"/);
@@ -193,7 +197,7 @@ test("tokens restore the warm palette and keep the iOS type scale", async () => 
   assert.match(hig, /\.app-tab-bar \{[\s\S]*?height:\s*calc\(49px \+ var\(--safe-bottom\)\)/);
   assert.match(hig, /@media \(min-width: 768px\)/);
   assert.match(hig, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
-  assert.match(hig, /margin-top:\s*var\(--space-6\)/);
+  assert.match(hig, /\.session-transport\s*\{[^}]*margin-top:\s*0/);
   assert.match(hig, /\.module-sheet-row/);
   assert.match(hig, /\.session-stage \{[\s\S]*?margin-block:\s*0/);
   assert.doesNotMatch(hig, /\.session-stage \{[\s\S]*?margin-block:\s*auto/);
@@ -278,8 +282,12 @@ test("accidentals stay in the same font run as the letters", async () => {
   assert.doesNotMatch(src, /margin-left/);
   assert.match(src, /tspan\.textContent = compact/);
   assert.match(hig, /\.session-transport\s*\{[^}]*display:\s*flex/);
-  assert.match(hig, /\.session-transport\s*\{[^}]*flex-wrap:\s*wrap/);
   assert.match(hig, /\.session-transport\s*\{[^}]*justify-content:\s*center/);
+  assert.match(hig, /\.lick-tools\s*\{[^}]*justify-content:\s*flex-end/);
+  assert.match(hig, /\.session-footer\s*\{[^}]*padding:[^;]*var\(--safe-bottom\)/);
+  assert.match(hig, /\.key-seg\[data-state="passed"\]\s*\{[^}]*background:\s*var\(--tint-solid\)/);
+  assert.match(hig, /\.key-seg\[data-state="skipped"\]\s*\{[^}]*border:/);
+  assert.match(hig, /\.key-seg\[data-state="current"\]\s*\{[^}]*background:\s*var\(--tint\)/);
   assert.doesNotMatch(hig, /grid-area:\s*links/);
   assert.match(hig, /\.transport-icon\s*\{[^}]*min-width:\s*44px/);
   assert.match(hig, /\.transport-icon\s*\{[^}]*min-height:\s*44px/);
@@ -288,9 +296,10 @@ test("accidentals stay in the same font run as the letters", async () => {
   assert.match(app, /fillMusicLabel\(\s*els\.sessionKey/);
   assert.doesNotMatch(app, /fillMusicLabel\(els\.chartMeta/);
   assert.match(app, /fillMusicLabel\(btn, option\.label\)/);
-  assert.match(app, /textContent = "Octave"/);
+  assert.doesNotMatch(app, /textContent = "Octave"/);
   assert.match(app, /setAttribute\("aria-label", "Octave down"\)/);
   assert.match(app, /setAttribute\("aria-label", "Octave up"\)/);
+  assert.match(app, /renderKeyCycle\(/);
   assert.match(app, /sessionModeHeading\(session\)/);
   assert.doesNotMatch(app, /cardBadge\.textContent = "Play"/);
   assert.match(app, /renderHomeMode\(/);
