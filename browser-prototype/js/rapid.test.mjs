@@ -215,6 +215,7 @@ test("octave up is the first control, the label is between, and octave down is l
   assert.match(styles, /\.session-octave \.chip \{[^}]*min-width:\s*var\(--tap\)/);
   assert.match(styles, /\.session-octave \.chip \{[^}]*min-height:\s*var\(--tap\)/);
   assert.match(await readFile(new URL("../css/tokens.css", import.meta.url), "utf8"), /--tap:\s*44px/);
+  assert.match(hig, /@media \(prefers-reduced-motion: reduce\) \{\s*\.celebrate-check \{\s*animation: celebrate-fade[^;]*!important;/);
 });
 
 test("mastery is recorded only for a Practice pass", () => {
