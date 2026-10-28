@@ -467,6 +467,35 @@ export function keyOrdinal(session) {
   };
 }
 
+/** Remember a pass or skip on the current key of this cycle. */
+export function markKeyOutcome(session, outcome) {
+  if (!session) return session;
+  const total = session.keyQueue?.length ?? 0;
+  const marks = Array.isArray(session.keyMarks) ? session.keyMarks.slice(0, total) : [];
+  while (marks.length < total) marks.push(null);
+  const status = outcome === "skipped" ? "skipped" : "passed";
+  if (session.keyIndex >= 0 && session.keyIndex < total) marks[session.keyIndex] = status;
+  return { ...session, keyMarks: marks };
+}
+
+/**
+ * One state per key in the current cycle.
+ * The key on screen is current. Earlier keys are passed or skipped.
+ * The rest are upcoming. A new lap starts empty.
+ */
+export function keyCycleStates(session) {
+  if (!session) return [];
+  const total = session.keyQueue?.length ?? 0;
+  const marks = Array.isArray(session.keyMarks) ? session.keyMarks : [];
+  const onSession = session.screen === "session";
+  return Array.from({ length: total }, (_, index) => {
+    if (onSession && index === session.keyIndex) return "current";
+    const mark = marks[index];
+    if (mark === "passed" || mark === "skipped") return mark;
+    return "upcoming";
+  });
+}
+
 export function createSession({
   lessonId = "learn-lick",
   keyMode = "one",
@@ -502,6 +531,7 @@ export function createSession({
     lap: 1,
     listenStage: "hear",
     cardResults: [],
+    keyMarks: [],
     tempo,
     melodyRegister,
     instrumentId: instrument.id,
@@ -708,13 +738,14 @@ export function handlePlaybackEnded(session, result = {}, rng = Math.random) {
  */
 export function skipCard(session) {
   if (!session) return session;
-  const cardId = currentCard(session);
+  const marked = markKeyOutcome(session, "skipped");
+  const cardId = currentCard(marked);
   const recorded = {
-    ...session,
+    ...marked,
     demo: false,
     cardResults: [
-      ...session.cardResults.filter((row) => row.cardId !== cardId),
-      { cardId, ...skipResult(session) },
+      ...marked.cardResults.filter((row) => row.cardId !== cardId),
+      { cardId, ...skipResult(marked) },
     ],
   };
   const moreKeys = session.keyMode !== "one" && session.keyIndex + 1 < session.keyQueue.length;
@@ -925,6 +956,7 @@ export function advanceKey(session, rng = Math.random) {
     cardIndex: 0,
     listenStage: "hear",
     cardResults: [],
+    keyMarks: [],
   };
 }
 

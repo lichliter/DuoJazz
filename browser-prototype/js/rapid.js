@@ -5,7 +5,7 @@
  * except during the celebration, where it still advances and does not listen.
  */
 
-import { advanceKey, currentCard, currentKeyId, skipCard, skipResult } from "./session.js";
+import { advanceKey, currentCard, currentKeyId, markKeyOutcome, skipCard, skipResult } from "./session.js";
 
 export const CELEBRATE_MS = 2000;
 export const READ_MS = 500;
@@ -38,20 +38,21 @@ function passedRow(session) {
  */
 export function afterPass(session, { auto = true } = {}) {
   if (!session) return { session, autoStart: false, phase: "idle", keyId: null };
-  if (isLastRapidKey(session)) {
+  const marked = markKeyOutcome(session, "passed");
+  if (isLastRapidKey(marked)) {
     return {
       session: {
-        ...session,
+        ...marked,
         screen: "wrapup",
         demo: false,
-        cardResults: [passedRow(session)],
+        cardResults: [passedRow(marked)],
       },
       autoStart: false,
       phase: "wrapup",
-      keyId: currentKeyId(session),
+      keyId: currentKeyId(marked),
     };
   }
-  const next = advanceKey({ ...session, demo: false, screen: "session" });
+  const next = advanceKey({ ...marked, demo: false, screen: "session" });
   return {
     session: next,
     autoStart: Boolean(auto),
