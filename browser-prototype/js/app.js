@@ -20,7 +20,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=111";
+} from "./engrave.js?v=112";
 import {
   PREFS_KEY,
   MODULE,
@@ -83,7 +83,8 @@ import {
   sessionModeHeading,
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
-} from "./session.js?v=111";
+  keyOrderPreview,
+} from "./session.js?v=112";
 import {
   tuneById,
   licksInTune,
@@ -95,17 +96,18 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=111";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=112";
 import {
-  CHECK_MS,
+  CELEBRATE_MS,
+  READ_MS,
   RETRY_MS,
   afterFail,
-  afterPass,
   isLastRapidKey,
+  passSchedule,
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js?v=111";
+} from "./rapid.js?v=112";
 import {
   emptyMastery,
   displayMedal,
@@ -119,7 +121,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=111";
+import { PitchMonitor, micCopy } from "./pitch.js?v=112";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -128,7 +130,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=111";
+} from "./take-dump.js?v=112";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -205,6 +207,7 @@ const els = {
   sessionTitle: document.getElementById("session-title"),
   primaryCount: document.getElementById("primary-count"),
   keyModes: document.getElementById("key-modes"),
+  keyOrderPreview: document.getElementById("key-order-preview"),
   setupKeys: document.getElementById("setup-keys"),
   cardSets: document.getElementById("card-sets"),
   sessionOctave: document.getElementById("session-octave"),
@@ -246,6 +249,8 @@ const els = {
   debugAttempt: document.getElementById("debug-attempt"),
   saveTake: document.getElementById("save-take"),
   autoToggle: document.getElementById("auto-toggle"),
+  celebrate: document.getElementById("celebrate"),
+  celebrateKey: document.getElementById("celebrate-key"),
   sessionMic: document.getElementById("session-mic"),
   medalMark: document.getElementById("medal-mark"),
   medalNote: document.getElementById("medal-note"),
@@ -293,6 +298,7 @@ function halt() {
   samplesLoading = false;
   clearRapidTimers();
   rapidPhase = "idle";
+  if (els.celebrate) els.celebrate.hidden = true;
   if (debugOn && takeLog && !takeLog.recordSealed && attempt && takeLog.frames.length) {
     sealTake(takeLog, attempt);
   } else {
@@ -329,7 +335,7 @@ function releaseMic(reason) {
 
 function clearGradeLine() {
   liveGrade = null;
-  if (cue || sessionShot === "check" || sessionShot === "retry") return;
+  if (cue || sessionShot === "retry") return;
   if (!els.gradeLine) return;
   els.gradeLine.hidden = true;
   delete els.gradeLine.dataset.kind;
@@ -348,15 +354,16 @@ function shownKeyForSession() {
 }
 
 function visualPhase() {
-  if (sessionShot === "listening" || sessionShot === "check" || sessionShot === "retry" || sessionShot === "idle") {
-    return sessionShot === "idle" ? "idle" : sessionShot;
+  if (sessionShot === "check") return "celebrate";
+  if (sessionShot === "listening" || sessionShot === "retry" || sessionShot === "idle") {
+    return sessionShot;
   }
   return rapidPhase;
 }
 
 function currentCue() {
-  if (sessionShot === "check") return { kind: "check" };
   if (sessionShot === "retry") return { kind: "retry", hint: "3rd note" };
+  if (visualPhase() === "celebrate") return null;
   return cue;
 }
 
@@ -527,20 +534,16 @@ function finishRapid(generation, result) {
   const auto = prefs.auto !== false;
   const token = startGen;
   if (passed) {
-    rapidPhase = "check";
-    cue = { kind: "check" };
+    rapidPhase = "celebrate";
+    cue = null;
+    const plan = passSchedule(session, { auto });
+    renderCelebrate();
     renderCue();
     renderPrimary();
+    const wait = plan.steps[0]?.ms ?? CELEBRATE_MS;
     feedbackTimer = window.setTimeout(() => {
-      if (token !== startGen) return;
-      finishing = false;
-      cue = null;
-      rapidPhase = "idle";
-      if (!session) return;
-      const next = afterPass(session, { auto });
-      applySession(next.session, { autoStart: false });
-      if (next.autoStart && next.session?.screen === "session") beginListening();
-    }, CHECK_MS);
+      finishCelebration(token, { arm: auto });
+    }, wait);
     return;
   }
   const failed = afterFail(session, { auto, hint: result.hint ?? "1st note" });
@@ -572,6 +575,7 @@ async function beginListening() {
   cue = null;
   audioError = "";
   rapidPhase = "listening";
+  renderCelebrate();
   attempt = createFollower(expectedNotesFor(session).map((note) => note.midi), performance.now());
   monitor.holdSignal = true;
   monitor.now = () => performance.now();
@@ -619,6 +623,47 @@ async function beginListening() {
     renderMeter();
     renderPrimary();
   }
+}
+
+function finishCelebration(generation, { arm = false, pause = false } = {}) {
+  if (rapidPhase !== "celebrate" || generation !== startGen) return;
+  const plan = passSchedule(session, {
+    auto: arm && prefs.auto !== false,
+    skip: !pause,
+    pause,
+  });
+  rapidPhase = "settling";
+  if (feedbackTimer) window.clearTimeout(feedbackTimer);
+  feedbackTimer = null;
+  if (pause) releaseMic("pause");
+  finishing = false;
+  cue = null;
+  const reveal = plan.steps.find((step) => step.phase === "reveal");
+  const listen = plan.autoStart && plan.session?.screen === "session";
+  rapidPhase = listen ? "reveal" : "idle";
+  if (plan.session) applySession(plan.session, { autoStart: false });
+  else renderCelebrate();
+  if (!listen) return;
+  const delay = reveal?.ms ?? READ_MS;
+  const token = startGen;
+  if (delay <= 0) {
+    beginListening();
+    return;
+  }
+  feedbackTimer = window.setTimeout(() => {
+    if (token !== startGen || rapidPhase !== "reveal") return;
+    beginListening();
+  }, delay);
+}
+
+function renderCelebrate() {
+  if (!els.celebrate) return;
+  const on = Boolean(session && session.screen === "session" && visualPhase() === "celebrate");
+  els.celebrate.hidden = !on;
+  if (!on) return;
+  const keyName = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
+  if (els.celebrateKey) fillMusicLabel(els.celebrateKey, keyName);
+  els.celebrate.setAttribute("aria-label", keyName || "Passed");
 }
 
 function resetPitchTake() {
@@ -892,6 +937,7 @@ function runPrimary() {
     cue = null;
     rapidPhase = "idle";
     renderCue();
+    renderCelebrate();
     renderPrimary();
     return;
   }
@@ -901,7 +947,11 @@ function runPrimary() {
     else if (action.id === "resume") start(true);
     return;
   }
-  if (rapidPhase === "check" || rapidPhase === "settling") return;
+  if (rapidPhase === "celebrate") {
+    finishCelebration(startGen, { arm: false, pause: true });
+    return;
+  }
+  if (rapidPhase === "settling") return;
   if (rapidPhase === "listening") {
     sessionShot = null;
     releaseMic("pause");
@@ -1218,6 +1268,12 @@ function renderSettings() {
     persist();
     renderSettings();
   });
+  if (els.keyOrderPreview) {
+    fillMusicLabel(
+      els.keyOrderPreview,
+      keyOrderPreview(prefs.keyMode, prefs.startKeyId, prefs.displayMode),
+    );
+  }
   if (!els.setupKeys) return;
   els.setupKeys.replaceChildren(
     ...TWELVE_KEY_IDS.map((id) => {
@@ -1303,18 +1359,20 @@ function renderSessionOctave() {
   down.textContent = "−";
   down.setAttribute("aria-label", "Octave down");
   down.disabled = current <= -1;
+  down.dataset.testid = "octave-down";
   down.addEventListener("click", () => applyMelodyOctave(current - 1));
   const up = document.createElement("button");
   up.type = "button";
   up.className = "chip";
   up.textContent = "+";
   up.setAttribute("aria-label", "Octave up");
+  up.dataset.testid = "octave-up";
   up.disabled = current >= 1;
   up.addEventListener("click", () => applyMelodyOctave(current + 1));
   const label = document.createElement("span");
   label.className = "octave-label";
   label.textContent = "Octave";
-  els.sessionOctave.replaceChildren(down, label, up);
+  els.sessionOctave.replaceChildren(up, label, down);
 }
 
 function applyMelodyOctave(register) {
@@ -1859,8 +1917,11 @@ function render(snap = transport.snapshot()) {
     renderMic();
     if (!liveGrade && !currentCue()) restoreStoredGrade();
     renderCue();
+    renderCelebrate();
     renderDebug();
     renderAuto();
+  } else if (els.celebrate) {
+    els.celebrate.hidden = true;
   }
   if (screen === "wrapup") renderWrapup();
 }
@@ -1975,7 +2036,7 @@ transport.onUpdate = (snap) => {
 function showGrade(result) {
   liveGrade = result ?? null;
   fillListenState(result?.graded ? result : null);
-  if (cue || sessionShot === "check" || sessionShot === "retry") return;
+  if (cue || sessionShot === "retry" || visualPhase() === "celebrate") return;
   if (!els.gradeLine) return;
   const main = document.getElementById("grade-main");
   const hint = document.getElementById("grade-hint");
@@ -2046,6 +2107,18 @@ els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
 });
 els.primary.addEventListener("click", runPrimary);
+els.celebrate?.addEventListener("click", () => {
+  if (rapidPhase === "celebrate") {
+    finishCelebration(startGen, { arm: prefs.auto !== false });
+    return;
+  }
+  if (sessionShot === "check") {
+    sessionShot = null;
+    cue = null;
+    renderCelebrate();
+    renderPrimary();
+  }
+});
 els.saveTake?.addEventListener("click", () => {
   if (!lastTake || !els.saveTake) return;
   const button = els.saveTake;

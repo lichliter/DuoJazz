@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
-  CHECK_MS,
+  CELEBRATE_MS,
+  READ_MS,
   RETRY_MS,
   afterFail,
   afterPass,
+  passSchedule,
   pausePosition,
   rapidFireButton,
   rapidMicStep,
@@ -85,8 +87,72 @@ test("Play toggles to Pause only while listening", () => {
   assert.equal(rapidFireButton({}).id, "play");
   assert.equal(rapidFireButton({ listening: true }).label, "Pause");
   assert.equal(rapidFireButton({ listening: true }).id, "pause");
-  assert.equal(CHECK_MS, 500);
+  assert.equal(CELEBRATE_MS, 2000);
+  assert.equal(READ_MS, 500);
   assert.ok(RETRY_MS >= 500);
+});
+
+test("a pass celebrates, shows the next lick, then listens when Auto is on", () => {
+  const plan = passSchedule(cycle(), { auto: true });
+  assert.deepEqual(plan.steps.map((step) => step.phase), ["celebrate", "reveal", "listening"]);
+  assert.equal(plan.steps[0].ms, 2000);
+  assert.equal(plan.steps[0].keyId, "G");
+  assert.equal(plan.steps[1].ms, 500);
+  assert.equal(plan.steps[1].keyId, "C");
+  assert.equal(plan.steps[1].screen, "session");
+  assert.equal(plan.steps[2].autoStart, true);
+  assert.equal(plan.autoStart, true);
+  assert.equal(plan.session.screen, "session");
+  assert.equal(currentKeyId(plan.session), "C");
+});
+
+test("Auto off shows the next lick and waits", () => {
+  const plan = passSchedule(cycle(), { auto: false });
+  assert.equal(plan.steps[0].ms, 2000);
+  assert.equal(plan.steps[1].phase, "reveal");
+  assert.equal(plan.steps[1].ms, 0);
+  assert.equal(plan.steps[1].keyId, "C");
+  assert.equal(plan.steps[2].phase, "idle");
+  assert.equal(plan.steps[2].autoStart, false);
+  assert.equal(plan.autoStart, false);
+});
+
+test("tapping the celebration skips it and still leaves a beat before listening", () => {
+  const plan = passSchedule(cycle(), { auto: true, skip: true });
+  assert.equal(plan.steps[0].phase, "celebrate");
+  assert.equal(plan.steps[0].ms, 0);
+  assert.equal(plan.steps[1].phase, "reveal");
+  assert.equal(plan.steps[1].ms, 500);
+  assert.equal(plan.steps[2].phase, "listening");
+});
+
+test("pause during the celebration advances and does not arm listening", () => {
+  const plan = passSchedule(cycle(), { auto: true, pause: true });
+  assert.equal(plan.steps[0].ms, 0);
+  assert.equal(plan.steps[1].keyId, "C");
+  assert.equal(plan.steps[2].phase, "idle");
+  assert.equal(plan.autoStart, false);
+  assert.equal(plan.session.keyIndex, 1);
+});
+
+test("the last key reaches wrap-up after the celebration", () => {
+  const last = { ...cycle(), keyIndex: 11 };
+  const plan = passSchedule(last, { auto: true });
+  assert.equal(plan.steps[0].phase, "celebrate");
+  assert.equal(plan.steps[0].ms, CELEBRATE_MS);
+  assert.equal(plan.steps[0].keyId, "D");
+  assert.equal(plan.steps.at(-1).phase, "wrapup");
+  assert.equal(plan.steps.at(-1).ms, 0);
+  assert.equal(plan.session.screen, "wrapup");
+  assert.equal(plan.autoStart, false);
+  assert.equal(currentKeyId(plan.session), "D");
+});
+
+test("try again stays on the key with no celebration", () => {
+  const failed = afterFail(cycle(), { auto: true, hint: "2nd note" });
+  assert.equal(failed.phase, "listening");
+  assert.equal(failed.keyId, "G");
+  assert.equal(failed.autoStart, true);
 });
 
 test("the mic opens once and later attempts only reset the follower", () => {
@@ -124,6 +190,31 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.match(app, /classList\.remove\("is-stop"\)/);
   assert.match(styles, /\.play-round\[data-action="pause"\] \.play-round-icon \{[^}]*linear-gradient\(currentColor, currentColor\) left center/);
   assert.doesNotMatch(styles, /data-action="pause"\] \.play-round-icon,\s*\n\.play-round\[data-action="stop"\]/);
+  const pass = finish.slice(finish.indexOf("if (passed)"), finish.indexOf("const failed"));
+  assert.match(pass, /phase: "celebrate"|rapidPhase = "celebrate"/);
+  assert.match(pass, /CELEBRATE_MS/);
+  assert.doesNotMatch(pass, /beginListening\(/);
+  assert.match(app, /READ_MS/);
+  assert.match(app, /passSchedule\(/);
+  const fail = finish.slice(finish.indexOf("const failed"), finish.indexOf("finishing = false;\n}"));
+  assert.match(fail, /RETRY_MS/);
+  assert.doesNotMatch(fail, /celebrate/);
+});
+
+test("octave up is the first control, the label is between, and octave down is last", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const fn = app.slice(app.indexOf("function renderSessionOctave"), app.indexOf("function applyMelodyOctave"));
+  assert.match(fn, /replaceChildren\(up, label, down\)/);
+  assert.match(fn, /dataset\.testid = "octave-up"/);
+  assert.match(fn, /dataset\.testid = "octave-down"/);
+  assert.match(fn, /textContent = "Octave"/);
+  const octaveRule = hig.slice(hig.indexOf(".session-octave {"), hig.indexOf(".octave-label"));
+  assert.match(octaveRule, /flex-direction:\s*column/);
+  assert.match(styles, /\.session-octave \.chip \{[^}]*min-width:\s*var\(--tap\)/);
+  assert.match(styles, /\.session-octave \.chip \{[^}]*min-height:\s*var\(--tap\)/);
+  assert.match(await readFile(new URL("../css/tokens.css", import.meta.url), "utf8"), /--tap:\s*44px/);
 });
 
 test("mastery is recorded only for a Practice pass", () => {

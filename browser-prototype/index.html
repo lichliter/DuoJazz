@@ -13,12 +13,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=111">
-  <link rel="stylesheet" href="./css/styles.css?v=111">
-  <link rel="stylesheet" href="./css/hig.css?v=111">
+  <link rel="stylesheet" href="./css/tokens.css?v=112">
+  <link rel="stylesheet" href="./css/styles.css?v=112">
+  <link rel="stylesheet" href="./css/hig.css?v=112">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=111" defer></script>
-  <script type="module" src="./js/app.js?v=111"></script>
+  <script src="./js/verovio-bind.js?v=112" defer></script>
+  <script type="module" src="./js/app.js?v=112"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -95,6 +95,7 @@
           <section class="inset-group">
             <h2 class="group-label" id="key-mode-label">Keys</h2>
             <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
+            <p class="key-order-preview" id="key-order-preview" data-testid="key-order-preview"></p>
             <div class="group-row">
               <span id="start-key-label">Start key</span>
             </div>
@@ -183,6 +184,10 @@
             </div>
           </div>
         </div>
+        <button type="button" class="celebrate" id="celebrate" data-testid="celebrate" hidden>
+          <span class="celebrate-check" aria-hidden="true">✓</span>
+          <span class="celebrate-key" id="celebrate-key" data-testid="celebrate-key"></span>
+        </button>
       </section>
 
       <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
