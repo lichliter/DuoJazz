@@ -4,7 +4,8 @@
  * A confidently voiced wrong pitch, including the right pitch class in the
  * wrong octave, fails the take once it has been held for 120 ms. Shorter
  * transients (glides, grace notes, YIN octave flickers) are ignored, and the
- * previous expected note may keep ringing. Timing is not judged.
+ * previous expected note may keep ringing. A wrong pitch must stay within
+ * 50 cents of where it started, so scoops and slides into a note never fail. Timing is not judged.
  * A frame is voiced when YIN confidence is high and the level clears an
  * adaptive floor, so a quiet horn is not rejected by a fixed gate.
  * The same MIDI again needs a new attack: a short gap, or a dip
@@ -79,6 +80,7 @@ export function createFollower(expected, origin = null) {
     sawRelease: false,
     noise: [],
     wrongMs: 0,
+    wrongAnchor: null,
   };
 }
 
@@ -166,6 +168,7 @@ function confirm(state, match, frame) {
   const next = state.expected[state.index];
   state.sawRelease = false;
   state.wrongMs = 0;
+  state.wrongAnchor = null;
   if (Math.round(prev) === Math.round(next)) {
     state.armed = false;
     state.releaseAmp = finishedPeak * 0.5;
@@ -207,7 +210,15 @@ function isPreviousRing(state, hz) {
 function trackWrong(state, frame, prevVoiced) {
   const t = Number(frame.t);
   const amp = frame.amp ?? 0;
-  if (prevVoiced != null) {
+  const heard = midiFromHz(frame.hz);
+  const drifted = heard == null
+    || state.wrongAnchor == null
+    || Math.abs(heard - state.wrongAnchor) * 100 > FOLLOW_CENTS;
+  if (drifted) {
+    // A scoop or slide keeps moving, so only a steady wrong pitch counts.
+    state.wrongAnchor = heard;
+    state.wrongMs = 0;
+  } else if (prevVoiced != null) {
     const gap = t - prevVoiced;
     if (gap > HOLD_GAP_MS) state.wrongMs = 0;
     else if (gap > 0) state.wrongMs += gap;
@@ -225,6 +236,7 @@ function trackWrong(state, frame, prevVoiced) {
 function hearPrevious(state, frame) {
   const amp = frame.amp ?? 0;
   state.wrongMs = 0;
+  state.wrongAnchor = null;
   state.sustainMs = 0;
   state.started = true;
   state.lastVoicedT = frame.t;
@@ -272,6 +284,7 @@ export function stepFollower(state, frame) {
     if (!(state.sawRelease && amp > state.releaseAmp && match)) {
       if (!match && expectedMidi != null) return trackWrong(state, frame, prevVoiced);
       state.wrongMs = 0;
+      state.wrongAnchor = null;
       state.started = true;
       state.lastVoicedT = t;
       if (amp > state.peak) state.peak = amp;
@@ -280,6 +293,7 @@ export function stepFollower(state, frame) {
     state.armed = true;
     state.sustainMs = 0;
     state.wrongMs = 0;
+    state.wrongAnchor = null;
     state.peak = amp;
     state.started = true;
     state.lastVoicedT = t;
@@ -296,6 +310,7 @@ export function stepFollower(state, frame) {
   }
 
   state.wrongMs = 0;
+  state.wrongAnchor = null;
   if (prevVoiced != null) {
     const gap = t - prevVoiced;
     if (gap > HOLD_GAP_MS) state.sustainMs = 0;
