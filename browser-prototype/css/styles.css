@@ -1175,6 +1175,20 @@ input[type="checkbox"] {
   z-index: 1;
 }
 
+/* Session step stays in the heading outline for screen readers. */
+.session-screen #card-badge {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .session-octave {
   display: flex;
   flex-direction: row;
@@ -1247,7 +1261,7 @@ input[type="checkbox"] {
   width: calc(var(--play-size) * 0.34);
   height: calc(var(--play-size) * 0.34);
   margin: 0;
-  border: 0;
+  border: calc(var(--play-size) * 0.05) solid currentColor;
   border-radius: 50%;
   background: var(--destructive);
 }
