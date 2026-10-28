@@ -23,7 +23,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=121";
+} from "./engrave.js?v=122";
 import {
   PREFS_KEY,
   MODULE,
@@ -55,7 +55,6 @@ import {
   displayKeyName,
   persistLessonMelodyRegister,
   setMelodyRegister,
-  skipCard,
   sessionSlot,
   moduleRoadNodes,
   modulesSheetData,
@@ -87,7 +86,7 @@ import {
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
   keyOrderPreview,
-} from "./session.js?v=121";
+} from "./session.js?v=122";
 import {
   tuneById,
   licksInTune,
@@ -99,7 +98,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=121";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=122";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -110,7 +109,8 @@ import {
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js?v=121";
+  skipAhead,
+} from "./rapid.js?v=122";
 import {
   emptyMastery,
   displayMedal,
@@ -124,7 +124,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=121";
+import { PitchMonitor, micCopy } from "./pitch.js?v=122";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -133,7 +133,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=121";
+} from "./take-dump.js?v=122";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -247,7 +247,6 @@ const els = {
   primary: document.getElementById("primary"),
   continueBtn: document.getElementById("continue-btn"),
   showNotes: document.getElementById("show-notes"),
-  showNotesDot: document.getElementById("show-notes-dot"),
   instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
@@ -299,7 +298,7 @@ function clearRapidTimers() {
   feedbackTimer = null;
 }
 
-function halt() {
+function halt({ keepMic = false } = {}) {
   startGen += 1;
   finishing = false;
   samplesLoading = false;
@@ -312,10 +311,12 @@ function halt() {
     closeTakeRecorder(takeLog);
   }
   attempt = null;
-  monitor.holdSignal = false;
   monitor.onFrame = () => {};
   transport.stop();
-  monitor.stop();
+  if (!keepMic) {
+    monitor.holdSignal = false;
+    monitor.stop();
+  }
   playback.playing = false;
   playback.paused = false;
   playback.ended = false;
@@ -496,8 +497,9 @@ function renderDebug() {
 function renderAuto() {
   if (!els.autoToggle) return;
   const on = prefs.auto !== false;
-  els.autoToggle.setAttribute("aria-pressed", String(on));
-  els.autoToggle.textContent = "Auto";
+  els.autoToggle.setAttribute("role", "switch");
+  els.autoToggle.setAttribute("aria-checked", String(on));
+  els.autoToggle.setAttribute("aria-label", "Auto");
 }
 
 function recordRapidPass() {
@@ -670,12 +672,17 @@ function renderShowNotes() {
     && session.studyMode === "practice"
     && !session.demo,
   );
-  if (els.showNotesDot) els.showNotesDot.hidden = !practice;
   if (!els.showNotes) return;
   els.showNotes.hidden = !practice;
   if (!practice) return;
-  els.showNotes.textContent = notesRevealed ? "Hide notes" : "Show notes";
+  const label = notesRevealed ? "Hide notes" : "Show notes";
+  els.showNotes.setAttribute("aria-label", label);
+  els.showNotes.setAttribute("title", label);
   els.showNotes.setAttribute("aria-pressed", String(notesRevealed));
+  const open = els.showNotes.querySelector(".icon-eye");
+  const shut = els.showNotes.querySelector(".icon-eye-off");
+  if (open) open.hidden = notesRevealed;
+  if (shut) shut.hidden = !notesRevealed;
 }
 
 function renderCelebrate() {
@@ -1011,9 +1018,12 @@ function gradeCurrentCard() {
 
 function goContinue() {
   if (!session || session.screen !== "session") return;
-  const result = leaveOutcomeFromTake();
-  halt();
-  applySession(completeCard(session, result));
+  const plan = skipAhead(session, { auto: prefs.auto !== false });
+  cue = null;
+  liveGrade = null;
+  sessionShot = null;
+  halt({ keepMic: Boolean(plan.autoStart) });
+  applySession(plan.session, { autoStart: Boolean(plan.autoStart) });
 }
 
 function leaveOutcomeFromTake() {
@@ -1382,21 +1392,24 @@ function renderSetupLinks(lesson) {
   host.hidden = true;
 }
 
+const OCTAVE_PLUS = '<svg class="octave-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><rect x="4" y="10" width="16" height="4" rx="1.2"></rect><rect x="10" y="4" width="4" height="16" rx="1.2"></rect></svg>';
+const OCTAVE_MINUS = '<svg class="octave-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><rect x="4" y="10" width="16" height="4" rx="1.2"></rect></svg>';
+
 function renderSessionOctave() {
   if (!els.sessionOctave || !session) return;
   const current = session.melodyRegister;
   const down = document.createElement("button");
   down.type = "button";
-  down.className = "chip";
-  down.textContent = "−";
+  down.className = "octave-btn";
+  down.innerHTML = OCTAVE_MINUS;
   down.setAttribute("aria-label", "Octave down");
   down.disabled = current <= -1;
   down.dataset.testid = "octave-down";
   down.addEventListener("click", () => applyMelodyOctave(current - 1));
   const up = document.createElement("button");
   up.type = "button";
-  up.className = "chip";
-  up.textContent = "+";
+  up.className = "octave-btn";
+  up.innerHTML = OCTAVE_PLUS;
   up.setAttribute("aria-label", "Octave up");
   up.dataset.testid = "octave-up";
   up.disabled = current >= 1;
@@ -2052,6 +2065,7 @@ function applyDeepLink() {
       keyMode,
       startKeyId: params.get("key") || prefs.startKeyId,
       cardSet: params.get("cards") || prefs.cardSet,
+      studyMode: params.get("mode") === "practice" ? "practice" : "learn",
       tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       instrumentId: prefs.instrumentId,
@@ -2385,8 +2399,7 @@ window.__DUOJAZZ__ = {
   },
   skipCard() {
     if (!session) return null;
-    halt();
-    applySession(skipCard(session));
+    goContinue();
     return session;
   },
   goBack() {

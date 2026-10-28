@@ -5,7 +5,7 @@
  * except during the celebration, where it still advances and does not listen.
  */
 
-import { advanceKey, currentCard, currentKeyId } from "./session.js";
+import { advanceKey, currentCard, currentKeyId, skipCard, skipResult } from "./session.js";
 
 export const CELEBRATE_MS = 2000;
 export const READ_MS = 500;
@@ -111,6 +111,24 @@ export function afterFail(session, { auto = true, hint = "1st note" } = {}) {
     hint,
     keyId: session ? currentKeyId(session) : null,
     keyIndex: session?.keyIndex ?? 0,
+  };
+}
+
+/**
+ * Skip the current key with no result screen in between.
+ * Auto listens on the next key. Auto off leaves that key idle.
+ * The last key opens wrap-up. The result is always Skipped, never mastery.
+ */
+export function skipAhead(session, { auto = true } = {}) {
+  const result = session ? skipResult(session) : null;
+  const next = skipCard(session);
+  const onSession = next?.screen === "session";
+  const arm = Boolean(auto && onSession);
+  return {
+    session: next,
+    result,
+    autoStart: arm,
+    phase: next?.screen === "wrapup" ? "wrapup" : (arm ? "listening" : "idle"),
   };
 }
 
