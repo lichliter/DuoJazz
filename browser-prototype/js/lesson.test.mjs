@@ -19,6 +19,7 @@ import {
   isStandLandscape,
   isTightNotation,
   notationLayout,
+  notationCardWidth,
   notationCssWidth,
   baseStaffPx,
   nextEngravingWidth,
@@ -348,9 +349,11 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
   assert.equal(stand.naturalWidth, false);
   assert.equal(stand.staffsep, 96);
   assert.equal(stand.minStaffPx, PORTRAIT_STAFF_PX);
+  assert.equal(PORTRAIT_STAFF_PX, 59, "portrait staff is about 20% under the previous 74px");
   assert.ok(stand.minStaffPx >= 56, "portrait staff must stay readable at music-stand distance");
   assert.ok(stand.minStaffPx < 96, "portrait staff stays smaller than the old 21mm size");
   assert.ok(stand.chordCssPx >= 16, "portrait chords stay at least 16px");
+  assert.equal(stand.chordCssPx, 25);
   assert.equal(stand.chordCssPx, chordTargetCss(PORTRAIT_STAFF_PX));
   assert.ok(stand.fillRatio >= 0.7);
   const staffCss = estimatedStaffHeightCss(stand, 900);
@@ -536,6 +539,34 @@ test("Learn and Practice render the staff at the same size", () => {
   assert.equal(baseStaffPx({ staffWidth: 900, viewportWidth: 1024, viewportHeight: 1366 }), PORTRAIT_STAFF_PX);
   assert.equal(notationCssWidth(900, 420, 300), Math.floor(900 * 300 / 420));
   assert.equal(notationCssWidth(900, 280, 400), 900);
+  assert.equal(notationCardWidth({
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    svgWidth: 498,
+    padX: 16,
+    maxWidth: 900,
+  }), 514);
+  assert.equal(notationCardWidth({
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    svgWidth: 885,
+    padX: 15,
+    maxWidth: 900,
+  }), null);
+  assert.equal(notationCardWidth({
+    viewportWidth: 390,
+    viewportHeight: 844,
+    svgWidth: 300,
+    padX: 12,
+    maxWidth: 358,
+  }), null);
+  assert.equal(notationCardWidth({
+    viewportWidth: 1366,
+    viewportHeight: 1024,
+    svgWidth: 338,
+    padX: 12,
+    maxWidth: 672,
+  }), null);
 });
 
 test("chorus staff fit squeezes four-bar engraving to an 80px staff without extra systems", () => {
