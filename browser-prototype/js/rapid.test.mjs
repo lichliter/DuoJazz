@@ -14,7 +14,7 @@ import {
   shouldRecordMastery,
   skipAhead,
 } from "./rapid.js";
-import { createSession, currentKeyId, normalizePrefs } from "./session.js";
+import { createSession, currentKeyId, keyCycleStates, normalizePrefs, skipCard } from "./session.js";
 import { emptyMastery, isKeyMastered, lessonPassedKeys, recordLearnPass, recordQuizPass } from "./medals.js";
 
 function cycle() {
@@ -34,6 +34,17 @@ test("auto on advances after a pass and listens again", () => {
   assert.equal(next.session.screen, "session");
   assert.equal(currentKeyId(next.session), "C");
   assert.equal(next.session.keyIndex, 1);
+  assert.equal(next.session.keyMarks[0], "passed");
+  assert.deepEqual(keyCycleStates(next.session).slice(0, 3), ["passed", "current", "upcoming"]);
+  assert.equal(keyCycleStates(next.session).length, 12);
+});
+
+test("a pass then a skip marks both on the key cycle", () => {
+  const passed = afterPass(cycle(), { auto: false }).session;
+  const skipped = skipCard(passed);
+  assert.equal(currentKeyId(skipped), "F");
+  assert.deepEqual(keyCycleStates(skipped).slice(0, 4), ["passed", "skipped", "current", "upcoming"]);
+  assert.equal(keyCycleStates(skipped).length, 12);
 });
 
 test("auto off advances after a pass and waits for Play", () => {
@@ -202,28 +213,39 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.doesNotMatch(fail, /celebrate/);
 });
 
-test("octave up is the first control, the label is between, and octave down is last", async () => {
+test("octave down then octave up sit in the lick toolbar at 44px", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
-  const fn = app.slice(app.indexOf("function renderSessionOctave"), app.indexOf("function applyMelodyOctave"));
-  assert.match(fn, /replaceChildren\(up, label, down\)/);
-  assert.match(fn, /dataset\.testid = "octave-up"/);
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const fn = app.slice(app.indexOf("function renderSessionOctave"), app.indexOf("function renderKeyCycle"));
+  assert.match(fn, /replaceChildren\(down, up\)/);
   assert.match(fn, /dataset\.testid = "octave-down"/);
-  assert.match(fn, /textContent = "Octave"/);
+  assert.match(fn, /dataset\.testid = "octave-up"/);
+  assert.match(fn, /setAttribute\("aria-label", "Octave down"\)/);
+  assert.match(fn, /setAttribute\("aria-label", "Octave up"\)/);
   assert.match(fn, /className = "octave-btn"/);
+  assert.doesNotMatch(fn, /textContent = "Octave"/);
+  const tools = index.slice(index.indexOf('class="lick-tools"'), index.indexOf('class="chart-card"'));
+  assert.match(tools, /aria-label="Hear it"/);
+  const hearAt = tools.indexOf('id="hear-it"');
+  const octaveAt = tools.indexOf('id="session-octave"');
+  const eyeAt = tools.indexOf('id="show-notes"');
+  assert.ok(hearAt >= 0 && hearAt < octaveAt && octaveAt < eyeAt);
   const octaveRule = hig.slice(hig.indexOf(".session-octave {"), hig.indexOf(".octave-label"));
-  assert.match(octaveRule, /flex-direction:\s*column/);
-  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*width:\s*56px/);
-  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*height:\s*56px/);
-  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*min-width:\s*56px/);
-  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*min-height:\s*56px/);
+  assert.match(octaveRule, /flex-direction:\s*row/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*width:\s*44px/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*height:\s*44px/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*min-width:\s*44px/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*min-height:\s*44px/);
+  assert.match(hig, /\.session-octave \.octave-btn \{[^}]*min-width:\s*var\(--tap\)/);
+  assert.match(hig, /\.session-octave \.octave-btn \{[^}]*min-height:\s*var\(--tap\)/);
   assert.match(hig, /\.session-octave \.octave-btn \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(hig, /\.session-octave \.octave-btn \{[^}]*color:\s*var\(--tint-on-solid\)/);
+  assert.match(hig, /\.lick-tools \.transport-icon,\s*\n\.session-octave \.octave-btn \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(hig, /\.play-round \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(await readFile(new URL("../css/tokens.css", import.meta.url), "utf8"), /--tap:\s*44px/);
   assert.match(hig, /@media \(prefers-reduced-motion: reduce\) \{\s*\.celebrate-check \{\s*animation: celebrate-fade[^;]*!important;/);
-  assert.match(hig, /@media \(max-width: 700px\) \{\s*\.octave-label \{\s*display:\s*none;/);
 });
 
 test("skip arms the next key and does not stop on a result screen", () => {

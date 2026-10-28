@@ -23,7 +23,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=122";
+} from "./engrave.js?v=123";
 import {
   PREFS_KEY,
   MODULE,
@@ -86,7 +86,8 @@ import {
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
   keyOrderPreview,
-} from "./session.js?v=122";
+  keyCycleStates,
+} from "./session.js?v=123";
 import {
   tuneById,
   licksInTune,
@@ -98,7 +99,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=122";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=123";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -110,7 +111,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=122";
+} from "./rapid.js?v=123";
 import {
   emptyMastery,
   displayMedal,
@@ -124,7 +125,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=122";
+import { PitchMonitor, micCopy } from "./pitch.js?v=123";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -133,7 +134,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=122";
+} from "./take-dump.js?v=123";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -233,6 +234,7 @@ const els = {
   leaveConfirm: document.getElementById("leave-confirm"),
   sessionKey: document.getElementById("session-key"),
   sessionKeyCount: document.getElementById("session-key-count"),
+  keyCycle: document.getElementById("key-cycle"),
   sessionProgressFill: document.getElementById("session-progress-fill"),
   cardBadge: document.getElementById("card-badge"),
   sessionMode: document.getElementById("session-mode"),
@@ -1414,10 +1416,20 @@ function renderSessionOctave() {
   up.dataset.testid = "octave-up";
   up.disabled = current >= 1;
   up.addEventListener("click", () => applyMelodyOctave(current + 1));
-  const label = document.createElement("span");
-  label.className = "octave-label";
-  label.textContent = "Octave";
-  els.sessionOctave.replaceChildren(up, label, down);
+  els.sessionOctave.replaceChildren(down, up);
+}
+
+function renderKeyCycle() {
+  if (!els.keyCycle || !session || session.screen !== "session") return;
+  const ordinal = keyOrdinal(session);
+  const states = keyCycleStates(session);
+  els.keyCycle.setAttribute("aria-label", `Key ${ordinal.index} of ${ordinal.total}`);
+  els.keyCycle.replaceChildren(...states.map((state) => {
+    const seg = document.createElement("span");
+    seg.className = "key-seg";
+    seg.dataset.state = state;
+    return seg;
+  }));
 }
 
 function applyMelodyOctave(register) {
@@ -1444,6 +1456,7 @@ function renderSessionChrome() {
     displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
   );
   if (els.sessionKeyCount) els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
+  renderKeyCycle();
 }
 
 function chordTimingsFor(target) {
@@ -1467,10 +1480,13 @@ function chordTimingsFor(target) {
 
 function releaseNotationCardWidth() {
   const card = els.session?.querySelector(".chart-card");
-  if (!card) return;
-  card.style.width = "";
-  card.style.minWidth = "";
-  card.style.marginInline = "";
+  const block = els.session?.querySelector(".notation-block");
+  for (const el of [card, block]) {
+    if (!el) continue;
+    el.style.width = "";
+    el.style.minWidth = "";
+    el.style.marginInline = "";
+  }
 }
 
 function staffWidth() {
@@ -1531,13 +1547,22 @@ function fitNotationInView() {
   const style = getComputedStyle(body);
   const pad = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
   const card = stage.querySelector(".chart-card");
+  const block = stage.querySelector(".notation-block");
+  const playWell = stage.querySelector(".play-well");
   let reserved = pad + 8;
   for (const el of stage.children) {
-    if (el === card || el.hidden) continue;
+    if (el === card || el === block || el === playWell || el.hidden) continue;
     const elStyle = getComputedStyle(el);
     reserved += el.offsetHeight
       + (parseFloat(elStyle.marginTop) || 0)
       + (parseFloat(elStyle.marginBottom) || 0);
+  }
+  const tools = block?.querySelector(".lick-tools");
+  if (tools && !tools.hidden) {
+    const toolStyle = getComputedStyle(tools);
+    reserved += tools.offsetHeight
+      + (parseFloat(toolStyle.marginTop) || 0)
+      + (parseFloat(toolStyle.marginBottom) || 0);
   }
   const wrap = els.notation.parentElement;
   const wrapStyle = wrap ? getComputedStyle(wrap) : null;
@@ -1556,13 +1581,15 @@ function fitNotationInView() {
 
 function fitNotationCard(svg) {
   const card = els.session?.querySelector(".chart-card");
-  if (!card || !svg) return;
+  const block = els.session?.querySelector(".notation-block");
+  const target = block || card;
+  if (!target || !svg) return;
   const wrap = els.notation?.parentElement;
   const wrapStyle = wrap ? getComputedStyle(wrap) : null;
   const padX = wrapStyle
     ? (parseFloat(wrapStyle.paddingLeft) || 0) + (parseFloat(wrapStyle.paddingRight) || 0)
     : 0;
-  const maxWidth = card.parentElement?.clientWidth || card.clientWidth || 0;
+  const maxWidth = target.parentElement?.clientWidth || target.clientWidth || 0;
   const width = notationCardWidth({
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
@@ -1574,9 +1601,14 @@ function fitNotationCard(svg) {
     releaseNotationCardWidth();
     return;
   }
-  card.style.width = `${width}px`;
-  card.style.minWidth = "0";
-  card.style.marginInline = "auto";
+  target.style.width = `${width}px`;
+  target.style.minWidth = "0";
+  target.style.marginInline = "auto";
+  if (card && card !== target) {
+    card.style.width = "";
+    card.style.minWidth = "";
+    card.style.marginInline = "";
+  }
 }
 
 function renderNotation() {
