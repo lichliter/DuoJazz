@@ -283,7 +283,7 @@ test("accidentals stay in the same font run as the letters", async () => {
   assert.match(src, /tspan\.textContent = compact/);
   assert.match(hig, /\.session-transport\s*\{[^}]*display:\s*flex/);
   assert.match(hig, /\.session-transport\s*\{[^}]*justify-content:\s*center/);
-  assert.match(hig, /\.lick-tools\s*\{[^}]*justify-content:\s*flex-end/);
+  assert.match(hig, /\.lick-tools\s*\{[^}]*justify-content:\s*space-between/);
   assert.match(hig, /\.session-footer\s*\{[^}]*padding:[^;]*var\(--safe-bottom\)/);
   assert.match(hig, /\.key-seg\[data-state="passed"\]\s*\{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(hig, /\.key-seg\[data-state="skipped"\]\s*\{[^}]*border:/);
@@ -297,8 +297,10 @@ test("accidentals stay in the same font run as the letters", async () => {
   assert.doesNotMatch(app, /fillMusicLabel\(els\.chartMeta/);
   assert.match(app, /fillMusicLabel\(btn, option\.label\)/);
   assert.doesNotMatch(app, /textContent = "Octave"/);
-  assert.match(app, /setAttribute\("aria-label", "Octave down"\)/);
-  assert.match(app, /setAttribute\("aria-label", "Octave up"\)/);
+  assert.match(app, /setAttribute\("aria-label", "Octave down \(8vb\)"\)/);
+  assert.match(app, /setAttribute\("aria-label", "Octave up \(8va\)"\)/);
+  assert.match(app, /textContent = "8vb"/);
+  assert.match(app, /textContent = "8va"/);
   assert.match(app, /renderKeyCycle\(/);
   assert.match(app, /sessionModeHeading\(session\)/);
   assert.doesNotMatch(app, /cardBadge\.textContent = "Play"/);
