@@ -9,7 +9,7 @@ import {
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
 import { Transport } from "./audio.js";
-import { notationCssWidth, notationLayout, resolveNotationScale } from "./lesson.js";
+import { notationCardWidth, notationCssWidth, notationLayout, resolveNotationScale } from "./lesson.js";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -23,7 +23,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=119";
+} from "./engrave.js?v=121";
 import {
   PREFS_KEY,
   MODULE,
@@ -87,7 +87,7 @@ import {
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
   keyOrderPreview,
-} from "./session.js?v=119";
+} from "./session.js?v=121";
 import {
   tuneById,
   licksInTune,
@@ -99,7 +99,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=119";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=121";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -110,7 +110,7 @@ import {
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js?v=119";
+} from "./rapid.js?v=121";
 import {
   emptyMastery,
   displayMedal,
@@ -124,7 +124,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=119";
+import { PitchMonitor, micCopy } from "./pitch.js?v=121";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -133,7 +133,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=119";
+} from "./take-dump.js?v=121";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -1452,7 +1452,18 @@ function chordTimingsFor(target) {
   }));
 }
 
+function releaseNotationCardWidth() {
+  const card = els.session?.querySelector(".chart-card");
+  if (!card) return;
+  card.style.width = "";
+  card.style.minWidth = "";
+  card.style.marginInline = "";
+}
+
 function staffWidth() {
+  // Lesson 1 hugs the card. Measure the stylesheet width, not that hug, so
+  // the next chorus engraves across the full page.
+  releaseNotationCardWidth();
   return Math.max(320, Math.min(980, els.notation.clientWidth || 760));
 }
 
@@ -1527,6 +1538,32 @@ function fitNotationInView() {
     svg.style.setProperty("width", `${Math.round(next)}px`, "important");
   }
   padViewBoxToInk(svg);
+  fitNotationCard(svg);
+}
+
+function fitNotationCard(svg) {
+  const card = els.session?.querySelector(".chart-card");
+  if (!card || !svg) return;
+  const wrap = els.notation?.parentElement;
+  const wrapStyle = wrap ? getComputedStyle(wrap) : null;
+  const padX = wrapStyle
+    ? (parseFloat(wrapStyle.paddingLeft) || 0) + (parseFloat(wrapStyle.paddingRight) || 0)
+    : 0;
+  const maxWidth = card.parentElement?.clientWidth || card.clientWidth || 0;
+  const width = notationCardWidth({
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    svgWidth: svg.getBoundingClientRect().width,
+    padX,
+    maxWidth,
+  });
+  if (!width) {
+    releaseNotationCardWidth();
+    return;
+  }
+  card.style.width = `${width}px`;
+  card.style.minWidth = "0";
+  card.style.marginInline = "auto";
 }
 
 function renderNotation() {
