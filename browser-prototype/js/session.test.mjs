@@ -29,6 +29,7 @@ import {
   currentCard,
   currentKeyId,
   keyOrdinal,
+  keyCycleStates,
   jumpToCard,
   jumpToWrapup,
   recommendedLessonId,
@@ -183,6 +184,9 @@ test("skipping a cycle key opens the next key with no wrap-up", () => {
   assert.equal(currentKeyId(session), "C");
   assert.equal(session.keyIndex, 1);
   assert.equal(session.cardResults.length, 0);
+  assert.equal(session.keyMarks[0], "skipped");
+  assert.equal(keyCycleStates(session)[0], "skipped");
+  assert.equal(keyCycleStates(session)[1], "current");
 });
 
 test("skipping the last cycle key wraps up and records a skip", () => {
