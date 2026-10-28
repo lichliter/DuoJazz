@@ -233,6 +233,8 @@ test("mastery is recorded only for a Practice pass", () => {
   assert.deepEqual(lessonPassedKeys(mastery, "learn-lick"), []);
 
   assert.equal(shouldRecordMastery(practice, true), true);
+  assert.equal(shouldRecordMastery(practice, true, { notesShown: true }), false);
+  assert.equal(shouldRecordMastery(practice, true, { notesShown: false }), true);
   mastery = recordQuizPass(mastery, practice.lessonId, "G");
   mastery = recordQuizPass(mastery, "integrate-minor-home", "G");
   assert.equal(isKeyMastered(mastery, "G"), true);
@@ -243,4 +245,20 @@ test("Auto is remembered globally and defaults on", () => {
   assert.equal(normalizePrefs({}).auto, true);
   assert.equal(normalizePrefs({ auto: false }).auto, false);
   assert.equal(normalizePrefs({ auto: true }).auto, true);
+});
+
+test("practice can reveal notes, and the celebration check is a large SVG", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  assert.match(index, /id="show-notes"[^>]*>Show notes</);
+  assert.match(index, /<svg class="celebrate-check"/);
+  assert.match(hig, /\.celebrate-check \{[^}]*height:\s*35vmin/);
+  assert.match(hig, /\.celebrate-key \{[^}]*font-size:\s*28px/);
+  assert.match(app, /notesShown: notesPeeked/);
+  assert.match(app, /notesRevealed = false/);
+  assert.match(app, /studyMode !== "practice"/);
+  const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  assert.match(pass, /recordLearnPass/);
+  assert.match(pass, /recordQuizPass/);
 });

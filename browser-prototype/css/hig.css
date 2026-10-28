@@ -727,6 +727,17 @@ body {
   visibility: hidden;
 }
 
+.session-screen .paper.notation-memory .note.memory-first,
+.session-screen .paper.notation-memory .note.memory-first .ledgerLines,
+.session-screen .paper.notation-memory .note.memory-first .notehead,
+.session-screen .paper.notation-memory .note.memory-first .stem,
+.session-screen .paper.notation-memory .note.memory-first .flag,
+.session-screen .paper.notation-memory .note.memory-first .accid,
+.session-screen .paper.notation-memory .note.memory-first .dots,
+.session-screen .paper.notation-memory .note.memory-first .dot {
+  visibility: visible;
+}
+
 @media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
   .session-screen {
     --content-max: 900px;
@@ -1179,16 +1190,17 @@ body {
 }
 
 .celebrate-check {
-  font-size: clamp(7.5rem, 28vw, 12rem);
-  line-height: 0.85;
-  font-weight: 700;
+  width: 35vmin;
+  height: 35vmin;
   color: var(--tint-solid);
   animation: celebrate-in 0.55s cubic-bezier(0.2, 0.75, 0.2, 1) both;
 }
 
 .celebrate-key {
   min-height: 1.4em;
-  font: var(--text-title-2);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
   color: var(--tint);
 }
 
