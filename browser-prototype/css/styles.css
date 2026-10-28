@@ -1244,12 +1244,12 @@ input[type="checkbox"] {
 }
 
 .play-round-icon {
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: calc(var(--play-size) * 0.14) 0 calc(var(--play-size) * 0.14) calc(var(--play-size) * 0.24);
-  border-color: transparent transparent transparent currentColor;
-  margin-left: calc(var(--play-size) * 0.05);
+  width: calc(var(--play-size) * 0.34);
+  height: calc(var(--play-size) * 0.34);
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--destructive);
 }
 
 .play-round.is-stop .play-round-icon,

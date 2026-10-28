@@ -160,5 +160,5 @@ export function rapidFireButton({ listening = false, demoPlaying = false, paused
   if (demoPlaying) return { id: "pause", label: "Pause" };
   if (pausedDemo) return { id: "resume", label: "Resume" };
   if (listening) return { id: "pause", label: "Pause" };
-  return { id: "play", label: "Play" };
+  return { id: "record", label: "Record" };
 }
