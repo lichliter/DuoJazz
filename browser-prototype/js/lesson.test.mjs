@@ -409,6 +409,26 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
     showEntranceCues: true,
   });
   assert.equal(justWider.barsPerLine, 4);
+  const huggedPortrait = notationLayout({
+    staffWidth: 400,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(isTightNotation(400, 1024), false);
+  assert.equal(huggedPortrait.barsPerLine, 4);
+  assert.equal(huggedPortrait.minStaffPx, PORTRAIT_STAFF_PX);
+  assert.equal(baseStaffPx({ staffWidth: 400, viewportWidth: 1024, viewportHeight: 1366 }), PORTRAIT_STAFF_PX);
+  const phoneViewport = notationLayout({
+    staffWidth: 900,
+    viewportWidth: 390,
+    viewportHeight: 844,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(phoneViewport.barsPerLine, 2);
+  assert.equal(phoneViewport.minStaffPx, STAFF_PX_NARROW);
 });
 
 test("chorus layout keeps bars intact: 4 per line wherever width allows, never abcjs wrap", () => {
