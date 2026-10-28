@@ -83,9 +83,9 @@ export const INSTRUMENTS = Object.freeze([
     clef: "bass",
     transposeSemitones: 0,
     sampleSet: "trombone",
-    rangeLow: 48,
+    rangeLow: 40,
     rangeHigh: 70,
-    writtenRange: "C3–B♭4",
+    writtenRange: "E2–B♭4",
     note: "Concert, bass clef",
   },
 ]);

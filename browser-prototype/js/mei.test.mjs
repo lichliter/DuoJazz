@@ -110,7 +110,7 @@ test("landing MEI keeps lick notes and slashes empty bars", () => {
   assert.ok(harms(mei).includes("Cm7"));
   assert.match(mei, /head\.shape="slash"/);
   assert.ok(dirs(mei).includes("HERE"));
-  assert.ok(dirs(mei).includes("Get ready"));
+  assert.equal(dirs(mei).includes("Get ready"), false);
   assert.match(mei, /pname="a" oct="4"/);
   const slashes = slashMEI(getKey("G"), "concert", "minor-home", "bass");
   assert.match(slashes, /head\.shape="slash"/);
@@ -307,20 +307,23 @@ test("midi 59 spelled C-flat is octave 4 and midi 60 spelled B-sharp is octave 3
   assert.equal(sevenSharps.name, "B♯");
   assert.equal(sevenSharps.octave, 3);
   const mei = phraseMEI(getKey("Ab"), "trombone", "minor-home", "bass");
-  assert.match(mei, /pname="c" oct="4"/);
-  assert.doesNotMatch(mei, /pname="c" oct="3"/);
+  assert.match(mei, /pname="c" oct="3"/);
+  assert.doesNotMatch(mei, /pname="c" oct="4"/);
 });
 
 test("Cry Me a River Lesson 1 in A-flat minor descends in trombone and treble", () => {
   const lesson = LESSONS.find((item) => item.id === "learn-lick");
-  const expected = [70, 68, 63, 59, 58, 56];
+  const expected = {
+    trombone: [58, 56, 51, 47, 46, 44],
+    piano: [70, 68, 63, 59, 58, 56],
+  };
   const trombone = INSTRUMENTS.find((item) => item.id === "trombone");
   const piano = INSTRUMENTS.find((item) => item.id === "piano");
   for (const instrument of [trombone, piano]) {
     const mei = phraseMEI(getKey("Ab"), instrument.id, lesson.applicationId, instrument.clef);
     assert.equal(clefShape(mei), instrument.clef === "bass" ? "F" : "G", instrument.id);
     const midis = engravedMidis(mei);
-    assert.deepEqual(midis, expected, instrument.id);
+    assert.deepEqual(midis, expected[instrument.id], instrument.id);
     assert.ok(midis.every((midi, index) => index === 0 || midi < midis[index - 1]), instrument.id);
   }
 });

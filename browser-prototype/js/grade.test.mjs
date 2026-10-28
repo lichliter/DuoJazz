@@ -270,6 +270,16 @@ test("wrap-up copy surfaces score, pass, and the one correction", () => {
   assert.equal(copy.results[0].summary, "50% · miss · Bar 1 · 3rd note a little flat");
 });
 
+test("trombone G minor Lesson 1 is graded in the written bass octave", () => {
+  const session = createSession({
+    lessonId: "learn-lick",
+    startKeyId: "G",
+    instrumentId: "trombone",
+  });
+  const notes = expectedNotesFor(session);
+  assert.deepEqual(notes.map((note) => note.midi), [57, 55, 50, 46, 45, 43]);
+});
+
 test("mic copy covers denied, no-signal, and listening", () => {
   assert.match(micCopy("denied"), /blocked/i);
   assert.match(micCopy("no-signal"), /no signal/i);

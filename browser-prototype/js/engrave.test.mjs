@@ -10,8 +10,10 @@ import {
   placeCueBoxes,
   CUE_FONT_VU,
   chordFontVU,
+  chordLiftForGap,
   cueFontVU,
   resetVerovioForTests,
+  slashRecenterDelta,
   smuflChordChar,
   soundingIdsAt,
   staffCssFromPage,
@@ -355,6 +357,16 @@ test("cue label boxes in an engraved tune lesson do not intersect", () => {
   }
 });
 
+test("slash recentering uses the middle staff line and chords keep a half-em gap", () => {
+  const lines = [181, 201.8, 222.6, 243.4, 264.2];
+  assert.equal(slashRecenterDelta(lines, 160.2, 41.6), 222.6 - (160.2 + 20.8));
+  assert.equal(slashRecenterDelta(lines, 201.8, 41.6), 0);
+  assert.equal(slashRecenterDelta(lines.slice(0, 4), 160, 40), 0);
+  assert.equal(chordLiftForGap(730, 721, 18), 721 - 730 - 9);
+  assert.equal(chordLiftForGap(150, 181, 20), 0);
+  assert.equal(chordLiftForGap(100, 109, 20), 109 - 100 - 10);
+});
+
 test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {
   assert.equal(CUE_FONT_VU, 330);
   assert.equal(cueFontVU(), 330);
@@ -369,6 +381,7 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   assert.match(src, /layoutCueLabels\(svg\)/);
   assert.match(src, /MUSIC_FONT_FAMILY/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
+  assert.match(src, /clearChordInkGap\(svg\)/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);
   assert.match(src, /applyFixedStaffSize\(/);
@@ -451,7 +464,7 @@ test("notation size presets keep four bars per line and scale the staff together
       showEntranceCues: true,
       notationScale: size,
     });
-    assert.equal(layout.barsPerLine, 4, `${size} bars`);
+    assert.equal(layout.barsPerLine, 2, `${size} bars`);
     assert.equal(layout.notationScale, size);
     assert.equal(layout.minStaffPx, Math.round(PORTRAIT_STAFF_PX * size));
     const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);

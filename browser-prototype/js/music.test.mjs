@@ -445,7 +445,7 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   assert.doesNotMatch(abc, /z2z2z2z2/);
   assert.match(abc, /"Gm6""_HERE"/);
   assert.match(abc, /A2 \(3GDB, A,G, z2/);
-  assert.match(abc, /"D7""_Get ready"/);
+  assert.doesNotMatch(abc, /Get ready/);
   const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
   assert.match(up, /a2 \(3gdB AG z2/);
   const quizCold = slashABC(g, "concert", "minor-home", "bass");
@@ -472,22 +472,22 @@ test("slash staff is rhythmic slashes with chord symbols, not model pitches or r
   assert.doesNotMatch(slashes, /A,G,/);
   assert.doesNotMatch(slashes, /Get ready|HERE/);
   const cued = slashABC(g, "concert", "minor-home", "bass", { showCues: true });
-  assert.match(cued, /Get ready/);
+  assert.doesNotMatch(cued, /Get ready/);
   assert.match(cued, /HERE/);
   const altered = slashABC(g, "concert", "altered-dominant", "bass", { showCues: true });
-  assert.equal(cueCaption(5, "altered-dominant"), "Get ready");
+  assert.equal(cueCaption(5, "altered-dominant"), "");
   assert.equal(cueCaption(6, "altered-dominant"), "HERE");
   assert.equal(cueCaption(7, "altered-dominant"), "");
   assert.match(altered, /"D7""_HERE"/);
-  assert.match(altered, /"Am7♭5""_Get ready"/);
+  assert.doesNotMatch(altered, /Get ready/);
   const f = slashABC(getKey("F"), "concert", "minor-home", "bass", { showCues: true });
   assert.match(f, /"Fm6""_HERE"/);
   assert.doesNotMatch(f, /Gm6/);
 });
 
-test("model staff can carry the same Get ready / HERE anchors", () => {
+test("model staff marks the entrance with HERE and no Get ready cue", () => {
   const cued = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
-  assert.match(cued, /"D7""_Get ready"/);
+  assert.doesNotMatch(cued, /Get ready/);
   assert.match(cued, /"Gm6""_HERE"/);
   const fAlt = applicationContext(getKey("F"), "concert", "altered-dominant");
   assert.equal(fAlt.readyBar, 5);
@@ -502,7 +502,7 @@ test("stand-portrait ABC breaks every two bars without changing pitches", () => 
   assert.equal(two.split("\n").filter((line) => line.includes("|")).length, 4);
   assert.match(two, /"Cm7"/);
   assert.match(two, /"F7"/);
-  assert.match(two, /"D7""_Get ready"/);
+  assert.doesNotMatch(two, /Get ready/);
   assert.match(two, /"Gm6""_HERE"/);
   const slashTwo = slashABC(getKey("G"), "concert", "minor-home", "bass", { showCues: true, barsPerLine: 2 });
   assert.equal(slashTwo.split("\n").filter((line) => line.includes("|")).length, 4);
@@ -514,7 +514,7 @@ test("four-bar landing systems keep bars 7–8 together with the lick on the doo
   assert.equal(systems.length, 2);
   assert.match(systems[0], /"Cm7"/);
   assert.doesNotMatch(systems[0], /HERE|A,G,/);
-  assert.match(systems[1], /"D7""_Get ready"/);
+  assert.doesNotMatch(systems[1], /Get ready/);
   assert.match(systems[1], /"Gm6""_HERE"/);
   assert.match(systems[1], /A2 \(3GDB, A,G, z2/);
   assert.match(systems[1], /"Gm6""_HERE".+"Gm6"/);
@@ -737,18 +737,27 @@ test("spelled octave follows the written letter for C-flat, B-sharp, and double 
 test("Cry Me a River Lesson 1 in A-flat minor spells C-flat 4 on trombone and piano", () => {
   const lesson = LESSONS.find((item) => item.id === "learn-lick");
   assert.equal(lesson.applicationId, "minor-home");
-  const expected = [70, 68, 63, 59, 58, 56];
-  const names = ["B♭4", "A♭4", "E♭4", "C♭4", "B♭3", "A♭3"];
+  const byInstrument = {
+    trombone: {
+      midi: [58, 56, 51, 47, 46, 44],
+      names: ["B♭3", "A♭3", "E♭3", "C♭3", "B♭2", "A♭2"],
+    },
+    piano: {
+      midi: [70, 68, 63, 59, 58, 56],
+      names: ["B♭4", "A♭4", "E♭4", "C♭4", "B♭3", "A♭3"],
+    },
+  };
   for (const instrumentId of ["trombone", "piano"]) {
     const notes = phraseNotes(getKey("Ab"), instrumentId, lesson.applicationId);
-    assert.deepEqual(notes.map((note) => note.shownMidi), expected, instrumentId);
-    assert.deepEqual(notes.map((note) => note.shownName), names, instrumentId);
-    assert.ok(expected.every((midi, index) => index === 0 || midi < expected[index - 1]));
+    const expected = byInstrument[instrumentId];
+    assert.deepEqual(notes.map((note) => note.shownMidi), expected.midi, instrumentId);
+    assert.deepEqual(notes.map((note) => note.shownName), expected.names, instrumentId);
+    assert.ok(expected.midi.every((midi, index) => index === 0 || midi < expected.midi[index - 1]));
   }
   const abc = phraseABC(getKey("Ab"), "trombone", lesson.applicationId, "bass");
   assert.match(abc, /K:Abmin clef=bass/);
-  assert.match(abc, /B2 \(3AEC B,A, z2/);
-  assert.doesNotMatch(abc.split("K:")[1], /C,|=B/);
+  assert.match(abc, /B,2 \(3A,E,C, B,,A,, z2/);
+  assert.doesNotMatch(abc, /=B/);
   const treble = phraseABC(getKey("Ab"), "piano", lesson.applicationId, "treble");
   assert.match(treble, /clef=treble/);
   assert.match(treble, /B2 \(3AEC B,A, z2/);
