@@ -12,6 +12,7 @@ import {
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
+  skipAhead,
 } from "./rapid.js";
 import { createSession, currentKeyId, normalizePrefs } from "./session.js";
 import { emptyMastery, isKeyMastered, lessonPassedKeys, recordLearnPass, recordQuizPass } from "./medals.js";
@@ -210,12 +211,58 @@ test("octave up is the first control, the label is between, and octave down is l
   assert.match(fn, /dataset\.testid = "octave-up"/);
   assert.match(fn, /dataset\.testid = "octave-down"/);
   assert.match(fn, /textContent = "Octave"/);
+  assert.match(fn, /className = "octave-btn"/);
   const octaveRule = hig.slice(hig.indexOf(".session-octave {"), hig.indexOf(".octave-label"));
   assert.match(octaveRule, /flex-direction:\s*column/);
-  assert.match(styles, /\.session-octave \.chip \{[^}]*min-width:\s*var\(--tap\)/);
-  assert.match(styles, /\.session-octave \.chip \{[^}]*min-height:\s*var\(--tap\)/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*width:\s*56px/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*height:\s*56px/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*min-width:\s*56px/);
+  assert.match(styles, /\.session-octave \.octave-btn \{[^}]*min-height:\s*56px/);
+  assert.match(hig, /\.session-octave \.octave-btn \{[^}]*background:\s*var\(--tint-solid\)/);
+  assert.match(hig, /\.session-octave \.octave-btn \{[^}]*color:\s*var\(--tint-on-solid\)/);
+  assert.match(hig, /\.play-round \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(await readFile(new URL("../css/tokens.css", import.meta.url), "utf8"), /--tap:\s*44px/);
   assert.match(hig, /@media \(prefers-reduced-motion: reduce\) \{\s*\.celebrate-check \{\s*animation: celebrate-fade[^;]*!important;/);
+  assert.match(hig, /@media \(max-width: 700px\) \{\s*\.octave-label \{\s*display:\s*none;/);
+});
+
+test("skip arms the next key and does not stop on a result screen", () => {
+  const on = skipAhead(cycle(), { auto: true });
+  assert.equal(on.session.screen, "session");
+  assert.equal(currentKeyId(on.session), "C");
+  assert.equal(on.autoStart, true);
+  assert.equal(on.phase, "listening");
+  assert.equal(on.result.outcome, "skipped");
+  assert.equal(on.result.passed, false);
+  assert.equal(on.result.graded, false);
+  assert.equal(shouldRecordMastery(cycle(), on.result.passed), false);
+  assert.notEqual(on.phase, "celebrate");
+  assert.notEqual(on.phase, "reveal");
+
+  const off = skipAhead(cycle(), { auto: false });
+  assert.equal(off.autoStart, false);
+  assert.equal(off.phase, "idle");
+  assert.equal(off.session.screen, "session");
+  assert.equal(currentKeyId(off.session), "C");
+
+  const last = skipAhead({ ...cycle(), keyIndex: 11 }, { auto: true });
+  assert.equal(last.session.screen, "wrapup");
+  assert.equal(last.autoStart, false);
+  assert.equal(last.phase, "wrapup");
+  assert.equal(last.result.outcome, "skipped");
+  assert.equal(last.session.cardResults.find((row) => row.cardId === "play")?.outcome, "skipped");
+  assert.equal(shouldRecordMastery(last.session, false), false);
+});
+
+test("the skip control keeps the mic when Auto will listen again", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const fn = app.slice(app.indexOf("function goContinue"), app.indexOf("function leaveOutcomeFromTake"));
+  assert.match(fn, /skipAhead\(/);
+  assert.match(fn, /keepMic: Boolean\(plan\.autoStart\)/);
+  assert.match(fn, /autoStart: Boolean\(plan\.autoStart\)/);
+  assert.doesNotMatch(fn, /completeCard\(/);
+  assert.doesNotMatch(fn, /leaveOutcomeFromTake\(/);
+  assert.doesNotMatch(fn, /Skipped/);
 });
 
 test("mastery is recorded only for a Practice pass", () => {
@@ -251,7 +298,12 @@ test("practice can reveal notes, and the celebration check is a large SVG", asyn
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
-  assert.match(index, /id="show-notes"[^>]*>Show notes</);
+  assert.match(index, /id="show-notes"[^>]*aria-label="Show notes"/);
+  assert.match(index, /id="show-notes"[^>]*title="Show notes"/);
+  assert.match(index, /id="show-notes"[^>]*aria-pressed="false"/);
+  assert.doesNotMatch(index, /id="show-notes"[^>]*>\s*Show notes\s*</);
+  assert.match(app, /notesRevealed \? "Hide notes" : "Show notes"/);
+  assert.match(app, /setAttribute\("title", label\)/);
   assert.match(index, /<svg class="celebrate-check"/);
   assert.match(hig, /\.celebrate-check \{[^}]*height:\s*35vmin/);
   assert.match(hig, /\.celebrate-key \{[^}]*font-size:\s*28px/);

@@ -175,6 +175,28 @@ test("skipping the only card wraps up and records a skip", () => {
   assert.equal(session.cardResults.find((row) => row.cardId === "play")?.passed, false);
 });
 
+test("skipping a cycle key opens the next key with no wrap-up", () => {
+  let session = createSession({ lessonId: "learn-lick", keyMode: "fourths", startKeyId: "G" });
+  assert.equal(currentKeyId(session), "G");
+  session = skipCard(session);
+  assert.equal(session.screen, "session");
+  assert.equal(currentKeyId(session), "C");
+  assert.equal(session.keyIndex, 1);
+  assert.equal(session.cardResults.length, 0);
+});
+
+test("skipping the last cycle key wraps up and records a skip", () => {
+  let session = createSession({ lessonId: "learn-lick", keyMode: "fourths", startKeyId: "G" });
+  session = { ...session, keyIndex: 11 };
+  assert.equal(currentKeyId(session), "D");
+  session = skipCard(session);
+  assert.equal(session.screen, "wrapup");
+  const row = session.cardResults.find((item) => item.cardId === "play");
+  assert.equal(row?.outcome, "skipped");
+  assert.equal(row?.passed, false);
+  assert.equal(row?.graded, false);
+});
+
 test("wrap-up Next key walks the cycle; Again repeats the same key; one-key has no next", () => {
   let session = jumpToWrapup(createSession({
     lessonId: "integrate-minor-home",
