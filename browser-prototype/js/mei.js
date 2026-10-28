@@ -217,7 +217,9 @@ function sliceTokens(items, start, end, ctx, slashRests) {
     const item = covering[i];
     const iStart = Math.max(item.beat, start);
     if (iStart > cursor + 1e-6) {
-      tokens.push(...restTokens(cursor, iStart - cursor, slashRests, ctx));
+      // Rests lead into the lick. Slashes start only once a note in this bar has finished.
+      const noteAlready = covering.some((note) => note.type === "note" && note.beat + note.beats <= cursor + 1e-6);
+      tokens.push(...restTokens(cursor, iStart - cursor, Boolean(slashRests && noteAlready), ctx));
       cursor = iStart;
     }
     if (item.tuplet === 3) {
@@ -239,13 +241,17 @@ function sliceTokens(items, start, end, ctx, slashRests) {
     const tieOut = item.type === "note" && item.beat + item.beats > end + 1e-6;
     const tieIn = item.type === "note" && item.beat < start - 1e-6;
     const tie = tieIn && tieOut ? "m" : tieOut ? "i" : tieIn ? "t" : "";
-    if (item.type === "rest") tokens.push(...restTokens(iStart, dur, slashRests, ctx));
+    if (item.type === "rest") {
+      const laterNote = covering.some((note) => note.type === "note" && note.beat >= iStart - 1e-6);
+      tokens.push(...restTokens(iStart, dur, slashRests && !laterNote, ctx));
+    }
     else tokens.push(noteXml(item, ctx, dur, tie));
     cursor = iEnd;
     i += 1;
   }
   if (end > cursor + 1e-6) {
-    tokens.push(...restTokens(cursor, end - cursor, slashRests, ctx));
+    const laterNote = covering.some((note) => note.type === "note" && note.beat >= cursor - 1e-6);
+    tokens.push(...restTokens(cursor, end - cursor, slashRests && !laterNote, ctx));
   }
   return tokens;
 }

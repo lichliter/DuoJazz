@@ -95,7 +95,7 @@ test("play with help uses slash staff, entrance cues, and no default model", () 
   assert.equal(view.includeCue, true);
   assert.equal(barCaption(7, true, "minor-home"), "HERE");
   assert.equal(barCaption(6, true, "altered-dominant"), "HERE");
-  assert.equal(barCaption(5, true, "altered-dominant"), "Get ready");
+  assert.equal(barCaption(5, true, "altered-dominant"), "");
   const events = scheduleChorus(audioConfigFor(helpState));
   assert.equal(events.filter((event) => event.type === "melody").length, 0);
   const cues = events.filter((event) => event.type === "cue");
@@ -331,7 +331,7 @@ test("iPad Pro 12.9 portrait is the stand-portrait layout target", () => {
   assert.equal(isStandLandscape(1280, 720), false);
 });
 
-test("stand portrait uses four-bar systems like landscape, not two-bar wraps", () => {
+test("stand portrait uses two-bar systems so the lick has room", () => {
   const stand = notationLayout({
     staffWidth: 980,
     viewportWidth: 1024,
@@ -339,7 +339,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
     showPhraseNotation: false,
     showEntranceCues: true,
   });
-  assert.equal(stand.barsPerLine, 4);
+  assert.equal(stand.barsPerLine, 2);
   assert.equal(stand.wrap, null);
   assert.equal(stand.fitToPaper, false);
   assert.equal(stand.fillAxis, "fit");
@@ -387,7 +387,7 @@ test("stand portrait uses four-bar systems like landscape, not two-bar wraps", (
 test("chorus layout keeps bars intact: 4 per line wherever width allows, never abcjs wrap", () => {
   const chorusBars = 8;
   const cases = [
-    { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 4 },
+    { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 2 },
     { name: "iPad landscape 1366×1024", staffWidth: 980, viewportWidth: 1366, viewportHeight: 1024, barsPerLine: 4 },
     { name: "laptop 1280×720", staffWidth: 760, viewportWidth: 1280, viewportHeight: 720, barsPerLine: 4 },
     { name: "phone 375×812", staffWidth: 340, viewportWidth: 375, viewportHeight: 812, barsPerLine: 2 },

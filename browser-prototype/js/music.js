@@ -243,7 +243,6 @@ export function cueCaption(bar, applicationId = DEFAULT_APPLICATION_ID) {
     if (app.copyKind === "tune") return lickById(here.lickId ?? app.lickId).shortName;
     return "HERE";
   }
-  if (spots.some((spot) => spot.bar === bar + 1)) return "Get ready";
   return "";
 }
 

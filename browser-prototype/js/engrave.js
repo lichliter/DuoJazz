@@ -174,6 +174,8 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     lyricTopMinMargin: 1.2,
     leftMarginAccid: 2,
     rightMarginAccid: 1.2,
+    spacingLinear: globalThis.DUOJAZZ_VEROVIO_SPACING?.spacingLinear ?? 0.7,
+    spacingNonLinear: globalThis.DUOJAZZ_VEROVIO_SPACING?.spacingNonLinear ?? 0.35,
     xmlIdSeed: 1,
     svgCss: `.harm, .harm text, .harm tspan { font-family: ${MUSIC_FONT_FAMILY}; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
   };
@@ -448,6 +450,19 @@ export function separateChordSymbols(svg) {
     }
     return changed;
   };
+  const userPerPx = (() => {
+    const rect = svg.getBoundingClientRect?.();
+    const box = svg.viewBox?.baseVal;
+    if (rect?.width && box?.width) return box.width / rect.width;
+    return 1;
+  })();
+  const emPx = (harm) => {
+    const text = harmTextEl(harm);
+    const computed = parseFloat(text.ownerDocument?.defaultView?.getComputedStyle?.(text)?.fontSize || "");
+    if (computed > 0) return computed;
+    const size = parseFloat(text.getAttribute("font-size") || "0");
+    return size > 0 ? size : 16;
+  };
   for (let i = 0; i < harms.length - 1; i += 1) {
     for (let step = 0; step < 12; step += 1) {
       let boxA;
@@ -462,11 +477,16 @@ export function separateChordSymbols(svg) {
       if (Math.abs((boxA.y + boxA.height / 2) - (boxB.y + boxB.height / 2)) > Math.max(boxA.height, boxB.height) * 0.8) {
         break;
       }
-      if (boxA.right + 6 <= boxB.left) break;
+      const gap = Math.max(emPx(harms[i]), emPx(harms[i + 1]));
+      if (boxA.right + gap <= boxB.left) break;
       const movedA = shrink(harms[i]);
       const movedB = shrink(harms[i + 1]);
-      if (!movedA && !movedB) break;
-      void harmTextEl(harms[i]).getBoundingClientRect();
+      if (movedA || movedB) {
+        void harmTextEl(harms[i]).getBoundingClientRect();
+        continue;
+      }
+      translateSvg(harms[i + 1], (boxA.right + gap - boxB.left) * userPerPx, 0);
+      break;
     }
   }
 }
@@ -499,46 +519,102 @@ export function middleStaffLineY(staff) {
   }
 }
 
-function staffLineBox(staff) {
-  let best = null;
+function screenBox(el) {
+  if (!el || typeof el.getBoundingClientRect !== "function") return null;
+  try {
+    const box = el.getBoundingClientRect();
+    if (!box || !(box.height > 0) || !(box.width > 0)) return null;
+    return box;
+  } catch {
+    return null;
+  }
+}
+
+/** Staff-line centers in screen px. Path bboxes ignore the transforms that stack the five lines. */
+function staffLineScreenCenters(staff) {
+  const centers = [];
   for (const path of staff?.querySelectorAll?.(":scope > path") ?? []) {
     let box;
     try {
-      box = path.getBBox();
+      box = path.getBoundingClientRect();
     } catch {
       continue;
     }
-    if (!best || box.width > best.width) best = box;
+    if (!box || box.width < 8) continue;
+    // Unstroked staff lines report a zero height. They are still the line.
+    if (box.height > 0 && box.width <= box.height * 6) continue;
+    centers.push(box.top + box.height / 2);
   }
-  return best;
+  centers.sort((a, b) => a - b);
+  return centers;
 }
 
-function beatSlotsForStaff(staff, beats = 4) {
-  const lines = staffLineBox(staff);
-  if (!lines) return [];
-  const notes = [...staff.querySelectorAll(".note")];
-  let left = lines.x;
-  const right = lines.x + lines.width;
-  if (notes.length) {
-    try {
-      const noteLeft = Math.min(...notes.map((note) => note.getBBox().x));
-      if (Number.isFinite(noteLeft) && noteLeft > left + 8) left = noteLeft;
-    } catch {
-      // keep the line box
+/** Screen-space y delta that centers a slash glyph on the middle staff line. */
+export function slashRecenterDelta(lineCenters, glyphTop, glyphHeight) {
+  if (!Array.isArray(lineCenters) || lineCenters.length < 5 || !(glyphHeight > 0)) return 0;
+  const delta = lineCenters[2] - (glyphTop + glyphHeight / 2);
+  return Math.abs(delta) < 0.35 ? 0 : delta;
+}
+
+/**
+ * Negative screen y moves chord text up. `chordBottom` and `inkTop` share
+ * screen coordinates; a positive gap means the ink starts below the text.
+ */
+export function chordLiftForGap(chordBottom, inkTop, em) {
+  if (!(em > 0) || !Number.isFinite(chordBottom) || !Number.isFinite(inkTop)) return 0;
+  const gap = inkTop - chordBottom;
+  const need = em * 0.5;
+  if (gap >= need - 0.4) return 0;
+  return gap - need;
+}
+
+function screenDyToLocal(el, dyScreen) {
+  if (!Number.isFinite(dyScreen) || Math.abs(dyScreen) < 0.35) return 0;
+  if (typeof DOMPoint === "undefined") return null;
+  try {
+    const svg = el.ownerSVGElement;
+    const toScreen = typeof el.getScreenCTM === "function" ? el.getScreenCTM() : null;
+    if (toScreen) {
+      const inv = toScreen.inverse();
+      const origin = new DOMPoint(0, 0).matrixTransform(inv);
+      const shifted = new DOMPoint(0, dyScreen).matrixTransform(inv);
+      const dy = shifted.y - origin.y;
+      if (Number.isFinite(dy)) return dy;
     }
+    const screenCtm = svg?.getScreenCTM?.();
+    const localCtm = el.getCTM?.();
+    if (!screenCtm || !localCtm) return null;
+    const invScreen = screenCtm.inverse();
+    const start = new DOMPoint(0, 0).matrixTransform(invScreen);
+    const end = new DOMPoint(0, dyScreen).matrixTransform(invScreen);
+    const invLocal = localCtm.inverse();
+    const origin = new DOMPoint(0, 0).matrixTransform(invLocal);
+    const shifted = new DOMPoint(0, end.y - start.y).matrixTransform(invLocal);
+    const dy = shifted.y - origin.y;
+    return Number.isFinite(dy) ? dy : null;
+  } catch {
+    return null;
   }
-  const width = Math.max(8, right - left);
-  const slot = width / beats;
-  return Array.from({ length: beats }, (_, i) => ({ x: left + i * slot, w: slot }));
+}
+
+function renderedChordEm(text) {
+  const specified = parseFloat(text.getAttribute?.("font-size") || "");
+  const screen = screenBox(text);
+  if (!(screen?.height > 0)) return 0;
+  let userHeight = 0;
+  try {
+    userHeight = text.getBBox()?.height || 0;
+  } catch {
+    userHeight = 0;
+  }
+  if (specified > 0 && userHeight > 0) return specified * screen.height / userHeight;
+  return screen.height;
 }
 
 export function centerSlashNoteheads(svg) {
   if (!svg?.querySelectorAll) return;
   for (const staff of svg.querySelectorAll(".staff")) {
-    const mid = middleStaffLineY(staff);
-    if (mid == null) continue;
-    const slots = beatSlotsForStaff(staff);
-    const slashNotes = [...staff.querySelectorAll(".note")].filter((el) => isSlashHead(el));
+    const lineCenters = staffLineScreenCenters(staff);
     const heads = [...staff.querySelectorAll(".notehead, .note, [class*='slash']")].filter(isSlashHead);
     const seen = new Set();
     for (const head of heads) {
@@ -547,28 +623,69 @@ export function centerSlashNoteheads(svg) {
         : head.closest(".notehead") ?? head;
       if (seen.has(target)) continue;
       seen.add(target);
-      let box;
-      try {
-        box = target.getBBox();
-      } catch {
-        continue;
-      }
-      if (!box.height) continue;
-      const dy = mid - (box.y + box.height / 2);
-      let dx = 0;
-      const note = target.closest(".note") ?? head.closest?.(".note");
-      if (note && slots.length === 4 && slashNotes.length) {
-        const trailing = slashNotes.indexOf(note);
-        const slotIndex = slashNotes.length === 4
-          ? trailing
-          : 4 - slashNotes.length + trailing;
-        const slot = slots[Math.max(0, Math.min(3, slotIndex))];
-        if (slot) dx = slot.x + slot.w / 2 - (box.x + box.width / 2);
-      }
+      const slashNote = target.closest?.(".note.slash, .slash");
+      if (slashNote && slashNote !== target) continue;
+      const box = screenBox(target);
+      const dyScreen = slashRecenterDelta(lineCenters, box?.top, box?.height);
+      const dy = dyScreen ? screenDyToLocal(target, dyScreen) : 0;
+      if (dy == null) continue;
+      // Leave the rhythmic x that Verovio chose. Shifting every slash on a
+      // system into four global beats piles them onto the lick.
+      const dx = 0;
       if (Math.abs(dy) < 0.35 && Math.abs(dx) < 0.35) continue;
       const prev = target.getAttribute("transform") || "";
       target.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
     }
+  }
+}
+
+function highestInkTop(group) {
+  let inkTop = null;
+  for (const el of group.querySelectorAll(".notehead, .note, [class*='slash']")) {
+    const slash = isSlashHead(el);
+    let target = null;
+    if (slash) {
+      target = el.classList?.contains("note") || el.classList?.contains("slash") || el.classList?.contains("notehead")
+        ? el
+        : el.closest?.(".note") ?? el;
+    } else if (el.classList?.contains("notehead")) {
+      target = el;
+    }
+    if (!target) continue;
+    const box = screenBox(target);
+    if (!box) continue;
+    inkTop = inkTop == null ? box.top : Math.min(inkTop, box.top);
+  }
+  return inkTop;
+}
+
+/** Lift a system's chord symbols only as far as a 0.5em gap over slashes and noteheads requires. */
+export function clearChordInkGap(svg) {
+  if (!svg?.querySelectorAll) return;
+  const systems = [...svg.querySelectorAll(".system")];
+  const groups = systems.length ? systems : [...svg.querySelectorAll(".staff")];
+  for (const group of groups) {
+    const harms = [...group.querySelectorAll(".harm")];
+    if (!harms.length) continue;
+    let chordBottom = null;
+    let em = 0;
+    let anchor = null;
+    for (const harm of harms) {
+      const text = harmTextEl(harm);
+      const box = screenBox(text);
+      if (!box) continue;
+      if (chordBottom == null || box.bottom > chordBottom) {
+        chordBottom = box.bottom;
+        em = renderedChordEm(text);
+        anchor = text;
+      }
+    }
+    const inkTop = highestInkTop(group);
+    const lift = chordLiftForGap(chordBottom, inkTop, em);
+    if (!lift || !anchor) continue;
+    const dy = screenDyToLocal(anchor, lift);
+    if (dy == null || Math.abs(dy) < 0.35) continue;
+    for (const harm of harms) translateSvg(harm, 0, dy);
   }
 }
 
@@ -642,6 +759,7 @@ export async function engraveMei(target, mei, options = {}) {
     mergeSplitChordSymbols(svg);
     separateChordSymbols(svg);
     centerSlashNoteheads(svg);
+    clearChordInkGap(svg);
     layoutCueLabels(svg);
     applyFixedStaffSize(target, svg, layout);
   }
