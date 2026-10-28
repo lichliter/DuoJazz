@@ -9,7 +9,7 @@
  */
 
 import { centsBetween, midiFromHz, wrapMidi } from "./grade.js";
-import { spellMidi, spellPitchInKey } from "./music.js";
+import { spellShownMidi } from "./music.js";
 
 export const FOLLOW_CENTS = 50;
 export const SUSTAIN_MS = 80;
@@ -249,10 +249,8 @@ export function runFollower(expected, frames, origin = 0) {
 
 export function noteName(midi, shownKey) {
   const rounded = Math.round(midi);
-  const pc = ((rounded % 12) + 12) % 12;
-  const octave = Math.floor(rounded / 12) - 1;
-  const name = shownKey ? spellPitchInKey(pc, shownKey).name : spellMidi(rounded, true).name;
-  return `${name}${octave}`;
+  const spelled = spellShownMidi(rounded, shownKey || true);
+  return `${spelled.name}${spelled.octave}`;
 }
 
 function formatHeard(midi, cents, shownKey) {
