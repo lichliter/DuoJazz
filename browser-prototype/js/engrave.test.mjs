@@ -10,7 +10,6 @@ import {
   placeCueBoxes,
   CUE_FONT_VU,
   chordFontVU,
-  chordLiftForGap,
   cueFontVU,
   resetVerovioForTests,
   slashRecenterDelta,
@@ -357,14 +356,11 @@ test("cue label boxes in an engraved tune lesson do not intersect", () => {
   }
 });
 
-test("slash recentering uses the middle staff line and chords keep a half-em gap", () => {
+test("slash recentering uses the middle staff line and does not lift chord symbols", () => {
   const lines = [181, 201.8, 222.6, 243.4, 264.2];
   assert.equal(slashRecenterDelta(lines, 160.2, 41.6), 222.6 - (160.2 + 20.8));
   assert.equal(slashRecenterDelta(lines, 201.8, 41.6), 0);
   assert.equal(slashRecenterDelta(lines.slice(0, 4), 160, 40), 0);
-  assert.equal(chordLiftForGap(730, 721, 18), 721 - 730 - 9);
-  assert.equal(chordLiftForGap(150, 181, 20), 0);
-  assert.equal(chordLiftForGap(100, 109, 20), 109 - 100 - 10);
 });
 
 test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {
@@ -381,7 +377,8 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   assert.match(src, /layoutCueLabels\(svg\)/);
   assert.match(src, /MUSIC_FONT_FAMILY/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
-  assert.match(src, /clearChordInkGap\(svg\)/);
+  assert.doesNotMatch(src, /clearChordInkGap\(/);
+  assert.doesNotMatch(src, /chordLiftForGap\(/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);
   assert.match(src, /applyFixedStaffSize\(/);
