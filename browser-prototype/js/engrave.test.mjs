@@ -382,6 +382,7 @@ test("engraving restyles chords then separates overlapping symbols", async () =>
   assert.match(src, /MUSIC_FONT_FAMILY/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
   assert.match(src, /clearChordInkGap\(svg\)/);
+  assert.match(src, /clearCuesFromTupletNums\(svg\)/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);
   assert.match(src, /applyFixedStaffSize\(/);
@@ -464,7 +465,7 @@ test("notation size presets keep four bars per line and scale the staff together
       showEntranceCues: true,
       notationScale: size,
     });
-    assert.equal(layout.barsPerLine, 2, `${size} bars`);
+    assert.equal(layout.barsPerLine, 4, `${size} bars`);
     assert.equal(layout.notationScale, size);
     assert.equal(layout.minStaffPx, Math.round(PORTRAIT_STAFF_PX * size));
     const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);

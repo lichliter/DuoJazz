@@ -17,11 +17,12 @@ import {
   fillMusicLabel,
   engraveMei,
   highlightActiveChords,
+  fiveLineStaffHeightCss,
   markFirstMelodyNote,
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=115";
+} from "./engrave.js?v=117";
 import {
   PREFS_KEY,
   MODULE,
@@ -85,7 +86,7 @@ import {
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
   keyOrderPreview,
-} from "./session.js?v=115";
+} from "./session.js?v=117";
 import {
   tuneById,
   licksInTune,
@@ -97,7 +98,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=115";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=117";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -108,7 +109,7 @@ import {
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js?v=115";
+} from "./rapid.js?v=117";
 import {
   emptyMastery,
   displayMedal,
@@ -122,7 +123,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=115";
+import { PitchMonitor, micCopy } from "./pitch.js?v=117";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -131,7 +132,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=115";
+} from "./take-dump.js?v=117";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -1494,6 +1495,14 @@ function fitNotationInView() {
   svg.style.setProperty("max-width", "100%", "important");
   svg.style.setProperty("height", "auto", "important");
   svg.style.setProperty("margin-inline", "auto", "important");
+  const staffPx = lastNotationLayout?.minStaffPx;
+  if (staffPx) {
+    const measured = fiveLineStaffHeightCss(svg.querySelector(".staff"));
+    const drawn = svg.getBoundingClientRect();
+    if (measured > staffPx + 1.5 && drawn.width > 0) {
+      svg.style.setProperty("width", `${Math.round(drawn.width * staffPx / measured)}px`, "important");
+    }
+  }
   const style = getComputedStyle(body);
   const pad = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
   const card = stage.querySelector(".chart-card");
