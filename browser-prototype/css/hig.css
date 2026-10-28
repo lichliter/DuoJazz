@@ -277,7 +277,9 @@ body {
 #session-key,
 #chart-heading-meta,
 #next-key,
-#wrapup-heading {
+#wrapup-heading,
+#celebrate-key,
+#key-order-preview {
   font-family: var(--music-font);
   font-synthesis: none;
   letter-spacing: 0;
@@ -565,6 +567,7 @@ body {
 }
 
 .session-screen {
+  position: relative;
   background: var(--bg);
   color: var(--label);
   gap: 0;
@@ -957,6 +960,14 @@ body {
   letter-spacing: 0;
 }
 
+.key-order-preview {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  font: var(--text-footnote);
+  color: var(--label-secondary);
+  line-height: 1.4;
+}
+
 .group-row {
   display: flex;
   align-items: center;
@@ -1142,6 +1153,59 @@ body {
   min-height: 4.8rem;
   margin: 0.1rem 0 0.35rem;
   color: var(--label);
+}
+
+.celebrate {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  padding: var(--space-6);
+  background: var(--bg);
+  color: var(--tint-solid);
+  cursor: pointer;
+}
+
+.celebrate[hidden] {
+  display: none !important;
+}
+
+.celebrate-check {
+  font-size: clamp(7.5rem, 28vw, 12rem);
+  line-height: 0.85;
+  font-weight: 700;
+  color: var(--tint-solid);
+  animation: celebrate-in 0.55s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+
+.celebrate-key {
+  min-height: 1.4em;
+  font: var(--text-title-2);
+  color: var(--tint);
+}
+
+@keyframes celebrate-in {
+  from { opacity: 0; transform: scale(0.86); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes celebrate-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebrate-check {
+    animation: celebrate-fade 0.28s ease-out both;
+  }
 }
 
 .grade-line[data-kind="check"] #grade-main {
