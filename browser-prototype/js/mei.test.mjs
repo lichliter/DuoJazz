@@ -1,6 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getKey, restBeatsForSpan, phraseMeasureCount } from "./music.js";
+import { INSTRUMENTS } from "./instruments.js";
+import { LESSONS } from "./registry.js";
+import {
+  BEATS_PER_BAR,
+  concertMidiToWritten,
+  eventMelodyMidi,
+  formForApplication,
+  getKey,
+  KEYS,
+  learnBeatsFor,
+  modelSolo,
+  octaveForApplication,
+  phraseMeasureCount,
+  phraseTimeline,
+  restBeatsForSpan,
+  spellShownMidi,
+  withSpotOctaves,
+} from "./music.js";
 import {
   chordsOnlyMEI,
   chorusStaffMEI,
@@ -203,6 +220,140 @@ test("Donna Lee Resolution MEI spells G7♭9 alterations as A♭ and B♭", () =
   assert.match(mei, /pname="b"[^>]*accid="f"/);
   assert.doesNotMatch(mei, /pname="g"[^>]*accid="s"/);
   assert.doesNotMatch(mei, /pname="a"[^>]*accid="s"/);
+});
+
+const NATURAL = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+const ACCID = { n: 0, s: 1, f: -1, ss: 2, ff: -2 };
+
+function signatureAccidentals(mei) {
+  const raw = String(mei).match(/keysig="([^"]+)"/)?.[1] ?? "0";
+  const map = { c: 0, d: 0, e: 0, f: 0, g: 0, a: 0, b: 0 };
+  const match = raw.match(/^(\d+)([sf])$/);
+  if (!match) return map;
+  const count = Number(match[1]);
+  const sharp = match[2] === "s";
+  const order = sharp
+    ? ["f", "c", "g", "d", "a", "e", "b"]
+    : ["b", "e", "a", "d", "g", "c", "f"];
+  for (let i = 0; i < count && i < order.length; i += 1) map[order[i]] = sharp ? 1 : -1;
+  return map;
+}
+
+/** Sounding MIDI of each engraved note, using the key signature when accid is omitted. */
+function engravedMidis(mei) {
+  const sig = signatureAccidentals(mei);
+  const midis = [];
+  for (const measure of String(mei).matchAll(/<measure\b[^>]*>([\s\S]*?)<\/measure>/g)) {
+    const state = { ...sig };
+    for (const note of measure[1].matchAll(/<note\b([^>]*)>/g)) {
+      const attrs = note[1];
+      if (/\btype="slash"/.test(attrs)) continue;
+      const pname = attrs.match(/\bpname="([a-g])"/)?.[1];
+      const oct = attrs.match(/\boct="(-?\d+)"/)?.[1];
+      if (!pname || oct == null) continue;
+      const accid = attrs.match(/\baccid="(ss|ff|s|f|n)"/)?.[1];
+      const acc = accid != null ? ACCID[accid] : state[pname];
+      if (accid != null) state[pname] = acc;
+      midis.push((Number(oct) + 1) * 12 + NATURAL[pname] + acc);
+    }
+  }
+  return midis;
+}
+
+function expectedEngravedMidis({ concertKey, displayMode, applicationId, mode }) {
+  const isolated = mode === "phrase";
+  const barCount = isolated
+    ? Math.max(1, Math.ceil(learnBeatsFor(applicationId) / BEATS_PER_BAR))
+    : formForApplication(applicationId).bars.length;
+  const octaveBase = octaveForApplication(applicationId, concertKey.pc, displayMode);
+  const source = mode === "model"
+    ? modelSolo(applicationId).map((note) => ({ ...note, type: "note" }))
+    : phraseTimeline(applicationId, isolated);
+  const items = withSpotOctaves(source, applicationId, concertKey.pc, displayMode);
+  const midis = [];
+  const pushOverlap = (start, end) => {
+    const covering = items
+      .filter((item) => item.type === "note" && item.beat < end - 1e-6 && item.beat + item.beats > start + 1e-6)
+      .sort((a, b) => a.beat - b.beat);
+    for (const item of covering) {
+      const concertMidi = eventMelodyMidi(concertKey, item, 0, octaveBase);
+      midis.push(concertMidiToWritten(concertMidi, displayMode));
+    }
+  };
+  const pickup = items.filter((item) => item.type === "note" && item.beat < -1e-6);
+  if (pickup.length) pushOverlap(pickup[0].beat, 0);
+  for (let bar = 0; bar < barCount; bar += 1) {
+    const barStart = bar * BEATS_PER_BAR;
+    const barEnd = isolated
+      ? Math.min(learnBeatsFor(applicationId), barStart + BEATS_PER_BAR)
+      : barStart + BEATS_PER_BAR;
+    pushOverlap(barStart, barEnd);
+  }
+  return midis;
+}
+
+function meiForMode(mode, concertKey, instrument, applicationId) {
+  const clef = instrument.clef;
+  if (mode === "phrase") return phraseMEI(concertKey, instrument.id, applicationId, clef);
+  if (mode === "landing") return landingMEI(concertKey, instrument.id, applicationId, clef);
+  return modelMEI(concertKey, instrument.id, applicationId, clef);
+}
+
+test("midi 59 spelled C-flat is octave 4 and midi 60 spelled B-sharp is octave 3", () => {
+  const ab = spellShownMidi(59, { pc: 8, usesFlats: true, sigCount: -7 });
+  assert.equal(ab.name, "C♭");
+  assert.equal(ab.octave, 4);
+  const sevenSharps = spellShownMidi(60, { pc: 1, usesFlats: false, sigCount: 7 });
+  assert.equal(sevenSharps.name, "B♯");
+  assert.equal(sevenSharps.octave, 3);
+  const mei = phraseMEI(getKey("Ab"), "trombone", "minor-home", "bass");
+  assert.match(mei, /pname="c" oct="4"/);
+  assert.doesNotMatch(mei, /pname="c" oct="3"/);
+});
+
+test("Cry Me a River Lesson 1 in A-flat minor descends in trombone and treble", () => {
+  const lesson = LESSONS.find((item) => item.id === "learn-lick");
+  const expected = [70, 68, 63, 59, 58, 56];
+  const trombone = INSTRUMENTS.find((item) => item.id === "trombone");
+  const piano = INSTRUMENTS.find((item) => item.id === "piano");
+  for (const instrument of [trombone, piano]) {
+    const mei = phraseMEI(getKey("Ab"), instrument.id, lesson.applicationId, instrument.clef);
+    assert.equal(clefShape(mei), instrument.clef === "bass" ? "F" : "G", instrument.id);
+    const midis = engravedMidis(mei);
+    assert.deepEqual(midis, expected, instrument.id);
+    assert.ok(midis.every((midi, index) => index === 0 || midi < midis[index - 1]), instrument.id);
+  }
+});
+
+test("engraved spelling round-trips to the shown MIDI in every key, instrument, and lesson", () => {
+  const modes = ["phrase", "landing", "model"];
+  for (const lesson of LESSONS) {
+    for (const key of KEYS) {
+      for (const instrument of INSTRUMENTS) {
+        for (const mode of modes) {
+          const mei = meiForMode(mode, key, instrument, lesson.applicationId);
+          const got = engravedMidis(mei);
+          const expected = expectedEngravedMidis({
+            concertKey: key,
+            displayMode: instrument.id,
+            applicationId: lesson.applicationId,
+            mode,
+          });
+          const index = got.findIndex((midi, note) => midi !== expected[note]);
+          assert.equal(
+            got.length,
+            expected.length,
+            `${lesson.id} ${key.id} ${instrument.id} ${mode} count ${got.length} != ${expected.length}`,
+          );
+          assert.equal(
+            index,
+            -1,
+            `${lesson.id} ${key.id} ${instrument.id} ${mode} note ${index}: ${got[index]} != ${expected[index]}`,
+          );
+        }
+      }
+    }
+  }
 });
 
 test("long cue labels wrap at a word instead of overflowing the next bar", () => {

@@ -25,9 +25,8 @@ import {
   octaveForApplication,
   phraseMeasureCount,
   phraseTimeline,
-  pitchName,
   restBeatsForSpan,
-  spellPitchInKey,
+  spellShownMidi,
   usesFlatsForChord,
   withSpotOctaves,
 } from "./music.js";
@@ -58,14 +57,6 @@ function meiClef(clef) {
   return clef === "bass"
     ? { shape: "F", line: "4" }
     : { shape: "G", line: "2" };
-}
-
-function accidentalValue(name) {
-  if (name.includes("𝄪")) return 2;
-  if (name.includes("𝄫")) return -2;
-  if (name.includes("♯")) return 1;
-  if (name.includes("♭")) return -1;
-  return 0;
 }
 
 function meiDur(beats) {
@@ -131,16 +122,12 @@ function pitchedItems(applicationId, mode, isolated, concertTonicPc, displayMode
 function notePitchAttrs(item, ctx) {
   const concertMidi = eventMelodyMidi(ctx.concertKey, item, ctx.melodyRegister, ctx.octaveBase);
   const shownMidi = concertMidiToWritten(concertMidi, ctx.displayMode);
-  const pc = ((shownMidi % 12) + 12) % 12;
-  const oct = Math.floor(shownMidi / 12) - 1;
   const chord = chordAtEventBeat(ctx.chords, item.beat);
   const flats = usesFlatsForChord(ctx.shownKey, chord);
-  const spelled = flats === Boolean(ctx.shownKey?.usesFlats)
-    ? spellPitchInKey(pc, ctx.shownKey)
-    : null;
-  const name = spelled?.name ?? pitchName(pc, flats);
-  const letter = spelled?.letter ?? name[0];
-  const acc = spelled?.acc ?? accidentalValue(name);
+  const spelled = spellShownMidi(shownMidi, ctx.shownKey, flats);
+  const letter = spelled.letter;
+  const acc = spelled.acc;
+  const oct = spelled.octave;
   const sig = ctx.barState.sig?.[letter] ?? 0;
   const current = ctx.barState.written.has(letter) ? ctx.barState.written.get(letter) : sig;
   let accid = "";
