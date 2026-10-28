@@ -65,14 +65,16 @@ test("extra wrong notes do not fail or steal the next pitch", () => {
   assert.equal(state.heard.length, 2);
 });
 
-test("an octave shift still matches", () => {
+test("an octave shift fails instead of matching", () => {
   const state = play([60, 64], [
     ...tone(72, 0),
     ...tone(76, 220),
   ]);
-  assert.equal(state.passed, true);
-  assert.equal(state.heard[0].midi, 72);
-  assert.ok(Math.abs(state.heard[0].cents) < 5);
+  assert.equal(state.passed, false);
+  assert.equal(state.ended, true);
+  assert.equal(state.reason, "wrong");
+  assert.equal(state.hint, "1st note, wrong octave");
+  assert.equal(state.heard.length, 0);
 });
 
 test("60 cents flat does not match", () => {
@@ -83,10 +85,12 @@ test("60 cents flat does not match", () => {
     ...tone(67, 440, 160, { cents: -60 }),
   ]);
   assert.equal(state.passed, false);
-  assert.equal(state.ended, false);
+  assert.equal(state.ended, true);
+  assert.equal(state.reason, "wrong");
   const ended = tickFollower(state, state.lastVoicedT + SILENCE_MS);
   assert.equal(ended.ended, true);
   assert.equal(ended.passed, false);
+  assert.equal(ended.reason, "wrong");
   assert.equal(ended.hint, "3rd note");
   const shown = displayKey(getKey("G"), "concert", "minor");
   const described = describeAttempt(ended, shown);
@@ -139,15 +143,18 @@ test("an amplitude dip re-arms a repeated note", () => {
   assert.equal(state.heard.length, 2);
 });
 
-test("octave-equivalent repeats still need a re-attack", () => {
+test("a different octave is a different note, and the written one still matches", () => {
   const held = play([60, 72], [...tone(60, 0, 400)]);
   assert.equal(held.heard.length, 1);
   assert.equal(held.passed, false);
+  assert.equal(held.ended, false);
+  assert.notEqual(held.reason, "wrong");
   const split = play([60, 72], [
     ...tone(60, 0, 120),
     ...tone(72, 280, 160),
   ]);
   assert.equal(split.passed, true);
+  assert.equal(split.heard[1].midi, 72);
 });
 
 test("silence ends the attempt one second after sound, and never before", () => {
@@ -289,30 +296,31 @@ test("a repeated note re-attacks from a relative dip at a low level", () => {
   assert.equal(state.heard.length, 2);
 });
 
-test("a twelfth is not an octave match, and a 3rd-harmonic misread does not stick", () => {
+test("a twelfth is not an octave match, and a short 3rd-harmonic misread does not stick", () => {
   const fundamental = hzFromMidi(69);
   const harmonic = fundamental * 3;
   assert.equal(matchPitch(harmonic, 69), null);
 
   const burst = [];
   for (let t = 0; t <= 400; t += 20) burst.push({ t, hz: harmonic, amp: 0.2, confidence: 0.93 });
-  let stuck = play([69, 67], burst);
+  const stuck = play([69, 67], burst);
   assert.equal(stuck.heard.length, 0);
   assert.equal(stuck.index, 0);
   assert.equal(stuck.passed, false);
-  stuck = tickFollower(stuck, stuck.lastVoicedT + SILENCE_MS);
   assert.equal(stuck.ended, true);
-  assert.equal(stuck.reason, "silence");
+  assert.equal(stuck.reason, "wrong");
   assert.equal(stuck.hint, "1st note");
 
+  const flicker = [];
+  for (let t = 0; t <= 100; t += 20) flicker.push({ t, hz: harmonic, amp: 0.2, confidence: 0.93 });
   const recovered = play([69, 67], [
-    ...burst,
-    ...tone(69, 420, 160, { amp: 0.2, confidence: 0.95 }),
-    ...tone(67, 640, 160, { amp: 0.2, confidence: 0.95 }),
+    ...flicker,
+    ...tone(69, 140, 160, { amp: 0.2, confidence: 0.95 }),
+    ...tone(67, 360, 160, { amp: 0.2, confidence: 0.95 }),
   ]);
   assert.equal(recovered.passed, true);
   assert.equal(recovered.heard.length, 2);
-  assert.ok(Math.abs(recovered.heard[0].midi - 69) % 12 === 0);
+  assert.equal(recovered.heard[0].midi, 69);
   assert.notEqual(recovered.heard[0].midi, 88);
 });
 
@@ -426,14 +434,12 @@ test("YIN on a lone 3rd harmonic does not stick the follower on that note", () =
   const sorted = voiced.map((frame) => frame.hz).sort((a, b) => a - b);
   const median = sorted[Math.floor(sorted.length / 2)];
   assert.ok(Math.abs(1200 * Math.log2(median / harmonic)) < 40);
-  let state = play([69], frames);
+  const state = play([69], frames);
   assert.equal(state.passed, false);
   assert.equal(state.heard.length, 0);
   assert.equal(state.index, 0);
-  const tail = frames[frames.length - 1].t;
-  state = stepFollower(state, { t: tail + SILENCE_MS, hz: 0, amp: 0, confidence: 0 });
   assert.equal(state.ended, true);
-  assert.equal(state.reason, "silence");
+  assert.equal(state.reason, "wrong");
   assert.equal(state.hint, "1st note");
 });
 
@@ -445,6 +451,91 @@ test("the live debug line shows level, note, cents, and confidence", () => {
   assert.match(line, /dB/);
   assert.match(line, /A4 −12¢/);
   assert.match(line, /conf 0\.91/);
+});
+
+test("a wrong note held 150 ms fails on that note", () => {
+  const state = play([60, 64, 67], [
+    ...tone(60, 0),
+    ...tone(64, 220),
+    ...tone(70, 440, 150),
+  ]);
+  assert.equal(state.passed, false);
+  assert.equal(state.ended, true);
+  assert.equal(state.reason, "wrong");
+  assert.equal(state.hint, "3rd note");
+  assert.equal(state.index, 2);
+  assert.equal(state.heard.length, 2);
+});
+
+test("the right pitch class an octave high fails after 120 ms", () => {
+  const state = play([60, 64, 67], [
+    ...tone(60, 0),
+    ...tone(64, 220),
+    ...tone(79, 440, 150),
+  ]);
+  assert.equal(state.passed, false);
+  assert.equal(state.ended, true);
+  assert.equal(state.reason, "wrong");
+  assert.equal(state.hint, "3rd note, wrong octave");
+});
+
+test("a 100 ms grace note is ignored", () => {
+  const state = play([60, 64], [
+    ...tone(65, 0, 100),
+    ...tone(60, 140, 160),
+    ...tone(64, 360, 160),
+  ]);
+  assert.equal(state.passed, true);
+  assert.equal(state.reason, "matched");
+  assert.equal(state.heard.length, 2);
+});
+
+test("an octave flicker shorter than 120 ms does not fail the take", () => {
+  const state = play([69, 67], [
+    ...tone(69, 0, 40),
+    ...tone(81, 60, 80),
+    ...tone(69, 180, 160),
+    ...tone(67, 400, 160),
+  ]);
+  assert.equal(state.passed, true, describeAttempt(state).text);
+  assert.equal(state.heard[0].midi, 69);
+  assert.equal(state.heard[1].midi, 67);
+});
+
+test("the previous expected note still ringing is not a wrong note", () => {
+  let ringing = play([60, 64], [...tone(60, 0, 500)]);
+  assert.equal(ringing.heard.length, 1);
+  assert.equal(ringing.ended, false);
+  assert.notEqual(ringing.reason, "wrong");
+  ringing = tickFollower(ringing, ringing.lastVoicedT + SILENCE_MS);
+  assert.equal(ringing.reason, "silence");
+  assert.equal(ringing.hint, "2nd note");
+
+  const continued = play([60, 64, 67], [
+    ...tone(60, 0, 400),
+    ...tone(64, 420, 160),
+    ...tone(67, 640, 160),
+  ]);
+  assert.equal(continued.passed, true, describeAttempt(continued).text);
+  assert.equal(continued.reason, "matched");
+});
+
+test("Brian's concert lick 2–19 cents flat still passes", () => {
+  const midis = [69, 67, 62, 58, 57, 55];
+  const flats = [2, 8, 19, 11, 5, 14];
+  let cursor = 40;
+  const frames = [];
+  for (let i = 0; i < midis.length; i += 1) {
+    frames.push(...tone(midis[i], cursor, 280, { cents: -flats[i], amp: 0.2, confidence: 0.95 }));
+    cursor += 360;
+  }
+  const state = play(midis, frames);
+  assert.equal(state.passed, true, describeAttempt(state).text);
+  assert.equal(state.heard.length, midis.length);
+  for (let i = 0; i < midis.length; i += 1) {
+    assert.equal(state.heard[i].midi, midis[i]);
+    assert.ok(state.heard[i].cents < -1 && state.heard[i].cents > -20, state.heard[i].cents);
+  }
 });
 
 test("the debug strip clears when the key advances", () => {

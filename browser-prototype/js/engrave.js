@@ -405,6 +405,21 @@ function restyleText(svg, layout = {}) {
   restyleDirs(svg, cueFontVU(layout));
 }
 
+/** Practice peeks the first written note. Slash heads and cue notes stay hidden. */
+export function markFirstMelodyNote(root) {
+  if (!root?.querySelectorAll) return;
+  for (const note of root.querySelectorAll(".note.memory-first")) {
+    note.classList.remove("memory-first");
+  }
+  for (const note of root.querySelectorAll(".note")) {
+    const cls = note.getAttribute("class") || "";
+    if (/\bcue\b/.test(cls)) continue;
+    if (isSlashHead(note)) continue;
+    note.classList.add("memory-first");
+    return;
+  }
+}
+
 function isSlashHead(el) {
   const cls = `${el.getAttribute("class") || ""} ${el.closest("[class]")?.getAttribute("class") || ""}`;
   if (/\bslash\b/i.test(cls)) return true;

@@ -433,6 +433,8 @@ test("home controls and session paper match the simplify revision", async () => 
   assert.match(hig, /\.app-tab\s*\{[^}]*font:\s*600 16px\/20px/);
   assert.match(hig, /--content-max:\s*900px/);
   assert.match(hig, /\.paper\.notation-memory \.note/);
+  assert.match(hig, /\.notation-memory \.note\.memory-first[\s\S]*visibility:\s*visible/);
+  assert.match(app, /markFirstMelodyNote\(els\.notation\)/);
   assert.match(styles, /\.sleeve-context\s*\{[^}]*white-space:\s*nowrap/);
   assert.match(styles, /\.sleeve-context\s*\{[^}]*text-overflow:\s*ellipsis/);
   assert.match(app, /sessionEngraveSpec\(session\)/);

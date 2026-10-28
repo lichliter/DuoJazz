@@ -17,10 +17,11 @@ import {
   fillMusicLabel,
   engraveMei,
   highlightActiveChords,
+  markFirstMelodyNote,
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=112";
+} from "./engrave.js?v=113";
 import {
   PREFS_KEY,
   MODULE,
@@ -84,7 +85,7 @@ import {
   sessionScreenTitle,
   LEGACY_PREFS_KEY,
   keyOrderPreview,
-} from "./session.js?v=112";
+} from "./session.js?v=113";
 import {
   tuneById,
   licksInTune,
@@ -96,7 +97,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=112";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=113";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -107,7 +108,7 @@ import {
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
-} from "./rapid.js?v=112";
+} from "./rapid.js?v=113";
 import {
   emptyMastery,
   displayMedal,
@@ -121,7 +122,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=112";
+import { PitchMonitor, micCopy } from "./pitch.js?v=113";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -130,7 +131,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=112";
+} from "./take-dump.js?v=113";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -164,6 +165,8 @@ let sessionShot = null;
 let lastDebug = null;
 let takeLog = null;
 let lastTake = null;
+let notesRevealed = false;
+let notesPeeked = false;
 let sealToken = 0;
 let liveAt = 0;
 const debugOn = new URLSearchParams(location.search).get("debug") === "1";
@@ -241,6 +244,8 @@ const els = {
   chartMeta: document.getElementById("chart-meta"),
   primary: document.getElementById("primary"),
   continueBtn: document.getElementById("continue-btn"),
+  showNotes: document.getElementById("show-notes"),
+  showNotesDot: document.getElementById("show-notes-dot"),
   instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
@@ -496,7 +501,7 @@ function renderAuto() {
 function recordRapidPass() {
   if (!session) return;
   const keyId = currentKeyId(session);
-  if (shouldRecordMastery(session, true)) {
+  if (shouldRecordMastery(session, true, { notesShown: notesPeeked })) {
     wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
     mastery = wrapupBanner;
   } else {
@@ -654,6 +659,21 @@ function finishCelebration(generation, { arm = false, pause = false } = {}) {
     if (token !== startGen || rapidPhase !== "reveal") return;
     beginListening();
   }, delay);
+}
+
+function renderShowNotes() {
+  const practice = Boolean(
+    session
+    && session.screen === "session"
+    && session.studyMode === "practice"
+    && !session.demo,
+  );
+  if (els.showNotesDot) els.showNotesDot.hidden = !practice;
+  if (!els.showNotes) return;
+  els.showNotes.hidden = !practice;
+  if (!practice) return;
+  els.showNotes.textContent = notesRevealed ? "Hide notes" : "Show notes";
+  els.showNotes.setAttribute("aria-pressed", String(notesRevealed));
 }
 
 function renderCelebrate() {
@@ -877,11 +897,21 @@ function exitSession() {
   render();
 }
 
+function sessionKeyToken(value) {
+  if (!value || value.screen !== "session") return "";
+  return `${value.lessonId}:${currentKeyId(value)}`;
+}
+
 function applySession(next, { autoStart = false } = {}) {
   const slot = sessionSlot(next);
   if (slot !== lastSessionSlot) resetPitchTake();
   lastSessionSlot = slot;
+  const prevKey = sessionKeyToken(session);
   session = next;
+  if (sessionKeyToken(session) !== prevKey) {
+    notesRevealed = false;
+    notesPeeked = false;
+  }
   persist();
   render();
   if (autoStart && session?.screen === "session") start(false);
@@ -1500,7 +1530,7 @@ function renderNotation() {
   els.session.dataset.card = currentCard(session);
   const spec = sessionEngraveSpec(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
-  els.notation.classList.toggle("notation-memory", spec.memory);
+  els.notation.classList.toggle("notation-memory", Boolean(spec.memory && !notesRevealed));
   lastTimemap = [];
   lastChordTimings = chordTimingsFor(session);
   if (hideStaff) {
@@ -1560,6 +1590,7 @@ function renderNotation() {
     };
     lastEngraveMs = engraved.elapsedMs;
     lastTimemap = engraved.timemap ?? [];
+    if (els.notation.classList.contains("notation-memory")) markFirstMelodyNote(els.notation);
     fitNotationInView();
     updatePlayhead();
   }).catch(() => {
@@ -1920,8 +1951,10 @@ function render(snap = transport.snapshot()) {
     renderCelebrate();
     renderDebug();
     renderAuto();
+    renderShowNotes();
   } else if (els.celebrate) {
     els.celebrate.hidden = true;
+    renderShowNotes();
   }
   if (screen === "wrapup") renderWrapup();
 }
@@ -2133,6 +2166,13 @@ els.autoToggle?.addEventListener("click", () => {
   prefs.auto = prefs.auto === false;
   persist();
   renderAuto();
+});
+els.showNotes?.addEventListener("click", () => {
+  if (!session || session.screen !== "session" || session.studyMode !== "practice" || session.demo) return;
+  notesRevealed = !notesRevealed;
+  if (notesRevealed) notesPeeked = true;
+  renderShowNotes();
+  renderNotation();
 });
 els.hearIt?.addEventListener("click", () => {
   if (!session || session.screen !== "session") return;
