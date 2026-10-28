@@ -1176,31 +1176,49 @@ input[type="checkbox"] {
 
 .session-octave {
   display: flex;
+  flex-direction: column;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 4px;
   flex: 0 0 auto;
 }
 
-.session-octave .chip {
-  min-width: var(--tap);
-  min-height: var(--tap);
-  font-size: 1.25rem;
-  line-height: 1;
+.session-octave .octave-btn {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
-.session-octave .chip:disabled {
+.octave-glyph {
+  width: 26px;
+  height: 26px;
+  display: block;
+  fill: currentColor;
+}
+
+.session-octave .octave-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
 .session-transport {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.28rem;
+  justify-content: center;
+  gap: 0.65rem 0.85rem;
   flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
   padding: 0.15rem 0 0;
 }
 
