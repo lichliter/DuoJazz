@@ -11,8 +11,8 @@ export const CELEBRATE_MS = 2000;
 export const READ_MS = 500;
 export const RETRY_MS = 900;
 
-export function shouldRecordMastery(session, passed) {
-  return Boolean(session && passed && session.studyMode === "practice");
+export function shouldRecordMastery(session, passed, { notesShown = false } = {}) {
+  return Boolean(session && passed && session.studyMode === "practice" && !notesShown);
 }
 
 export function isLastRapidKey(session) {

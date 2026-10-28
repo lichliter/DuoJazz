@@ -1,18 +1,22 @@
 /**
  * Ordered note follower for rapid-fire Play.
- * A note counts when the pitch stays within 50 cents (any octave) for ~80 ms.
- * Wrong pitches do not fail the take. Timing is not judged.
+ * A note counts when the pitch stays within 50 cents of the exact MIDI for ~80 ms.
+ * A confidently voiced wrong pitch, including the right pitch class in the
+ * wrong octave, fails the take once it has been held for 120 ms. Shorter
+ * transients (glides, grace notes, YIN octave flickers) are ignored, and the
+ * previous expected note may keep ringing. Timing is not judged.
  * A frame is voiced when YIN confidence is high and the level clears an
  * adaptive floor, so a quiet horn is not rejected by a fixed gate.
- * The same pitch class again needs a new attack: a short gap, or a dip
+ * The same MIDI again needs a new attack: a short gap, or a dip
  * below half of that note's peak.
  */
 
-import { centsBetween, midiFromHz, wrapMidi } from "./grade.js";
+import { centsBetween, midiFromHz } from "./grade.js";
 import { spellShownMidi } from "./music.js";
 
 export const FOLLOW_CENTS = 50;
 export const SUSTAIN_MS = 80;
+export const WRONG_MS = 120;
 export const SILENCE_MS = 1000;
 export const NO_SOUND_MS = 8000;
 export const REATTACK_GAP_MS = 40;
@@ -40,15 +44,12 @@ export function hintForIndex(index) {
   return `${ordinal(index + 1)} note`;
 }
 
-/** Nearest octave of the expected MIDI note, and the cents error against it. */
+/** Cents error against the exact expected MIDI. An octave shift is not a match. */
 export function nearestPitch(hz, expectedMidi) {
-  const heard = midiFromHz(hz);
-  if (heard == null || expectedMidi == null) return null;
-  const shift = Math.round((heard - expectedMidi) / 12);
-  const target = expectedMidi + shift * 12;
-  const cents = centsBetween(hz, target);
+  if (midiFromHz(hz) == null || expectedMidi == null) return null;
+  const cents = centsBetween(hz, expectedMidi);
   if (cents == null) return null;
-  return { cents, midi: target, shift };
+  return { cents, midi: expectedMidi, shift: 0 };
 }
 
 export function matchPitch(hz, expectedMidi, limit = FOLLOW_CENTS) {
@@ -77,6 +78,7 @@ export function createFollower(expected, origin = null) {
     releaseAmp: 0,
     sawRelease: false,
     noise: [],
+    wrongMs: 0,
   };
 }
 
@@ -163,12 +165,70 @@ function confirm(state, match, frame) {
   if (state.index >= state.expected.length) return finish(state, "matched");
   const next = state.expected[state.index];
   state.sawRelease = false;
-  if (wrapMidi(prev) === wrapMidi(next)) {
+  state.wrongMs = 0;
+  if (Math.round(prev) === Math.round(next)) {
     state.armed = false;
     state.releaseAmp = finishedPeak * 0.5;
   } else {
     state.armed = true;
   }
+  return state;
+}
+
+function pitchClassOf(midi) {
+  return ((Math.round(midi) % 12) + 12) % 12;
+}
+
+function failWrong(state, hz) {
+  if (state.ended) return state;
+  const heard = heardPitch(hz);
+  const expected = state.expected[state.index];
+  const wrongOctave = heard != null
+    && expected != null
+    && pitchClassOf(heard.midi) === pitchClassOf(expected);
+  state.ended = true;
+  state.reason = "wrong";
+  state.passed = false;
+  state.hint = wrongOctave
+    ? `${hintForIndex(state.index)}, wrong octave`
+    : hintForIndex(state.index);
+  return state;
+}
+
+function isPreviousRing(state, hz) {
+  if (state.index <= 0) return false;
+  const prev = state.expected[state.index - 1];
+  const expected = state.expected[state.index];
+  if (prev == null || expected == null) return false;
+  if (Math.round(prev) === Math.round(expected)) return false;
+  return matchPitch(hz, prev) != null;
+}
+
+function trackWrong(state, frame, prevVoiced) {
+  const t = Number(frame.t);
+  const amp = frame.amp ?? 0;
+  if (prevVoiced != null) {
+    const gap = t - prevVoiced;
+    if (gap > HOLD_GAP_MS) state.wrongMs = 0;
+    else if (gap > 0) state.wrongMs += gap;
+  }
+  const expectedMidi = state.expected[state.index];
+  if (expectedMidi != null) rememberClosest(state, frame, expectedMidi);
+  state.sustainMs = 0;
+  state.started = true;
+  state.lastVoicedT = t;
+  if (amp > state.peak) state.peak = amp;
+  if (state.wrongMs >= WRONG_MS) return failWrong(state, frame.hz);
+  return state;
+}
+
+function hearPrevious(state, frame) {
+  const amp = frame.amp ?? 0;
+  state.wrongMs = 0;
+  state.sustainMs = 0;
+  state.started = true;
+  state.lastVoicedT = frame.t;
+  if (amp > state.peak) state.peak = amp;
   return state;
 }
 
@@ -202,11 +262,16 @@ export function stepFollower(state, frame) {
   const match = expectedMidi == null ? null : matchPitch(hz, expectedMidi);
   const prevVoiced = state.lastVoicedT;
 
+  if (expectedMidi != null && !match && isPreviousRing(state, hz)) {
+    return hearPrevious(state, frame);
+  }
+
   if (!state.armed) {
     const gap = prevVoiced == null ? Infinity : t - prevVoiced;
     if (gap >= REATTACK_GAP_MS || amp <= state.releaseAmp) state.sawRelease = true;
-    if (expectedMidi != null) rememberClosest(state, frame, expectedMidi);
     if (!(state.sawRelease && amp > state.releaseAmp && match)) {
+      if (!match && expectedMidi != null) return trackWrong(state, frame, prevVoiced);
+      state.wrongMs = 0;
       state.started = true;
       state.lastVoicedT = t;
       if (amp > state.peak) state.peak = amp;
@@ -214,6 +279,7 @@ export function stepFollower(state, frame) {
     }
     state.armed = true;
     state.sustainMs = 0;
+    state.wrongMs = 0;
     state.peak = amp;
     state.started = true;
     state.lastVoicedT = t;
@@ -221,14 +287,15 @@ export function stepFollower(state, frame) {
   }
 
   if (!match) {
-    state.sustainMs = 0;
-    if (expectedMidi != null) rememberClosest(state, frame, expectedMidi);
-    state.started = true;
-    state.lastVoicedT = t;
-    if (amp > state.peak) state.peak = amp;
-    return state;
+    if (expectedMidi == null) {
+      state.started = true;
+      state.lastVoicedT = t;
+      return state;
+    }
+    return trackWrong(state, frame, prevVoiced);
   }
 
+  state.wrongMs = 0;
   if (prevVoiced != null) {
     const gap = t - prevVoiced;
     if (gap > HOLD_GAP_MS) state.sustainMs = 0;
