@@ -403,12 +403,22 @@ export const STAFF_PX = 40;
 /** Slightly larger on a phone so two-bar lines stay readable. */
 export const STAFF_PX_NARROW = 46;
 /**
- * iPad portrait reading size. About 21mm on a 12.9" iPad, large enough to
- * read from a music-stand distance, and shared by Learn and Practice.
+ * iPad portrait reading size. Largest staff that still fits four bars of
+ * Lesson 4 without melody noteheads touching. Trombone in G minor is the
+ * tight case: about 74px (~15mm on a 12.9" iPad). Shared by Learn and Practice.
  */
-export const PORTRAIT_STAFF_PX = 108;
-/** Chord cap height as a fraction of staff height (~16–18px at STAFF_PX). */
+export const PORTRAIT_STAFF_PX = 74;
+/** Viewports under this width keep two bars per system. iPad portrait is 1024. */
+export const PHONE_WIDTH = 600;
+/** Chord cap height as a fraction of staff height (~17px at STAFF_PX, ~31px on iPad portrait). */
 export const CHORD_CAP_RATIO = 0.42;
+
+/** One chord size for every instrument at a given staff. Never under 16px. */
+export function chordTargetCss(staffPx) {
+  const px = Number(staffPx);
+  if (!(px > 0)) return 16;
+  return Math.max(16, Math.round(px * CHORD_CAP_RATIO));
+}
 /** Cue labels sit just under the lowest stem, in CSS px at 1.0×. */
 export const CUE_PX = 12;
 
@@ -470,6 +480,11 @@ export function staffPxForScale(scale = 1, { narrow = false } = {}) {
   return Math.round(base * (parseNotationScale(scale) ?? 1));
 }
 
+/** A phone, or a notation column too narrow for four bars. */
+export function isTightNotation(staffWidth = 0, viewportWidth = 0) {
+  return staffWidth < 520 || (viewportWidth > 0 && viewportWidth < PHONE_WIDTH);
+}
+
 /** Staff height for a session viewport. Learn and Practice both use this. */
 export function baseStaffPx({ staffWidth = 0, viewportWidth = 0, viewportHeight = 0 } = {}) {
   const narrow = staffWidth < 520 || (viewportWidth > 0 && viewportWidth < 520);
@@ -510,16 +525,16 @@ export function notationLayout({
   notationScale = 1,
 }) {
   const size = parseNotationScale(notationScale) ?? 1;
-  const narrow = staffWidth < 520;
+  const tight = isTightNotation(staffWidth, viewportWidth);
   const staffPx = Math.round(baseStaffPx({ staffWidth, viewportWidth, viewportHeight }) * size);
-  const chordCssPx = Math.round(staffPx * CHORD_CAP_RATIO);
+  const chordCssPx = chordTargetCss(staffPx);
   const annotationPx = Math.round(CUE_PX * size);
 
   if (showPhraseNotation) {
     // Same staff size, page width, and chord lane as Practice. Short cells
     // justify to the card instead of sitting at their natural width.
     const requested = Number(phraseBars);
-    const barsPerLine = narrow
+    const barsPerLine = tight
       ? 2
       : Math.min(5, Math.max(2, Number.isFinite(requested) && requested > 0 ? requested : 2));
     return {
@@ -549,10 +564,10 @@ export function notationLayout({
     };
   }
 
-  // Phones and iPad portrait use 2 bars per system so a lick, its slashes,
-  // and the chord symbols each get a rhythmic share of the width. Wider
-  // layouts keep 4 (8-bar chart → 2 systems). Breaks are encoded <sb/>.
-  const barsPerLine = narrow || isStandPortrait(viewportWidth, viewportHeight) ? 2 : 4;
+  // Phones (under ~600px) stay at 2 bars. iPad portrait uses 4, same as
+  // landscape and desktop. The portrait staff is smaller so those four bars
+  // fit. Breaks are encoded <sb/>.
+  const barsPerLine = tight ? 2 : 4;
 
   return {
     scale: 1,

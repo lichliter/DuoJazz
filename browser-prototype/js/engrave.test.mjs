@@ -7,6 +7,8 @@ import {
   CHORD_FONT_VU,
   compactChordSymbol,
   MUSIC_FONT_FAMILY,
+  cueJustBelowStaff,
+  expandedViewBox,
   placeCueBoxes,
   CUE_FONT_VU,
   chordFontVU,
@@ -367,6 +369,31 @@ test("slash recentering uses the middle staff line and chords keep a half-em gap
   assert.equal(chordLiftForGap(100, 109, 20), 109 - 100 - 10);
 });
 
+test("HERE sits below the lick ink and the page grows instead of clipping chords", () => {
+  const cue = { left: 100, top: 400, width: 48, height: 16 };
+  const parked = cueJustBelowStaff(cue, 210, 160, {
+    gap: 6,
+    noteBottom: 198,
+    minLeft: 20,
+    maxRight: 400,
+  });
+  assert.equal(parked.top, 216);
+  assert.equal(parked.left, 136);
+  assert.equal(parked.dy, 216 - 400);
+  const lowNote = cueJustBelowStaff(cue, 210, 160, { gap: 6, noteBottom: 240 });
+  assert.equal(lowNote.top, 246);
+  const underBeam = cueJustBelowStaff(cue, 210, 160, { gap: 6, noteBottom: 198, inkBottom: 280 });
+  assert.equal(underBeam.top, 286);
+  assert.ok(underBeam.top > 280, "HERE stays clear of the beam and tuplet numeral");
+  const page = expandedViewBox({ x: 0, y: 0, width: 1148, height: 600 }, { top: 28, bottom: 0 });
+  assert.equal(page.width, 1148);
+  assert.equal(page.y, -28);
+  assert.equal(page.height, 628);
+  const untouched = expandedViewBox({ x: 0, y: 0, width: 1148, height: 699 }, { top: 0, bottom: 0 });
+  assert.equal(untouched.y, 0);
+  assert.equal(untouched.height, 699);
+});
+
 test("cue labels are ~13–14px italic drawing units, not the round-2 9px size", () => {
   assert.equal(CUE_FONT_VU, 330);
   assert.equal(cueFontVU(), 330);
@@ -377,11 +404,15 @@ test("cue labels are ~13–14px italic drawing units, not the round-2 9px size",
 
 test("engraving restyles chords then separates overlapping symbols", async () => {
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
-  assert.match(src, /separateChordSymbols\(svg\)/);
   assert.match(src, /layoutCueLabels\(svg\)/);
   assert.match(src, /MUSIC_FONT_FAMILY/);
   assert.match(src, /centerSlashNoteheads\(svg\)/);
   assert.match(src, /clearChordInkGap\(svg\)/);
+  assert.match(src, /cueJustBelowStaff\(/);
+  assert.match(src, /inkFloor\(/);
+  assert.match(src, /padViewBoxToInk\(svg\)/);
+  assert.match(src, /expandedViewBox\(/);
+  assert.match(src, /separateChordSymbols\(svg, layout\)/);
   assert.match(src, /middleStaffLineY\(/);
   assert.match(src, /mergeSplitChordSymbols\(/);
   assert.match(src, /applyFixedStaffSize\(/);
@@ -464,7 +495,7 @@ test("notation size presets keep four bars per line and scale the staff together
       showEntranceCues: true,
       notationScale: size,
     });
-    assert.equal(layout.barsPerLine, 2, `${size} bars`);
+    assert.equal(layout.barsPerLine, 4, `${size} bars`);
     assert.equal(layout.notationScale, size);
     assert.equal(layout.minStaffPx, Math.round(PORTRAIT_STAFF_PX * size));
     const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);
