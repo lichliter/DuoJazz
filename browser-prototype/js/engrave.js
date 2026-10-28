@@ -556,18 +556,6 @@ export function slashRecenterDelta(lineCenters, glyphTop, glyphHeight) {
   return Math.abs(delta) < 0.35 ? 0 : delta;
 }
 
-/**
- * Negative screen y moves chord text up. `chordBottom` and `inkTop` share
- * screen coordinates; a positive gap means the ink starts below the text.
- */
-export function chordLiftForGap(chordBottom, inkTop, em) {
-  if (!(em > 0) || !Number.isFinite(chordBottom) || !Number.isFinite(inkTop)) return 0;
-  const gap = inkTop - chordBottom;
-  const need = em * 0.5;
-  if (gap >= need - 0.4) return 0;
-  return gap - need;
-}
-
 function screenDyToLocal(el, dyScreen) {
   if (!Number.isFinite(dyScreen) || Math.abs(dyScreen) < 0.35) return 0;
   if (typeof DOMPoint === "undefined") return null;
@@ -597,95 +585,28 @@ function screenDyToLocal(el, dyScreen) {
   }
 }
 
-function renderedChordEm(text) {
-  const specified = parseFloat(text.getAttribute?.("font-size") || "");
-  const screen = screenBox(text);
-  if (!(screen?.height > 0)) return 0;
-  let userHeight = 0;
-  try {
-    userHeight = text.getBBox()?.height || 0;
-  } catch {
-    userHeight = 0;
-  }
-  if (specified > 0 && userHeight > 0) return specified * screen.height / userHeight;
-  return screen.height;
-}
-
+/**
+ * Center each slash head on the middle staff line. The whole note moves, so a
+ * stem stays attached at its normal length. Chord symbols are left where
+ * Verovio put them: once the slash sits on the middle line, the gap is the
+ * staff space above the head.
+ */
 export function centerSlashNoteheads(svg) {
   if (!svg?.querySelectorAll) return;
   for (const staff of svg.querySelectorAll(".staff")) {
     const lineCenters = staffLineScreenCenters(staff);
-    const heads = [...staff.querySelectorAll(".notehead, .note, [class*='slash']")].filter(isSlashHead);
-    const seen = new Set();
-    for (const head of heads) {
-      const target = head.classList?.contains("notehead") || head.classList?.contains("slash")
-        ? head
-        : head.closest(".notehead") ?? head;
-      if (seen.has(target)) continue;
-      seen.add(target);
-      const slashNote = target.closest?.(".note.slash, .slash");
-      if (slashNote && slashNote !== target) continue;
-      const box = screenBox(target);
+    for (const note of staff.querySelectorAll(".note")) {
+      if (!isSlashHead(note)) continue;
+      const head = note.querySelector(".notehead") || note.querySelector("use") || note;
+      const box = screenBox(head);
       const dyScreen = slashRecenterDelta(lineCenters, box?.top, box?.height);
-      const dy = dyScreen ? screenDyToLocal(target, dyScreen) : 0;
-      if (dy == null) continue;
+      const dy = dyScreen ? screenDyToLocal(note, dyScreen) : 0;
+      if (dy == null || Math.abs(dy) < 0.35) continue;
       // Leave the rhythmic x that Verovio chose. Shifting every slash on a
       // system into four global beats piles them onto the lick.
-      const dx = 0;
-      if (Math.abs(dy) < 0.35 && Math.abs(dx) < 0.35) continue;
-      const prev = target.getAttribute("transform") || "";
-      target.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
+      const prev = note.getAttribute("transform") || "";
+      note.setAttribute("transform", `${prev} translate(0 ${dy})`.trim());
     }
-  }
-}
-
-function highestInkTop(group) {
-  let inkTop = null;
-  for (const el of group.querySelectorAll(".notehead, .note, [class*='slash']")) {
-    const slash = isSlashHead(el);
-    let target = null;
-    if (slash) {
-      target = el.classList?.contains("note") || el.classList?.contains("slash") || el.classList?.contains("notehead")
-        ? el
-        : el.closest?.(".note") ?? el;
-    } else if (el.classList?.contains("notehead")) {
-      target = el;
-    }
-    if (!target) continue;
-    const box = screenBox(target);
-    if (!box) continue;
-    inkTop = inkTop == null ? box.top : Math.min(inkTop, box.top);
-  }
-  return inkTop;
-}
-
-/** Lift a system's chord symbols only as far as a 0.5em gap over slashes and noteheads requires. */
-export function clearChordInkGap(svg) {
-  if (!svg?.querySelectorAll) return;
-  const systems = [...svg.querySelectorAll(".system")];
-  const groups = systems.length ? systems : [...svg.querySelectorAll(".staff")];
-  for (const group of groups) {
-    const harms = [...group.querySelectorAll(".harm")];
-    if (!harms.length) continue;
-    let chordBottom = null;
-    let em = 0;
-    let anchor = null;
-    for (const harm of harms) {
-      const text = harmTextEl(harm);
-      const box = screenBox(text);
-      if (!box) continue;
-      if (chordBottom == null || box.bottom > chordBottom) {
-        chordBottom = box.bottom;
-        em = renderedChordEm(text);
-        anchor = text;
-      }
-    }
-    const inkTop = highestInkTop(group);
-    const lift = chordLiftForGap(chordBottom, inkTop, em);
-    if (!lift || !anchor) continue;
-    const dy = screenDyToLocal(anchor, lift);
-    if (dy == null || Math.abs(dy) < 0.35) continue;
-    for (const harm of harms) translateSvg(harm, 0, dy);
   }
 }
 
@@ -759,7 +680,6 @@ export async function engraveMei(target, mei, options = {}) {
     mergeSplitChordSymbols(svg);
     separateChordSymbols(svg);
     centerSlashNoteheads(svg);
-    clearChordInkGap(svg);
     layoutCueLabels(svg);
     applyFixedStaffSize(target, svg, layout);
   }
