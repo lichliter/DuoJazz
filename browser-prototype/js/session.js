@@ -291,9 +291,16 @@ function rotateTo(ids, startKeyId) {
   return [...ids.slice(index), ...ids.slice(0, index)];
 }
 
-/** Chromatic by pitch class, spelled with flats. */
+/** Chromatic down a half step, spelled with flats. C, B, B♭, A, A♭, … */
 export function chromaticOrder() {
-  return [...TWELVE_KEY_IDS];
+  const byPc = new Map(TWELVE_KEY_IDS.map((id) => [getKey(id).pc, id]));
+  const order = [];
+  let pc = 0;
+  for (let i = 0; i < 12; i += 1) {
+    order.push(byPc.get(pc) ?? TWELVE_KEY_IDS[0]);
+    pc = (pc + 11) % 12;
+  }
+  return order;
 }
 
 /** Circle of fourths (up 5 semitones), spelled with flats. */
@@ -319,6 +326,18 @@ export function buildKeyQueue(mode, startKeyId, rng = Math.random) {
   if (mode === "fourths") return rotateTo(fourthsOrder(), start);
   const rest = TWELVE_KEY_IDS.filter((id) => id !== start);
   return [start, ...shuffleInPlace(rest, rng)];
+}
+
+/**
+ * Setup-sheet preview of one lap. Random stays shuffled.
+ * Names follow the instrument's written spelling.
+ */
+export function keyOrderPreview(mode, startKeyId, displayMode = "concert") {
+  if (mode === "random") return "Shuffled";
+  const queue = buildKeyQueue(mode, startKeyId);
+  const names = queue.map((id) => displayKey(getKey(id), displayMode, "major").name.replace(/ major$/, ""));
+  if (mode === "one") return names[0] ?? "";
+  return names.join(" · ");
 }
 
 /** After a full lap: random reshuffles; other cycles repeat the same order. */

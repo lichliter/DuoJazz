@@ -1,12 +1,14 @@
 /**
  * Rapid-fire Play transitions.
- * Pass shows a check, then the next key. Fail stays on the key.
- * Auto re-arms on its own. Pause keeps the current key.
+ * A pass covers the session with a check, then shows the next lick
+ * before listening. A miss stays on the key. Pause keeps the current key,
+ * except during the celebration, where it still advances and does not listen.
  */
 
 import { advanceKey, currentCard, currentKeyId } from "./session.js";
 
-export const CHECK_MS = 500;
+export const CELEBRATE_MS = 2000;
+export const READ_MS = 500;
 export const RETRY_MS = 900;
 
 export function shouldRecordMastery(session, passed) {
@@ -55,6 +57,48 @@ export function afterPass(session, { auto = true } = {}) {
     autoStart: Boolean(auto),
     phase: auto ? "listening" : "idle",
     keyId: currentKeyId(next),
+  };
+}
+
+/**
+ * Timed steps after a pass.
+ * celebrate holds the key just passed. reveal shows the next lick.
+ * listening starts after the read beat when Auto is on.
+ * skip drops the celebration wait. pause advances and does not listen.
+ */
+export function passSchedule(session, { auto = true, skip = false, pause = false } = {}) {
+  const passedKeyId = session ? currentKeyId(session) : null;
+  const advanced = afterPass(session, { auto: false });
+  const last = advanced.session?.screen === "wrapup";
+  const arm = Boolean(auto) && !pause && !last;
+  const steps = [
+    {
+      phase: "celebrate",
+      ms: skip || pause ? 0 : CELEBRATE_MS,
+      keyId: passedKeyId,
+      screen: "session",
+    },
+    {
+      phase: last ? "wrapup" : "reveal",
+      ms: arm ? READ_MS : 0,
+      keyId: advanced.session ? currentKeyId(advanced.session) : null,
+      screen: advanced.session?.screen ?? "session",
+    },
+  ];
+  if (!last) {
+    steps.push({
+      phase: arm ? "listening" : "idle",
+      ms: 0,
+      keyId: advanced.session ? currentKeyId(advanced.session) : null,
+      screen: "session",
+      autoStart: arm,
+    });
+  }
+  return {
+    steps,
+    session: advanced.session,
+    autoStart: arm,
+    passedKeyId,
   };
 }
 
