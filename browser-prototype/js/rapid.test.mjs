@@ -94,9 +94,9 @@ test("the last key wraps up once, and a one-key pass does too", () => {
   assert.equal(currentKeyId(wrapped.session), "F");
 });
 
-test("Play toggles to Pause only while listening", () => {
-  assert.equal(rapidFireButton({}).label, "Play");
-  assert.equal(rapidFireButton({}).id, "play");
+test("Record toggles to Pause only while listening", () => {
+  assert.equal(rapidFireButton({}).label, "Record");
+  assert.equal(rapidFireButton({}).id, "record");
   assert.equal(rapidFireButton({ listening: true }).label, "Pause");
   assert.equal(rapidFireButton({ listening: true }).id, "pause");
   assert.equal(CELEBRATE_MS, 2000);
@@ -182,6 +182,7 @@ test("the mic opens once and later attempts only reset the follower", () => {
 test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-up, and hide", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const begin = app.slice(app.indexOf("async function beginListening"), app.indexOf("function resetPitchTake"));
   const finish = app.slice(app.indexOf("function finishRapid"), app.indexOf("async function beginListening"));
   assert.equal(begin.includes("monitor.stop("), false);
@@ -202,6 +203,15 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.match(app, /classList\.remove\("is-stop"\)/);
   assert.match(styles, /\.play-round\[data-action="pause"\] \.play-round-icon \{[^}]*linear-gradient\(currentColor, currentColor\) left center/);
   assert.doesNotMatch(styles, /data-action="pause"\] \.play-round-icon,\s*\n\.play-round\[data-action="stop"\]/);
+  assert.match(styles, /\.play-round-icon \{[^}]*border-radius:\s*50%/);
+  assert.match(styles, /\.play-round-icon \{[^}]*background:\s*var\(--destructive\)/);
+  assert.match(styles, /\.play-round-icon \{[^}]*width:\s*calc\(var\(--play-size\) \* 0\.34\)/);
+  assert.doesNotMatch(styles, /border-width:\s*calc\(var\(--play-size\) \* 0\.14\)/);
+  assert.match(index, /id="primary"[^>]*aria-label="Record"/);
+  const hear = index.slice(index.indexOf('id="hear-it"'), index.indexOf('id="session-octave"'));
+  assert.match(hear, /aria-label="Hear it"/);
+  assert.match(hear, /<path fill="currentColor" d="M7\.4 4\.9v14\.2/);
+  assert.doesNotMatch(hear, /stroke=/);
   const pass = finish.slice(finish.indexOf("if (passed)"), finish.indexOf("const failed"));
   assert.match(pass, /phase: "celebrate"|rapidPhase = "celebrate"/);
   assert.match(pass, /CELEBRATE_MS/);

@@ -23,7 +23,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=124";
+} from "./engrave.js?v=125";
 import {
   PREFS_KEY,
   MODULE,
@@ -87,7 +87,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=124";
+} from "./session.js?v=125";
 import {
   tuneById,
   licksInTune,
@@ -99,7 +99,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=124";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=125";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -111,7 +111,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=124";
+} from "./rapid.js?v=125";
 import {
   emptyMastery,
   displayMedal,
@@ -125,7 +125,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=124";
+import { PitchMonitor, micCopy } from "./pitch.js?v=125";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -134,7 +134,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=124";
+} from "./take-dump.js?v=125";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
