@@ -1196,13 +1196,12 @@ input[type="checkbox"] {
   display: grid;
   place-items: center;
   cursor: pointer;
-}
-
-.octave-glyph {
-  width: 20px;
-  height: 20px;
-  display: block;
-  fill: currentColor;
+  font-family: "Source Sans 3", Palatino, "Palatino Linotype", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .session-octave .octave-btn:disabled {

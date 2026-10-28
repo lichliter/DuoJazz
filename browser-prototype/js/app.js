@@ -23,7 +23,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=123";
+} from "./engrave.js?v=124";
 import {
   PREFS_KEY,
   MODULE,
@@ -87,7 +87,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=123";
+} from "./session.js?v=124";
 import {
   tuneById,
   licksInTune,
@@ -99,7 +99,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=123";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=124";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -111,7 +111,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=123";
+} from "./rapid.js?v=124";
 import {
   emptyMastery,
   displayMedal,
@@ -125,7 +125,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=123";
+import { PitchMonitor, micCopy } from "./pitch.js?v=124";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -134,7 +134,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=123";
+} from "./take-dump.js?v=124";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -678,13 +678,9 @@ function renderShowNotes() {
   els.showNotes.hidden = !practice;
   if (!practice) return;
   const label = notesRevealed ? "Hide notes" : "Show notes";
+  els.showNotes.textContent = label;
   els.showNotes.setAttribute("aria-label", label);
-  els.showNotes.setAttribute("title", label);
   els.showNotes.setAttribute("aria-pressed", String(notesRevealed));
-  const open = els.showNotes.querySelector(".icon-eye");
-  const shut = els.showNotes.querySelector(".icon-eye-off");
-  if (open) open.hidden = notesRevealed;
-  if (shut) shut.hidden = !notesRevealed;
 }
 
 function renderCelebrate() {
@@ -1394,25 +1390,22 @@ function renderSetupLinks(lesson) {
   host.hidden = true;
 }
 
-const OCTAVE_PLUS = '<svg class="octave-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><rect x="4" y="10" width="16" height="4" rx="1.2"></rect><rect x="10" y="4" width="4" height="16" rx="1.2"></rect></svg>';
-const OCTAVE_MINUS = '<svg class="octave-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><rect x="4" y="10" width="16" height="4" rx="1.2"></rect></svg>';
-
 function renderSessionOctave() {
   if (!els.sessionOctave || !session) return;
   const current = session.melodyRegister;
   const down = document.createElement("button");
   down.type = "button";
   down.className = "octave-btn";
-  down.innerHTML = OCTAVE_MINUS;
-  down.setAttribute("aria-label", "Octave down");
+  down.textContent = "8vb";
+  down.setAttribute("aria-label", "Octave down (8vb)");
   down.disabled = current <= -1;
   down.dataset.testid = "octave-down";
   down.addEventListener("click", () => applyMelodyOctave(current - 1));
   const up = document.createElement("button");
   up.type = "button";
   up.className = "octave-btn";
-  up.innerHTML = OCTAVE_PLUS;
-  up.setAttribute("aria-label", "Octave up");
+  up.textContent = "8va";
+  up.setAttribute("aria-label", "Octave up (8va)");
   up.dataset.testid = "octave-up";
   up.disabled = current >= 1;
   up.addEventListener("click", () => applyMelodyOctave(current + 1));
