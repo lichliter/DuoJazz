@@ -403,14 +403,15 @@ export const STAFF_PX = 40;
 /** Slightly larger on a phone so two-bar lines stay readable. */
 export const STAFF_PX_NARROW = 46;
 /**
- * iPad portrait reading size. Largest staff that still fits four bars of
- * Lesson 4 without melody noteheads touching. Trombone in G minor is the
- * tight case: about 74px (~15mm on a 12.9" iPad). Shared by Learn and Practice.
+ * iPad portrait reading size. About 20% under the previous 74px stand size
+ * (~59px, about 12mm on a 12.9" iPad) so notes sit smaller while four bars
+ * still share a line. Phone and landscape keep their own staff sizes.
+ * Shared by every instrument and by Learn and Practice.
  */
-export const PORTRAIT_STAFF_PX = 74;
+export const PORTRAIT_STAFF_PX = 59;
 /** Viewports under this width keep two bars per system. iPad portrait is 1024. */
 export const PHONE_WIDTH = 600;
-/** Chord cap height as a fraction of staff height (~17px at STAFF_PX, ~31px on iPad portrait). */
+/** Chord cap height as a fraction of staff height (~17px at STAFF_PX, ~25px on iPad portrait). */
 export const CHORD_CAP_RATIO = 0.42;
 
 /** One chord size for every instrument at a given staff. Never under 16px. */
@@ -503,6 +504,25 @@ export function notationCssWidth(renderedWidth, renderedHeight, availableHeight)
   }
   if (renderedHeight <= availableHeight + 1) return renderedWidth;
   return Math.max(1, Math.floor(renderedWidth * availableHeight / renderedHeight));
+}
+
+/**
+ * iPad portrait only. When a short line is narrower than the card, return the
+ * card width that hugs the engraving. Null leaves the stylesheet width alone,
+ * so phone and landscape cards do not move.
+ */
+export function notationCardWidth({
+  viewportWidth = 0,
+  viewportHeight = 0,
+  svgWidth = 0,
+  padX = 0,
+  maxWidth = 0,
+} = {}) {
+  if (!isStandPortrait(viewportWidth, viewportHeight)) return null;
+  if (!(svgWidth > 0)) return null;
+  const width = Math.ceil(svgWidth + Math.max(0, padX));
+  if (maxWidth > 0 && width >= maxWidth - 1) return null;
+  return width;
 }
 
 /** iPad Pro 12.9" portrait CSS px is 1024×1366. That is the primary lesson-1 target. */
