@@ -587,3 +587,26 @@ test("debug note names keep the written octave with the letter", () => {
     }
   }
 });
+
+test("a slow scoop up into the first note does not fail", () => {
+  const scoop = [];
+  for (let t = 0; t <= 260; t += 20) {
+    scoop.push({ t, hz: hzFromMidi(66 + (t / 260) * 2.8), amp: 0.25 });
+  }
+  const state = play([69, 67], [
+    ...scoop,
+    ...tone(69, 280, 160),
+    ...tone(67, 480, 160),
+  ]);
+  assert.equal(state.passed, true, describeAttempt(state).text);
+});
+
+test("a wrong note held steady after a scoop still fails", () => {
+  const scoop = [];
+  for (let t = 0; t <= 100; t += 20) {
+    scoop.push({ t, hz: hzFromMidi(68 + t / 100), amp: 0.25 });
+  }
+  const state = play([67], [...scoop, ...tone(70, 120, 160)]);
+  assert.equal(state.reason, "wrong");
+  assert.equal(state.hint, "1st note");
+});
