@@ -481,16 +481,20 @@ export function staffPxForScale(scale = 1, { narrow = false } = {}) {
   return Math.round(base * (parseNotationScale(scale) ?? 1));
 }
 
-/** A phone, or a notation column too narrow for four bars. */
+/**
+ * Two bars on a phone. Everywhere else, four. A hugged paper card must not
+ * flip this: the count follows the viewport, not the notation column.
+ */
 export function isTightNotation(staffWidth = 0, viewportWidth = 0) {
-  return staffWidth < 520 || (viewportWidth > 0 && viewportWidth < PHONE_WIDTH);
+  if (viewportWidth > 0) return viewportWidth < PHONE_WIDTH;
+  return staffWidth < 520;
 }
 
 /** Staff height for a session viewport. Learn and Practice both use this. */
 export function baseStaffPx({ staffWidth = 0, viewportWidth = 0, viewportHeight = 0 } = {}) {
+  if (isStandPortrait(viewportWidth, viewportHeight)) return PORTRAIT_STAFF_PX;
   const narrow = staffWidth < 520 || (viewportWidth > 0 && viewportWidth < 520);
   if (narrow) return STAFF_PX_NARROW;
-  if (isStandPortrait(viewportWidth, viewportHeight)) return PORTRAIT_STAFF_PX;
   return STAFF_PX;
 }
 
@@ -584,9 +588,10 @@ export function notationLayout({
     };
   }
 
-  // Phones (under ~600px) stay at 2 bars. iPad portrait uses 4, same as
-  // landscape and desktop. The portrait staff is smaller so those four bars
-  // fit. Breaks are encoded <sb/>.
+  // Phones (viewport under ~600px) stay at 2 bars. iPad portrait uses 4, same
+  // as landscape and desktop, even when a previous short line narrowed the
+  // card. The portrait staff is smaller so those four bars fit.
+  // Breaks are encoded <sb/>.
   const barsPerLine = tight ? 2 : 4;
 
   return {
