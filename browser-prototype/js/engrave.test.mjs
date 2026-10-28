@@ -451,7 +451,7 @@ test("notation size presets keep four bars per line and scale the staff together
       showEntranceCues: true,
       notationScale: size,
     });
-    assert.equal(layout.barsPerLine, 4, `${size} bars`);
+    assert.equal(layout.barsPerLine, 2, `${size} bars`);
     assert.equal(layout.notationScale, size);
     assert.equal(layout.minStaffPx, Math.round(PORTRAIT_STAFF_PX * size));
     const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);

@@ -174,6 +174,8 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     lyricTopMinMargin: 1.2,
     leftMarginAccid: 2,
     rightMarginAccid: 1.2,
+    spacingLinear: globalThis.DUOJAZZ_VEROVIO_SPACING?.spacingLinear ?? 0.7,
+    spacingNonLinear: globalThis.DUOJAZZ_VEROVIO_SPACING?.spacingNonLinear ?? 0.35,
     xmlIdSeed: 1,
     svgCss: `.harm, .harm text, .harm tspan { font-family: ${MUSIC_FONT_FAMILY}; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
   };
@@ -448,6 +450,19 @@ export function separateChordSymbols(svg) {
     }
     return changed;
   };
+  const userPerPx = (() => {
+    const rect = svg.getBoundingClientRect?.();
+    const box = svg.viewBox?.baseVal;
+    if (rect?.width && box?.width) return box.width / rect.width;
+    return 1;
+  })();
+  const emPx = (harm) => {
+    const text = harmTextEl(harm);
+    const computed = parseFloat(text.ownerDocument?.defaultView?.getComputedStyle?.(text)?.fontSize || "");
+    if (computed > 0) return computed;
+    const size = parseFloat(text.getAttribute("font-size") || "0");
+    return size > 0 ? size : 16;
+  };
   for (let i = 0; i < harms.length - 1; i += 1) {
     for (let step = 0; step < 12; step += 1) {
       let boxA;
@@ -462,11 +477,16 @@ export function separateChordSymbols(svg) {
       if (Math.abs((boxA.y + boxA.height / 2) - (boxB.y + boxB.height / 2)) > Math.max(boxA.height, boxB.height) * 0.8) {
         break;
       }
-      if (boxA.right + 6 <= boxB.left) break;
+      const gap = Math.max(emPx(harms[i]), emPx(harms[i + 1]));
+      if (boxA.right + gap <= boxB.left) break;
       const movedA = shrink(harms[i]);
       const movedB = shrink(harms[i + 1]);
-      if (!movedA && !movedB) break;
-      void harmTextEl(harms[i]).getBoundingClientRect();
+      if (movedA || movedB) {
+        void harmTextEl(harms[i]).getBoundingClientRect();
+        continue;
+      }
+      translateSvg(harms[i + 1], (boxA.right + gap - boxB.left) * userPerPx, 0);
+      break;
     }
   }
 }
@@ -499,46 +519,11 @@ export function middleStaffLineY(staff) {
   }
 }
 
-function staffLineBox(staff) {
-  let best = null;
-  for (const path of staff?.querySelectorAll?.(":scope > path") ?? []) {
-    let box;
-    try {
-      box = path.getBBox();
-    } catch {
-      continue;
-    }
-    if (!best || box.width > best.width) best = box;
-  }
-  return best;
-}
-
-function beatSlotsForStaff(staff, beats = 4) {
-  const lines = staffLineBox(staff);
-  if (!lines) return [];
-  const notes = [...staff.querySelectorAll(".note")];
-  let left = lines.x;
-  const right = lines.x + lines.width;
-  if (notes.length) {
-    try {
-      const noteLeft = Math.min(...notes.map((note) => note.getBBox().x));
-      if (Number.isFinite(noteLeft) && noteLeft > left + 8) left = noteLeft;
-    } catch {
-      // keep the line box
-    }
-  }
-  const width = Math.max(8, right - left);
-  const slot = width / beats;
-  return Array.from({ length: beats }, (_, i) => ({ x: left + i * slot, w: slot }));
-}
-
 export function centerSlashNoteheads(svg) {
   if (!svg?.querySelectorAll) return;
   for (const staff of svg.querySelectorAll(".staff")) {
     const mid = middleStaffLineY(staff);
     if (mid == null) continue;
-    const slots = beatSlotsForStaff(staff);
-    const slashNotes = [...staff.querySelectorAll(".note")].filter((el) => isSlashHead(el));
     const heads = [...staff.querySelectorAll(".notehead, .note, [class*='slash']")].filter(isSlashHead);
     const seen = new Set();
     for (const head of heads) {
@@ -555,16 +540,9 @@ export function centerSlashNoteheads(svg) {
       }
       if (!box.height) continue;
       const dy = mid - (box.y + box.height / 2);
-      let dx = 0;
-      const note = target.closest(".note") ?? head.closest?.(".note");
-      if (note && slots.length === 4 && slashNotes.length) {
-        const trailing = slashNotes.indexOf(note);
-        const slotIndex = slashNotes.length === 4
-          ? trailing
-          : 4 - slashNotes.length + trailing;
-        const slot = slots[Math.max(0, Math.min(3, slotIndex))];
-        if (slot) dx = slot.x + slot.w / 2 - (box.x + box.width / 2);
-      }
+      // Leave the rhythmic x that Verovio chose. Shifting every slash on a
+      // system into four global beats piles them onto the lick.
+      const dx = 0;
       if (Math.abs(dy) < 0.35 && Math.abs(dx) < 0.35) continue;
       const prev = target.getAttribute("transform") || "";
       target.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
