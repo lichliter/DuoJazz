@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { expectedNotesFor, hzFromMidi } from "./grade.js";
 import { displayKey, getKey, midiForSpelledPitch } from "./music.js";
 import { createSession, currentKeyId, sessionKeyQuality, TWELVE_KEY_IDS } from "./session.js";
-import { rms, yinPitch } from "./sound-yin.js";
+import { addTone, rms, yinPitch } from "./sound-yin.js";
 import {
   AMP_FLOOR,
   CONFIDENCE_MIN,
@@ -415,6 +415,55 @@ test("a synthetic trombone lick with a weak fundamental passes, including a quie
   const quietPcm = scaleToRms(rendered.pcm, 0.004);
   const quiet = play(rendered.midis, framesFromPcm(quietPcm, sampleRate));
   assert.equal(quiet.passed, true, describeAttempt(quiet).text);
+});
+
+function mixSpeakerBacking(pcm, sampleRate) {
+  // Speaker bleed under the horn. Bass ~0.05 sits near the sound-lab mix
+  // (0.55 × 0.1) and stays below this trombone's weak fundamental.
+  const beat = 0.5;
+  const bass = [43, 41, 38, 36, 43, 41];
+  const piano = [48, 51, 53];
+  for (let i = 0; i < bass.length; i += 1) {
+    addTone(pcm, sampleRate, {
+      midi: bass[i],
+      start: i * beat,
+      duration: beat * 0.92,
+      amp: 0.05,
+      harmonics: [1, 2],
+    });
+  }
+  const duration = pcm.length / sampleRate;
+  for (let start = 0; start < duration; start += beat) {
+    for (const midi of piano) {
+      addTone(pcm, sampleRate, {
+        midi,
+        start,
+        duration: beat * 0.42,
+        amp: 0.025,
+        harmonics: [1, 2, 3],
+      });
+    }
+  }
+}
+
+test("speaker bleed under a trombone take still passes, and backing alone does not", () => {
+  const sampleRate = 48000;
+  const rendered = renderTromboneLick(sampleRate);
+  const mixed = new Float32Array(rendered.pcm);
+  mixSpeakerBacking(mixed, sampleRate);
+  const withBand = play(rendered.midis, framesFromPcm(mixed, sampleRate));
+  assert.equal(withBand.passed, true, describeAttempt(withBand).text);
+  assert.equal(withBand.heard.length, rendered.midis.length);
+
+  const onlyBand = new Float32Array(rendered.pcm.length);
+  mixSpeakerBacking(onlyBand, sampleRate);
+  let backing = play(rendered.midis, framesFromPcm(onlyBand, sampleRate));
+  if (!backing.ended) {
+    const end = (framesFromPcm(onlyBand, sampleRate).at(-1)?.t ?? 0) + NO_SOUND_MS;
+    backing = tickFollower(backing, end);
+  }
+  assert.equal(backing.passed, false);
+  assert.notEqual(backing.reason, "matched");
 });
 
 test("YIN on a lone 3rd harmonic does not stick the follower on that note", () => {

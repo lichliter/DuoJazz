@@ -792,13 +792,21 @@ test("the click wheel shrinks for a three-system card and floors before the page
 
 test("session layout reserves three systems without shrinking the staff", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
   const fn = app.slice(app.indexOf("function layoutClickWheel"), app.indexOf("function fitNotationInView"));
   assert.match(fn, /staffCardContentHeight/);
   assert.match(fn, /withSystemGap/);
   assert.match(fn, /sessionWheelLayout/);
   assert.match(fn, /minWheelDiameter/);
-  assert.match(fn, /dataset\.pageScroll/);
+  assert.match(fn, /dataset\.columnScroll/);
+  assert.doesNotMatch(fn, /dataset\.pageScroll\s*=/);
   assert.doesNotMatch(fn, /dataset\.staffScroll/);
   assert.doesNotMatch(fn, /notationCssWidth/);
   assert.doesNotMatch(fn, /svg\.style\.setProperty\("width"/);
+  assert.match(hig, /data-column-scroll="true"\] \.session-body/);
+  assert.match(hig, /overflow-y:\s*auto/);
+  assert.match(hig, /\.session-footer \{[^}]*position:\s*relative/);
+  assert.doesNotMatch(hig, /data-page-scroll/);
+  assert.doesNotMatch(styles, /data-page-scroll/);
 });

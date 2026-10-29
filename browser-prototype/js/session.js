@@ -1085,6 +1085,37 @@ export function sessionAudioConfig(session) {
   return audioConfigFor(practiceStateFor(session));
 }
 
+/**
+ * Hear it always plays the lick melody plus the backing.
+ * Learn and Practice, and both lesson kinds, use the same demo config.
+ */
+export function demoAudioConfig(session) {
+  const config = sessionAudioConfig({ ...session, demo: true });
+  return {
+    ...config,
+    includeModel: true,
+    variationId: "original",
+    looping: false,
+  };
+}
+
+/**
+ * Record plays that same backing and count-in, with the lick muted, and loops
+ * until the attempt stops. Grading stays on the note follower.
+ */
+export function recordBackingConfig(session) {
+  const config = demoAudioConfig(session);
+  return {
+    ...config,
+    includeModel: false,
+    variationId: "skip",
+    includeCue: false,
+    includeGuides: false,
+    cueGain: 0,
+    looping: true,
+  };
+}
+
 const BAR_COUNT_WORDS = {
   8: "eight",
   9: "nine",

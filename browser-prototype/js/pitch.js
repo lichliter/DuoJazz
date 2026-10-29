@@ -3,7 +3,7 @@
  * iPad Safari: start only after a user gesture, same-origin worklet, silent tap to keep the graph alive.
  */
 
-const WORKLET_URL = new URL("./pitch-worklet.js?v=130", import.meta.url);
+const WORKLET_URL = new URL("./pitch-worklet.js?v=131", import.meta.url);
 
 /** Sound lab and demo playback. Voice processing stays on for those callers. */
 export const VOICE_MIC_CONSTRAINTS = Object.freeze({
