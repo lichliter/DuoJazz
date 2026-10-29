@@ -9,6 +9,8 @@ import {
   afterPass,
   passSchedule,
   pausePosition,
+  hearDemoGesture,
+  hearItButton,
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
@@ -188,6 +190,11 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.equal(begin.includes("monitor.stop("), false);
   assert.match(begin, /step === "reset"\) monitor\.reset\(\)/);
   assert.match(begin, /processing:\s*false/);
+  assert.match(begin, /recordBackingConfig\(session\)/);
+  assert.match(begin, /transport\.start\(config, \{ resume: false \}\)/);
+  assert.match(begin, /recordBacking = true/);
+  assert.match(finish, /recordBacking = false/);
+  assert.match(finish, /transport\.stop\(\)/);
   assert.equal(finish.split("monitor.stop(").length - 1, 1);
   assert.match(finish, /"wrapup"/);
   assert.match(finish, /step === "release"/);
@@ -197,7 +204,8 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.match(app, /releaseMic\("hide"\)/);
   assert.match(app, /pagehide/);
   assert.match(app, /visibilitychange/);
-  assert.match(app, /await monitor\.start\(transport\.ctx\);/);
+  assert.match(app, /await monitor\.start\(transport\.ctx, \{ processing: false \}\)/);
+  assert.doesNotMatch(app, /await monitor\.start\(transport\.ctx\);/);
   assert.equal(app.match(/processing:\s*false/g)?.length, 1);
   assert.match(app, /debugTextForKey\(lastDebug, currentKeyId\(session\), fresh\)/);
   assert.match(app, /classList\.remove\("is-stop"\)/);
@@ -227,6 +235,92 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   const fail = finish.slice(finish.indexOf("const failed"), finish.indexOf("finishing = false;\n}"));
   assert.match(fail, /RETRY_MS/);
   assert.doesNotMatch(fail, /celebrate/);
+});
+
+test("Hear it plays a demo without the mic and Stop returns to idle", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.deepEqual(hearItButton({ active: false }), { label: "Hear it", title: "Hear it", icon: "play" });
+  assert.deepEqual(hearItButton({ active: true }), { label: "Stop", title: "Stop", icon: "stop" });
+  assert.deepEqual(hearDemoGesture({ active: false }), {
+    stop: false,
+    listen: false,
+    play: true,
+    releaseMic: true,
+  });
+  assert.deepEqual(hearDemoGesture({ active: true }), {
+    stop: true,
+    listen: false,
+    play: false,
+    releaseMic: false,
+  });
+  assert.deepEqual(hearDemoGesture({ active: true, record: true }), {
+    stop: true,
+    listen: true,
+    play: false,
+    releaseMic: false,
+  });
+  assert.equal(rapidFireButton({ listening: false }).id, "record");
+  assert.equal(rapidFireButton({ listening: false }).label, "Record");
+
+  const play = app.slice(app.indexOf("async function playHearDemo"), app.indexOf("function runPrimary"));
+  assert.match(play, /demoAudioConfig\(\{ \.\.\.session, keyIndex: held \}\)/);
+  assert.match(play, /renderHearIt\(\)/);
+  assert.match(play, /renderPrimary\(\)/);
+  assert.doesNotMatch(play, /monitor\.start/);
+  assert.doesNotMatch(play, /createFollower/);
+  assert.doesNotMatch(play, /beginListening/);
+  assert.doesNotMatch(play, /recordLearnPass|recordQuizPass|finishCard|handlePlaybackEnded/);
+  assert.doesNotMatch(play, /els\.primary/);
+  assert.doesNotMatch(play, /session\s*=\s*\{[^}]*demo:\s*true/);
+
+  const stop = app.slice(app.indexOf("function stopHearDemo"), app.indexOf("async function playHearDemo"));
+  assert.match(stop, /hearDemo = false/);
+  assert.match(stop, /halt\(\)/);
+  assert.match(stop, /renderHearIt\(\)/);
+  assert.match(stop, /renderPrimary\(\)/);
+  assert.doesNotMatch(stop, /beginListening|handlePlaybackEnded|finishCard|recordLearnPass|recordQuizPass|createFollower|monitor\.start/);
+
+  const click = app.slice(app.indexOf('els.hearIt?.addEventListener'), app.indexOf("els.continueBtn.addEventListener"));
+  assert.match(click, /hearDemoGesture\(\{ active: hearDemo \}\)/);
+  assert.match(click, /releaseMic\("hear"\)/);
+  assert.match(click, /demo: false/);
+  assert.match(click, /playHearDemo\(\)/);
+  assert.match(click, /stopHearDemo\(\)/);
+  assert.doesNotMatch(click, /start\(false\)/);
+  assert.doesNotMatch(click, /demo:\s*true/);
+  assert.doesNotMatch(click, /monitor\.start|createFollower|beginListening/);
+
+  const primary = app.slice(app.indexOf("function runPrimary"), app.indexOf("function recordPassIfNeeded"));
+  assert.match(primary, /hearDemoGesture\(\{ active: hearDemo, record: true \}\)/);
+  assert.match(primary, /stopHearDemo\(\)/);
+  assert.match(primary, /beginListening\(\)/);
+
+  const ended = app.slice(app.indexOf("transport.onEnded"), app.indexOf("els.homeSummary?.addEventListener"));
+  assert.match(ended, /if \(hearDemo\)/);
+  const hearEnd = ended.slice(ended.indexOf("if (hearDemo)"), ended.indexOf("if (!session"));
+  assert.match(hearEnd, /hearDemo = false/);
+  assert.match(hearEnd, /renderHearIt\(\)/);
+  assert.match(hearEnd, /renderPrimary\(\)/);
+  assert.doesNotMatch(hearEnd, /handlePlaybackEnded|beginListening|finishCard|recordLearnPass|recordQuizPass/);
+
+  const button = app.slice(app.indexOf("function renderHearIt"), app.indexOf("function stopHearDemo"));
+  assert.match(button, /hearItButton\(\{ active: hearDemo \}\)/);
+  assert.match(button, /setAttribute\("aria-label", spec\.label\)/);
+  assert.match(button, /hear-it-stop/);
+  assert.match(button, /setAttribute\("hidden", ""\)/);
+  assert.match(button, /removeAttribute\("hidden"\)/);
+  assert.doesNotMatch(button, /\.hidden\s*=/);
+
+  const paint = app.slice(app.indexOf("function renderPrimary"), app.indexOf("function renderMeter"));
+  assert.match(paint, /!hearDemo/);
+  assert.match(paint, /rapidFireButton\(\{ listening \}\)/);
+
+  const hear = index.slice(index.indexOf('id="hear-it"'), index.indexOf('id="session-octave"'));
+  assert.match(hear, /class="transport-glyph hear-it-play"/);
+  assert.match(hear, /class="transport-glyph hear-it-stop"/);
+  assert.match(hear, /<rect x="6" y="6" width="12" height="12"[^>]*fill="currentColor"/);
+  assert.match(hear, /aria-label="Hear it"/);
 });
 
 test("octave down then octave up sit in the lick toolbar at 44px", async () => {

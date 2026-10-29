@@ -541,7 +541,8 @@ const STAFF_USER_UNITS = 96;
 export const WHEEL_CENTER_RATIO = 0.42;
 /** Center control stays about this size; the wheel grows to keep the ratio. */
 export const MIN_WHEEL_CENTER_PX = 120;
-export const MIN_WHEEL_CENTER_PHONE_PX = 96;
+/** Phone can shrink further so a tall staff still fits without scrolling the page. */
+export const MIN_WHEEL_CENTER_PHONE_PX = 64;
 
 /** CSS px between systems at the current staff size, including the chord lane's share of the gap. */
 export function systemGapCss(staffPx) {
@@ -618,8 +619,10 @@ export function staffCardContentHeight({
 
 /**
  * Wheel diameter under the staff card. `space` is the tools-to-footer slot.
- * Three margins of M stay put (above the card's stage, above the wheel, below it).
- * When the wheel would drop under `minDiameter`, the card takes the leftover and scrolls.
+ * Three margins of M stay put (above the card, above the wheel, below it).
+ * The card always keeps its full height. The wheel shrinks down to `minDiameter`.
+ * Past that, `pageScroll` is set: the card and the minimum wheel scroll together
+ * in the column above the pinned footer. The card still does not scroll internally.
  */
 export function sessionWheelLayout({
   space = 0,
@@ -639,14 +642,14 @@ export function sessionWheelLayout({
       diameter: Math.max(0, Math.min(width, room)),
       cardHeight: desired,
       scroll: false,
+      pageScroll: false,
     };
   }
-  const diameter = Math.min(width, floor);
-  const available = Math.floor((Number(space) || 0) - (Number(chrome) || 0) - diameter - gaps);
   return {
-    diameter,
-    cardHeight: Math.max(0, available),
-    scroll: true,
+    diameter: Math.min(width, floor),
+    cardHeight: desired,
+    scroll: false,
+    pageScroll: true,
   };
 }
 

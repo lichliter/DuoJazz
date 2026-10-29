@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=129";
+} from "./lesson.js?v=131";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=129";
+} from "./engrave.js?v=131";
 import {
   PREFS_KEY,
   MODULE,
@@ -56,6 +56,8 @@ import {
   jumpToWrapup,
   markLessonStarted,
   sessionPresentation,
+  demoAudioConfig,
+  recordBackingConfig,
   sessionAudioConfig,
   sessionPrimaryAction,
   wrapupCopy,
@@ -95,7 +97,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=129";
+} from "./session.js?v=131";
 import {
   tuneById,
   licksInTune,
@@ -107,7 +109,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=129";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=131";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -115,11 +117,13 @@ import {
   afterFail,
   isLastRapidKey,
   passSchedule,
+  hearDemoGesture,
+  hearItButton,
   rapidFireButton,
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=129";
+} from "./rapid.js?v=131";
 import {
   emptyMastery,
   displayMedal,
@@ -133,7 +137,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=129";
+import { PitchMonitor, micCopy } from "./pitch.js?v=131";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -142,12 +146,13 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=129";
+} from "./take-dump.js?v=131";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
 const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
+let recordBacking = false;
 let prefs = loadPrefs();
 let mastery = loadMastery();
 let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
@@ -168,6 +173,7 @@ let liveGrade = null;
 let lastSessionSlot = "";
 let cue = null;
 let rapidPhase = "idle";
+let hearDemo = false;
 let attempt = null;
 let attemptTimer = null;
 let feedbackTimer = null;
@@ -310,6 +316,8 @@ function clearRapidTimers() {
 
 function halt({ keepMic = false } = {}) {
   startGen += 1;
+  hearDemo = false;
+  recordBacking = false;
   finishing = false;
   samplesLoading = false;
   clearRapidTimers();
@@ -332,6 +340,7 @@ function halt({ keepMic = false } = {}) {
   playback.ended = false;
   audioError = "";
   if (els.primary) els.primary.disabled = false;
+  renderHearIt();
 }
 
 function releaseMic(reason) {
@@ -529,6 +538,8 @@ function finishRapid(generation, result) {
   if (generation !== startGen || finishing || rapidPhase !== "listening") return;
   finishing = true;
   rapidPhase = "settling";
+  recordBacking = false;
+  transport.stop();
   if (attemptTimer) window.clearInterval(attemptTimer);
   attemptTimer = null;
   const shown = shownKeyForSession();
@@ -612,7 +623,21 @@ async function beginListening() {
   renderDebug();
   try {
     await transport.ensure();
-    if (generation !== startGen) return;
+    if (generation !== startGen || !session) return;
+    const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
+    const prepared = await transport.prepareBacking({ sampleSet });
+    if (generation !== startGen || !session || rapidPhase !== "listening") return;
+    audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
+    const config = recordBackingConfig(session);
+    recordBacking = true;
+    await transport.start(config, { resume: false });
+    if (generation !== startGen || rapidPhase !== "listening") {
+      if (generation === startGen) {
+        recordBacking = false;
+        transport.stop();
+      }
+      return;
+    }
     const step = rapidMicStep(monitor.isLive() && monitor.processing === false, "attempt");
     if (step === "reset") monitor.reset();
     else await monitor.start(transport.ctx, { processing: false });
@@ -623,6 +648,8 @@ async function beginListening() {
       rapidPhase = "idle";
       attempt = null;
       monitor.holdSignal = false;
+      recordBacking = false;
+      transport.stop();
       renderPrimary();
       renderMic();
       return;
@@ -635,6 +662,8 @@ async function beginListening() {
     }, 50);
   } catch {
     if (generation !== startGen) return;
+    recordBacking = false;
+    transport.stop();
     audioError = "Microphone failed to start.";
     rapidPhase = "idle";
     attempt = null;
@@ -934,44 +963,71 @@ function applySession(next, { autoStart = false } = {}) {
 
 async function start(resume = false) {
   if (!session || session.screen !== "session") return;
-  if (!session.demo) return beginListening();
+  if (hearDemo) stopHearDemo();
+  if (session.demo) session = { ...session, demo: false };
+  if (resume) resetPitchTake();
+  return beginListening();
+}
+
+function renderHearIt() {
+  const button = els.hearIt;
+  if (!button) return;
+  const spec = hearItButton({ active: hearDemo });
+  button.setAttribute("aria-label", spec.label);
+  button.title = spec.title;
+  button.dataset.state = spec.icon;
+  const play = button.querySelector(".hear-it-play");
+  const stop = button.querySelector(".hear-it-stop");
+  const stopping = spec.icon === "stop";
+  if (play) {
+    if (stopping) play.setAttribute("hidden", "");
+    else play.removeAttribute("hidden");
+  }
+  if (stop) {
+    if (stopping) stop.removeAttribute("hidden");
+    else stop.setAttribute("hidden", "");
+  }
+}
+
+function stopHearDemo() {
+  if (!hearDemo) {
+    renderHearIt();
+    return;
+  }
+  hearDemo = false;
+  halt();
+  renderHearIt();
+  renderPrimary();
+}
+
+async function playHearDemo() {
+  if (!session || session.screen !== "session") return;
   const generation = startGen + 1;
   startGen = generation;
-  els.primary.disabled = true;
+  hearDemo = true;
+  const held = session.keyIndex;
   audioError = "";
-  if (!resume) resetPitchTake();
+  renderHearIt();
+  renderPrimary();
   const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
-  samplesLoading = !resume && !(transport.library?.backingReady && transport.library.hasMelody(sampleSet));
-  if (samplesLoading) renderPrimary();
   try {
     await transport.ensure();
-    if (generation !== startGen) return;
-    const prepared = await transport.prepareBacking({
-      sampleSet,
-      onProgress: () => {
-        if (generation === startGen) renderPrimary();
-      },
-    });
-    if (generation !== startGen) return;
+    if (generation !== startGen || !hearDemo) return;
+    const prepared = await transport.prepareBacking({ sampleSet });
+    if (generation !== startGen || !hearDemo || !session) return;
     audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
-    samplesLoading = false;
-    if (shouldListen() && !resume) {
-      monitor.beatClock = () => transport.snapshot().beats;
-      await monitor.start(transport.ctx);
-    }
-    if (generation !== startGen) return;
-    await transport.start(sessionAudioConfig(session), { resume });
+    const config = demoAudioConfig({ ...session, keyIndex: held });
+    await transport.start(config, { resume: false });
+    if (generation !== startGen || !hearDemo) return;
+    renderHearIt();
+    renderPrimary();
   } catch {
     if (generation !== startGen) return;
+    hearDemo = false;
     audioError = "Audio failed to load.";
+    renderHearIt();
     renderMeter();
-  } finally {
-    if (generation === startGen) {
-      samplesLoading = false;
-      els.primary.disabled = false;
-      renderPrimary();
-      renderMeter();
-    }
+    renderPrimary();
   }
 }
 
@@ -984,6 +1040,15 @@ function runPrimary() {
     renderCue();
     renderCelebrate();
     renderPrimary();
+    return;
+  }
+  const hearGesture = hearDemoGesture({ active: hearDemo, record: true });
+  if (hearGesture.stop) {
+    const held = session.keyIndex;
+    stopHearDemo();
+    if (!session || session.screen !== "session") return;
+    session = { ...session, keyIndex: held, demo: false };
+    if (hearGesture.listen) beginListening();
     return;
   }
   if (session.demo && (playback.playing || playback.paused)) {
@@ -1437,14 +1502,16 @@ function applyMelodyOctave(register) {
   if (!session || session.screen !== "session") return;
   const melodyRegister = register <= -1 ? -1 : register >= 1 ? 1 : 0;
   if (melodyRegister === session.melodyRegister) return;
-  const restart = playback.playing || playback.paused || rapidPhase === "listening";
+  const again = hearDemo;
+  const restart = !again && (playback.playing || playback.paused || rapidPhase === "listening");
   halt();
   resetPitchTake();
   session = setMelodyRegister(session, melodyRegister);
   prefs = persistLessonMelodyRegister(prefs, session.lessonId, melodyRegister);
   persist();
   render();
-  if (restart) start(false);
+  if (again) playHearDemo();
+  else if (restart) start(false);
 }
 
 function renderSessionChrome() {
@@ -1551,7 +1618,11 @@ function clearStaffCardBox(wrap) {
   if (!wrap) return;
   wrap.style.minHeight = "";
   wrap.style.maxHeight = "";
-  delete wrap.dataset.staffScroll;
+  const card = wrap.closest(".chart-card");
+  if (card) {
+    card.style.minHeight = "";
+    card.style.maxHeight = "";
+  }
 }
 
 function layoutClickWheel() {
@@ -1566,6 +1637,11 @@ function layoutClickWheel() {
   const svg = els.notation?.querySelector("svg");
   // Measure the tools-to-footer slot with the wheel collapsed and the card
   // unpinned, so a previous three-system minimum cannot shrink the slot.
+  delete screen.dataset.columnScroll;
+  delete screen.dataset.pageScroll;
+  const scroller = screen.querySelector(".session-body");
+  const keptScroll = scroller ? scroller.scrollTop : 0;
+  if (scroller) scroller.scrollTop = 0;
   clearStaffCardBox(wrap);
   wheel.style.width = "0px";
   wheel.style.height = "0px";
@@ -1609,38 +1685,39 @@ function layoutClickWheel() {
     );
   }
   const cardHeight = staffCardContentHeight(metrics);
+  const floor = minWheelDiameter(window.innerWidth);
   const fit = sessionWheelLayout({
     space,
     cardHeight,
     chrome,
     margin,
     widthFit,
-    minDiameter: minWheelDiameter(window.innerWidth),
+    minDiameter: floor,
   });
-  const diameter = fit.diameter;
+  let diameter = fit.diameter;
+  let pageScroll = fit.pageScroll;
   wheel.style.width = `${diameter}px`;
   wheel.style.height = `${diameter}px`;
-  const borderMin = Math.ceil(cardHeight + wrapPadY);
+  const borderMin = Math.ceil(fit.cardHeight + wrapPadY);
   wrap.style.minHeight = `${borderMin}px`;
-  const contentOverflows = metrics.contentHeight > fit.cardHeight + 1;
-  if (fit.scroll) {
-    const borderMax = Math.max(0, Math.ceil(fit.cardHeight + wrapPadY));
-    wrap.style.maxHeight = `${borderMax}px`;
-    wrap.style.minHeight = `${Math.min(borderMin, borderMax)}px`;
-    if (contentOverflows) wrap.dataset.staffScroll = "true";
-  }
+  wrap.style.maxHeight = "";
+  card.style.minHeight = `${Math.ceil(fit.cardHeight + chrome)}px`;
+  card.style.maxHeight = "";
   wrap.dataset.systems = String(metrics.count);
-  wrap.dataset.cardMin = String(Math.round(cardHeight));
+  wrap.dataset.cardMin = String(Math.round(fit.cardHeight));
   const bar = footer.querySelector(".key-cycle");
   const barTop = (bar ?? footer).getBoundingClientRect().top;
-  const overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
-  if (overflow > 1) {
-    const current = parseFloat(wrap.style.maxHeight) || parseFloat(wrap.style.minHeight) || 0;
-    const next = Math.max(48, Math.floor(current - overflow));
-    wrap.style.maxHeight = `${next}px`;
-    wrap.style.minHeight = `${Math.min(parseFloat(wrap.style.minHeight) || next, next)}px`;
-    if (metrics.contentHeight > next - wrapPadY + 1) wrap.dataset.staffScroll = "true";
+  let overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
+  if (overflow > 1 && diameter > floor) {
+    diameter = Math.max(floor, Math.floor(diameter - overflow));
+    wheel.style.width = `${diameter}px`;
+    wheel.style.height = `${diameter}px`;
+    overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
   }
+  if (overflow > 1) pageScroll = true;
+  if (pageScroll) screen.dataset.columnScroll = "true";
+  else delete screen.dataset.columnScroll;
+  if (pageScroll && scroller) scroller.scrollTop = keptScroll;
   wheel.dataset.fit = diameter + 1 >= widthFit ? "width" : "height";
 }
 
@@ -1775,7 +1852,8 @@ function renderInstruments() {
 
 function applyInstrument(instrumentId) {
   const instrument = instrumentOrDefault(instrumentId);
-  const restart = Boolean(session && (playback.playing || playback.paused || rapidPhase === "listening"));
+  const again = Boolean(session && hearDemo);
+  const restart = Boolean(session && !again && (playback.playing || playback.paused || rapidPhase === "listening"));
   prefs.instrumentId = instrument.id;
   prefs.displayMode = instrument.id;
   prefs.clef = instrument.clef;
@@ -1785,7 +1863,8 @@ function applyInstrument(instrumentId) {
     session = setInstrument(session, instrument.id);
   }
   render();
-  if (restart) start(false);
+  if (again) playHearDemo();
+  else if (restart) start(false);
 }
 
 function renderCopy(snap = transport.snapshot()) {
@@ -1803,7 +1882,11 @@ function renderPrimary(snap = transport.snapshot()) {
   renderAuto();
   const phase = visualPhase();
   if (els.session) els.session.dataset.rapid = phase;
-  const demoLive = Boolean(session.demo && (samplesLoading || playback.playing || playback.paused || snap.inCountIn));
+  const demoLive = Boolean(
+    !hearDemo
+    && session.demo
+    && (samplesLoading || playback.playing || playback.paused || snap.inCountIn),
+  );
   if (!demoLive) {
     const listening = phase === "listening";
     const action = rapidFireButton({ listening });
@@ -2104,6 +2187,7 @@ function render(snap = transport.snapshot()) {
     renderDebug();
     renderAuto();
     renderShowNotes();
+    renderHearIt();
   } else if (els.celebrate) {
     els.celebrate.hidden = true;
     renderShowNotes();
@@ -2215,6 +2299,7 @@ transport.onUpdate = (snap) => {
   if (!session || session.screen !== "session") return;
   renderCopy(snap);
   renderPrimary();
+  renderHearIt();
   renderMeter(snap);
   updatePlayhead(snap);
 };
@@ -2260,6 +2345,17 @@ transport.onEnded = () => {
   playback.playing = false;
   playback.paused = false;
   playback.ended = true;
+  if (recordBacking) {
+    recordBacking = false;
+    return;
+  }
+  if (hearDemo) {
+    hearDemo = false;
+    samplesLoading = false;
+    renderHearIt();
+    renderPrimary();
+    return;
+  }
   if (!session || session.screen !== "session") return;
   if (session.demo) {
     monitor.stop();
@@ -2329,12 +2425,16 @@ els.showNotes?.addEventListener("click", () => {
 });
 els.hearIt?.addEventListener("click", () => {
   if (!session || session.screen !== "session") return;
+  const gesture = hearDemoGesture({ active: hearDemo });
+  if (gesture.stop) {
+    stopHearDemo();
+    return;
+  }
   const held = session.keyIndex;
   releaseMic("hear");
-  if (!session) return;
-  session = { ...session, keyIndex: held, demo: true };
-  render();
-  start(false);
+  if (!session || session.screen !== "session") return;
+  session = { ...session, keyIndex: held, demo: false };
+  playHearDemo();
 });
 els.continueBtn.addEventListener("click", goContinue);
 els.nextModule?.addEventListener("click", () => {
