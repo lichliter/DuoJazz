@@ -9,6 +9,17 @@ import {
   eventIsAudibleFrom,
   livePlaybackEvents,
 } from "./sound-band.js";
+import {
+  BASS_BUS_GAIN,
+  BASS_NOTE_GAIN,
+  DRUM_BUS_GAIN,
+  MELODY_BUS_GAIN,
+  PIANO_BUS_GAIN,
+  PIANO_NOTE_GAIN,
+  busGain,
+  melodyPlayGain,
+  nearestSampleMidi,
+} from "./melody-gain.js";
 
 function midiToHz(midi) {
   return 440 * 2 ** ((midi - 69) / 12);
@@ -74,14 +85,23 @@ export class Transport {
     this.bassBus = this.ctx.createGain();
     this.drumBus = this.ctx.createGain();
     this.melodyBus = this.ctx.createGain();
-    this.pianoBus.gain.value = 0.8;
-    this.bassBus.gain.value = 0.85;
-    this.drumBus.gain.value = 0.7;
-    this.melodyBus.gain.value = 1;
+    this.pianoBus.gain.value = PIANO_BUS_GAIN;
+    this.bassBus.gain.value = BASS_BUS_GAIN;
+    this.drumBus.gain.value = DRUM_BUS_GAIN;
+    this.melodyBus.gain.value = MELODY_BUS_GAIN;
     this.pianoBus.connect(this.master);
     this.bassBus.connect(this.master);
     this.drumBus.connect(this.master);
     this.melodyBus.connect(this.master);
+  }
+
+  applyMix(duckBacking) {
+    this.ensureBuses();
+    const duck = Boolean(duckBacking);
+    this.pianoBus.gain.value = busGain("piano", duck);
+    this.bassBus.gain.value = busGain("bass", duck);
+    this.drumBus.gain.value = busGain("drum", duck);
+    this.melodyBus.gain.value = busGain("melody", duck);
   }
 
   samplesReady() {
@@ -279,9 +299,10 @@ export class Transport {
     if (event.type === "melody") {
       const pick = this.library?.nearest(this.melodyKind, event.midi);
       if (pick?.buffer) {
+        const sampleMidi = nearestSampleMidi(this.melodyKind, pick.midi);
         this.playBuffer(pick.buffer, time, {
           bus: this.melodyBus ?? this.master,
-          gain: 0.34 * vel,
+          gain: melodyPlayGain(this.melodyKind, sampleMidi, vel),
           duration: dur,
           playbackRate: pick.playbackRate,
         });
@@ -306,7 +327,7 @@ export class Transport {
         const pick = this.library.nearest("piano", midi);
         this.playBuffer(pick.buffer, time, {
           bus: this.pianoBus ?? this.master,
-          gain: 0.16 * vel,
+          gain: PIANO_NOTE_GAIN * vel,
           duration: dur,
           playbackRate: pick.playbackRate,
         });
@@ -340,7 +361,7 @@ export class Transport {
         const pick = this.library.nearest("bass", event.midi);
         this.playBuffer(pick.buffer, time, {
           bus: this.bassBus ?? this.master,
-          gain: 0.55 * vel,
+          gain: BASS_NOTE_GAIN * vel,
           duration: dur,
           playbackRate: pick.playbackRate,
         });
@@ -414,6 +435,7 @@ export class Transport {
     this.swing = config.swing;
     this.looping = config.looping;
     this.cueGain = config.cueGain ?? 1;
+    if (typeof config.duckBacking === "boolean") this.applyMix(config.duckBacking);
     this.playing = true;
     this.paused = false;
     this.ended = false;
