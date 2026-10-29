@@ -9,7 +9,15 @@ import {
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
 import { Transport } from "./audio.js";
-import { notationCssWidth, notationLayout, resolveNotationScale } from "./lesson.js";
+import {
+  notationLayout,
+  resolveNotationScale,
+  staffCardContentHeight,
+  staffSystemMetricsFromBoxes,
+  withSystemGap,
+  sessionWheelLayout,
+  minWheelDiameter,
+} from "./lesson.js?v=129";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -23,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=128";
+} from "./engrave.js?v=129";
 import {
   PREFS_KEY,
   MODULE,
@@ -87,7 +95,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=128";
+} from "./session.js?v=129";
 import {
   tuneById,
   licksInTune,
@@ -99,7 +107,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=128";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=129";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -111,7 +119,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=128";
+} from "./rapid.js?v=129";
 import {
   emptyMastery,
   displayMedal,
@@ -125,7 +133,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=128";
+import { PitchMonitor, micCopy } from "./pitch.js?v=129";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -134,7 +142,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=128";
+} from "./take-dump.js?v=129";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -1539,6 +1547,13 @@ function screenMarginPx(screen) {
   return Number.isFinite(value) ? value : 20;
 }
 
+function clearStaffCardBox(wrap) {
+  if (!wrap) return;
+  wrap.style.minHeight = "";
+  wrap.style.maxHeight = "";
+  delete wrap.dataset.staffScroll;
+}
+
 function layoutClickWheel() {
   const screen = els.session;
   const wheel = screen?.querySelector(".click-wheel");
@@ -1546,10 +1561,12 @@ function layoutClickWheel() {
   const tools = screen?.querySelector(".lick-tools");
   const footer = screen?.querySelector(".session-footer");
   const card = screen?.querySelector(".chart-card");
-  if (!screen || !wheel || !stage || !footer || !card) return;
+  const wrap = card?.querySelector(".paper-wrap");
+  if (!screen || !wheel || !stage || !footer || !card || !wrap) return;
   const svg = els.notation?.querySelector("svg");
-  // Measure the tools-to-footer slot with the wheel collapsed so a wide
-  // disc cannot push the footer off the screen before we know the room.
+  // Measure the tools-to-footer slot with the wheel collapsed and the card
+  // unpinned, so a previous three-system minimum cannot shrink the slot.
+  clearStaffCardBox(wrap);
   wheel.style.width = "0px";
   wheel.style.height = "0px";
   const margin = screenMarginPx(screen);
@@ -1559,13 +1576,11 @@ function layoutClickWheel() {
   const toolsBottom = tools ? tools.getBoundingClientRect().bottom : stage.getBoundingClientRect().top;
   const space = footer.getBoundingClientRect().top - toolsBottom;
   const cardStyle = getComputedStyle(card);
-  const wrap = card.querySelector(".paper-wrap");
-  const wrapStyle = wrap ? getComputedStyle(wrap) : null;
+  const wrapStyle = getComputedStyle(wrap);
+  const wrapPadY = (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
   let chrome = (parseFloat(cardStyle.paddingTop) || 0) + (parseFloat(cardStyle.paddingBottom) || 0)
-    + (parseFloat(cardStyle.borderTopWidth) || 0) + (parseFloat(cardStyle.borderBottomWidth) || 0);
-  if (wrapStyle) {
-    chrome += (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
-  }
+    + (parseFloat(cardStyle.borderTopWidth) || 0) + (parseFloat(cardStyle.borderBottomWidth) || 0)
+    + wrapPadY;
   for (const child of card.children) {
     if (child.hidden || child === wrap) continue;
     const childStyle = getComputedStyle(child);
@@ -1574,34 +1589,57 @@ function layoutClickWheel() {
       + (parseFloat(childStyle.marginBottom) || 0);
   }
   const notationShown = Boolean(svg) && !els.notation?.hidden;
-  let notationHeight = notationShown ? svg.getBoundingClientRect().height : 0;
-  if (!notationShown) {
+  let metrics;
+  if (notationShown) {
+    const boxes = [...svg.querySelectorAll(".system")].map((el) => el.getBoundingClientRect());
+    const staffPx = fiveLineStaffHeightCss(svg.querySelector(".staff"))
+      || lastNotationLayout?.minStaffPx
+      || 0;
+    metrics = withSystemGap(
+      staffSystemMetricsFromBoxes(boxes, svg.getBoundingClientRect().height),
+      staffPx,
+    );
+  } else {
     const answer = card.querySelector(".hidden-answer");
-    notationHeight = answer && !answer.hidden ? answer.offsetHeight : 160;
+    const contentHeight = answer && !answer.hidden ? answer.offsetHeight : 160;
+    const staffPx = lastNotationLayout?.minStaffPx || 0;
+    metrics = withSystemGap(
+      staffSystemMetricsFromBoxes([], Math.max(contentHeight, staffPx)),
+      staffPx,
+    );
   }
-  const roomFor = (height) => Math.floor(space - chrome - height - (3 * margin));
-  let wheelRoom = roomFor(notationHeight);
-  const minWheel = 112;
-  if (notationShown && wheelRoom < minWheel) {
-    const target = notationHeight - (minWheel - wheelRoom);
-    if (target > 48) {
-      const box = svg.getBoundingClientRect();
-      const next = notationCssWidth(box.width, box.height, target);
-      if (next > 0 && next < box.width - 1) {
-        svg.style.setProperty("width", `${Math.round(next)}px`, "important");
-        notationHeight = svg.getBoundingClientRect().height;
-        wheelRoom = roomFor(notationHeight);
-      }
-    }
-  }
-  let diameter = Math.max(0, Math.min(widthFit, wheelRoom));
+  const cardHeight = staffCardContentHeight(metrics);
+  const fit = sessionWheelLayout({
+    space,
+    cardHeight,
+    chrome,
+    margin,
+    widthFit,
+    minDiameter: minWheelDiameter(window.innerWidth),
+  });
+  const diameter = fit.diameter;
   wheel.style.width = `${diameter}px`;
   wheel.style.height = `${diameter}px`;
-  const overflow = Math.ceil(document.documentElement.scrollHeight - window.innerHeight);
-  if (overflow > 0 && diameter > overflow) {
-    diameter -= overflow;
-    wheel.style.width = `${diameter}px`;
-    wheel.style.height = `${diameter}px`;
+  const borderMin = Math.ceil(cardHeight + wrapPadY);
+  wrap.style.minHeight = `${borderMin}px`;
+  const contentOverflows = metrics.contentHeight > fit.cardHeight + 1;
+  if (fit.scroll) {
+    const borderMax = Math.max(0, Math.ceil(fit.cardHeight + wrapPadY));
+    wrap.style.maxHeight = `${borderMax}px`;
+    wrap.style.minHeight = `${Math.min(borderMin, borderMax)}px`;
+    if (contentOverflows) wrap.dataset.staffScroll = "true";
+  }
+  wrap.dataset.systems = String(metrics.count);
+  wrap.dataset.cardMin = String(Math.round(cardHeight));
+  const bar = footer.querySelector(".key-cycle");
+  const barTop = (bar ?? footer).getBoundingClientRect().top;
+  const overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
+  if (overflow > 1) {
+    const current = parseFloat(wrap.style.maxHeight) || parseFloat(wrap.style.minHeight) || 0;
+    const next = Math.max(48, Math.floor(current - overflow));
+    wrap.style.maxHeight = `${next}px`;
+    wrap.style.minHeight = `${Math.min(parseFloat(wrap.style.minHeight) || next, next)}px`;
+    if (metrics.contentHeight > next - wrapPadY + 1) wrap.dataset.staffScroll = "true";
   }
   wheel.dataset.fit = diameter + 1 >= widthFit ? "width" : "height";
 }
