@@ -9,7 +9,7 @@ import {
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
 import { Transport } from "./audio.js";
-import { notationCardWidth, notationCssWidth, notationLayout, resolveNotationScale } from "./lesson.js";
+import { notationCssWidth, notationLayout, resolveNotationScale } from "./lesson.js";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -23,7 +23,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=126";
+} from "./engrave.js?v=127";
 import {
   PREFS_KEY,
   MODULE,
@@ -87,7 +87,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=126";
+} from "./session.js?v=127";
 import {
   tuneById,
   licksInTune,
@@ -99,7 +99,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=126";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=127";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -111,7 +111,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=126";
+} from "./rapid.js?v=127";
 import {
   emptyMastery,
   displayMedal,
@@ -125,7 +125,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=126";
+import { PitchMonitor, micCopy } from "./pitch.js?v=127";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -134,7 +134,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=126";
+} from "./take-dump.js?v=127";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -1483,10 +1483,23 @@ function releaseNotationCardWidth() {
 }
 
 function staffWidth() {
-  // Lesson 1 hugs the card. Measure the stylesheet width, not that hug, so
-  // the next chorus engraves across the full page.
+  // Measure the cream screen, not a hugged card, so the next chorus engraves
+  // across the page. Ignore padding: the staff is drawn inside the bezel.
   releaseNotationCardWidth();
-  return Math.max(320, Math.min(980, els.notation.clientWidth || 760));
+  const card = els.session?.querySelector(".chart-card");
+  const wrap = els.notation?.parentElement;
+  let available = els.notation?.clientWidth || 760;
+  if (card) {
+    const cardStyle = getComputedStyle(card);
+    const wrapStyle = wrap ? getComputedStyle(wrap) : null;
+    const chrome = (parseFloat(cardStyle.paddingLeft) || 0)
+      + (parseFloat(cardStyle.paddingRight) || 0)
+      + (parseFloat(wrapStyle?.paddingLeft) || 0)
+      + (parseFloat(wrapStyle?.paddingRight) || 0);
+    const inner = card.clientWidth - chrome;
+    if (inner > 0) available = Math.min(available, inner);
+  }
+  return Math.max(320, Math.min(980, available));
 }
 
 function notationRoot(svg) {
@@ -1520,11 +1533,87 @@ function updatePlayhead(snap = transport.snapshot()) {
   }
 }
 
+function screenMarginPx(screen) {
+  const raw = getComputedStyle(screen).getPropertyValue("--screen-margin");
+  const value = parseFloat(raw);
+  return Number.isFinite(value) ? value : 20;
+}
+
+function layoutClickWheel() {
+  const screen = els.session;
+  const wheel = screen?.querySelector(".click-wheel");
+  const stage = screen?.querySelector(".session-stage");
+  const tools = screen?.querySelector(".lick-tools");
+  const footer = screen?.querySelector(".session-footer");
+  const card = screen?.querySelector(".chart-card");
+  if (!screen || !wheel || !stage || !footer || !card) return;
+  const svg = els.notation?.querySelector("svg");
+  // Measure the tools-to-footer slot with the wheel collapsed so a wide
+  // disc cannot push the footer off the screen before we know the room.
+  wheel.style.width = "0px";
+  wheel.style.height = "0px";
+  const margin = screenMarginPx(screen);
+  const stageStyle = getComputedStyle(stage);
+  const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
+  const widthFit = Math.max(0, Math.floor(stage.clientWidth - padX));
+  const toolsBottom = tools ? tools.getBoundingClientRect().bottom : stage.getBoundingClientRect().top;
+  const space = footer.getBoundingClientRect().top - toolsBottom;
+  const cardStyle = getComputedStyle(card);
+  const wrap = card.querySelector(".paper-wrap");
+  const wrapStyle = wrap ? getComputedStyle(wrap) : null;
+  let chrome = (parseFloat(cardStyle.paddingTop) || 0) + (parseFloat(cardStyle.paddingBottom) || 0)
+    + (parseFloat(cardStyle.borderTopWidth) || 0) + (parseFloat(cardStyle.borderBottomWidth) || 0);
+  if (wrapStyle) {
+    chrome += (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
+  }
+  for (const child of card.children) {
+    if (child.hidden || child === wrap) continue;
+    const childStyle = getComputedStyle(child);
+    chrome += child.getBoundingClientRect().height
+      + (parseFloat(childStyle.marginTop) || 0)
+      + (parseFloat(childStyle.marginBottom) || 0);
+  }
+  const notationShown = Boolean(svg) && !els.notation?.hidden;
+  let notationHeight = notationShown ? svg.getBoundingClientRect().height : 0;
+  if (!notationShown) {
+    const answer = card.querySelector(".hidden-answer");
+    notationHeight = answer && !answer.hidden ? answer.offsetHeight : 160;
+  }
+  const roomFor = (height) => Math.floor(space - chrome - height - (3 * margin));
+  let wheelRoom = roomFor(notationHeight);
+  const minWheel = 112;
+  if (notationShown && wheelRoom < minWheel) {
+    const target = notationHeight - (minWheel - wheelRoom);
+    if (target > 48) {
+      const box = svg.getBoundingClientRect();
+      const next = notationCssWidth(box.width, box.height, target);
+      if (next > 0 && next < box.width - 1) {
+        svg.style.setProperty("width", `${Math.round(next)}px`, "important");
+        notationHeight = svg.getBoundingClientRect().height;
+        wheelRoom = roomFor(notationHeight);
+      }
+    }
+  }
+  let diameter = Math.max(0, Math.min(widthFit, wheelRoom));
+  wheel.style.width = `${diameter}px`;
+  wheel.style.height = `${diameter}px`;
+  const overflow = Math.ceil(document.documentElement.scrollHeight - window.innerHeight);
+  if (overflow > 0 && diameter > overflow) {
+    diameter -= overflow;
+    wheel.style.width = `${diameter}px`;
+    wheel.style.height = `${diameter}px`;
+  }
+  wheel.dataset.fit = diameter + 1 >= widthFit ? "width" : "height";
+}
+
 function fitNotationInView() {
   const svg = els.notation?.querySelector("svg");
   const body = els.session?.querySelector(".session-body");
   const stage = body?.querySelector(".session-stage");
-  if (!svg || !body || !stage || els.notation.hidden) return;
+  if (!svg || !body || !stage || els.notation.hidden) {
+    layoutClickWheel();
+    return;
+  }
   svg.style.setProperty("width", "100%", "important");
   svg.style.setProperty("max-width", "100%", "important");
   svg.style.setProperty("height", "auto", "important");
@@ -1537,71 +1626,9 @@ function fitNotationInView() {
       svg.style.setProperty("width", `${Math.round(drawn.width * staffPx / measured)}px`, "important");
     }
   }
-  const style = getComputedStyle(body);
-  const pad = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
-  const card = stage.querySelector(".chart-card");
-  const block = stage.querySelector(".notation-block");
-  const playWell = stage.querySelector(".play-well");
-  let reserved = pad + 8;
-  for (const el of stage.children) {
-    if (el === card || el === block || el === playWell || el.hidden) continue;
-    const elStyle = getComputedStyle(el);
-    reserved += el.offsetHeight
-      + (parseFloat(elStyle.marginTop) || 0)
-      + (parseFloat(elStyle.marginBottom) || 0);
-  }
-  const tools = block?.querySelector(".lick-tools");
-  if (tools && !tools.hidden) {
-    const toolStyle = getComputedStyle(tools);
-    reserved += tools.offsetHeight
-      + (parseFloat(toolStyle.marginTop) || 0)
-      + (parseFloat(toolStyle.marginBottom) || 0);
-  }
-  const wrap = els.notation.parentElement;
-  const wrapStyle = wrap ? getComputedStyle(wrap) : null;
-  const wrapPad = wrapStyle
-    ? (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0)
-    : 0;
-  const available = body.clientHeight - reserved - wrapPad;
-  const box = svg.getBoundingClientRect();
-  const next = notationCssWidth(box.width, box.height, available);
-  if (next > 0 && next < box.width - 1) {
-    svg.style.setProperty("width", `${Math.round(next)}px`, "important");
-  }
   padViewBoxToInk(svg);
-  fitNotationCard(svg);
-}
-
-function fitNotationCard(svg) {
-  const card = els.session?.querySelector(".chart-card");
-  const block = els.session?.querySelector(".notation-block");
-  const target = block || card;
-  if (!target || !svg) return;
-  const wrap = els.notation?.parentElement;
-  const wrapStyle = wrap ? getComputedStyle(wrap) : null;
-  const padX = wrapStyle
-    ? (parseFloat(wrapStyle.paddingLeft) || 0) + (parseFloat(wrapStyle.paddingRight) || 0)
-    : 0;
-  const maxWidth = target.parentElement?.clientWidth || target.clientWidth || 0;
-  const width = notationCardWidth({
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight,
-    svgWidth: svg.getBoundingClientRect().width,
-    padX,
-    maxWidth,
-  });
-  if (!width) {
-    releaseNotationCardWidth();
-    return;
-  }
-  target.style.width = `${width}px`;
-  target.style.minWidth = "0";
-  target.style.marginInline = "auto";
-  if (card && card !== target) {
-    card.style.width = "";
-    card.style.minWidth = "";
-    card.style.marginInline = "";
-  }
+  releaseNotationCardWidth();
+  layoutClickWheel();
 }
 
 function renderNotation() {
@@ -1623,6 +1650,7 @@ function renderNotation() {
     notationGen += 1;
     els.notation.replaceChildren();
     lastPlayheadSystem = null;
+    layoutClickWheel();
     return;
   }
   const width = staffWidth();
