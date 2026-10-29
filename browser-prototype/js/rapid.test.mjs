@@ -269,6 +269,16 @@ test("octave down then octave up sit in the lick toolbar at 44px", async () => {
   assert.match(hig, /\.session-octave \.octave-btn \{[^}]*color:\s*var\(--tint-on-solid\)/);
   assert.match(hig, /\.lick-tools \.transport-icon,\s*\n\.session-octave \.octave-btn \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(hig, /\.play-round \{[^}]*background:\s*var\(--tint-solid\)/);
+  assert.match(index, /class="click-wheel"/);
+  assert.match(index, /class="click-wheel"[\s\S]*id="primary"/);
+  assert.match(hig, /\.click-wheel\s*\{[^}]*border-radius:\s*50%/);
+  assert.match(hig, /\.click-wheel\s*\{[^}]*background:\s*var\(--wheel-face\)/);
+  assert.doesNotMatch(hig.slice(hig.indexOf(".click-wheel {"), hig.indexOf(".session-octave {")), /radial-gradient/);
+  assert.match(hig, /\.session-transport \.play-round\s*\{[^}]*--play-size:\s*42cqmin/);
+  assert.match(hig, /\.session-transport \.play-round\s*\{[^}]*box-shadow:\s*0 0 0 3px var\(--bg\)/);
+  assert.match(hig, /@media \(min-width: 700px\)/);
+  assert.match(hig, /--session-control:\s*72px/);
+  assert.match(hig, /--screen-margin:\s*var\(--margin-regular\)/);
   assert.match(await readFile(new URL("../css/tokens.css", import.meta.url), "utf8"), /--tap:\s*44px/);
   assert.match(hig, /@media \(prefers-reduced-motion: reduce\) \{\s*\.celebrate-check \{\s*animation: celebrate-fade[^;]*!important;/);
 });

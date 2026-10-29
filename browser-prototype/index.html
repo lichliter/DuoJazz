@@ -13,12 +13,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=126">
-  <link rel="stylesheet" href="./css/styles.css?v=126">
-  <link rel="stylesheet" href="./css/hig.css?v=126">
+  <link rel="stylesheet" href="./css/tokens.css?v=128">
+  <link rel="stylesheet" href="./css/styles.css?v=128">
+  <link rel="stylesheet" href="./css/hig.css?v=128">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=126" defer></script>
-  <script type="module" src="./js/app.js?v=126"></script>
+  <script src="./js/verovio-bind.js?v=128" defer></script>
+  <script type="module" src="./js/app.js?v=128"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -173,18 +173,20 @@
                   <div id="notation" class="paper" aria-label="Staff notation"></div>
                   <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
                 </div>
+                <button type="button" class="notes-toggle" id="show-notes" data-testid="show-notes" hidden aria-pressed="false" aria-label="Show notes">Show notes</button>
                 <div class="listen-state" id="listen-state" hidden>
                   <p class="listen-kicker" id="listen-kicker">Listening</p>
                   <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
                 </div>
               </section>
             </div>
-            <button type="button" class="notes-toggle" id="show-notes" data-testid="show-notes" hidden aria-pressed="false" aria-label="Show notes">Show notes</button>
             <div class="session-transport play-well">
-              <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Record">
-                <span class="play-round-icon" aria-hidden="true"></span>
-                <span class="play-round-count" id="primary-count" hidden></span>
-              </button>
+              <div class="click-wheel" data-testid="click-wheel">
+                <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Record">
+                  <span class="play-round-icon" aria-hidden="true"></span>
+                  <span class="play-round-count" id="primary-count" hidden></span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

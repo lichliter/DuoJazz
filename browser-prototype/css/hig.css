@@ -567,6 +567,7 @@ body {
 }
 
 .session-screen {
+  --screen-margin: var(--margin-regular);
   position: relative;
   background: var(--bg);
   color: var(--label);
@@ -663,9 +664,9 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--space-4) var(--margin-regular) var(--space-3);
+  padding: 0;
   overflow: hidden;
-  max-width: calc(var(--content-max) + 2 * var(--margin-regular));
+  max-width: none;
   width: 100%;
   margin-inline: auto;
 }
@@ -677,6 +678,7 @@ body {
   width: 100%;
   min-height: 0;
   margin-block: 0;
+  padding: var(--space-4) var(--screen-margin) var(--screen-margin);
 }
 
 .session-spacer {
@@ -700,13 +702,21 @@ body {
 }
 
 .session-screen .chart-card {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   align-self: stretch;
   width: 100%;
-  max-width: var(--content-max);
-  min-width: min(100%, var(--content-max));
-  border-radius: var(--radius-lg);
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
   overflow: hidden;
+  background: #140f0c;
+  padding: 5px;
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 233, 213, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 
 .session-screen .paper {
@@ -754,11 +764,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  align-self: center;
+  align-self: stretch;
   width: 100%;
-  max-width: var(--content-max);
+  max-width: none;
   min-width: 0;
-  flex: 0 0 auto;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .lick-tools {
@@ -769,7 +780,7 @@ body {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  margin: 0 0 6px;
+  margin: 0 0 var(--screen-margin);
   flex: 0 0 auto;
 }
 
@@ -780,17 +791,51 @@ body {
   align-self: stretch;
 }
 
+.session-screen .paper-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 4px 6px;
+  overflow: hidden;
+}
+
+.session-screen .paper {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
 .session-transport {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   width: 100%;
   max-width: 100%;
   min-height: 0;
   margin-top: 0;
-  padding: 10px 0 12px;
+  padding: 0;
+}
+
+.click-wheel {
+  --wheel-face: #3a2e27;
   container-type: size;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: min(100%, 240px);
+  aspect-ratio: 1;
+  margin-top: var(--screen-margin);
+  margin-inline: auto;
+  border-radius: 50%;
+  background: var(--wheel-face);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 233, 213, 0.28),
+    inset 0 0 0 1px rgba(245, 233, 213, 0.14);
 }
 
 .session-octave {
@@ -810,7 +855,9 @@ body {
 
 .session-transport .play-round {
   flex: 0 0 auto;
-  --play-size: min(var(--play-goal, 200px), 86cqmin);
+  --play-size: 42cqmin;
+  z-index: 1;
+  box-shadow: 0 0 0 3px var(--bg);
 }
 
 .transport-icon {
@@ -888,7 +935,9 @@ body {
 }
 
 .play-round[data-state="listening"] {
-  box-shadow: 0 0 0 max(8px, calc(var(--play-size) * 0.04)) var(--tint-fill);
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 max(12px, calc(var(--play-size) * 0.08)) var(--tint-fill);
 }
 
 .play-round[data-state="playing"] {
@@ -963,9 +1012,9 @@ body {
   flex-direction: column;
   gap: 8px;
   z-index: 4;
-  padding: 8px var(--margin-regular) calc(8px + var(--safe-bottom));
+  padding: 0 var(--margin-regular) calc(8px + var(--safe-bottom));
   background: var(--toolbar-bg);
-  border-top: 0.5px solid var(--separator);
+  border-top: 0;
 }
 
 .session-footer-bar {
@@ -1260,8 +1309,12 @@ body {
     display: none;
   }
 
-  .session-body,
-  .session-bottom {
+  .session-screen {
+    --screen-margin: var(--margin-compact);
+  }
+
+  .session-bottom,
+  .session-footer {
     padding-inline: var(--margin-compact);
   }
 
@@ -1460,6 +1513,131 @@ body {
 @media (max-height: 800px) {
   .session-screen {
     --play-goal: 168px;
+  }
+}
+
+@media (min-width: 700px) {
+  .session-screen {
+    --session-control: 72px;
+  }
+
+  .session-top {
+    grid-template-columns: var(--session-control) minmax(0, 1fr) auto;
+    min-height: calc(var(--session-control) + var(--safe-top));
+  }
+
+  .session-screen .session-top .icon-btn {
+    min-width: var(--session-control);
+    min-height: var(--session-control);
+    font-size: 46px;
+  }
+
+  .session-title {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .session-meta {
+    font-size: 21px;
+    line-height: 26px;
+  }
+
+  .session-screen .lick-tools .transport-icon,
+  .session-screen .session-octave .octave-btn,
+  .session-screen .session-footer .transport-icon {
+    width: var(--session-control);
+    height: var(--session-control);
+    min-width: var(--session-control);
+    min-height: var(--session-control);
+  }
+
+  .session-screen .transport-glyph {
+    width: 36px;
+    height: 36px;
+  }
+
+  .session-screen .session-octave .octave-btn {
+    font-size: 28px;
+  }
+
+  .session-screen .notes-toggle {
+    min-height: var(--tap);
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .session-screen .auto-switch {
+    gap: 0.7rem;
+    min-height: var(--session-control);
+  }
+
+  .session-screen .auto-toggle {
+    width: 82px;
+    min-width: 82px;
+    height: var(--session-control);
+    min-height: var(--session-control);
+  }
+
+  .session-screen .switch-track {
+    width: 82px;
+    height: 50px;
+  }
+
+  .session-screen .switch-thumb {
+    top: 3.5px;
+    left: 3px;
+    width: 43px;
+    height: 43px;
+  }
+
+  .session-screen .auto-toggle[aria-checked="true"] .switch-thumb {
+    transform: translateX(33px);
+  }
+
+  .session-screen .auto-switch-label {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .session-screen .session-footer-bar {
+    min-height: var(--session-control);
+  }
+
+  .app-shell[data-screen="session"] .session-body {
+    overflow: visible;
+  }
+
+  .session-screen .session-stage {
+    padding-top: var(--screen-margin);
+  }
+
+  .session-screen .lick-tools {
+    position: absolute;
+    top: 0;
+    left: calc(var(--margin-regular) + var(--session-control) + 8px);
+    right: calc(var(--margin-regular) + 212px);
+    width: auto;
+    height: var(--session-control);
+    margin: 0;
+    z-index: 6;
+  }
+
+  .session-screen .chart-card {
+    padding-block: 0;
+  }
+
+  .session-screen .paper-wrap {
+    padding-block: 0;
+  }
+
+  .session-footer {
+    gap: 0;
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .session-screen .session-heading {
+    padding-left: 120px;
+    padding-right: 168px;
   }
 }
 
