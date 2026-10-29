@@ -162,3 +162,20 @@ export function rapidFireButton({ listening = false, demoPlaying = false, paused
   if (listening) return { id: "pause", label: "Pause" };
   return { id: "record", label: "Record" };
 }
+
+/** Hear it icon. A running demo shows a stop square; the center Record button stays Record. */
+export function hearItButton({ active = false } = {}) {
+  if (active) return { label: "Stop", title: "Stop", icon: "stop" };
+  return { label: "Hear it", title: "Hear it", icon: "play" };
+}
+
+/**
+ * Hear it only starts or stops demo audio.
+ * Tapping Record while a demo is playing stops it, then listens.
+ * Tapping Hear it while listening is the caller's cue to release the mic first.
+ */
+export function hearDemoGesture({ active = false, record = false } = {}) {
+  if (active && record) return { stop: true, listen: true, play: false, releaseMic: false };
+  if (active) return { stop: true, listen: false, play: false, releaseMic: false };
+  return { stop: false, listen: false, play: true, releaseMic: true };
+}

@@ -800,20 +800,34 @@ body {
   background: var(--paper);
   border-radius: 12px;
   padding: 4px 6px;
-  overflow: hidden;
+  overflow: visible;
 }
 
-.session-screen .paper-wrap[data-staff-scroll="true"] {
-  overflow-x: hidden;
-  overflow-y: auto;
-  justify-content: flex-start;
-  align-items: center;
-  overscroll-behavior: contain;
+.session-screen[data-page-scroll="true"] {
+  height: auto;
+  min-height: 100%;
 }
 
-.session-screen .paper-wrap[data-staff-scroll="true"] > .paper {
+.session-screen[data-page-scroll="true"] .session-body,
+.session-screen[data-page-scroll="true"] .session-stage,
+.session-screen[data-page-scroll="true"] .notation-block {
   flex: 0 0 auto;
-  margin-inline: auto;
+  overflow: visible;
+  min-height: min-content;
+}
+
+.session-screen[data-page-scroll="true"] .chart-card {
+  flex: 0 0 auto;
+  min-height: min-content;
+}
+
+.app-shell:has(.session-screen[data-page-scroll="true"]) .workspace,
+.app-shell:has(.session-screen[data-page-scroll="true"]) #screen-session {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  min-height: min-content;
 }
 
 .session-screen .paper {

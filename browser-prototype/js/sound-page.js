@@ -160,7 +160,7 @@ async function gradeCheck() {
   const loopback = [];
   let worklet = null;
   try {
-    await transport.ctx.audioWorklet.addModule(new URL("./pitch-worklet.js?v=129", import.meta.url));
+    await transport.ctx.audioWorklet.addModule(new URL("./pitch-worklet.js?v=130", import.meta.url));
     const source = transport.ctx.createMediaStreamSource(transport.tap.stream);
     worklet = new AudioWorkletNode(transport.ctx, "duojazz-pitch");
     const mute = transport.ctx.createGain();
