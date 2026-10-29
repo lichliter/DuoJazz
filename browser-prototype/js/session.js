@@ -1096,6 +1096,7 @@ export function demoAudioConfig(session) {
     includeModel: true,
     variationId: "original",
     looping: false,
+    duckBacking: true,
   };
 }
 
@@ -1113,6 +1114,7 @@ export function recordBackingConfig(session) {
     includeGuides: false,
     cueGain: 0,
     looping: true,
+    duckBacking: false,
   };
 }
 
