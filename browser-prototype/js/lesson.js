@@ -529,6 +529,127 @@ export function notationCardWidth({
   return width;
 }
 
+/** Session staff card stays at least this many systems tall. */
+export const MIN_STAFF_SYSTEMS = 3;
+/**
+ * Verovio adds `spacingSystem` (6) × unit (12) = 72 user units between systems.
+ * The 5-line staff is 96 user units, so the gap scales with the staff.
+ */
+const SYSTEM_GAP_USER = 72;
+const STAFF_USER_UNITS = 96;
+/** Center button is 42% of the wheel (`42cqmin`). */
+export const WHEEL_CENTER_RATIO = 0.42;
+/** Center control stays about this size; the wheel grows to keep the ratio. */
+export const MIN_WHEEL_CENTER_PX = 120;
+export const MIN_WHEEL_CENTER_PHONE_PX = 96;
+
+/** CSS px between systems at the current staff size, including the chord lane's share of the gap. */
+export function systemGapCss(staffPx) {
+  const px = Number(staffPx);
+  if (!(px > 0)) return 0;
+  return SYSTEM_GAP_USER * px / STAFF_USER_UNITS;
+}
+
+export function minWheelCenterPx(viewportWidth = 0) {
+  return viewportWidth > 0 && viewportWidth < PHONE_WIDTH
+    ? MIN_WHEEL_CENTER_PHONE_PX
+    : MIN_WHEEL_CENTER_PX;
+}
+
+export function minWheelDiameter(viewportWidth = 0, ratio = WHEEL_CENTER_RATIO) {
+  const center = minWheelCenterPx(viewportWidth);
+  if (!(ratio > 0)) return center;
+  return Math.ceil(center / ratio);
+}
+
+/**
+ * One system box per entry (`top`, `bottom`, `height` in the same pixel space).
+ * `contentHeight` is the whole engraving, page padding included.
+ */
+export function staffSystemMetricsFromBoxes(boxes = [], contentHeight = 0) {
+  const content = Math.max(0, Number(contentHeight) || 0);
+  const list = boxes.filter((box) => box && box.height > 1);
+  if (!list.length) {
+    return { count: content > 0 ? 1 : 0, systemHeight: content, systemGap: 0, contentHeight: content };
+  }
+  const systemHeight = list.reduce((sum, box) => sum + box.height, 0) / list.length;
+  let systemGap = 0;
+  let pitch = 0;
+  if (list.length >= 2) {
+    let gapSum = 0;
+    let pitchSum = 0;
+    for (let i = 1; i < list.length; i += 1) {
+      gapSum += list[i].top - list[i - 1].bottom;
+      pitchSum += list[i].top - list[i - 1].top;
+    }
+    systemGap = gapSum / (list.length - 1);
+    pitch = pitchSum / (list.length - 1);
+  }
+  return { count: list.length, systemHeight, systemGap, pitch, contentHeight: content };
+}
+
+/** A one-line engraving has no measured gap, so use the staff-scaled system gap. */
+export function withSystemGap(metrics, staffPx) {
+  if (!metrics || metrics.count >= 2) return metrics;
+  return { ...metrics, systemGap: systemGapCss(staffPx) };
+}
+
+/**
+ * Cream-card content height. Shorter than three systems grows by whole system
+ * slots (chord box + gap). Four or more systems keep their real height.
+ */
+export function staffCardContentHeight({
+  systemCount,
+  count: systemCountAlias = 1,
+  systemHeight = 0,
+  systemGap = 0,
+  pitch = 0,
+  contentHeight = 0,
+} = {}) {
+  const count = Math.max(0, Number(systemCount ?? systemCountAlias) || 0);
+  const height = Math.max(0, Number(systemHeight) || 0);
+  const content = Math.max(0, Number(contentHeight) || 0);
+  const slot = Number(pitch) > 0
+    ? Number(pitch)
+    : Math.max(0, height + (Number(systemGap) || 0));
+  const extra = Math.max(0, MIN_STAFF_SYSTEMS - count);
+  return content + extra * slot;
+}
+
+/**
+ * Wheel diameter under the staff card. `space` is the tools-to-footer slot.
+ * Three margins of M stay put (above the card's stage, above the wheel, below it).
+ * When the wheel would drop under `minDiameter`, the card takes the leftover and scrolls.
+ */
+export function sessionWheelLayout({
+  space = 0,
+  cardHeight = 0,
+  chrome = 0,
+  margin = 0,
+  widthFit = 0,
+  minDiameter = 0,
+} = {}) {
+  const gaps = 3 * Math.max(0, Number(margin) || 0);
+  const width = Math.max(0, Number(widthFit) || 0);
+  const floor = Math.max(0, Number(minDiameter) || 0);
+  const desired = Math.max(0, Number(cardHeight) || 0);
+  const room = Math.floor((Number(space) || 0) - (Number(chrome) || 0) - desired - gaps);
+  if (room >= floor) {
+    return {
+      diameter: Math.max(0, Math.min(width, room)),
+      cardHeight: desired,
+      scroll: false,
+    };
+  }
+  const diameter = Math.min(width, floor);
+  const available = Math.floor((Number(space) || 0) - (Number(chrome) || 0) - diameter - gaps);
+  return {
+    diameter,
+    cardHeight: Math.max(0, available),
+    scroll: true,
+  };
+}
+
 /** iPad Pro 12.9" portrait CSS px is 1024×1366. That is the primary lesson-1 target. */
 export function isStandPortrait(viewportWidth, viewportHeight) {
   return viewportWidth >= 900 && viewportWidth <= 1180 && viewportHeight >= 1200;
