@@ -803,6 +803,19 @@ body {
   overflow: hidden;
 }
 
+.session-screen .paper-wrap[data-staff-scroll="true"] {
+  overflow-x: hidden;
+  overflow-y: auto;
+  justify-content: flex-start;
+  align-items: center;
+  overscroll-behavior: contain;
+}
+
+.session-screen .paper-wrap[data-staff-scroll="true"] > .paper {
+  flex: 0 0 auto;
+  margin-inline: auto;
+}
+
 .session-screen .paper {
   width: 100%;
   max-width: var(--content-max);
