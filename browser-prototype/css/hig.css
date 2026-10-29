@@ -800,20 +800,39 @@ body {
   background: var(--paper);
   border-radius: 12px;
   padding: 4px 6px;
+  overflow: visible;
+}
+
+/* Tall staff: the card and the minimum wheel scroll together above the pinned footer. */
+.session-screen[data-column-scroll="true"] {
+  height: 100%;
+  max-height: 100%;
   overflow: hidden;
 }
 
-.session-screen .paper-wrap[data-staff-scroll="true"] {
+.app-shell[data-screen="session"] .session-screen[data-column-scroll="true"] .session-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  justify-content: flex-start;
-  align-items: center;
   overscroll-behavior: contain;
 }
 
-.session-screen .paper-wrap[data-staff-scroll="true"] > .paper {
+.session-screen[data-column-scroll="true"] .session-stage,
+.session-screen[data-column-scroll="true"] .notation-block {
   flex: 0 0 auto;
-  margin-inline: auto;
+  overflow: visible;
+  min-height: min-content;
+}
+
+.session-screen[data-column-scroll="true"] .chart-card {
+  flex: 0 0 auto;
+  min-height: min-content;
+}
+
+.session-screen[data-column-scroll="true"] .session-footer {
+  position: relative;
+  flex: 0 0 auto;
 }
 
 .session-screen .paper {
@@ -1018,8 +1037,7 @@ body {
 }
 
 .session-footer {
-  position: sticky;
-  bottom: 0;
+  position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;

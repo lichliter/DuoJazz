@@ -13,12 +13,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=129">
-  <link rel="stylesheet" href="./css/styles.css?v=129">
-  <link rel="stylesheet" href="./css/hig.css?v=129">
+  <link rel="stylesheet" href="./css/tokens.css?v=131">
+  <link rel="stylesheet" href="./css/styles.css?v=131">
+  <link rel="stylesheet" href="./css/hig.css?v=131">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=129" defer></script>
-  <script type="module" src="./js/app.js?v=129"></script>
+  <script src="./js/verovio-bind.js?v=131" defer></script>
+  <script type="module" src="./js/app.js?v=131"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -162,8 +162,11 @@
             <div class="notation-block">
               <div class="lick-tools" data-testid="lick-tools">
                 <button type="button" class="transport-icon hear-it" id="hear-it" data-testid="hear-it" aria-label="Hear it" title="Hear it">
-                  <svg class="transport-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <svg class="transport-glyph hear-it-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path fill="currentColor" d="M7.4 4.9v14.2a1 1 0 0 0 1.55.84l10.8-7.1a1 1 0 0 0 0-1.68l-10.8-7.1A1 1 0 0 0 7.4 4.9z"/>
+                  </svg>
+                  <svg class="transport-glyph hear-it-stop" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>
                   </svg>
                 </button>
                 <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>

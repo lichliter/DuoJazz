@@ -707,11 +707,12 @@ test("staff card is at least three systems and grows when the engraving is talle
 test("the click wheel shrinks for a three-system card and floors before the page scrolls", () => {
   assert.equal(minWheelCenterPx(1024), 120);
   assert.equal(minWheelCenterPx(1366), 120);
-  assert.equal(minWheelCenterPx(390), 96);
+  assert.equal(minWheelCenterPx(390), 64);
   const ipadWheel = minWheelDiameter(1024);
   const phoneWheel = minWheelDiameter(390);
   assert.ok(ipadWheel * 0.42 >= 120);
-  assert.ok(phoneWheel * 0.42 >= 96);
+  assert.ok(phoneWheel * 0.42 >= 64);
+  assert.ok(phoneWheel * 0.42 < 96);
   assert.ok(ipadWheel > phoneWheel);
 
   const card = staffCardContentHeight(withSystemGap(
@@ -728,6 +729,7 @@ test("the click wheel shrinks for a three-system card and floors before the page
   });
   const room = Math.floor(980 - 12 - card - 60);
   assert.equal(fit.scroll, false);
+  assert.equal(fit.pageScroll, false);
   assert.equal(fit.diameter, Math.min(960, room));
   assert.equal(fit.cardHeight, card);
   assert.ok(fit.diameter >= ipadWheel);
@@ -741,6 +743,7 @@ test("the click wheel shrinks for a three-system card and floors before the page
     minDiameter: ipadWheel,
   });
   assert.equal(widthCapped.scroll, false);
+  assert.equal(widthCapped.pageScroll, false);
   assert.equal(widthCapped.diameter, 240);
   assert.equal(widthCapped.cardHeight, card);
 
@@ -752,20 +755,58 @@ test("the click wheel shrinks for a three-system card and floors before the page
     widthFit: 350,
     minDiameter: phoneWheel,
   });
-  assert.equal(tight.scroll, true);
+  assert.equal(tight.scroll, false);
+  assert.equal(tight.pageScroll, true);
   assert.equal(tight.diameter, phoneWheel);
-  assert.ok(tight.cardHeight < card);
-  assert.equal(tight.cardHeight, Math.floor(640 - 80 - phoneWheel - 48));
+  assert.equal(tight.cardHeight, card);
+
+  const between = sessionWheelLayout({
+    space: 448,
+    cardHeight: 200,
+    chrome: 20,
+    margin: 16,
+    widthFit: 340,
+    minDiameter: phoneWheel,
+  });
+  assert.equal(Math.floor(448 - 20 - 200 - 48), 180);
+  assert.ok(180 < Math.ceil(96 / 0.42));
+  assert.ok(180 >= phoneWheel);
+  assert.equal(between.pageScroll, false);
+  assert.equal(between.scroll, false);
+  assert.equal(between.cardHeight, 200);
+  assert.equal(between.diameter, 180);
+
+  const tooTall = sessionWheelLayout({
+    space: 400,
+    cardHeight: 200,
+    chrome: 20,
+    margin: 16,
+    widthFit: 340,
+    minDiameter: phoneWheel,
+  });
+  assert.equal(tooTall.pageScroll, true);
+  assert.equal(tooTall.scroll, false);
+  assert.equal(tooTall.cardHeight, 200);
+  assert.equal(tooTall.diameter, phoneWheel);
 });
 
 test("session layout reserves three systems without shrinking the staff", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
   const fn = app.slice(app.indexOf("function layoutClickWheel"), app.indexOf("function fitNotationInView"));
   assert.match(fn, /staffCardContentHeight/);
   assert.match(fn, /withSystemGap/);
   assert.match(fn, /sessionWheelLayout/);
   assert.match(fn, /minWheelDiameter/);
-  assert.match(fn, /dataset\.staffScroll/);
+  assert.match(fn, /dataset\.columnScroll/);
+  assert.doesNotMatch(fn, /dataset\.pageScroll\s*=/);
+  assert.doesNotMatch(fn, /dataset\.staffScroll/);
   assert.doesNotMatch(fn, /notationCssWidth/);
   assert.doesNotMatch(fn, /svg\.style\.setProperty\("width"/);
+  assert.match(hig, /data-column-scroll="true"\] \.session-body/);
+  assert.match(hig, /overflow-y:\s*auto/);
+  assert.match(hig, /\.session-footer \{[^}]*position:\s*relative/);
+  assert.doesNotMatch(hig, /data-page-scroll/);
+  assert.doesNotMatch(styles, /data-page-scroll/);
 });
