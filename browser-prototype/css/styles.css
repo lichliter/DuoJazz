@@ -67,6 +67,21 @@ html:has(.app-shell[data-screen="home"]) body {
   overflow: visible;
 }
 
+html:has(.session-screen[data-page-scroll="true"]) {
+  height: auto;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html:has(.session-screen[data-page-scroll="true"]) body,
+.app-shell:has(.session-screen[data-page-scroll="true"]) {
+  height: auto;
+  min-height: 100dvh;
+  max-height: none;
+  overflow: visible;
+}
+
 .skip-link {
   position: absolute;
   left: 0.75rem;
@@ -1311,7 +1326,7 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .session-screen .chart-foot {
