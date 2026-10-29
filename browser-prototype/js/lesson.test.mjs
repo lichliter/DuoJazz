@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { getKey, scheduleChorus, applicationContext } from "./music.js";
 import {
   presentation,
@@ -38,6 +39,14 @@ import {
   staffPxForScale,
   NOTATION_SCALE_KEY,
   NOTATION_SCALE_VALUES,
+  MIN_STAFF_SYSTEMS,
+  systemGapCss,
+  minWheelDiameter,
+  minWheelCenterPx,
+  staffSystemMetricsFromBoxes,
+  withSystemGap,
+  staffCardContentHeight,
+  sessionWheelLayout,
 } from "./lesson.js";
 import { createSession, sessionEngraveSpec, sessionModeHeading } from "./session.js";
 import { staffCssFromPage, verovioOptions } from "./engrave.js";
@@ -657,4 +666,106 @@ test("notation URL param accepts the four presets and persists them", () => {
   assert.equal(resolveNotationScale({ search: "", storage }), 1.2);
   assert.equal(persistNotationScale(1.6, storage), 1.6);
   assert.equal(resolveNotationScale({ search: "screen=session", storage }), 1.6);
+});
+
+test("staff card is at least three systems and grows when the engraving is taller", () => {
+  assert.equal(MIN_STAFF_SYSTEMS, 3);
+  assert.equal(systemGapCss(96), 72);
+  assert.equal(systemGapCss(0), 0);
+  assert.ok(systemGapCss(PORTRAIT_STAFF_PX) > systemGapCss(STAFF_PX));
+
+  const oneLine = staffSystemMetricsFromBoxes([{ top: 8, bottom: 158, height: 150 }], 170);
+  assert.equal(oneLine.count, 1);
+  assert.equal(oneLine.systemGap, 0);
+  const phone = staffCardContentHeight(withSystemGap(oneLine, STAFF_PX_NARROW));
+  const portrait = staffCardContentHeight(withSystemGap(oneLine, PORTRAIT_STAFF_PX));
+  const phoneGap = systemGapCss(STAFF_PX_NARROW);
+  const portraitGap = systemGapCss(PORTRAIT_STAFF_PX);
+  assert.equal(phone, 170 + 2 * (150 + phoneGap));
+  assert.equal(portrait, 170 + 2 * (150 + portraitGap));
+  assert.ok(portrait > phone);
+
+  const two = staffSystemMetricsFromBoxes([
+    { top: 0, bottom: 100, height: 100 },
+    { top: 140, bottom: 240, height: 100 },
+  ], 250);
+  assert.equal(two.count, 2);
+  assert.equal(two.systemGap, 40);
+  assert.equal(two.pitch, 140);
+  assert.equal(staffCardContentHeight(withSystemGap(two, PORTRAIT_STAFF_PX)), 250 + 140);
+
+  const four = staffSystemMetricsFromBoxes([
+    { top: 0, bottom: 80, height: 80 },
+    { top: 110, bottom: 190, height: 80 },
+    { top: 220, bottom: 300, height: 80 },
+    { top: 330, bottom: 410, height: 80 },
+  ], 430);
+  assert.equal(four.count, 4);
+  assert.equal(staffCardContentHeight(four), 430);
+});
+
+test("the click wheel shrinks for a three-system card and floors before the page scrolls", () => {
+  assert.equal(minWheelCenterPx(1024), 120);
+  assert.equal(minWheelCenterPx(1366), 120);
+  assert.equal(minWheelCenterPx(390), 96);
+  const ipadWheel = minWheelDiameter(1024);
+  const phoneWheel = minWheelDiameter(390);
+  assert.ok(ipadWheel * 0.42 >= 120);
+  assert.ok(phoneWheel * 0.42 >= 96);
+  assert.ok(ipadWheel > phoneWheel);
+
+  const card = staffCardContentHeight(withSystemGap(
+    staffSystemMetricsFromBoxes([{ top: 0, bottom: 160, height: 160 }], 180),
+    PORTRAIT_STAFF_PX,
+  ));
+  const fit = sessionWheelLayout({
+    space: 980,
+    cardHeight: card,
+    chrome: 12,
+    margin: 20,
+    widthFit: 960,
+    minDiameter: ipadWheel,
+  });
+  const room = Math.floor(980 - 12 - card - 60);
+  assert.equal(fit.scroll, false);
+  assert.equal(fit.diameter, Math.min(960, room));
+  assert.equal(fit.cardHeight, card);
+  assert.ok(fit.diameter >= ipadWheel);
+
+  const widthCapped = sessionWheelLayout({
+    space: 980,
+    cardHeight: card,
+    chrome: 12,
+    margin: 20,
+    widthFit: 240,
+    minDiameter: ipadWheel,
+  });
+  assert.equal(widthCapped.scroll, false);
+  assert.equal(widthCapped.diameter, 240);
+  assert.equal(widthCapped.cardHeight, card);
+
+  const tight = sessionWheelLayout({
+    space: 640,
+    cardHeight: card,
+    chrome: 80,
+    margin: 16,
+    widthFit: 350,
+    minDiameter: phoneWheel,
+  });
+  assert.equal(tight.scroll, true);
+  assert.equal(tight.diameter, phoneWheel);
+  assert.ok(tight.cardHeight < card);
+  assert.equal(tight.cardHeight, Math.floor(640 - 80 - phoneWheel - 48));
+});
+
+test("session layout reserves three systems without shrinking the staff", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const fn = app.slice(app.indexOf("function layoutClickWheel"), app.indexOf("function fitNotationInView"));
+  assert.match(fn, /staffCardContentHeight/);
+  assert.match(fn, /withSystemGap/);
+  assert.match(fn, /sessionWheelLayout/);
+  assert.match(fn, /minWheelDiameter/);
+  assert.match(fn, /dataset\.staffScroll/);
+  assert.doesNotMatch(fn, /notationCssWidth/);
+  assert.doesNotMatch(fn, /svg\.style\.setProperty\("width"/);
 });
