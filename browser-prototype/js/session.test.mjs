@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { getKey, scheduleChorus } from "./music.js";
+import { livePlaybackEvents } from "./sound-band.js";
 import { leaksTargetBar } from "./lesson.js";
 import { PATH_SLOT_PCTS } from "./path-trail.js";
 import {
@@ -43,6 +44,8 @@ import {
   cardResultLabel,
   practiceStateFor,
   sessionPresentation,
+  demoAudioConfig,
+  recordBackingConfig,
   sessionAudioConfig,
   sessionCue,
   wrapupCopy,
@@ -299,6 +302,39 @@ test("learn-the-lick uses the cell; integration uses the form, with Hear it as a
   const events = scheduleChorus(sessionAudioConfig(integrate));
   assert.equal(events.filter((event) => event.type === "melody").length, 0);
   assert.ok(events.some((event) => event.type === "cue"));
+});
+
+test("Hear it demo schedules the melody in Learn and Practice", () => {
+  for (const lessonId of ["learn-lick", "cmar-integrate-blue-bossa"]) {
+    for (const studyMode of ["learn", "practice"]) {
+      const session = createSession({
+        lessonId,
+        studyMode,
+        instrumentId: "trombone",
+        startKeyId: "G",
+      });
+      const label = `${lessonId} ${studyMode}`;
+      const demo = demoAudioConfig(session);
+      const chorus = scheduleChorus(demo);
+      const live = livePlaybackEvents(demo, { sampled: true });
+      assert.equal(demo.includeModel, true, label);
+      assert.equal(demo.variationId, "original", label);
+      assert.ok(chorus.some((event) => event.type === "melody"), `${label} chorus`);
+      assert.ok(live.some((event) => event.type === "melody"), `${label} live`);
+      assert.ok(live.some((event) => event.type === "bass" || event.type === "piano"), `${label} band`);
+
+      const backing = recordBackingConfig(session);
+      const backingLive = livePlaybackEvents(backing, { sampled: true });
+      assert.equal(backing.includeModel, false, label);
+      assert.equal(backing.variationId, "skip", label);
+      assert.equal(backing.looping, true, label);
+      assert.equal(backing.tempo, demo.tempo, label);
+      assert.equal(backing.lengthBeats, demo.lengthBeats, label);
+      assert.equal(backing.concertKey.id, demo.concertKey.id, label);
+      assert.equal(backingLive.some((event) => event.type === "melody"), false, label);
+      assert.ok(backingLive.some((event) => event.type === "bass" || event.type === "piano"), `${label} record band`);
+    }
+  }
 });
 
 test("Practice hides lick notation and keeps the staff for chords", () => {

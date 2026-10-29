@@ -619,9 +619,10 @@ export function staffCardContentHeight({
 
 /**
  * Wheel diameter under the staff card. `space` is the tools-to-footer slot.
- * Three margins of M stay put (above the card's stage, above the wheel, below it).
+ * Three margins of M stay put (above the card, above the wheel, below it).
  * The card always keeps its full height. The wheel shrinks down to `minDiameter`.
- * Past that, `pageScroll` is set and the card still does not scroll internally.
+ * Past that, `pageScroll` is set: the card and the minimum wheel scroll together
+ * in the column above the pinned footer. The card still does not scroll internally.
  */
 export function sessionWheelLayout({
   space = 0,

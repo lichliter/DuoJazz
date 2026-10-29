@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=130";
+} from "./lesson.js?v=131";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=130";
+} from "./engrave.js?v=131";
 import {
   PREFS_KEY,
   MODULE,
@@ -56,6 +56,8 @@ import {
   jumpToWrapup,
   markLessonStarted,
   sessionPresentation,
+  demoAudioConfig,
+  recordBackingConfig,
   sessionAudioConfig,
   sessionPrimaryAction,
   wrapupCopy,
@@ -95,7 +97,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=130";
+} from "./session.js?v=131";
 import {
   tuneById,
   licksInTune,
@@ -107,7 +109,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=130";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=131";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -121,7 +123,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=130";
+} from "./rapid.js?v=131";
 import {
   emptyMastery,
   displayMedal,
@@ -135,7 +137,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=130";
+import { PitchMonitor, micCopy } from "./pitch.js?v=131";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -144,12 +146,13 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=130";
+} from "./take-dump.js?v=131";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
 const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
+let recordBacking = false;
 let prefs = loadPrefs();
 let mastery = loadMastery();
 let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
@@ -314,6 +317,7 @@ function clearRapidTimers() {
 function halt({ keepMic = false } = {}) {
   startGen += 1;
   hearDemo = false;
+  recordBacking = false;
   finishing = false;
   samplesLoading = false;
   clearRapidTimers();
@@ -534,6 +538,8 @@ function finishRapid(generation, result) {
   if (generation !== startGen || finishing || rapidPhase !== "listening") return;
   finishing = true;
   rapidPhase = "settling";
+  recordBacking = false;
+  transport.stop();
   if (attemptTimer) window.clearInterval(attemptTimer);
   attemptTimer = null;
   const shown = shownKeyForSession();
@@ -617,7 +623,21 @@ async function beginListening() {
   renderDebug();
   try {
     await transport.ensure();
-    if (generation !== startGen) return;
+    if (generation !== startGen || !session) return;
+    const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
+    const prepared = await transport.prepareBacking({ sampleSet });
+    if (generation !== startGen || !session || rapidPhase !== "listening") return;
+    audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
+    const config = recordBackingConfig(session);
+    recordBacking = true;
+    await transport.start(config, { resume: false });
+    if (generation !== startGen || rapidPhase !== "listening") {
+      if (generation === startGen) {
+        recordBacking = false;
+        transport.stop();
+      }
+      return;
+    }
     const step = rapidMicStep(monitor.isLive() && monitor.processing === false, "attempt");
     if (step === "reset") monitor.reset();
     else await monitor.start(transport.ctx, { processing: false });
@@ -628,6 +648,8 @@ async function beginListening() {
       rapidPhase = "idle";
       attempt = null;
       monitor.holdSignal = false;
+      recordBacking = false;
+      transport.stop();
       renderPrimary();
       renderMic();
       return;
@@ -640,6 +662,8 @@ async function beginListening() {
     }, 50);
   } catch {
     if (generation !== startGen) return;
+    recordBacking = false;
+    transport.stop();
     audioError = "Microphone failed to start.";
     rapidPhase = "idle";
     attempt = null;
@@ -992,7 +1016,7 @@ async function playHearDemo() {
     const prepared = await transport.prepareBacking({ sampleSet });
     if (generation !== startGen || !hearDemo || !session) return;
     audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
-    const config = sessionAudioConfig({ ...session, keyIndex: held, demo: true });
+    const config = demoAudioConfig({ ...session, keyIndex: held });
     await transport.start(config, { resume: false });
     if (generation !== startGen || !hearDemo) return;
     renderHearIt();
@@ -1613,7 +1637,11 @@ function layoutClickWheel() {
   const svg = els.notation?.querySelector("svg");
   // Measure the tools-to-footer slot with the wheel collapsed and the card
   // unpinned, so a previous three-system minimum cannot shrink the slot.
+  delete screen.dataset.columnScroll;
   delete screen.dataset.pageScroll;
+  const scroller = screen.querySelector(".session-body");
+  const keptScroll = scroller ? scroller.scrollTop : 0;
+  if (scroller) scroller.scrollTop = 0;
   clearStaffCardBox(wrap);
   wheel.style.width = "0px";
   wheel.style.height = "0px";
@@ -1687,7 +1715,9 @@ function layoutClickWheel() {
     overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
   }
   if (overflow > 1) pageScroll = true;
-  if (pageScroll) screen.dataset.pageScroll = "true";
+  if (pageScroll) screen.dataset.columnScroll = "true";
+  else delete screen.dataset.columnScroll;
+  if (pageScroll && scroller) scroller.scrollTop = keptScroll;
   wheel.dataset.fit = diameter + 1 >= widthFit ? "width" : "height";
 }
 
@@ -2315,6 +2345,10 @@ transport.onEnded = () => {
   playback.playing = false;
   playback.paused = false;
   playback.ended = true;
+  if (recordBacking) {
+    recordBacking = false;
+    return;
+  }
   if (hearDemo) {
     hearDemo = false;
     samplesLoading = false;

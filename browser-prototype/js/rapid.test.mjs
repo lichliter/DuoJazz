@@ -190,6 +190,11 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.equal(begin.includes("monitor.stop("), false);
   assert.match(begin, /step === "reset"\) monitor\.reset\(\)/);
   assert.match(begin, /processing:\s*false/);
+  assert.match(begin, /recordBackingConfig\(session\)/);
+  assert.match(begin, /transport\.start\(config, \{ resume: false \}\)/);
+  assert.match(begin, /recordBacking = true/);
+  assert.match(finish, /recordBacking = false/);
+  assert.match(finish, /transport\.stop\(\)/);
   assert.equal(finish.split("monitor.stop(").length - 1, 1);
   assert.match(finish, /"wrapup"/);
   assert.match(finish, /step === "release"/);
@@ -259,7 +264,7 @@ test("Hear it plays a demo without the mic and Stop returns to idle", async () =
   assert.equal(rapidFireButton({ listening: false }).label, "Record");
 
   const play = app.slice(app.indexOf("async function playHearDemo"), app.indexOf("function runPrimary"));
-  assert.match(play, /sessionAudioConfig\(\{ \.\.\.session, keyIndex: held, demo: true \}\)/);
+  assert.match(play, /demoAudioConfig\(\{ \.\.\.session, keyIndex: held \}\)/);
   assert.match(play, /renderHearIt\(\)/);
   assert.match(play, /renderPrimary\(\)/);
   assert.doesNotMatch(play, /monitor\.start/);
