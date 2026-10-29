@@ -822,6 +822,7 @@ body {
 }
 
 .click-wheel {
+  --wheel-face: #3a2e27;
   container-type: size;
   display: grid;
   place-items: center;
@@ -829,18 +830,12 @@ body {
   width: min(100%, 240px);
   aspect-ratio: 1;
   margin-top: var(--screen-margin);
+  margin-inline: auto;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 46%,
-      #2c211c 0 44%,
-      #5a4336 50%,
-      #6b5142 68%,
-      #3d2c24 82%,
-      #241912 100%);
+  background: var(--wheel-face);
   box-shadow:
-    inset 0 1px 0 rgba(245, 233, 213, 0.2),
-    inset 0 -12px 20px rgba(0, 0, 0, 0.38),
-    0 1px 0 rgba(245, 233, 213, 0.06);
+    inset 0 1px 0 rgba(245, 233, 213, 0.28),
+    inset 0 0 0 1px rgba(245, 233, 213, 0.14);
 }
 
 .session-octave {
@@ -862,7 +857,7 @@ body {
   flex: 0 0 auto;
   --play-size: 42cqmin;
   z-index: 1;
-  box-shadow: 0 0 0 4px #140f0c;
+  box-shadow: 0 0 0 3px var(--bg);
 }
 
 .transport-icon {
@@ -941,7 +936,7 @@ body {
 
 .play-round[data-state="listening"] {
   box-shadow:
-    0 0 0 4px #140f0c,
+    0 0 0 3px var(--bg),
     0 0 0 max(12px, calc(var(--play-size) * 0.08)) var(--tint-fill);
 }
 
@@ -1518,6 +1513,131 @@ body {
 @media (max-height: 800px) {
   .session-screen {
     --play-goal: 168px;
+  }
+}
+
+@media (min-width: 700px) {
+  .session-screen {
+    --session-control: 72px;
+  }
+
+  .session-top {
+    grid-template-columns: var(--session-control) minmax(0, 1fr) auto;
+    min-height: calc(var(--session-control) + var(--safe-top));
+  }
+
+  .session-screen .session-top .icon-btn {
+    min-width: var(--session-control);
+    min-height: var(--session-control);
+    font-size: 46px;
+  }
+
+  .session-title {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .session-meta {
+    font-size: 21px;
+    line-height: 26px;
+  }
+
+  .session-screen .lick-tools .transport-icon,
+  .session-screen .session-octave .octave-btn,
+  .session-screen .session-footer .transport-icon {
+    width: var(--session-control);
+    height: var(--session-control);
+    min-width: var(--session-control);
+    min-height: var(--session-control);
+  }
+
+  .session-screen .transport-glyph {
+    width: 36px;
+    height: 36px;
+  }
+
+  .session-screen .session-octave .octave-btn {
+    font-size: 28px;
+  }
+
+  .session-screen .notes-toggle {
+    min-height: var(--tap);
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .session-screen .auto-switch {
+    gap: 0.7rem;
+    min-height: var(--session-control);
+  }
+
+  .session-screen .auto-toggle {
+    width: 82px;
+    min-width: 82px;
+    height: var(--session-control);
+    min-height: var(--session-control);
+  }
+
+  .session-screen .switch-track {
+    width: 82px;
+    height: 50px;
+  }
+
+  .session-screen .switch-thumb {
+    top: 3.5px;
+    left: 3px;
+    width: 43px;
+    height: 43px;
+  }
+
+  .session-screen .auto-toggle[aria-checked="true"] .switch-thumb {
+    transform: translateX(33px);
+  }
+
+  .session-screen .auto-switch-label {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .session-screen .session-footer-bar {
+    min-height: var(--session-control);
+  }
+
+  .app-shell[data-screen="session"] .session-body {
+    overflow: visible;
+  }
+
+  .session-screen .session-stage {
+    padding-top: var(--screen-margin);
+  }
+
+  .session-screen .lick-tools {
+    position: absolute;
+    top: 0;
+    left: calc(var(--margin-regular) + var(--session-control) + 8px);
+    right: calc(var(--margin-regular) + 212px);
+    width: auto;
+    height: var(--session-control);
+    margin: 0;
+    z-index: 6;
+  }
+
+  .session-screen .chart-card {
+    padding-block: 0;
+  }
+
+  .session-screen .paper-wrap {
+    padding-block: 0;
+  }
+
+  .session-footer {
+    gap: 0;
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .session-screen .session-heading {
+    padding-left: 120px;
+    padding-right: 168px;
   }
 }
 
