@@ -3,7 +3,7 @@
  * Layout numbers come from lesson.notationLayout; MEI comes from mei.js.
  */
 
-import { chordTargetCss, STAFF_PX } from "./lesson.js";
+import { chordTargetCss, PHONE_STAFF_FLOOR_PX, STAFF_PX } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
 
 const INK = "#2b211a";
@@ -144,7 +144,7 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
   const staffVU = STAFF_USER_UNITS;
   const targetStaff = staffPxOf(layout);
   const width = Math.max(280, cssWidth);
-  const pageWidth = Math.round(staffVU * width / Math.max(36, targetStaff));
+  const pageWidth = Math.round(staffVU * width / Math.max(PHONE_STAFF_FLOOR_PX, targetStaff));
   const cue = (layout.annotationPx ?? 0) > 12 || (layout.paddingbottom ?? 0) > 20;
   return {
     font: "Leipzig",
