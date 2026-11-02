@@ -60,6 +60,16 @@ function assertCaptionsClear(sleeves, end) {
   return segs;
 }
 
+test("a trail without captions stays on the sleeve centers", () => {
+  const sleeves = [
+    { cx: 100, cy: 80, halfW: 40, halfH: 40 },
+    { cx: 220, cy: 240, halfW: 40, halfH: 40 },
+  ];
+  const segs = trailSegments(sleeves);
+  assert.equal(segs.filter((seg) => seg.type === "M").length, 1);
+  assert.equal(segs[0].y, sleeves[0].cy);
+});
+
 test("path slots sit at 28, 50 and 72 percent", () => {
   assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
 });

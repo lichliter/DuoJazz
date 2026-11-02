@@ -99,9 +99,11 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /family=Oswald/);
   assert.match(index, /class="play-round"/);
   assert.doesNotMatch(index, /class="session-bottom"/);
-  assert.match(index, /id="home-summary"/);
+  assert.match(index, /id="home-summary"[^>]*aria-haspopup="dialog"/);
+  assert.match(index, /class="home-summary-icon"/);
   assert.doesNotMatch(index, /id="home-mode"/);
-  assert.match(index, /id="settings-btn"[^>]*aria-label="Settings"/);
+  assert.doesNotMatch(index, /id="settings-btn"/);
+  assert.doesNotMatch(index, /id="card-set-label"/);
   assert.match(index, /id="settings-modal"/);
   assert.match(index, /id="settings-close"[^>]*aria-label="Close"/);
   assert.match(index, /id="card-badge">Play</);
@@ -530,8 +532,9 @@ test("home controls and session paper match the simplify revision", async () => 
   assert.match(hig, /\.paper\.notation-memory \.note/);
   assert.match(hig, /\.notation-memory \.note\.memory-first[\s\S]*visibility:\s*visible/);
   assert.match(app, /markFirstMelodyNote\(els\.notation\)/);
-  assert.match(styles, /\.sleeve-context\s*\{[^}]*white-space:\s*nowrap/);
-  assert.match(styles, /\.sleeve-context\s*\{[^}]*text-overflow:\s*ellipsis/);
+  assert.doesNotMatch(app, /sleeve-context/);
+  assert.doesNotMatch(styles, /\.sleeve-context/);
+  assert.doesNotMatch(styles, /\.module-block\.is-current \.module-banner\s*\{[^}]*outline/);
   assert.match(app, /sessionEngraveSpec\(session\)/);
   assert.match(app, /fitNotationInView\(\)/);
 });
