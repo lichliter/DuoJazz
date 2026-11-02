@@ -15,6 +15,7 @@ import {
   VOICED_MAX_HZ,
   VOICED_MIN_HZ,
   createFollower,
+  octaveModeForLesson,
   debugTextForKey,
   describeAttempt,
   formatLiveLine,
@@ -36,8 +37,8 @@ function tone(midi, start, dur = 120, { cents = 0, amp = 0.25, step = 20, confid
   return frames;
 }
 
-function play(expected, frames) {
-  return runFollower(expected, frames, 0);
+function play(expected, frames, options) {
+  return runFollower(expected, frames, 0, options);
 }
 
 test("notes in order pass once each has been held", () => {
@@ -658,4 +659,44 @@ test("a wrong note held steady after a scoop still fails", () => {
   const state = play([67], [...scoop, ...tone(70, 120, 160)]);
   assert.equal(state.reason, "wrong");
   assert.equal(state.hint, "1st note");
+});
+
+test("hidden Master notes accept one consistent octave, and shown notes do not", () => {
+  assert.equal(octaveModeForLesson("master", false), "any");
+  assert.equal(octaveModeForLesson("master", true), "written");
+  assert.equal(octaveModeForLesson("learn", false), "written");
+  assert.equal(octaveModeForLesson("integrate", false), "written");
+  const any = { octave: "any" };
+  const down = play([60, 64, 67], [
+    ...tone(48, 0, 120),
+    ...tone(52, 200, 120),
+    ...tone(55, 400, 120),
+  ], any);
+  assert.equal(down.passed, true, describeAttempt(down).text);
+  assert.equal(down.octaveShift, -12);
+  const up = play([60, 64], [
+    ...tone(72, 0, 120),
+    ...tone(76, 200, 120),
+  ], any);
+  assert.equal(up.passed, true);
+  assert.equal(up.octaveShift, 12);
+  const mixed = play([60, 64, 67], [
+    ...tone(48, 0, 120),
+    ...tone(64, 200, 120),
+    ...tone(67, 400, 120),
+  ], any);
+  assert.equal(mixed.passed, false);
+  assert.equal(mixed.hint, "2nd note, wrong octave");
+  const written = play([60, 64], [
+    ...tone(48, 0, 160),
+    ...tone(52, 220, 160),
+  ]);
+  assert.equal(written.passed, false);
+  assert.equal(written.hint, "1st note, wrong octave");
+  const stepped = play([60, 64], [
+    ...tone(62, 0, 160),
+    ...tone(66, 220, 160),
+  ], any);
+  assert.equal(stepped.passed, false);
+  assert.equal(stepped.hint, "1st note");
 });

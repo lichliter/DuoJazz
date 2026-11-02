@@ -79,6 +79,8 @@ import {
   moduleLessonsComplete,
   nextModuleTarget,
   visibleModuleLessons,
+  sessionCreateArgs,
+  isPracticeLesson,
 } from "./session.js";
 
 function rngFrom(values) {
@@ -276,7 +278,7 @@ test("recommended start is the first unfinished lesson", () => {
     "integrate-minor-home": ["G"],
     "integrate-altered-dominant": ["G"],
   };
-  assert.equal(recommendedLessonId(autumnComplete), "cmar-integrate-blue-bossa");
+  assert.equal(recommendedLessonId(autumnComplete), "emr-learn");
 
   const cmarComplete = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.equal(recommendedLessonId(cmarComplete), "emr-learn");
@@ -440,9 +442,11 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(nodes[1].passedCount, 0);
   assert.equal(nodes[1].recommended, true);
   assert.equal(nodes[2].id, "integrate-minor-home");
-  assert.equal(nodes[2].complete, true);
-  assert.equal(nodes[2].passedCount, 12);
-  assert.equal(nodes[2].vinylTier, "gold");
+  assert.equal(nodes[2].complete, false);
+  assert.equal(nodes[2].passedCount, 0);
+  assert.equal(nodes[2].vinylTier, "black");
+  assert.equal(nodes[2].practice, true);
+  assert.equal(nodes[2].number, "Practice");
   assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
 
   const firstDone = modulePathNodes(MODULES[0], defaultPrefs(), {
@@ -457,12 +461,14 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(firstDone[1].passedCount, 7);
   assert.equal(firstDone[1].complete, false);
   assert.equal(firstDone[2].recommended, false);
-  assert.equal(firstDone[2].complete, true);
-  assert.equal(firstDone[2].passedCount, 1);
+  assert.equal(firstDone[2].complete, false);
+  assert.equal(firstDone[2].passedCount, 0);
+  assert.equal(firstDone[2].practice, true);
 
   const cmarKeys = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   const allCmar = modulePathNodes(MODULES[0], defaultPrefs(), cmarKeys);
-  assert.equal(allCmar.every((node) => node.complete === true), true);
+  assert.equal(allCmar.filter((node) => !node.practice).every((node) => node.complete === true), true);
+  assert.equal(allCmar.filter((node) => node.practice).every((node) => node.complete === false), true);
   assert.equal(allCmar.every((node) => node.recommended === false), true);
   const across = lessonPathNodes(defaultPrefs(), cmarKeys);
   assert.equal(across.find((node) => node.recommended)?.id, "emr-learn");
@@ -599,7 +605,9 @@ test("module road hides Your tunes and re-numbers the remaining sleeves", () => 
   const nodes = moduleRoadNodes(MODULES[0], defaultPrefs(), {});
   assert.equal(nodes.length, 8);
   assert.equal(nodes.every((node) => node.group !== "your-tunes"), true);
-  assert.deepEqual(nodes.map((node) => node.number), ["01", "02", "03", "04", "05", "06", "07", "08"]);
+  assert.deepEqual(nodes.map((node) => node.number), ["01", "02", "Practice", "Practice", "Practice", "Practice", "Practice", "Practice"]);
+  assert.equal(nodes[2].practice, true);
+  assert.equal(nodes[2].caption, nodes[2].context);
   assert.equal(nodes[0].id, "learn-lick");
   assert.equal(nodes[1].id, "master-lick");
   assert.equal(nodes[1].title, "Master the lick");
@@ -635,7 +643,8 @@ test("quick view lists every module and record", () => {
   assert.equal(data[0].records[1].id, "master-lick");
   assert.equal(data[0].records[1].number, "02");
   assert.equal(data[0].records[1].keysPassed, 0);
-  assert.equal(data[0].records[2].keysPassed, 12);
+  assert.equal(data[0].records[2].keysPassed, 0);
+  assert.equal(data[0].records[2].number, "Practice");
   assert.equal(data[1].lickName, "Embellished Minor Resolution");
   assert.equal(data[1].keysMastered, 0);
   assert.equal(data[2].records.some((record) => record.id === "gts-learn"), true);
@@ -679,7 +688,7 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
   assert.equal(sessionScreenTitle(createSession({ lessonId: "learn-lick" })), "Cry Me a River · Lesson 1");
   assert.equal(sessionScreenTitle(createSession({ lessonId: "master-lick", keyMode: "fourths" })), "Cry Me a River · Lesson 2");
-  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Lesson 3");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Practice");
   const twelve = createSession({ lessonId: "learn-lick", keyMode: "fourths" });
   assert.deepEqual(sessionProgress(twelve), { index: 1, total: 12, ratio: 0 });
   const hear = createSession({ lessonId: "learn-lick" });
@@ -729,7 +738,8 @@ test("next-module link follows last lesson wrap-up and completed module home", (
   const firstLabel = `Next: Module ${emr.number} · ${emr.name}`;
   const backLabel = `Back to Module ${cmar.number} · ${cmar.name}`;
   assert.equal(isLastVisibleLesson("learn-lick"), false);
-  assert.equal(isLastVisibleLesson(cmarLast.id), true);
+  assert.equal(isLastVisibleLesson("master-lick"), true);
+  assert.equal(isLastVisibleLesson(cmarLast.id), false);
   assert.equal(nextModuleTarget(cmar).type, "module");
   assert.equal(nextModuleTarget(cmar).id, emr.id);
   assert.equal(nextModuleTarget(cmar).label, firstLabel);
@@ -737,11 +747,12 @@ test("next-module link follows last lesson wrap-up and completed module home", (
   assert.equal(nextModuleTarget(last).id, cmar.id);
   assert.equal(nextModuleTarget(last).label, backLabel);
 
-  const wrapLast = wrapupNextModule(createSession({ lessonId: cmarLast.id, startKeyId: "G" }));
+  const wrapLast = wrapupNextModule(createSession({ lessonId: "master-lick", startKeyId: "G" }));
   assert.equal(wrapLast.id, emr.id);
   assert.equal(wrapLast.label, firstLabel);
   assert.equal(wrapupNextModule(createSession({ lessonId: "learn-lick", startKeyId: "G" })), null);
-  const wrapBookEnd = wrapupNextModule(createSession({ lessonId: visibleModuleLessons(last).at(-1).id }));
+  const lastMaster = visibleModuleLessons(last).find((lesson) => lesson.kind === "master");
+  const wrapBookEnd = wrapupNextModule(createSession({ lessonId: lastMaster.id }));
   assert.equal(wrapBookEnd.id, cmar.id);
   assert.equal(wrapBookEnd.label, backLabel);
 

@@ -80,6 +80,12 @@ export function isIsolatedLesson(lesson) {
   return lesson?.kind === "learn" || lesson?.kind === "master";
 }
 
+/** Tune and integration lessons are ungraded play-along. */
+export function isPracticeLesson(lessonOrId) {
+  const lesson = typeof lessonOrId === "string" ? lessonById(lessonOrId) : lessonOrId;
+  return lesson?.kind === "integrate";
+}
+
 export function lessonKeyTarget(lesson) {
   return lesson?.kind === "master" ? 12 : 1;
 }
@@ -104,6 +110,23 @@ export function lessonSessionPlan(lessonId, prefs) {
     return { keyMode: "one", startKeyId: stored.startKeyId };
   }
   return { keyMode: "one", startKeyId: lesson.defaultKeyId ?? stored.startKeyId };
+}
+
+/**
+ * Home and createAndShow share this. Master always uses the selected cycle
+ * and the default key, even when the caller omits a key mode.
+ */
+export function sessionCreateArgs(lessonId, prefs, options = {}) {
+  const lesson = lessonById(lessonId);
+  const plan = lessonSessionPlan(lesson.id, prefs);
+  if (lesson.kind === "master") {
+    return { lessonId: lesson.id, keyMode: plan.keyMode, startKeyId: plan.startKeyId };
+  }
+  return {
+    lessonId: lesson.id,
+    keyMode: options.keyMode ?? plan.keyMode,
+    startKeyId: options.startKeyId ?? plan.startKeyId,
+  };
 }
 
 export const CARD_SETS = [
@@ -177,7 +200,9 @@ export function cardKicker(cardId, lessonId) {
 export function sessionScreenTitle(session) {
   const lesson = lessonById(session.lessonId);
   const module = moduleForLesson(session.lessonId);
-  const index = Math.max(1, (module.lessons ?? []).findIndex((item) => item.id === lesson.id) + 1);
+  if (isPracticeLesson(lesson)) return `${module.name} · Practice`;
+  const graded = (module.lessons ?? []).filter((item) => !isPracticeLesson(item));
+  const index = Math.max(1, graded.findIndex((item) => item.id === lesson.id) + 1);
   return `${module.name} · Lesson ${index}`;
 }
 
@@ -187,8 +212,8 @@ export function sessionModeHeading(_session) {
 }
 
 /**
- * Learn and Master engrave the same lick. Master hides it with CSS blur,
- * not by dropping the note ink, so chord symbols can stay put.
+ * Learn and Master engrave the same lick. Master covers the whole staff card
+ * with a blur until Show notes. Tune lessons keep the written notes up.
  */
 export function sessionEngraveSpec(session) {
   const lesson = lessonById(session.lessonId);
@@ -248,24 +273,36 @@ export function lessonSleeve(lessonId) {
 /**
  * Duolingo-style path node for the module home. Visual only — lessons stay unlocked.
  */
-export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] } = {}) {
-  const passed = [...new Set(passedKeys)];
+function numberedPath(lessons) {
+  let graded = 0;
+  return lessons.map((lesson, index) => {
+    const practice = isPracticeLesson(lesson);
+    const number = practice ? "Practice" : String(graded + 1).padStart(2, "0");
+    if (!practice) graded += 1;
+    return { lesson, index, number };
+  });
+}
+
+export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [], number } = {}) {
+  const practice = isPracticeLesson(lesson);
+  const passed = practice ? [] : [...new Set(passedKeys)];
   const passedCount = passed.length;
   const keyTarget = lessonKeyTarget(lesson);
-  const tier = lessonVinylTier(lesson, passedCount);
+  const tier = practice ? "black" : lessonVinylTier(lesson, passedCount);
   return {
     id: lesson.id,
     index,
-    number: String(index + 1).padStart(2, "0"),
+    number: number ?? (practice ? "Practice" : String(index + 1).padStart(2, "0")),
     title: lesson.title,
     coverTitle: lesson.coverTitle,
     summary: lesson.summary,
     context: lesson.context,
-    caption: sleeveCaption(lesson.context, passedCount, keyTarget),
+    caption: practice ? (lesson.context ?? "") : sleeveCaption(lesson.context, passedCount, keyTarget),
     sleeve: lesson.sleeve,
     align: PATH_ALIGNS[index % PATH_ALIGNS.length],
     recommended: lesson.id === recommendedId,
-    complete: passedCount >= keyTarget,
+    complete: !practice && passedCount >= keyTarget,
+    practice,
     keyTarget,
     passedCount,
     passedKeys: passed,
@@ -275,43 +312,42 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
   };
 }
 
-export function tunePathNodes(prefs, lessonKeys = {}) {
-  const recommendedId = recommendedLessonId(lessonKeys);
-  return TUNE_SECTION.lessons.map((lesson, index) => lessonPathNode({
+function pathNodesFor(lessons, moduleFields, recommendedId, lessonKeys) {
+  return numberedPath(lessons).map(({ lesson, index, number }) => lessonPathNode({
     ...lesson,
-    moduleId: TUNE_SECTION.id,
-    moduleName: TUNE_SECTION.name,
+    ...moduleFields,
   }, index, {
     recommendedId,
     passedKeys: lessonKeys[lesson.id] ?? [],
+    number,
   }));
+}
+
+export function tunePathNodes(prefs, lessonKeys = {}) {
+  const recommendedId = recommendedLessonId(lessonKeys);
+  return pathNodesFor(TUNE_SECTION.lessons, {
+    moduleId: TUNE_SECTION.id,
+    moduleName: TUNE_SECTION.name,
+  }, recommendedId, lessonKeys);
 }
 
 export function modulePathNodes(module, prefs, lessonKeys = {}) {
   const recommendedId = recommendedLessonId(lessonKeys);
-  return module.lessons.map((lesson, index) => lessonPathNode({
-    ...lesson,
+  return pathNodesFor(module.lessons, {
     moduleId: module.id,
     moduleName: module.name,
-  }, index, {
-    recommendedId,
-    passedKeys: lessonKeys[lesson.id] ?? [],
-  }));
+  }, recommendedId, lessonKeys);
 }
 
-/** Road nodes for a module home: hides Your tunes lessons, keeps numbering sequential. */
+/** Road nodes for a module home: hides Your tunes lessons. Learn and Master keep 01, 02. */
 export function moduleRoadNodes(module, prefs, lessonKeys = {}) {
   const visible = module.lessons.filter((lesson) => lesson.group !== "your-tunes");
   const unfinished = visible.find((lesson) => !lessonIsComplete(lessonKeys, lesson.id));
   const recommendedId = unfinished?.id ?? null;
-  return visible.map((lesson, index) => lessonPathNode({
-    ...lesson,
+  return pathNodesFor(visible, {
     moduleId: module.id,
     moduleName: module.name,
-  }, index, {
-    recommendedId,
-    passedKeys: lessonKeys[lesson.id] ?? [],
-  }));
+  }, recommendedId, lessonKeys);
 }
 
 export function lessonPathNodes(prefs, lessonKeys = {}) {
@@ -500,7 +536,7 @@ export function dismissHeadphonesTip(prefs) {
  * Null when every lesson is complete.
  */
 export function recommendedLessonId(lessonKeys = {}) {
-  const unfinished = LESSONS.find((lesson) => !lessonIsComplete(lessonKeys, lesson.id));
+  const unfinished = LESSONS.find((lesson) => !isPracticeLesson(lesson) && !lessonIsComplete(lessonKeys, lesson.id));
   return unfinished?.id ?? null;
 }
 
@@ -566,12 +602,13 @@ export function createSession({
 } = {}) {
   const lesson = lessonById(lessonId);
   const cards = cardsFor(cardSet, lesson.id);
-  const keyQueue = buildKeyQueue(keyMode, startKeyId, rng);
+  const resolvedMode = lesson.kind === "master" ? cycleModeId(keyMode) : keyModeById(keyMode).id;
+  const keyQueue = buildKeyQueue(resolvedMode, startKeyId, rng);
   const instrument = instrumentOrDefault(instrumentId);
   return {
     screen: "session",
     lessonId: lesson.id,
-    keyMode: keyModeById(keyMode).id,
+    keyMode: resolvedMode,
     startKeyId: normalizeKeyId(startKeyId),
     cardSet: cardSet === "listen-quiz" ? "listen-quiz" : "all",
     studyMode: normalizeStudyMode(studyMode),
@@ -694,6 +731,7 @@ export function visibleModuleLessons(module) {
 
 export function lessonIsComplete(lessonKeys, lessonId) {
   const lesson = lessonById(lessonId);
+  if (isPracticeLesson(lesson)) return true;
   return [...new Set(lessonKeys?.[lessonId] ?? [])].length >= lessonKeyTarget(lesson);
 }
 
@@ -704,8 +742,8 @@ export function moduleLessonsComplete(module, lessonKeys = {}) {
 
 export function isLastVisibleLesson(lessonId) {
   const module = moduleForLesson(lessonId);
-  const visible = visibleModuleLessons(module);
-  return visible.at(-1)?.id === lessonId;
+  const graded = visibleModuleLessons(module).filter((lesson) => !isPracticeLesson(lesson));
+  return graded.at(-1)?.id === lessonId;
 }
 
 export function nextModuleTarget(module) {

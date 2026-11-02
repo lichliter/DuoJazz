@@ -452,8 +452,10 @@ test("practice can reveal notes, and the celebration check is a large SVG", asyn
   assert.match(index, /id="show-notes"[^>]*aria-pressed="false"/);
   assert.match(index, /id="show-notes"[^>]*>\s*Show notes\s*</);
   assert.doesNotMatch(index, /icon-eye/);
-  assert.match(app, /notesRevealed \? "Hide notes" : "Show notes"/);
-  assert.match(app, /textContent = label/);
+  assert.match(app, /textContent = "Show notes"/);
+  assert.doesNotMatch(app, /Hide notes/);
+  assert.doesNotMatch(app, /notesRevealed = !notesRevealed/);
+  assert.match(app, /notesRevealed = true/);
   assert.match(hig, /\.notes-toggle\s*\{[^}]*align-self:\s*center/);
   assert.match(index, /<svg class="celebrate-check"/);
   assert.match(hig, /\.celebrate-check \{[^}]*height:\s*35vmin/);
