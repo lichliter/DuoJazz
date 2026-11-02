@@ -16,6 +16,7 @@ import {
   medalForCount,
   displayMedal,
   homeMedalMark,
+  recordLearnPass,
   recordQuizPass,
   isKeyMastered,
   lessonPassedCount,
@@ -213,17 +214,19 @@ test("medal thresholds are bronze 1, silver 6, gold 12", () => {
   assert.equal(homeMedalMark(12, "gold"), "Gold");
 });
 
-test("a key is mastered only after Learn-the-lick quiz and one integration quiz", () => {
+test("a key is mastered only from Master the lick", () => {
   let mastery = emptyMastery();
   mastery = recordQuizPass(mastery, "learn-lick", "G");
+  mastery = recordQuizPass(mastery, "integrate-minor-home", "G");
+  mastery = recordLearnPass(mastery, "master-lick", "G");
   assert.equal(isKeyMastered(mastery, "G"), false);
   assert.equal(mastery.medal, "none");
-  mastery = recordQuizPass(mastery, "integrate-minor-home", "G");
+  mastery = recordQuizPass(mastery, "master-lick", "G");
   assert.equal(isKeyMastered(mastery, "G"), true);
   assert.equal(mastery.medal, "bronze");
   assert.equal(mastery.upgraded, true);
-  const again = recordQuizPass(mastery, "integrate-altered-dominant", "G");
-  assert.equal(again.masteredKeys.length, 1);
+  const again = recordQuizPass(mastery, "master-lick", "C");
+  assert.equal(again.masteredKeys.length, 2);
   assert.equal(again.medal, "bronze");
 });
 
@@ -231,23 +234,21 @@ test("mastery is monotonic across keys and ignores later misses", () => {
   let mastery = emptyMastery();
   const keys = ["G", "C", "F", "Bb", "Eb", "Ab"];
   for (const key of keys) {
-    mastery = recordQuizPass(mastery, "learn-lick", key);
-    mastery = recordQuizPass(mastery, "integrate-altered-dominant", key);
+    mastery = recordQuizPass(mastery, "master-lick", key);
   }
   assert.equal(mastery.medal, "silver");
   assert.equal(mastery.masteredKeys.length, 6);
   const frozen = normalizeMastery(mastery);
   assert.equal(frozen.medal, "silver");
-  assert.equal(lessonPassedCount(frozen, "learn-lick"), 6);
-  assert.deepEqual(lessonPassedKeys(frozen, "learn-lick"), keys);
+  assert.equal(lessonPassedCount(frozen, "master-lick"), 6);
+  assert.deepEqual(lessonPassedKeys(frozen, "master-lick"), keys);
   assert.equal(currentKeyId(learnQuiz()), "G");
 });
 
 test("twelve mastered keys are gold and later passes do not demote", () => {
   let mastery = emptyMastery();
   for (const key of ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]) {
-    mastery = recordQuizPass(mastery, "learn-lick", key);
-    mastery = recordQuizPass(mastery, "integrate-minor-home", key);
+    mastery = recordQuizPass(mastery, "master-lick", key);
   }
   assert.equal(mastery.medal, "gold");
   assert.equal(mastery.masteredKeys.length, 12);

@@ -357,6 +357,22 @@ body {
   font: var(--text-footnote);
 }
 
+.settings-modal {
+  overflow: auto;
+}
+
+.settings-modal .settings-title {
+  font: var(--text-headline);
+  font-family: var(--display);
+}
+
+.settings-close {
+  width: var(--tap);
+  min-width: var(--tap);
+  height: var(--tap);
+  min-height: var(--tap);
+}
+
 .settings-page {
   display: flex;
   flex-direction: column;
@@ -370,7 +386,7 @@ body {
   }
 
   .app-shell[data-screen="home"] .workspace {
-    padding-bottom: calc(1.5rem + 49px + var(--safe-bottom));
+    padding-bottom: calc(1.5rem + var(--safe-bottom));
   }
 
   .masthead .app-tab-bar {
@@ -1015,20 +1031,55 @@ body {
 
 .notes-toggle {
   align-self: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
   flex: 0 0 auto;
   margin: 0;
   min-width: var(--tap);
   min-height: var(--tap);
-  padding: 0 0.75rem;
+  padding: 0 0.9rem;
   border: 0;
-  background: transparent;
+  border-radius: 999px;
+  background: rgba(243, 230, 206, 0.94);
   color: var(--tint);
   font: 600 17px/22px var(--font);
   cursor: pointer;
+  box-shadow: 0 1px 4px rgba(43, 33, 26, 0.18);
+}
+
+.paper.staff-blurred .note use,
+.paper.staff-blurred :is(
+  .note,
+  .rest,
+  .mRest,
+  .clef,
+  .keySig,
+  .keyAccid,
+  .meterSig,
+  .barLine,
+  .beam,
+  .stem,
+  .ledgerLines,
+  .artic,
+  .tuplet,
+  .slur,
+  .tie,
+  .hairpin,
+  .dynam,
+  .fermata,
+  .flag
+) :is(use, path, polygon, line, text),
+.paper.staff-blurred .staff > path,
+.paper.staff-blurred .staff > g > path,
+.paper.staff-blurred path.staff {
+  filter: blur(6px);
 }
 
 .notes-toggle[aria-pressed="true"] {
-  color: var(--label);
+  color: var(--paper-ink);
 }
 
 .session-octave .octave-btn:active:not(:disabled) {
@@ -1334,10 +1385,6 @@ body {
   .session-top {
     grid-template-columns: var(--tap) minmax(0, 1fr) auto;
     padding-inline: var(--margin-compact);
-  }
-
-  #session-key-count {
-    display: none;
   }
 
   .session-screen {
