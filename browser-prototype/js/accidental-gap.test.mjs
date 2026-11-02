@@ -203,14 +203,14 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
       {
         name: "cry-me-lesson-4",
         path: "/?screen=session&lesson=cmar-integrate-blue-bossa&card=learn&key=C",
-        ready: `document.querySelector("#session-title")?.textContent === "Cry Me a River · Lesson 4" && document.querySelectorAll(".harm").length > 0`,
+        ready: `document.querySelector("#session-title")?.textContent === "Cry Me a River · Practice" && document.querySelectorAll(".harm").length > 0`,
         shot: true,
         expectHarms: chorusChords(getKey("C"), "concert", "cmar-blue-bossa").map((chord) => chord.name),
       },
       {
         name: "cry-me-a-river",
         path: "/?screen=session&lesson=cmar-integrate-cry-me&card=learn&key=Eb",
-        ready: `document.querySelector("#session-title")?.textContent === "Cry Me a River · Lesson 7" && document.querySelectorAll(".harm").length > 0`,
+        ready: `document.querySelector("#session-title")?.textContent === "Cry Me a River · Practice" && document.querySelectorAll(".harm").length > 0`,
         expectHarms: chorusChords(getKey("Eb"), "concert", "cmar-cry-me").map((chord) => chord.name),
       },
     ];

@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=132";
+import { Transport } from "./audio.js?v=134";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=132";
+} from "./lesson.js?v=134";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,13 +31,13 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=132";
+} from "./engrave.js?v=134";
 import {
   PREFS_KEY,
   MODULE,
   MODULES,
   LESSONS,
-  KEY_MODES,
+  CYCLE_MODES,
   CARD_SETS,
   TWELVE_KEY_IDS,
   lessonById,
@@ -70,7 +70,6 @@ import {
   modulesSheetData,
   moduleById,
   lessonSleeve,
-  vinylTier,
   sleeveCaption,
   moduleForLesson,
   sessionKeyQuality,
@@ -85,10 +84,13 @@ import {
   persistLessonTempo,
   wrapupNextModule,
   homeNextModule,
-  moduleStudyMode,
-  setModuleStudyMode,
-  STUDY_MODES,
   settingsSummaryShort,
+  lessonSessionPlan,
+  sessionCreateArgs,
+  isPracticeLesson,
+  sessionShowsCycle,
+  lessonVinylTier,
+  cycleModeId,
   setInstrument,
   cardLabel,
   sessionEngraveSpec,
@@ -97,7 +99,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=132";
+} from "./session.js?v=134";
 import {
   tuneById,
   licksInTune,
@@ -109,7 +111,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, stepFollower, tickFollower } from "./follow.js?v=132";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=134";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -123,7 +125,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=132";
+} from "./rapid.js?v=134";
 import {
   emptyMastery,
   displayMedal,
@@ -137,7 +139,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=132";
+import { PitchMonitor, micCopy } from "./pitch.js?v=134";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -146,7 +148,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=132";
+} from "./take-dump.js?v=134";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -198,12 +200,12 @@ const els = {
   masthead: document.getElementById("masthead"),
   home: document.getElementById("screen-home"),
   charts: document.getElementById("screen-charts"),
-  settingsScreen: document.getElementById("screen-settings"),
+  settingsModal: document.getElementById("settings-modal"),
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
-  tabBar: document.getElementById("app-tab-bar"),
+  settingsBtn: document.getElementById("settings-btn"),
   homeSummary: document.getElementById("home-summary"),
-  homeMode: document.getElementById("home-mode"),
+  settingsClose: document.getElementById("settings-close"),
   chartsList: document.getElementById("charts-list"),
   chartDetail: document.getElementById("chart-detail"),
   chartBack: document.getElementById("chart-back"),
@@ -214,7 +216,7 @@ const els = {
   chartLicksList: document.getElementById("chart-licks-list"),
   lessonList: document.getElementById("lesson-list"),
   instrumentList: document.getElementById("instrument-list"),
-  settings: document.getElementById("screen-settings"),
+  settings: document.getElementById("settings-modal"),
   setup: document.getElementById("setup"),
   setupTitle: document.getElementById("setup-title"),
   setupSummary: document.getElementById("setup-summary"),
@@ -498,7 +500,7 @@ function renderDebug() {
   }
   const shown = shownKeyForSession();
   const fresh = describeAttempt(
-    createFollower(expectedNotesFor(session).map((note) => note.midi)),
+    followerForSession(session),
     shown,
   ).text;
   els.debugStrip.hidden = false;
@@ -522,14 +524,17 @@ function renderAuto() {
 }
 
 function recordRapidPass() {
-  if (!session) return;
+  if (!session || isPracticeLesson(session.lessonId)) return;
   const keyId = currentKeyId(session);
   if (shouldRecordMastery(session, true, { notesShown: notesPeeked })) {
     wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
     mastery = wrapupBanner;
-  } else {
+  } else if (lessonById(session.lessonId).kind === "master") {
     mastery = recordLearnPass(mastery, session.lessonId, keyId);
     wrapupBanner = mastery;
+  } else {
+    wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
+    mastery = wrapupBanner;
   }
   saveMastery(mastery);
 }
@@ -595,8 +600,60 @@ function finishRapid(generation, result) {
   finishing = false;
 }
 
+function followerForSession(target, origin = null) {
+  const lesson = lessonById(target.lessonId);
+  return createFollower(
+    expectedNotesFor(target).map((note) => note.midi),
+    origin,
+    { octave: octaveModeForLesson(lesson.kind, notesRevealed) },
+  );
+}
+
+async function beginPracticeLoop() {
+  if (!session || session.screen !== "session" || session.demo) return;
+  const generation = startGen + 1;
+  startGen = generation;
+  finishing = false;
+  clearRapidTimers();
+  sessionShot = null;
+  cue = null;
+  audioError = "";
+  attempt = null;
+  monitor.onFrame = () => {};
+  monitor.holdSignal = false;
+  rapidPhase = "listening";
+  renderCue();
+  renderPrimary();
+  try {
+    await transport.ensure();
+    if (generation !== startGen || !session) return;
+    const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
+    const prepared = await transport.prepareBacking({ sampleSet });
+    if (generation !== startGen || !session || rapidPhase !== "listening") return;
+    audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
+    const config = recordBackingConfig(session);
+    recordBacking = true;
+    await transport.start(config, { resume: false });
+    if (generation !== startGen || rapidPhase !== "listening") {
+      if (generation === startGen) {
+        recordBacking = false;
+        transport.stop();
+      }
+    }
+  } catch {
+    if (generation !== startGen) return;
+    recordBacking = false;
+    transport.stop();
+    audioError = "Audio failed to load.";
+    rapidPhase = "idle";
+    renderMeter();
+    renderPrimary();
+  }
+}
+
 async function beginListening() {
   if (!session || session.screen !== "session" || session.demo) return;
+  if (isPracticeLesson(session.lessonId)) return beginPracticeLoop();
   const generation = startGen + 1;
   startGen = generation;
   finishing = false;
@@ -606,7 +663,7 @@ async function beginListening() {
   audioError = "";
   rapidPhase = "listening";
   renderCelebrate();
-  attempt = createFollower(expectedNotesFor(session).map((note) => note.midi), performance.now());
+  attempt = followerForSession(session, performance.now());
   monitor.holdSignal = true;
   monitor.now = () => performance.now();
   monitor.onFrame = (frame) => {
@@ -705,19 +762,18 @@ function finishCelebration(generation, { arm = false, pause = false } = {}) {
 }
 
 function renderShowNotes() {
-  const practice = Boolean(
+  const master = Boolean(
     session
     && session.screen === "session"
-    && session.studyMode === "practice"
+    && lessonById(session.lessonId).kind === "master"
     && !session.demo,
   );
+  const show = master && !notesRevealed;
   if (!els.showNotes) return;
-  els.showNotes.hidden = !practice;
-  if (!practice) return;
-  const label = notesRevealed ? "Hide notes" : "Show notes";
-  els.showNotes.textContent = label;
-  els.showNotes.setAttribute("aria-label", label);
-  els.showNotes.setAttribute("aria-pressed", String(notesRevealed));
+  els.showNotes.hidden = !show;
+  els.showNotes.textContent = "Show notes";
+  els.showNotes.setAttribute("aria-label", "Show notes");
+  els.showNotes.setAttribute("aria-pressed", "false");
 }
 
 function renderCelebrate() {
@@ -781,7 +837,12 @@ function screenName() {
 }
 
 function openSettings() {
-  selectTab("settings");
+  renderSettings();
+  if (els.settingsModal && !els.settingsModal.open) els.settingsModal.showModal();
+}
+
+function closeSettings() {
+  if (els.settingsModal?.open) els.settingsModal.close();
 }
 
 function saveTabScroll() {
@@ -800,6 +861,10 @@ function writeTabUrl(replace) {
 }
 
 function selectTab(tab, { tune = undefined, replace = false } = {}) {
+  if (tab === "settings") {
+    openSettings();
+    return;
+  }
   saveTabScroll();
   if (tab === "charts") {
     if (tune !== undefined) lastChartTune = tune;
@@ -814,25 +879,21 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
 }
 
 function syncTabButtons() {
-  els.tabBar?.querySelectorAll(".app-tab").forEach((btn) => {
-    btn.setAttribute("aria-current", btn.dataset.tab === nav.tab ? "page" : "false");
-  });
 }
 
 function startLesson(lessonId) {
   const lesson = lessonById(lessonId);
   selectedModuleId = moduleForLesson(lesson.id)?.id ?? selectedModuleId;
   setupLessonId = lesson.id;
-  const fallback = defaultLessonStartKey(lesson);
+  const plan = lessonSessionPlan(lesson.id, prefs);
   halt();
-  prefs = markLessonStarted(prefs, lesson.id, prefs.startKeyId ?? fallback);
+  prefs = markLessonStarted(prefs, lesson.id, plan.startKeyId);
   persist();
   applySession(createSession({
     lessonId: lesson.id,
-    keyMode: prefs.keyMode,
-    startKeyId: prefs.startKeyId || fallback,
+    keyMode: plan.keyMode,
+    startKeyId: plan.startKeyId,
     cardSet: prefs.cardSet,
-    studyMode: moduleStudyMode(prefs, moduleForLesson(lesson.id).id),
     tempo: prefs.tempo,
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
     instrumentId: prefs.instrumentId,
@@ -1071,11 +1132,15 @@ function runPrimary() {
 }
 
 function recordPassIfNeeded(result) {
-  if (!result?.passed || !session) return;
+  if (!result?.passed || !session || isPracticeLesson(session.lessonId)) return;
   const keyId = currentKeyId(session);
-  wrapupBanner = session.studyMode === "practice"
-    ? recordQuizPass(mastery, session.lessonId, keyId)
-    : recordLearnPass(mastery, session.lessonId, keyId);
+  if (shouldRecordMastery(session, true, { notesShown: notesPeeked })) {
+    wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
+  } else if (lessonById(session.lessonId).kind === "master") {
+    wrapupBanner = recordLearnPass(mastery, session.lessonId, keyId);
+  } else {
+    wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
+  }
   mastery = wrapupBanner;
   saveMastery(mastery);
 }
@@ -1124,7 +1189,8 @@ function navigateCard(delta) {
 function anyDialogOpen() {
   return Boolean(
     els.quickView?.open
-    || els.leaveConfirm?.open,
+    || els.leaveConfirm?.open
+    || els.settingsModal?.open,
   );
 }
 
@@ -1137,9 +1203,13 @@ function keysByLesson(current = mastery) {
 function moduleBanner(module, stats) {
   const count = stats.masteredKeys.length;
   const medal = count ? stats.medal : "none";
-  const section = document.createElement("section");
+  const section = document.createElement("button");
+  section.type = "button";
   section.className = "module-banner";
   section.dataset.testid = `module-banner-${module.id}`;
+  section.setAttribute("aria-haspopup", "dialog");
+  section.setAttribute("aria-controls", "quick-view");
+  section.setAttribute("aria-label", `Choose a lick. ${module.name}`);
   const copy = document.createElement("div");
   copy.className = "banner-copy";
   copy.innerHTML = `<p class="banner-kicker">Module ${module.number} · a lick</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
@@ -1153,26 +1223,8 @@ function moduleBanner(module, stats) {
   const mark = homeMedalMark(count, stats.medal);
   badge.innerHTML = `<span class="medal-count">${count}/12</span><span class="medal-mark"${mark ? "" : " hidden"}>${mark}</span>`;
   section.append(copy, badge);
+  section.addEventListener("click", () => requestQuickView());
   return section;
-}
-
-function studySwitch(moduleId, mode, onChange, testId = `study-switch-${moduleId}`) {
-  const group = document.createElement("div");
-  group.className = "study-switch";
-  group.dataset.testid = testId;
-  group.setAttribute("role", "group");
-  group.setAttribute("aria-label", "Learn or Practice");
-  for (const item of STUDY_MODES) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "study-switch-btn";
-    btn.dataset.mode = item.id;
-    btn.textContent = item.label;
-    btn.setAttribute("aria-pressed", String(item.id === mode));
-    btn.addEventListener("click", () => onChange(item.id));
-    group.append(btn);
-  }
-  return group;
 }
 
 function masteryRing(marks) {
@@ -1239,15 +1291,6 @@ function homeNextModuleButton(link) {
   return wrap;
 }
 
-function renderHomeMode(module) {
-  if (!els.homeMode || !module) return;
-  els.homeMode.replaceChildren(studySwitch(module.id, moduleStudyMode(prefs, module.id), (mode) => {
-    prefs = setModuleStudyMode(prefs, module.id, mode);
-    persist();
-    renderHome();
-  }));
-}
-
 function renderHome() {
   if (!MODULES.some((module) => module.id === selectedModuleId)) {
     selectedModuleId = MODULES[0].id;
@@ -1255,7 +1298,6 @@ function renderHome() {
   const module = moduleById(selectedModuleId) ?? MODULES[0];
   const keys = keysByLesson(mastery);
   const nodes = moduleRoadNodes(module, prefs, keys);
-  renderHomeMode(module);
   els.lessonList.replaceChildren(
     moduleBlock(module, nodes, moduleMastery(mastery, module.id)),
     homeNextModuleButton(homeNextModule(module, keys)),
@@ -1324,11 +1366,14 @@ function sleeveButton(node) {
   btn.dataset.recommended = String(node.recommended);
   btn.dataset.complete = String(node.complete);
   btn.dataset.vinylTier = node.vinylTier;
-  const bits = [
-    `Lesson ${node.number}: ${node.title}`,
-    `${node.passedCount} of 12 keys passed`,
-    `${node.vinylTier} vinyl`,
-  ];
+  btn.dataset.practice = node.practice ? "true" : "false";
+  const bits = node.practice
+    ? [`Practice: ${node.title}`, node.caption].filter(Boolean)
+    : [
+      `Lesson ${node.number}: ${node.title}`,
+      `${node.passedCount} of ${node.keyTarget ?? 12} keys passed`,
+      `${node.vinylTier} vinyl`,
+    ];
   if (node.recommended) bits.push("recommended start");
   if (node.complete) bits.push("all keys passed");
   btn.setAttribute("aria-label", bits.join(". "));
@@ -1376,8 +1421,8 @@ function renderSettings() {
   const summary = settingsSummaryShort(prefs);
   if (els.homeSummary) els.homeSummary.textContent = summary;
   if (els.settingsSummary) els.settingsSummary.textContent = summary;
-  chipRow(els.keyModes, KEY_MODES, prefs.keyMode, (id) => {
-    prefs.keyMode = id;
+  chipRow(els.keyModes, CYCLE_MODES, cycleModeId(prefs.keyMode), (id) => {
+    prefs.keyMode = cycleModeId(id);
     persist();
     renderSettings();
   });
@@ -1487,6 +1532,12 @@ function renderSessionOctave() {
 
 function renderKeyCycle() {
   if (!els.keyCycle || !session || session.screen !== "session") return;
+  if (!sessionShowsCycle(session)) {
+    els.keyCycle.hidden = true;
+    els.keyCycle.replaceChildren();
+    return;
+  }
+  els.keyCycle.hidden = false;
   const ordinal = keyOrdinal(session);
   const states = keyCycleStates(session);
   els.keyCycle.setAttribute("aria-label", `Key ${ordinal.index} of ${ordinal.total}`);
@@ -1523,7 +1574,14 @@ function renderSessionChrome() {
     els.sessionKey,
     displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
   );
-  if (els.sessionKeyCount) els.sessionKeyCount.textContent = `Key ${ordinal.index} of ${ordinal.total}`;
+  const cycling = sessionShowsCycle(session);
+  const autoHost = els.autoToggle?.closest(".auto-switch");
+  if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId);
+  if (els.sessionKeyCount) {
+    els.sessionKeyCount.hidden = !cycling;
+    els.sessionKeyCount.textContent = cycling ? `Key ${ordinal.index} of ${ordinal.total}` : "";
+  }
+  if (els.continueBtn) els.continueBtn.hidden = !cycling;
   renderKeyCycle();
 }
 
@@ -1531,7 +1589,7 @@ function chordTimingsFor(target) {
   if (!target) return [];
   const lesson = lessonById(target.lessonId);
   const concertKey = getKey(currentKeyId(target));
-  const isolated = lesson.kind === "learn";
+  const isolated = lesson.kind === "learn" || lesson.kind === "master";
   const chords = isolated
     ? learnChords(concertKey, target.displayMode, lesson.applicationId)
     : chorusChords(concertKey, target.displayMode, lesson.applicationId);
@@ -1706,7 +1764,8 @@ function layoutClickWheel() {
   wrap.dataset.systems = String(metrics.count);
   wrap.dataset.cardMin = String(Math.round(fit.cardHeight));
   const bar = footer.querySelector(".key-cycle");
-  const barTop = (bar ?? footer).getBoundingClientRect().top;
+  const barVisible = Boolean(bar && !bar.hidden);
+  const barTop = (barVisible ? bar : footer).getBoundingClientRect().top;
   let overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
   if (overflow > 1 && diameter > floor) {
     diameter = Math.max(floor, Math.floor(diameter - overflow));
@@ -1759,6 +1818,8 @@ function renderNotation() {
   const spec = sessionEngraveSpec(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
   els.notation.classList.toggle("notation-memory", Boolean(spec.memory && !notesRevealed));
+  const hideNotes = lesson.kind === "master" && !notesRevealed;
+  els.notation.closest(".paper-wrap")?.classList.toggle("notes-hidden", hideNotes);
   lastTimemap = [];
   lastChordTimings = chordTimingsFor(session);
   if (hideStaff) {
@@ -1994,7 +2055,9 @@ function renderWrapup() {
     els.wrapupSleeve.dataset.sleeve = lesson.sleeve;
     els.wrapupSleeve.classList.toggle("is-upgrade", Boolean(wrapupBanner?.upgraded));
     const wrapVinyl = els.wrapupSleeve.querySelector(".vinyl");
-    if (wrapVinyl) wrapVinyl.dataset.tier = vinylTier(lessonPassedKeys(mastery, lesson.id).length);
+    if (wrapVinyl) {
+      wrapVinyl.dataset.tier = lessonVinylTier(lesson, lessonPassedKeys(mastery, lesson.id).length);
+    }
   }
   if (els.wrapupSleeveNum) {
     const module = moduleForLesson(lesson.id);
@@ -2156,24 +2219,21 @@ function render(snap = transport.snapshot()) {
   els.shell.dataset.screen = screen;
   els.shell.dataset.tab = nav.tab;
   if (screen === "home") delete els.shell.dataset.sleeve;
-  const onLicks = screen === "home" && nav.tab === "licks";
   const onCharts = screen === "home" && nav.tab === "charts";
-  const onSettings = screen === "home" && nav.tab === "settings";
-  els.home.hidden = !onLicks;
+  const onHome = screen === "home" && !onCharts;
+  els.home.hidden = !onHome;
   if (els.charts) els.charts.hidden = !onCharts;
-  if (els.settingsScreen) els.settingsScreen.hidden = !onSettings;
-  els.home.setAttribute("aria-hidden", String(!onLicks));
+  els.home.setAttribute("aria-hidden", String(!onHome));
   els.session.setAttribute("aria-hidden", String(screen !== "session"));
   els.wrapup.setAttribute("aria-hidden", String(screen !== "wrapup"));
   if (els.charts) els.charts.setAttribute("aria-hidden", String(!onCharts));
-  if (els.settingsScreen) els.settingsScreen.setAttribute("aria-hidden", String(!onSettings));
   syncTabButtons();
   const moduleName = session ? moduleForLesson(session.lessonId).name : "DuoJazz";
   document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
-  if (onLicks) renderHome();
+  if (onHome) renderHome();
   if (onCharts) renderCharts();
-  if (onSettings || onLicks) renderSettings();
+  if (onHome || els.settingsModal?.open) renderSettings();
   if (screen === "session") {
     renderSessionChrome();
     renderSessionOctave();
@@ -2202,25 +2262,25 @@ function applyDeepLink() {
   const screen = params.get("screen");
   const lessonId = params.get("lesson") || "learn-lick";
   const card = params.get("card") || "learn";
-  const keyMode = params.get("keys") || "fourths";
   const moduleParam = params.get("module");
   if (moduleParam) {
     selectedModuleId = moduleParam;
   }
   if (!screen) {
     writeTabUrl(true);
+    if (nav.tab === "settings") openSettings();
     return;
   }
   if (params.get("demo") === "grades" || params.get("demo") === "medal") {
     let next = emptyMastery();
-    next = recordQuizPass(next, "learn-lick", "G");
+    next = recordQuizPass(next, "master-lick", "G");
     next = recordQuizPass(next, "integrate-minor-home", "G");
     wrapupBanner = next;
     mastery = next;
   }
   if (params.get("demo") === "path") {
     let next = emptyMastery();
-    for (const key of ["G", "C", "F", "Bb"]) next = recordQuizPass(next, "learn-lick", key);
+    for (const key of ["G", "C", "F", "Bb"]) next = recordQuizPass(next, "master-lick", key);
     for (const key of ["G", "C"]) next = recordQuizPass(next, "integrate-minor-home", key);
     mastery = next;
     prefs = markLessonStarted(prefs, "learn-lick", "G");
@@ -2231,16 +2291,19 @@ function applyDeepLink() {
     monitor.setState(mic);
   }
   if (screen === "setup") {
-    selectTab("settings", { replace: true });
+    openSettings();
     return;
   }
   if (screen === "session" || screen === "wrapup") {
+    const lesson = lessonById(lessonId);
+    const plan = lessonSessionPlan(lesson.id, prefs);
+    if (lesson.kind === "master" && params.get("keys")) plan.keyMode = cycleModeId(params.get("keys"));
+    if (lesson.kind !== "integrate" && params.get("key")) plan.startKeyId = params.get("key");
     session = createSession({
       lessonId,
-      keyMode,
-      startKeyId: params.get("key") || prefs.startKeyId,
+      keyMode: plan.keyMode,
+      startKeyId: plan.startKeyId,
       cardSet: params.get("cards") || prefs.cardSet,
-      studyMode: params.get("mode") === "practice" ? "practice" : "learn",
       tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       instrumentId: prefs.instrumentId,
@@ -2371,10 +2434,16 @@ transport.onEnded = () => {
   window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
 
-els.homeSummary?.addEventListener("click", () => selectTab("settings"));
-els.tabBar?.addEventListener("click", (event) => {
-  const btn = event.target.closest?.(".app-tab");
-  if (btn?.dataset.tab) selectTab(btn.dataset.tab);
+els.homeSummary?.addEventListener("click", () => openSettings());
+els.settingsBtn?.addEventListener("click", () => openSettings());
+els.settingsClose?.addEventListener("click", () => closeSettings());
+els.settingsModal?.addEventListener("click", (event) => {
+  const dialog = els.settingsModal;
+  if (!dialog || event.target !== dialog) return;
+  const rect = dialog.getBoundingClientRect();
+  const inside = event.clientX >= rect.left && event.clientX <= rect.right
+    && event.clientY >= rect.top && event.clientY <= rect.bottom;
+  if (!inside) closeSettings();
 });
 els.chartBack?.addEventListener("click", () => selectTab("charts", { tune: null }));
 els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
@@ -2417,9 +2486,15 @@ els.autoToggle?.addEventListener("click", () => {
   renderAuto();
 });
 els.showNotes?.addEventListener("click", () => {
-  if (!session || session.screen !== "session" || session.studyMode !== "practice" || session.demo) return;
-  notesRevealed = !notesRevealed;
-  if (notesRevealed) notesPeeked = true;
+  if (!session || session.screen !== "session" || lessonById(session.lessonId).kind !== "master" || session.demo) return;
+  if (notesRevealed) return;
+  notesRevealed = true;
+  notesPeeked = true;
+  if (attempt) {
+    attempt.octave = "written";
+    attempt.octaveShift = null;
+    attempt.pendingShift = null;
+  }
   renderShowNotes();
   renderNotation();
 });
@@ -2559,14 +2634,18 @@ window.__DUOJAZZ__ = {
   measureNotation: () => measureEngraving(els.notation),
   openSetup,
   startFromSetup,
-  createAndShow(options) {
+  createAndShow(options = {}) {
     halt();
+    const lessonId = options.lessonId ?? "learn-lick";
+    const planned = sessionCreateArgs(lessonId, prefs, options);
     applySession(createSession({
       instrumentId: prefs.instrumentId,
       swing: prefs.swing,
       metronome: prefs.metronome,
       guideTones: prefs.guideTones,
+      tempo: prefs.tempo,
       ...options,
+      ...planned,
     }));
     return session;
   },

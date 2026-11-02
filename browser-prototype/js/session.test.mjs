@@ -44,6 +44,7 @@ import {
   cardResultLabel,
   practiceStateFor,
   sessionPresentation,
+  sessionEngraveSpec,
   demoAudioConfig,
   recordBackingConfig,
   sessionAudioConfig,
@@ -78,6 +79,8 @@ import {
   moduleLessonsComplete,
   nextModuleTarget,
   visibleModuleLessons,
+  sessionCreateArgs,
+  isPracticeLesson,
 } from "./session.js";
 
 function rngFrom(values) {
@@ -252,7 +255,7 @@ test("per-lesson preferences stay independent", () => {
   assert.equal(started.progress["learn-lick"].started, true);
 });
 
-test("recommended start is the first lesson not yet 12/12", () => {
+test("recommended start is the first unfinished lesson", () => {
   const none = {};
   assert.equal(recommendedLessonId(none), "learn-lick");
   assert.equal(recommendedLessonId({
@@ -260,20 +263,22 @@ test("recommended start is the first lesson not yet 12/12", () => {
     "integrate-minor-home": [],
     "integrate-altered-dominant": [],
   }), "learn-lick");
+  assert.equal(recommendedLessonId({ "learn-lick": ["G"] }), "master-lick");
 
   const firstComplete = {
-    "learn-lick": TWELVE_KEY_IDS,
-    "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
-    "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
+    "learn-lick": ["G"],
+    "master-lick": TWELVE_KEY_IDS.slice(0, 7),
+    "integrate-minor-home": ["G"],
   };
-  assert.equal(recommendedLessonId(firstComplete), "integrate-minor-home");
+  assert.equal(recommendedLessonId(firstComplete), "master-lick");
 
   const autumnComplete = {
-    "learn-lick": TWELVE_KEY_IDS,
-    "integrate-minor-home": TWELVE_KEY_IDS,
-    "integrate-altered-dominant": TWELVE_KEY_IDS,
+    "learn-lick": ["G"],
+    "master-lick": TWELVE_KEY_IDS,
+    "integrate-minor-home": ["G"],
+    "integrate-altered-dominant": ["G"],
   };
-  assert.equal(recommendedLessonId(autumnComplete), "cmar-integrate-blue-bossa");
+  assert.equal(recommendedLessonId(autumnComplete), "emr-learn");
 
   const cmarComplete = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.equal(recommendedLessonId(cmarComplete), "emr-learn");
@@ -337,21 +342,17 @@ test("Hear it demo schedules the melody in Learn and Practice", () => {
   }
 });
 
-test("Practice hides lick notation and keeps the staff for chords", () => {
-  const learnMemory = createSession({ lessonId: "learn-lick", studyMode: "practice" });
-  const learnView = sessionPresentation(learnMemory);
-  assert.equal(learnView.hideStaff, false);
-  assert.equal(learnView.showChordsOnly, true);
-  assert.equal(learnView.showPhraseNotation, false);
-  assert.equal(learnView.showModelNotation, false);
-
-  const quiz = createSession({ lessonId: "integrate-minor-home", studyMode: "practice" });
-  const quizView = sessionPresentation(quiz);
-  assert.equal(quizView.showEntranceCues, false);
-  assert.equal(quizView.showModelNotation, false);
-  assert.equal(quizView.showLandingNotation, false);
-  assert.equal(quizView.showChordsOnly, true);
-  assert.equal(sessionAudioConfig(quiz).includeModel, false);
+test("Master engraves the lick; blur is CSS, not hidden ink", () => {
+  const master = createSession({ lessonId: "master-lick", keyMode: "fourths", startKeyId: "G" });
+  const view = sessionPresentation(master);
+  assert.equal(view.hideStaff, false);
+  assert.equal(view.showChordsOnly, false);
+  assert.equal(view.showPhraseNotation, true);
+  const spec = sessionEngraveSpec(master);
+  assert.equal(spec.memory, false);
+  assert.equal(spec.mei, "phrase");
+  assert.equal(master.keyQueue[0], "G");
+  assert.equal(master.keyQueue.length, 12);
 });
 
 test("wrap-up lists per-card completion and names the next key", () => {
@@ -382,6 +383,7 @@ test("lessons stay unlocked and the module has 25 records", () => {
   assert.equal(MODULES.length, 30);
   assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.id), [
     "learn-lick",
+    "master-lick",
     "integrate-minor-home",
     "integrate-altered-dominant",
     "cmar-integrate-blue-bossa",
@@ -394,9 +396,9 @@ test("lessons stay unlocked and the module has 25 records", () => {
   ]);
   assert.deepEqual(
     MODULES.slice(0, 5).map((module) => module.lessons.length),
-    [10, 8, 8, 10, 13],
+    [11, 9, 9, 11, 14],
   );
-  assert.ok(MODULES.slice(5).every((module) => module.lessons.length >= 2 && module.lessons.length <= 4));
+  assert.ok(MODULES.slice(5).every((module) => module.lessons.length >= 3 && module.lessons.length <= 5));
   const road = LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes");
   assert.ok(road.length > 50);
   assert.equal(LESSONS.length, road.length + LESSONS.filter((lesson) => lesson.group === "your-tunes" || lesson.group === "my-tunes").length);
@@ -408,55 +410,65 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.deepEqual(PATH_SLOT_PCTS, [28, 50, 72]);
   assert.deepEqual(MODULES[0].lessons.map((lesson) => lesson.sleeve), [
     "amber", "teal", "oxblood", "amber", "teal", "oxblood", "amber",
-    "teal", "oxblood", "amber",
+    "teal", "oxblood", "amber", "teal",
   ]);
   assert.deepEqual(LESSONS.map((lesson) => lesson.sleeve).slice(0, 3), ["amber", "teal", "oxblood"]);
   assert.equal(lessonSleeve("learn-lick"), "amber");
-  assert.equal(lessonSleeve("integrate-minor-home"), "teal");
-  assert.equal(lessonSleeve("integrate-altered-dominant"), "oxblood");
-  assert.equal(LESSONS[1].context, "Autumn Leaves · bar 7");
-  assert.equal(LESSONS[2].context, "Over D7 · bar 6");
+  assert.equal(lessonSleeve("master-lick"), "teal");
+  assert.equal(lessonSleeve("integrate-minor-home"), "oxblood");
+  assert.equal(LESSONS[1].context, "All 12 keys");
+  assert.equal(LESSONS[2].context, "Autumn Leaves · bar 7");
+  assert.equal(LESSONS[3].context, "Over D7 · bar 6");
 
   const nodes = modulePathNodes(MODULES[0], defaultPrefs(), {
     "learn-lick": ["G", "C", "F"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   });
-  assert.equal(nodes.length, 10);
+  assert.equal(nodes.length, 11);
   assert.deepEqual(nodes.map((node) => node.align), [
     "left", "center", "right", "left", "center", "right", "left",
-    "center", "right", "left",
+    "center", "right", "left", "center",
   ]);
   assert.equal(
     lessonPathNodes(defaultPrefs(), {}).length,
     MODULES.reduce((sum, module) => sum + module.lessons.length, 0),
   );
-  assert.equal(nodes[0].recommended, true);
-  assert.equal(nodes[0].complete, false);
+  assert.equal(nodes[0].recommended, false);
+  assert.equal(nodes[0].complete, true);
   assert.equal(nodes[0].passedCount, 3);
-  assert.equal(nodes[0].vinylTier, "bronze");
-  assert.equal(nodes[1].complete, true);
-  assert.equal(nodes[1].passedCount, 12);
-  assert.equal(nodes[1].vinylTier, "gold");
-  assert.equal(nodes[1].recommended, false);
+  assert.equal(nodes[0].vinylTier, "gold");
+  assert.equal(nodes[1].id, "master-lick");
+  assert.equal(nodes[1].complete, false);
+  assert.equal(nodes[1].passedCount, 0);
+  assert.equal(nodes[1].recommended, true);
+  assert.equal(nodes[2].id, "integrate-minor-home");
+  assert.equal(nodes[2].complete, false);
+  assert.equal(nodes[2].passedCount, 0);
   assert.equal(nodes[2].vinylTier, "black");
-  assert.equal(nodes[2].recommended, false);
+  assert.equal(nodes[2].practice, true);
+  assert.equal(nodes[2].number, "Practice");
   assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
 
   const firstDone = modulePathNodes(MODULES[0], defaultPrefs(), {
-    "learn-lick": TWELVE_KEY_IDS,
-    "integrate-minor-home": TWELVE_KEY_IDS.slice(0, 7),
+    "learn-lick": ["G"],
+    "master-lick": TWELVE_KEY_IDS.slice(0, 7),
+    "integrate-minor-home": ["G"],
     "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
   });
   assert.equal(firstDone[0].recommended, false);
   assert.equal(firstDone[0].complete, true);
   assert.equal(firstDone[1].recommended, true);
   assert.equal(firstDone[1].passedCount, 7);
+  assert.equal(firstDone[1].complete, false);
   assert.equal(firstDone[2].recommended, false);
-  assert.equal(firstDone[2].passedCount, 3);
+  assert.equal(firstDone[2].complete, false);
+  assert.equal(firstDone[2].passedCount, 0);
+  assert.equal(firstDone[2].practice, true);
 
   const cmarKeys = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   const allCmar = modulePathNodes(MODULES[0], defaultPrefs(), cmarKeys);
-  assert.equal(allCmar.every((node) => node.complete === true), true);
+  assert.equal(allCmar.filter((node) => !node.practice).every((node) => node.complete === true), true);
+  assert.equal(allCmar.filter((node) => node.practice).every((node) => node.complete === false), true);
   assert.equal(allCmar.every((node) => node.recommended === false), true);
   const across = lessonPathNodes(defaultPrefs(), cmarKeys);
   assert.equal(across.find((node) => node.recommended)?.id, "emr-learn");
@@ -488,14 +500,20 @@ test("a single path node keeps cover copy and a 12-key passed list", () => {
   assert.equal(node.recommended, true);
   assert.deepEqual(node.passedKeys, ["G", "C"]);
   assert.equal(node.passedCount, 2);
-  assert.equal(node.vinylTier, "bronze");
-  assert.equal(node.caption, "The cell in this key · 2/12 keys");
+  assert.equal(node.keyTarget, 1);
+  assert.equal(node.complete, true);
+  assert.equal(node.vinylTier, "gold");
+  assert.equal(node.caption, "The cell in this key · passed");
   const empty = lessonPathNode(LESSONS[1], 1, { passedKeys: [] });
+  assert.equal(empty.coverTitle, "Master the lick");
   assert.equal(empty.vinylTier, "black");
-  assert.equal(empty.caption, "Autumn Leaves · bar 7");
+  assert.equal(empty.caption, "All 12 keys");
+  const bronze = lessonPathNode(LESSONS[1], 1, { passedKeys: ["G", "C"] });
+  assert.equal(bronze.vinylTier, "bronze");
+  assert.equal(bronze.caption, "All 12 keys · 2/12 keys");
   const gold = lessonPathNode(LESSONS[1], 1, { passedKeys: TWELVE_KEY_IDS });
   assert.equal(gold.vinylTier, "gold");
-  assert.equal(gold.caption, "Autumn Leaves · bar 7 · 12/12 keys");
+  assert.equal(gold.caption, "All 12 keys · 12/12 keys");
 });
 
 test("melody octave is remembered per lesson and applied on the session", () => {
@@ -585,12 +603,16 @@ test("card navigation with nowhere to go does not halt audio", () => {
 
 test("module road hides Your tunes and re-numbers the remaining sleeves", () => {
   const nodes = moduleRoadNodes(MODULES[0], defaultPrefs(), {});
-  assert.equal(nodes.length, 7);
+  assert.equal(nodes.length, 8);
   assert.equal(nodes.every((node) => node.group !== "your-tunes"), true);
-  assert.deepEqual(nodes.map((node) => node.number), ["01", "02", "03", "04", "05", "06", "07"]);
+  assert.deepEqual(nodes.map((node) => node.number), ["01", "02", "Practice", "Practice", "Practice", "Practice", "Practice", "Practice"]);
+  assert.equal(nodes[2].practice, true);
+  assert.equal(nodes[2].caption, nodes[2].context);
   assert.equal(nodes[0].id, "learn-lick");
+  assert.equal(nodes[1].id, "master-lick");
+  assert.equal(nodes[1].title, "Master the lick");
   assert.equal(nodes[0].recommended, true);
-  assert.equal(modulePathNodes(MODULES[0], defaultPrefs(), {}).length, 10);
+  assert.equal(modulePathNodes(MODULES[0], defaultPrefs(), {}).length, 11);
 });
 
 test("modules sheet lists 1–30 and omits Your tunes", () => {
@@ -618,7 +640,11 @@ test("quick view lists every module and record", () => {
   assert.equal(data[0].records[0].title, "Learn the lick");
   assert.equal(data[0].records[0].context, "The cell in this key");
   assert.equal(data[0].records[0].keysPassed, 2);
-  assert.equal(data[0].records[1].keysPassed, 12);
+  assert.equal(data[0].records[1].id, "master-lick");
+  assert.equal(data[0].records[1].number, "02");
+  assert.equal(data[0].records[1].keysPassed, 0);
+  assert.equal(data[0].records[2].keysPassed, 0);
+  assert.equal(data[0].records[2].number, "Practice");
   assert.equal(data[1].lickName, "Embellished Minor Resolution");
   assert.equal(data[1].keysMastered, 0);
   assert.equal(data[2].records.some((record) => record.id === "gts-learn"), true);
@@ -654,13 +680,15 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "Piano · 140 bpm · 1-bar");
   assert.equal(settingsSummary(defaultPrefs()), "Piano · 96 bpm · 1-bar");
   assert.equal(settingsSummary({ instrumentId: "trumpet", tempo: 96 }), "Trumpet · 96 bpm · 1-bar");
-  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm");
-  assert.equal(settingsSummaryShort({ instrumentId: "trumpet", tempo: 140 }), "Trumpet · 140 bpm");
+  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm · G · Cycle: 4ths");
+  assert.equal(settingsSummaryShort({ instrumentId: "trumpet", tempo: 140 }), "Trumpet · 140 bpm · A · Cycle: 4ths");
+  assert.equal(settingsSummaryShort({ instrumentId: "trombone", tempo: 96, startKeyId: "G", keyMode: "fourths" }), "Trombone · 96 bpm · G · Cycle: 4ths");
   assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
   assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
   assert.equal(sessionScreenTitle(createSession({ lessonId: "learn-lick" })), "Cry Me a River · Lesson 1");
-  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Lesson 2");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "master-lick", keyMode: "fourths" })), "Cry Me a River · Lesson 2");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Practice");
   const twelve = createSession({ lessonId: "learn-lick", keyMode: "fourths" });
   assert.deepEqual(sessionProgress(twelve), { index: 1, total: 12, ratio: 0 });
   const hear = createSession({ lessonId: "learn-lick" });
@@ -710,7 +738,8 @@ test("next-module link follows last lesson wrap-up and completed module home", (
   const firstLabel = `Next: Module ${emr.number} · ${emr.name}`;
   const backLabel = `Back to Module ${cmar.number} · ${cmar.name}`;
   assert.equal(isLastVisibleLesson("learn-lick"), false);
-  assert.equal(isLastVisibleLesson(cmarLast.id), true);
+  assert.equal(isLastVisibleLesson("master-lick"), true);
+  assert.equal(isLastVisibleLesson(cmarLast.id), false);
   assert.equal(nextModuleTarget(cmar).type, "module");
   assert.equal(nextModuleTarget(cmar).id, emr.id);
   assert.equal(nextModuleTarget(cmar).label, firstLabel);
@@ -718,11 +747,12 @@ test("next-module link follows last lesson wrap-up and completed module home", (
   assert.equal(nextModuleTarget(last).id, cmar.id);
   assert.equal(nextModuleTarget(last).label, backLabel);
 
-  const wrapLast = wrapupNextModule(createSession({ lessonId: cmarLast.id, startKeyId: "G" }));
+  const wrapLast = wrapupNextModule(createSession({ lessonId: "master-lick", startKeyId: "G" }));
   assert.equal(wrapLast.id, emr.id);
   assert.equal(wrapLast.label, firstLabel);
   assert.equal(wrapupNextModule(createSession({ lessonId: "learn-lick", startKeyId: "G" })), null);
-  const wrapBookEnd = wrapupNextModule(createSession({ lessonId: visibleModuleLessons(last).at(-1).id }));
+  const lastMaster = visibleModuleLessons(last).find((lesson) => lesson.kind === "master");
+  const wrapBookEnd = wrapupNextModule(createSession({ lessonId: lastMaster.id }));
   assert.equal(wrapBookEnd.id, cmar.id);
   assert.equal(wrapBookEnd.label, backLabel);
 

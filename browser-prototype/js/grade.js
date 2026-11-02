@@ -60,7 +60,7 @@ export function timingWindowBeats(tempo) {
 export function expectedNotesFor(session) {
   const lesson = lessonById(session.lessonId);
   const key = getKey(currentKeyId(session));
-  const isolated = lesson.kind === "learn";
+  const isolated = lesson.kind === "learn" || lesson.kind === "master";
   const events = phraseEvents(lesson.applicationId, isolated);
   const octaveBase = octaveForApplication(lesson.applicationId, key.pc, session.displayMode);
   const octaves = spotOctavesFor(lesson.applicationId, key.pc, session.displayMode);

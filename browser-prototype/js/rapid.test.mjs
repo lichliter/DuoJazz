@@ -416,27 +416,26 @@ test("the skip control keeps the mic when Auto will listen again", async () => {
   assert.doesNotMatch(fn, /Skipped/);
 });
 
-test("mastery is recorded only for a Practice pass", () => {
-  const practice = createSession({ lessonId: "learn-lick", studyMode: "practice", startKeyId: "G" });
-  const learn = createSession({ lessonId: "learn-lick", studyMode: "learn", startKeyId: "G" });
-  assert.equal(shouldRecordMastery(practice, true), true);
-  assert.equal(shouldRecordMastery(practice, false), false);
+test("mastery is recorded only for a Master the lick pass with notes hidden", () => {
+  const master = createSession({ lessonId: "master-lick", keyMode: "fourths", startKeyId: "G" });
+  const learn = createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "G" });
+  const tune = createSession({ lessonId: "cmar-integrate-blue-bossa", keyMode: "one", startKeyId: "C" });
+  assert.equal(shouldRecordMastery(master, true), true);
+  assert.equal(shouldRecordMastery(master, false), false);
+  assert.equal(shouldRecordMastery(master, true, { notesShown: true }), false);
   assert.equal(shouldRecordMastery(learn, true), false);
+  assert.equal(shouldRecordMastery(tune, true), false);
 
   let mastery = emptyMastery();
-  assert.equal(shouldRecordMastery(learn, true), false);
-  mastery = recordLearnPass(mastery, learn.lessonId, "G");
-  mastery = recordLearnPass(mastery, "integrate-minor-home", "G");
+  mastery = recordQuizPass(mastery, learn.lessonId, "G");
+  mastery = recordQuizPass(mastery, tune.lessonId, "C");
   assert.equal(isKeyMastered(mastery, "G"), false);
-  assert.deepEqual(lessonPassedKeys(mastery, "learn-lick"), []);
-
-  assert.equal(shouldRecordMastery(practice, true), true);
-  assert.equal(shouldRecordMastery(practice, true, { notesShown: true }), false);
-  assert.equal(shouldRecordMastery(practice, true, { notesShown: false }), true);
-  mastery = recordQuizPass(mastery, practice.lessonId, "G");
-  mastery = recordQuizPass(mastery, "integrate-minor-home", "G");
-  assert.equal(isKeyMastered(mastery, "G"), true);
   assert.deepEqual(lessonPassedKeys(mastery, "learn-lick"), ["G"]);
+  mastery = recordLearnPass(mastery, master.lessonId, "G");
+  assert.equal(isKeyMastered(mastery, "G"), false);
+  mastery = recordQuizPass(mastery, master.lessonId, "G");
+  assert.equal(isKeyMastered(mastery, "G"), true);
+  assert.deepEqual(lessonPassedKeys(mastery, "master-lick"), ["G"]);
 });
 
 test("Auto is remembered globally and defaults on", () => {
@@ -453,15 +452,17 @@ test("practice can reveal notes, and the celebration check is a large SVG", asyn
   assert.match(index, /id="show-notes"[^>]*aria-pressed="false"/);
   assert.match(index, /id="show-notes"[^>]*>\s*Show notes\s*</);
   assert.doesNotMatch(index, /icon-eye/);
-  assert.match(app, /notesRevealed \? "Hide notes" : "Show notes"/);
-  assert.match(app, /textContent = label/);
+  assert.match(app, /textContent = "Show notes"/);
+  assert.doesNotMatch(app, /Hide notes/);
+  assert.doesNotMatch(app, /notesRevealed = !notesRevealed/);
+  assert.match(app, /notesRevealed = true/);
   assert.match(hig, /\.notes-toggle\s*\{[^}]*align-self:\s*center/);
   assert.match(index, /<svg class="celebrate-check"/);
   assert.match(hig, /\.celebrate-check \{[^}]*height:\s*35vmin/);
   assert.match(hig, /\.celebrate-key \{[^}]*font-size:\s*28px/);
   assert.match(app, /notesShown: notesPeeked/);
   assert.match(app, /notesRevealed = false/);
-  assert.match(app, /studyMode !== "practice"/);
+  assert.match(app, /kind !== "master"/);
   const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
   assert.match(pass, /recordLearnPass/);
   assert.match(pass, /recordQuizPass/);
