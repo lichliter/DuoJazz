@@ -224,7 +224,7 @@ export function smuflChordChar(href) {
   return SMUFL_CHORD[code] ?? "";
 }
 
-const ACCIDENTAL = /[♭♯♮𝄫𝄪°øΔ]/u;
+const ACCIDENTAL = /[♭♯♮𝄫𝄪°øΔ△−]/u;
 
 /** Write a chord or key as one run so the accidental uses the same face as the letters. */
 export function fillMusicLabel(el, text) {
@@ -255,10 +255,29 @@ export function compactChordSymbol(text) {
   s = s.replace(/b6/g, "♭6");
   s = s.replace(/o7/g, "°7");
   s = s.replace(/h7/g, "ø7");
-  s = s.replace(/mM7/g, "mΔ7");
   s = s.replace(/([A-G])b/g, "$1♭");
   s = s.replace(/([A-G][♭]?)#/g, "$1♯");
-  return s;
+  return jazzChordLetters(s);
+}
+
+/** Letter qualities (maj7, m7) and MEI ascii (M7, -7) become the jazz symbols. */
+export function jazzChordLetters(text) {
+  return String(text)
+    .replace(/maj7/g, "△7")
+    .replace(/mΔ7/g, "−△7")
+    .replace(/m△7/g, "−△7")
+    .replace(/mM7/g, "−△7")
+    .replace(/-M7/g, "−△7")
+    .replace(/Δ7/g, "△7")
+    .replace(/M7/g, "△7")
+    .replace(/m11/g, "−11")
+    .replace(/m7♭5/g, "ø7")
+    .replace(/[−-]7♭5/g, "ø7")
+    .replace(/m♭6/g, "−♭6")
+    .replace(/m7/g, "−7")
+    .replace(/m6/g, "−6")
+    .replace(/m(?![a-zA-Z])/g, "−")
+    .replace(/-(?=[\d△♭♯])/g, "−");
 }
 
 /** ASCII-safe harm text so Verovio does not split accidentals into figbass. */
@@ -268,7 +287,9 @@ export function meiChordText(name) {
     .replaceAll("♯", "#")
     .replaceAll("°", "o")
     .replaceAll("ø", "h")
-    .replaceAll("Δ", "M");
+    .replaceAll("△", "M")
+    .replaceAll("Δ", "M")
+    .replaceAll("−", "-");
 }
 
 export function harmRawText(harm) {
@@ -296,8 +317,11 @@ export const CHORD_FONT_VU = 400;
 /** ~13–14px italic at a 40px staff (230 VU read as ~9px in round 2). */
 export const CUE_FONT_VU = 330;
 
-export function chordFontVU(_layout = {}) {
-  return CHORD_FONT_VU;
+/** Chord drawing size tracks the staff, which already includes the notation scale. */
+export function chordFontVU(layout = {}) {
+  const staff = Number(layout.minStaffPx);
+  if (!(staff > 0)) return CHORD_FONT_VU;
+  return Math.max(120, Math.round(CHORD_FONT_VU * staff / STAFF_PX));
 }
 
 export function cueFontVU(_layout = {}) {
@@ -340,7 +364,7 @@ function paintChordText(text, compact, chordVU, x, y) {
 }
 
 function isChordFragment(text) {
-  return /^(maj7|m7|m6|sus|♭5|♭9|♭13|♯9|♯11|°7|ø7|Δ7|[♭♯°øΔ])/.test(text);
+  return /^(maj7|m7|m6|m11|mM7|sus|[-−]7|△7|M7|♭5|♭9|♭13|♯9|♯11|°7|ø7|Δ7|[♭♯°øΔ△−-])/.test(text);
 }
 
 export function mergeSplitChordSymbols(svg) {
@@ -447,10 +471,51 @@ function paintChordSize(harm, size) {
 }
 
 /**
- * Draw every chord symbol at one size and one weight. A later symbol that
- * still collides is nudged sideways. Nothing is shrunk on its own, so the
- * last bar cannot come out larger or heavier than the rest, and bass and
- * treble stay the same size at the same staff.
+ * Place chord symbols on one system so they share a size and never overlap.
+ * `scale` is below 1 when the natural widths cannot fit between the limits.
+ */
+export function planChordRow(lefts, widths, gap, leftLimit, rightLimit) {
+  const n = lefts.length;
+  if (!n) return { scale: 1, lefts: [] };
+  const placed = lefts.map((left) => left);
+  for (let i = 1; i < n; i += 1) {
+    const minLeft = placed[i - 1] + widths[i - 1] + gap;
+    if (placed[i] < minLeft) placed[i] = minLeft;
+  }
+  const right = placed[n - 1] + widths[n - 1];
+  let shift = 0;
+  if (right > rightLimit) shift += right - rightLimit;
+  if (placed[0] - shift < leftLimit) shift -= leftLimit - (placed[0] - shift);
+  const shifted = placed.map((left) => left - shift);
+  const needed = widths.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, n - 1);
+  const span = rightLimit - leftLimit;
+  const fits = shifted[0] >= leftLimit - 0.5
+    && shifted[n - 1] + widths[n - 1] <= rightLimit + 0.5;
+  const scale = fits || !(span > 0) || needed <= span + 0.5 ? 1 : Math.min(1, span / needed);
+  return { scale, lefts: shifted };
+}
+
+function chordRows(harms) {
+  const rows = [];
+  for (const harm of harms) {
+    const box = screenBox(harmTextEl(harm));
+    if (!box) continue;
+    const mid = box.top + box.height / 2;
+    let row = rows.find((item) => Math.abs(item.mid - mid) <= Math.max(box.height, item.height));
+    if (!row) {
+      row = { mid, height: box.height, harms: [] };
+      rows.push(row);
+    }
+    row.harms.push(harm);
+    row.height = Math.max(row.height, box.height);
+  }
+  return rows;
+}
+
+/**
+ * One chord size for the whole page, scaled with the staff. If any system
+ * still collides, every symbol shrinks together, then each row shifts so
+ * neighbors keep a gap.
  */
 export function separateChordSymbols(svg, layout = {}) {
   if (!svg?.querySelectorAll) return;
@@ -461,12 +526,12 @@ export function separateChordSymbols(svg, layout = {}) {
   const sample = harmTextEl(harms[0]);
   const sampleBox = screenBox(sample);
   const sampleSize = parseFloat(sample.getAttribute("font-size") || "0");
-  const size = sampleBox?.height > 0 && sampleSize > 0
+  const base = sampleBox?.height > 0 && sampleSize > 0
     ? sampleSize * target / sampleBox.height
     : sampleSize;
-  if (size > 0) {
-    for (const harm of harms) paintChordSize(harm, size);
-  }
+  if (!(base > 0)) return;
+  for (const harm of harms) paintChordSize(harm, base);
+  const rows = chordRows(harms);
   const userPerPx = (() => {
     const rect = svg.getBoundingClientRect?.();
     const box = svg.viewBox?.baseVal;
@@ -474,21 +539,40 @@ export function separateChordSymbols(svg, layout = {}) {
     return 1;
   })();
   const gap = 4;
-  for (let i = 0; i < harms.length - 1; i += 1) {
-    let boxA;
-    let boxB;
-    try {
-      boxA = harmTextEl(harms[i]).getBoundingClientRect();
-      boxB = harmTextEl(harms[i + 1]).getBoundingClientRect();
-    } catch {
-      break;
+  const minSize = base * 0.55;
+  let size = base;
+  for (let pass = 0; pass < 5; pass += 1) {
+    let worst = 1;
+    for (const row of rows) {
+      for (const harm of row.harms) paintChordSize(harm, size);
+      const system = row.harms[0].closest?.(".system") || svg;
+      const systemBox = screenBox(system) || screenBox(svg);
+      const boxes = row.harms.map((harm) => screenBox(harmTextEl(harm)));
+      if (!systemBox || boxes.some((box) => !box)) {
+        row.plan = null;
+        continue;
+      }
+      const plan = planChordRow(
+        boxes.map((box) => box.left),
+        boxes.map((box) => box.width),
+        gap,
+        systemBox.left + 1,
+        systemBox.right - 1,
+      );
+      row.plan = plan;
+      row.boxes = boxes;
+      if (plan.scale < worst) worst = plan.scale;
     }
-    if (!boxA.width || !boxB.width) break;
-    if (Math.abs((boxA.top + boxA.height / 2) - (boxB.top + boxB.height / 2)) > Math.max(boxA.height, boxB.height)) {
-      continue;
+    if (worst >= 0.98) break;
+    const next = Math.max(minSize, size * worst * 0.98);
+    if (next >= size - 0.3) break;
+    size = next;
+  }
+  for (const row of rows) {
+    if (!row.plan || !row.boxes) continue;
+    for (let i = 0; i < row.harms.length; i += 1) {
+      translateSvg(row.harms[i], (row.plan.lefts[i] - row.boxes[i].left) * userPerPx, 0);
     }
-    if (boxA.right + gap <= boxB.left) continue;
-    translateSvg(harms[i + 1], (boxA.right + gap - boxB.left) * userPerPx, 0);
   }
 }
 

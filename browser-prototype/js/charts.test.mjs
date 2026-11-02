@@ -50,15 +50,15 @@ test("chart grid is four bars per row with section letters and concert chords", 
   );
   assert.equal(nutville.rows[0].bars[0].sectionLabel, "A");
   assert.equal(nutville.rows[4].bars[0].sectionLabel, "B");
-  assert.equal(nutville.rows[0].bars[0].chords[0].name, "Cm7");
+  assert.equal(nutville.rows[0].bars[0].chords[0].name, "C−7");
   assert.equal(nutville.rows[4].bars[0].chords[0].name, "A♭7");
   assert.equal(nutville.writtenKey, "Cm");
 
   const recordame = chartGrid("recordame");
   assert.equal(recordame.barCount, 16);
   assert.equal(recordame.rows.length, 4);
-  assert.equal(recordame.rows[1].bars[3].chords.map((chord) => chord.name).join(" "), "Cm7 F7");
-  assert.equal(recordame.rows[2].bars[0].chords[0].name, "B♭maj7");
+  assert.equal(recordame.rows[1].bars[3].chords.map((chord) => chord.name).join(" "), "C−7 F7");
+  assert.equal(recordame.rows[2].bars[0].chords[0].name, "B♭△7");
   assert.equal(recordame.writtenKey, "Am");
 
   const blueBossa = chartGrid("blue-bossa");
@@ -68,8 +68,8 @@ test("chart grid is four bars per row with section letters and concert chords", 
   assert.deepEqual(
     blueBossa.rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
     [
-      "Cm7", "Cm7", "Fm7", "Fm7", "Dm7♭5", "G7♭9", "Cm7", "Cm7",
-      "E♭m7", "A♭7", "D♭maj7", "D♭maj7", "Dm7♭5", "G7♭9", "Cm7", "Dm7♭5", "G7♭9",
+      "C−7", "C−7", "F−7", "F−7", "Dø7", "G7♭9", "C−7", "C−7",
+      "E♭−7", "A♭7", "D♭△7", "D♭△7", "Dø7", "G7♭9", "C−7", "Dø7", "G7♭9",
     ],
   );
   assert.equal(blueBossa.rows[3].bars[3].chords.map((chord) => chord.beats).join(" "), "2 2");
@@ -80,15 +80,15 @@ test("chart grid transposes into the selected instrument's written key", () => {
   const trumpet = chartGrid("recordame", { instrumentId: "trumpet" });
   assert.equal(concert.writtenKey, "Am");
   assert.equal(trumpet.writtenKey, "Bm");
-  assert.equal(concert.rows[0].bars[0].chords[0].name, "Am7");
-  assert.equal(trumpet.rows[0].bars[0].chords[0].name, "Bm7");
-  assert.equal(concert.rows[2].bars[0].chords[0].name, "B♭maj7");
-  assert.equal(trumpet.rows[2].bars[0].chords[0].name, "Cmaj7");
+  assert.equal(concert.rows[0].bars[0].chords[0].name, "A−7");
+  assert.equal(trumpet.rows[0].bars[0].chords[0].name, "B−7");
+  assert.equal(concert.rows[2].bars[0].chords[0].name, "B♭△7");
+  assert.equal(trumpet.rows[2].bars[0].chords[0].name, "C△7");
 
   const shifted = chartGrid("recordame", { instrumentId: "trumpet", concertKeyId: "G" });
   assert.equal(shifted.concertKeyId, "G");
   assert.equal(shifted.writtenKey, "Am");
-  assert.equal(shifted.rows[0].bars[0].chords[0].name, "Am7");
+  assert.equal(shifted.rows[0].bars[0].chords[0].name, "A−7");
 });
 
 test("licks-for-tune index lists road tune lessons with module name and bars", () => {

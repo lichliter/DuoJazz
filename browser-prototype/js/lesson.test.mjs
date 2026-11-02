@@ -405,7 +405,8 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
   assert.equal(narrow.minStaffPx, PHONE_STAFF_FLOOR_PX);
   assert.ok(narrow.minStaffPx < STAFF_PX, "phone staff scales down so four bars fit");
   assert.equal(narrow.chordCssPx, chordTargetCss(PHONE_STAFF_FLOOR_PX));
-  assert.ok(narrow.chordCssPx >= 16);
+  assert.equal(narrow.chordCssPx, 12);
+  assert.ok(narrow.chordCssPx < 16, "phone chords scale down with the staff");
   assert.equal(narrow.fitToPaper, false);
   const phone = notationLayout({
     staffWidth: 560,
@@ -729,6 +730,29 @@ test("notation URL param accepts the four presets and persists them", () => {
   assert.equal(resolveNotationScale({ search: "", storage }), 1.2);
   assert.equal(persistNotationScale(1.6, storage), 1.6);
   assert.equal(resolveNotationScale({ search: "screen=session", storage }), 1.6);
+});
+
+test("chord symbols scale with the notation scale", () => {
+  const phone = {
+    staffWidth: 360,
+    viewportWidth: 390,
+    viewportHeight: 844,
+    showPhraseNotation: false,
+  };
+  const base = notationLayout({ ...phone, notationScale: 1 });
+  const large = notationLayout({ ...phone, notationScale: 1.6 });
+  assert.ok(large.minStaffPx > base.minStaffPx);
+  assert.ok(large.chordCssPx > base.chordCssPx);
+  const ratio = large.chordCssPx / base.chordCssPx;
+  assert.ok(ratio > 1.4 && ratio < 1.8, `chord ratio ${ratio}`);
+  const portrait = notationLayout({
+    staffWidth: 980,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: false,
+    notationScale: 1.4,
+  });
+  assert.ok(portrait.chordCssPx > chordTargetCss(PORTRAIT_STAFF_PX));
 });
 
 test("staff card is at least three systems and grows when the engraving is taller", () => {
