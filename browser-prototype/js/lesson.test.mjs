@@ -18,7 +18,9 @@ import {
   GOALS,
   isStandPortrait,
   isStandLandscape,
-  isTightNotation,
+  isPhoneNotation,
+  notationColumnWidth,
+  phoneStaffPx,
   notationLayout,
   notationCardWidth,
   notationCssWidth,
@@ -30,7 +32,8 @@ import {
   slashStrokeBox,
   slashFitsStaff,
   STAFF_PX,
-  STAFF_PX_NARROW,
+  PHONE_STAFF_FLOOR_PX,
+  PORTRAIT_STAFF_WIDTH,
   chordTargetCss,
   PORTRAIT_STAFF_PX,
   parseNotationScale,
@@ -397,9 +400,12 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
     showPhraseNotation: false,
     showEntranceCues: true,
   });
-  assert.equal(narrow.barsPerLine, 2);
+  assert.equal(narrow.barsPerLine, 4);
   assert.equal(narrow.wrap, null);
-  assert.equal(narrow.minStaffPx, STAFF_PX_NARROW);
+  assert.equal(narrow.minStaffPx, PHONE_STAFF_FLOOR_PX);
+  assert.ok(narrow.minStaffPx < STAFF_PX, "phone staff scales down so four bars fit");
+  assert.equal(narrow.chordCssPx, chordTargetCss(PHONE_STAFF_FLOOR_PX));
+  assert.ok(narrow.chordCssPx >= 16);
   assert.equal(narrow.fitToPaper, false);
   const phone = notationLayout({
     staffWidth: 560,
@@ -408,8 +414,11 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
     showPhraseNotation: false,
     showEntranceCues: true,
   });
-  assert.equal(isTightNotation(560, 590), true);
-  assert.equal(phone.barsPerLine, 2);
+  assert.equal(isPhoneNotation(560, 590), true);
+  assert.equal(phone.barsPerLine, 4);
+  assert.equal(phone.minStaffPx, phoneStaffPx(notationColumnWidth(560, 590)));
+  assert.ok(phone.minStaffPx > PHONE_STAFF_FLOOR_PX);
+  assert.ok(phone.minStaffPx < PORTRAIT_STAFF_PX);
   const justWider = notationLayout({
     staffWidth: 620,
     viewportWidth: 640,
@@ -417,7 +426,9 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
     showPhraseNotation: false,
     showEntranceCues: true,
   });
+  assert.equal(isPhoneNotation(620, 640), false);
   assert.equal(justWider.barsPerLine, 4);
+  assert.equal(justWider.minStaffPx, STAFF_PX);
   const huggedPortrait = notationLayout({
     staffWidth: 400,
     viewportWidth: 1024,
@@ -425,7 +436,7 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
     showPhraseNotation: false,
     showEntranceCues: true,
   });
-  assert.equal(isTightNotation(400, 1024), false);
+  assert.equal(isPhoneNotation(400, 1024), false);
   assert.equal(huggedPortrait.barsPerLine, 4);
   assert.equal(huggedPortrait.minStaffPx, PORTRAIT_STAFF_PX);
   assert.equal(baseStaffPx({ staffWidth: 400, viewportWidth: 1024, viewportHeight: 1366 }), PORTRAIT_STAFF_PX);
@@ -436,8 +447,21 @@ test("stand portrait uses four-bar systems like landscape, at a smaller staff", 
     showPhraseNotation: false,
     showEntranceCues: true,
   });
-  assert.equal(phoneViewport.barsPerLine, 2);
-  assert.equal(phoneViewport.minStaffPx, STAFF_PX_NARROW);
+  assert.equal(isPhoneNotation(900, 390), true);
+  assert.equal(notationColumnWidth(900, 390), 390);
+  assert.equal(phoneViewport.barsPerLine, 4);
+  assert.equal(phoneViewport.minStaffPx, phoneStaffPx(390));
+  assert.equal(phoneViewport.minStaffPx, PHONE_STAFF_FLOOR_PX);
+  const tunePhrase = notationLayout({
+    staffWidth: 340,
+    viewportWidth: 390,
+    viewportHeight: 844,
+    showPhraseNotation: true,
+    showEntranceCues: false,
+    phraseBars: 5,
+  });
+  assert.equal(tunePhrase.barsPerLine, 4, "phone phrases also stay at four bars");
+  assert.equal(tunePhrase.minStaffPx, phoneViewport.minStaffPx);
 });
 
 test("chorus layout keeps bars intact: 4 per line wherever width allows, never abcjs wrap", () => {
@@ -446,7 +470,7 @@ test("chorus layout keeps bars intact: 4 per line wherever width allows, never a
     { name: "iPad portrait 1024×1366", staffWidth: 980, viewportWidth: 1024, viewportHeight: 1366, barsPerLine: 4 },
     { name: "iPad landscape 1366×1024", staffWidth: 980, viewportWidth: 1366, viewportHeight: 1024, barsPerLine: 4 },
     { name: "laptop 1280×720", staffWidth: 760, viewportWidth: 1280, viewportHeight: 720, barsPerLine: 4 },
-    { name: "phone 375×812", staffWidth: 340, viewportWidth: 375, viewportHeight: 812, barsPerLine: 2 },
+    { name: "phone 375×812", staffWidth: 340, viewportWidth: 375, viewportHeight: 812, barsPerLine: 4 },
   ];
   for (const viewport of cases) {
     const layout = notationLayout({
@@ -460,11 +484,7 @@ test("chorus layout keeps bars intact: 4 per line wherever width allows, never a
     assert.equal(layout.wrap, null, viewport.name);
     assert.equal(layout.stretchlast, false, viewport.name);
     assert.ok(layout.timeBasedLayout, viewport.name);
-    assert.equal(
-      Math.ceil(chorusBars / layout.barsPerLine),
-      viewport.barsPerLine === 4 ? 2 : 4,
-      viewport.name,
-    );
+    assert.equal(Math.ceil(chorusBars / layout.barsPerLine), 2, viewport.name);
   }
 });
 
@@ -515,6 +535,49 @@ test("focused cells fill the card at the same staff size as the chorus", () => {
   assert.equal(five.barsPerLine, 5);
   assert.equal(five.naturalWidth, false);
   assert.equal(five.minStaffPx, chorus.minStaffPx);
+});
+
+test("phone portrait fits four bars on every lesson by scaling the staff", () => {
+  const viewport = { staffWidth: 340, viewportWidth: 390, viewportHeight: 844 };
+  const learn = sessionEngraveSpec(createSession({ lessonId: "learn-lick" }));
+  const tune = sessionEngraveSpec(createSession({ lessonId: "cmar-integrate-blue-bossa" }));
+  assert.equal(learn.showPhraseNotation, true);
+  assert.equal(tune.showPhraseNotation, false);
+  const learnLayout = notationLayout({
+    ...viewport,
+    showPhraseNotation: true,
+    showEntranceCues: false,
+    phraseBars: learn.phraseBars,
+  });
+  const tuneLayout = notationLayout({
+    ...viewport,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(tuneLayout.barsPerLine, 4);
+  assert.equal(learnLayout.minStaffPx, tuneLayout.minStaffPx);
+  assert.equal(tuneLayout.minStaffPx, PHONE_STAFF_FLOOR_PX);
+  assert.ok(tuneLayout.minStaffPx < STAFF_PX);
+  const ipad = notationLayout({
+    staffWidth: PORTRAIT_STAFF_WIDTH,
+    viewportWidth: 1024,
+    viewportHeight: 1366,
+    showPhraseNotation: false,
+    showEntranceCues: true,
+  });
+  assert.equal(ipad.barsPerLine, 4);
+  assert.equal(ipad.minStaffPx, PORTRAIT_STAFF_PX);
+  assert.equal(phoneStaffPx(PORTRAIT_STAFF_WIDTH), PORTRAIT_STAFF_PX);
+});
+
+test("home path does not render a Start pill", async () => {
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const css = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  assert.doesNotMatch(app, /start-tag/);
+  assert.doesNotMatch(app, /textContent = "Start"/);
+  assert.doesNotMatch(css, /\.start-tag/);
+  assert.doesNotMatch(css, /padding-top:\s*2\.7rem/);
+  assert.doesNotMatch(css, /padding-top:\s*3\.1rem/);
 });
 
 test("Learn and Practice render the staff at the same size", () => {
@@ -677,9 +740,9 @@ test("staff card is at least three systems and grows when the engraving is talle
   const oneLine = staffSystemMetricsFromBoxes([{ top: 8, bottom: 158, height: 150 }], 170);
   assert.equal(oneLine.count, 1);
   assert.equal(oneLine.systemGap, 0);
-  const phone = staffCardContentHeight(withSystemGap(oneLine, STAFF_PX_NARROW));
+  const phone = staffCardContentHeight(withSystemGap(oneLine, PHONE_STAFF_FLOOR_PX));
   const portrait = staffCardContentHeight(withSystemGap(oneLine, PORTRAIT_STAFF_PX));
-  const phoneGap = systemGapCss(STAFF_PX_NARROW);
+  const phoneGap = systemGapCss(PHONE_STAFF_FLOOR_PX);
   const portraitGap = systemGapCss(PORTRAIT_STAFF_PX);
   assert.equal(phone, 170 + 2 * (150 + phoneGap));
   assert.equal(portrait, 170 + 2 * (150 + portraitGap));
