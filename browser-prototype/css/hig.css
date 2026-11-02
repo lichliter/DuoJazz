@@ -65,11 +65,12 @@ body {
 }
 
 .app-shell[data-screen="home"] .masthead {
-  padding-bottom: var(--space-5);
+  padding-top: calc(var(--safe-top) + var(--space-5));
+  padding-bottom: var(--space-2);
 }
 
 .app-shell[data-screen="home"] .workspace {
-  padding-top: 0;
+  padding-top: var(--space-6);
 }
 
 .home-mode {
