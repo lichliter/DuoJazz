@@ -54,6 +54,11 @@ import {
   chromaticOrder,
   fourthsOrder,
   keyOrderPreview,
+  lessonSessionPlan,
+  lickKeyQueue,
+  relativeMajorId,
+  resolveLickKeyId,
+  displayKeyName,
   canGoBack,
   canGoNext,
   goBack,
@@ -137,6 +142,56 @@ test("random cycle has no repeats in a lap and reshuffles the next lap", () => {
   assert.equal(new Set(lap2).size, 12);
   assert.notEqual(lap2[0], lap1[lap1.length - 1]);
   assert.notDeepEqual(lap2, lap1);
+});
+
+test("a chosen major key maps to each lick and a stored minor tonic migrates once", () => {
+  assert.equal(relativeMajorId("G"), "Bb");
+  assert.equal(resolveLickKeyId("C", "major"), "C");
+  assert.equal(resolveLickKeyId("C", "minor"), "A");
+  assert.equal(displayKeyName("A", "concert", "minor"), "A minor");
+  assert.equal(displayKeyName("C", "concert", "major"), "C major");
+
+  const minor = lessonSessionPlan("learn-lick", { ...defaultPrefs(), startKeyId: "C" });
+  const major = lessonSessionPlan("gts-learn", { ...defaultPrefs(), startKeyId: "C" });
+  assert.equal(minor.majorKeyId, "C");
+  assert.equal(minor.startKeyId, "A");
+  assert.equal(major.startKeyId, "C");
+  assert.equal(displayKeyName(minor.startKeyId, "concert", "minor"), "A minor");
+
+  const values = [0.2, 0.8, 0.1, 0.5, 0.9, 0.3, 0.7, 0.15, 0.6, 0.4, 0.25];
+  assert.deepEqual(
+    lickKeyQueue("random", "F", "minor", rngFrom(values)),
+    buildKeyQueue("random", "F", rngFrom(values)).map((id) => resolveLickKeyId(id, "minor")),
+  );
+  assert.deepEqual(
+    lickKeyQueue("chromatic", "C", "minor"),
+    buildKeyQueue("chromatic", "C").map((id) => resolveLickKeyId(id, "minor")),
+  );
+  assert.deepEqual(lickKeyQueue("chromatic", "C", "minor").slice(0, 4), ["A", "Ab", "G", "Gb"]);
+  assert.deepEqual(
+    lickKeyQueue("fourths", "Bb", "minor"),
+    ["G", "C", "F", "Bb", "Eb", "Ab", "Db", "Gb", "B", "E", "A", "D"],
+  );
+  assert.deepEqual(lickKeyQueue("fourths", "C", "major").slice(0, 3), ["C", "F", "Bb"]);
+
+  const migrated = normalizePrefs({ startKeyId: "G", keyMode: "fourths" });
+  assert.equal(migrated.keyBasis, "major");
+  assert.equal(migrated.startKeyId, "Bb");
+  assert.equal(normalizePrefs(migrated).startKeyId, "Bb");
+  assert.equal(lessonSessionPlan("learn-lick", migrated).startKeyId, "G");
+  assert.equal(lessonSessionPlan("gts-learn", migrated).startKeyId, "Bb");
+  const master = createSession({
+    lessonId: "master-lick",
+    keyMode: "fourths",
+    majorKeyId: migrated.startKeyId,
+  });
+  assert.equal(master.keyQueue[0], "G");
+  assert.equal(displayKeyName(master.keyQueue[0], "concert", "minor"), "G minor");
+
+  const chosen = normalizePrefs({ ...migrated, startKeyId: "Eb" });
+  assert.equal(chosen.startKeyId, "Eb");
+  assert.equal(lessonSessionPlan("master-lick", chosen).startKeyId, "C");
+  assert.equal(lessonSessionPlan("gts-learn", chosen).startKeyId, "Eb");
 });
 
 test("one key cycle is a single starting key", () => {
@@ -238,6 +293,22 @@ test("finishing a twelve-key lap starts a new lap", () => {
   assert.equal(next.lap, 2);
   assert.equal(next.keyIndex, 0);
   assert.equal(currentKeyId(next), "G");
+});
+
+test("stored card sets are ignored and every session uses all cards", () => {
+  const stored = normalizePrefs({
+    cardSet: "listen-quiz",
+    lessons: {
+      "learn-lick": { cardSet: "listen-quiz", tempo: 80 },
+    },
+  });
+  assert.equal(stored.cardSet, "all");
+  assert.equal(stored.lessons["learn-lick"].cardSet, "all");
+  assert.equal(stored.lessons["learn-lick"].tempo, 80);
+  assert.equal(stored.lessons["integrate-minor-home"].cardSet, "all");
+  const session = createSession({ lessonId: "learn-lick", cardSet: "listen-quiz" });
+  assert.equal(session.cardSet, "all");
+  assert.deepEqual(session.cards, ["play"]);
 });
 
 test("per-lesson preferences stay independent", () => {
@@ -680,9 +751,9 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(settingsSummary({ keyMode: "fourths", tempo: 140, swing: true }), "Piano · 140 bpm · 1-bar");
   assert.equal(settingsSummary(defaultPrefs()), "Piano · 96 bpm · 1-bar");
   assert.equal(settingsSummary({ instrumentId: "trumpet", tempo: 96 }), "Trumpet · 96 bpm · 1-bar");
-  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm · G · Cycle: 4ths");
-  assert.equal(settingsSummaryShort({ instrumentId: "trumpet", tempo: 140 }), "Trumpet · 140 bpm · A · Cycle: 4ths");
-  assert.equal(settingsSummaryShort({ instrumentId: "trombone", tempo: 96, startKeyId: "G", keyMode: "fourths" }), "Trombone · 96 bpm · G · Cycle: 4ths");
+  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm · B♭ major · Cycle: 4ths");
+  assert.equal(settingsSummaryShort({ instrumentId: "trumpet", tempo: 140 }), "Trumpet · 140 bpm · C major · Cycle: 4ths");
+  assert.equal(settingsSummaryShort({ instrumentId: "trombone", tempo: 96, startKeyId: "G", keyMode: "fourths" }), "Trombone · 96 bpm · B♭ major · Cycle: 4ths");
   assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
   assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
