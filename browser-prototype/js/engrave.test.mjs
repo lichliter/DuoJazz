@@ -6,6 +6,7 @@ import {
   capCueText,
   CHORD_FONT_VU,
   compactChordSymbol,
+  planChordRow,
   MUSIC_FONT_FAMILY,
   cueJustBelowStaff,
   expandedViewBox,
@@ -251,19 +252,41 @@ test("whenVerovioReady waits for a late WASM runtime instead of rejecting", asyn
 });
 
 test("chord symbols compact figbass and internal gaps", () => {
-  assert.equal(compactChordSymbol("B♭  maj7"), "B♭maj7");
-  assert.equal(compactChordSymbol("B\uEA64 maj7"), "B♭maj7");
+  assert.equal(compactChordSymbol("B♭  maj7"), "B♭△7");
+  assert.equal(compactChordSymbol("B\uEA64 maj7"), "B♭△7");
   assert.equal(compactChordSymbol("C7/E"), "C7/E");
   assert.equal(compactChordSymbol("A7 ♭9"), "A7♭9");
   assert.equal(compactChordSymbol("F ♯ °7"), "F♯°7");
   assert.equal(compactChordSymbol("F\u00A0♯\u202F°7"), "F♯°7");
-  assert.equal(compactChordSymbol("Bbmaj7"), "B♭maj7");
-  assert.equal(compactChordSymbol("Ebmaj7"), "E♭maj7");
-  assert.equal(compactChordSymbol("Am7b5"), "Am7♭5");
+  assert.equal(compactChordSymbol("Bbmaj7"), "B♭△7");
+  assert.equal(compactChordSymbol("Ebmaj7"), "E♭△7");
+  assert.equal(compactChordSymbol("Am7b5"), "A−7♭5");
   assert.equal(compactChordSymbol("A7b9"), "A7♭9");
   assert.equal(compactChordSymbol("F#o7"), "F♯°7");
+  assert.equal(compactChordSymbol("Cm7"), "C−7");
+  assert.equal(compactChordSymbol("Cm"), "C−");
+  assert.equal(compactChordSymbol("Cm6"), "C−6");
+  assert.equal(compactChordSymbol("Cm11"), "C−11");
+  assert.equal(compactChordSymbol("Cmb6"), "C−♭6");
+  assert.equal(compactChordSymbol("CmM7"), "C−△7");
+  assert.equal(compactChordSymbol("CM7"), "C△7");
+  assert.equal(compactChordSymbol("C-7"), "C−7");
+  assert.equal(compactChordSymbol("Cmaj7b5"), "C△7♭5");
+  assert.equal(compactChordSymbol("Ah7"), "Aø7");
+  assert.equal(compactChordSymbol("C7alt"), "C7alt");
+  assert.equal(compactChordSymbol("C7sus"), "C7sus");
+  assert.equal(compactChordSymbol("C6"), "C6");
   assert.equal(smuflChordChar("#E260"), "♭");
   assert.equal(smuflChordChar("E870"), "°");
+});
+
+test("two chords in one bar shrink instead of overlapping", () => {
+  assert.equal(planChordRow([10, 90], [36, 28], 4, 0, 400).scale, 1);
+  const overlap = planChordRow([0, 20], [48, 40], 4, 0, 400);
+  assert.equal(overlap.scale, 1);
+  assert.ok(overlap.lefts[1] >= overlap.lefts[0] + 48 + 4);
+  const crowded = planChordRow([0, 24], [50, 46], 4, 0, 80);
+  assert.ok(crowded.scale < 1, `scale ${crowded.scale}`);
 });
 
 test("accidentals stay in the same font run as the letters", async () => {
