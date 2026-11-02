@@ -396,7 +396,7 @@ function writtenBeats(inner) {
   return total;
 }
 
-test("short notes beam inside the quarter, and a beam shares one stem direction", () => {
+test("eighths beam in half-bar groups of four, and shorter notes stay on the beat", () => {
   assert.equal(meiDurAttrs(0.125), 'dur="32"');
   assert.equal(meiDurAttrs(0.25), 'dur="16"');
   assert.equal(meiDurAttrs(0.5), 'dur="8"');
@@ -406,12 +406,29 @@ test("short notes beam inside the quarter, and a beam shares one stem direction"
   );
   assert.equal([...thirtySeconds.matchAll(/<beam\b/g)].length, 1);
   assert.match(thirtySeconds, /stem\.dir="down"/);
-  const pairs = groupLayerTokens(
+  const fourEighths = groupLayerTokens(
     Array.from({ length: 4 }, () => beamNote(0.5, "g", 2, "8")),
     "bass",
   );
-  assert.equal([...pairs.matchAll(/<beam\b/g)].length, 2);
-  assert.match(pairs, /stem\.dir="up"/);
+  assert.deepEqual(plainBeams(fourEighths).map((beam) => beam.durs.join("+")), ["8+8+8+8"]);
+  assert.match(fourEighths, /stem\.dir="up"/);
+  const eightEighths = groupLayerTokens(
+    Array.from({ length: 8 }, () => beamNote(0.5, "c", 3, "8")),
+    "bass",
+  );
+  assert.deepEqual(plainBeams(eightEighths).map((beam) => beam.durs.join("+")), ["8+8+8+8", "8+8+8+8"]);
+  const fromBeat2 = groupLayerTokens(
+    Array.from({ length: 4 }, () => beamNote(0.5, "c", 3, "8")),
+    "bass",
+    1,
+  );
+  assert.deepEqual(plainBeams(fromBeat2).map((beam) => beam.durs.join("+")), ["8+8", "8+8"]);
+  const sixteenths = groupLayerTokens(
+    Array.from({ length: 8 }, () => beamNote(0.25, "d", 3, "16")),
+    "bass",
+  );
+  assert.deepEqual(plainBeams(sixteenths).map((beam) => beam.durs.join("+")), ["16+16+16+16", "16+16+16+16"]);
+  assert.doesNotMatch(sixteenths, /breaksec=/);
   const broken = groupLayerTokens([
     beamNote(0.25, "c", 3, "16"),
     beamRest(0.25, "16"),
@@ -420,11 +437,57 @@ test("short notes beam inside the quarter, and a beam shares one stem direction"
   ], "bass");
   assert.equal([...broken.matchAll(/<beam\b/g)].length, 1);
   assert.match(broken, /^<note /);
+  const restSplit = groupLayerTokens([
+    beamNote(0.5, "c", 3, "8"),
+    beamNote(0.5, "d", 3, "8"),
+    beamRest(1, "4"),
+    beamNote(0.5, "e", 3, "8"),
+    beamNote(0.5, "f", 3, "8"),
+    beamNote(0.5, "g", 3, "8"),
+    beamNote(0.5, "a", 3, "8"),
+  ], "bass");
+  assert.deepEqual(plainBeams(restSplit).map((beam) => beam.durs.join("+")), ["8+8", "8+8+8+8"]);
+  const tupletSplit = groupLayerTokens([
+    ...Array.from({ length: 4 }, () => beamNote(0.5, "c", 3, "8")),
+    {
+      type: "tuplet",
+      beats: 1,
+      notes: ["g", "a", "b"].map((pname) => beamNote(1 / 3, pname, 3, "8")),
+    },
+    beamNote(0.5, "c", 4, "8"),
+    beamNote(0.5, "d", 4, "8"),
+  ], "bass");
+  assert.deepEqual(plainBeams(tupletSplit).map((beam) => beam.durs.join("+")), ["8+8+8+8", "8+8"]);
+  assert.match(tupletSplit, /<tuplet\b/);
+  const mixed = groupLayerTokens([
+    beamNote(0.5, "c", 3, "8"),
+    beamNote(0.25, "d", 3, "16"),
+    beamNote(0.25, "e", 3, "16"),
+    beamNote(0.25, "f", 3, "16"),
+    beamNote(0.25, "g", 3, "16"),
+    beamNote(0.5, "a", 3, "8"),
+  ], "bass");
+  const mixedBeams = plainBeams(mixed);
+  assert.deepEqual(mixedBeams.map((beam) => beam.durs.join("+")), ["8+16+16+16+16+8"]);
+  assert.equal([...mixed.matchAll(/breaksec="1"/g)].length, 1);
+  const thirtyMix = groupLayerTokens([
+    beamNote(0.5, "c", 3, "8"),
+    ...Array.from({ length: 8 }, () => beamNote(0.125, "d", 3, "32")),
+    beamNote(0.5, "e", 3, "8"),
+  ], "bass");
+  assert.equal(plainBeams(thirtyMix).length, 1);
+  assert.equal([...thirtyMix.matchAll(/breaksec="1"/g)].length, 1);
+  const gts = plainBeams(phraseMEI(getKey("G"), "concert", "gts-learn"));
+  assert.deepEqual(
+    gts.filter((beam) => beam.durs.every((dur) => dur === "8")).map((beam) => beam.durs.length),
+    [4, 4, 4, 4],
+  );
   const nnr = phraseMEI(getKey("C"), "concert", "nnr-learn");
   const beams = plainBeams(nnr);
-  assert.ok(beams.some((beam) => beam.durs.join("+") === "8+16+16"), beams.map((beam) => beam.durs.join("+")).join(" "));
+  assert.ok(beams.some((beam) => beam.durs.join("+").includes("8+16+16")), beams.map((beam) => beam.durs.join("+")).join(" "));
   for (const beam of beams) {
-    assert.ok(writtenBeats(beam.inner) <= 1 + 1e-6, beam.durs.join("+"));
+    const subOnly = beam.durs.every((dur) => Number(dur) >= 16);
+    assert.ok(writtenBeats(beam.inner) <= (subOnly ? 1 : 2) + 1e-6, beam.durs.join("+"));
     const stems = [...beam.inner.matchAll(/stem\.dir="(up|down)"/g)].map((item) => item[1]);
     assert.ok(stems.length >= 2);
     assert.ok(stems.every((stem) => stem === stems[0]));
