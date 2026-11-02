@@ -13,12 +13,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=137">
-  <link rel="stylesheet" href="./css/styles.css?v=137">
-  <link rel="stylesheet" href="./css/hig.css?v=137">
+  <link rel="stylesheet" href="./css/tokens.css?v=139">
+  <link rel="stylesheet" href="./css/styles.css?v=139">
+  <link rel="stylesheet" href="./css/hig.css?v=139">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=137" defer></script>
-  <script type="module" src="./js/app.js?v=137"></script>
+  <script src="./js/verovio-bind.js?v=139" defer></script>
+  <script type="module" src="./js/app.js?v=139"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -33,8 +33,8 @@
     <main id="main" class="workspace">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
         <div class="home-settings" data-testid="home-tools">
-          <button type="button" class="home-summary" id="home-summary" data-testid="home-summary" aria-haspopup="dialog" aria-controls="settings-modal" aria-label="Settings, Piano · 96 bpm · G · Cycle: 4ths">
-            <span class="home-summary-text" id="home-summary-text">Piano · 96 bpm · G · Cycle: 4ths</span>
+          <button type="button" class="home-summary" id="home-summary" data-testid="home-summary" aria-haspopup="dialog" aria-controls="settings-modal" aria-label="Settings, Piano · 96 bpm · B♭ major · Cycle: 4ths">
+            <span class="home-summary-text" id="home-summary-text">Piano · 96 bpm · B♭ major · Cycle: 4ths</span>
             <svg class="home-summary-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
               <path fill="currentColor" d="M4 6.25h16v1.5H4zm0 5h16v1.5H4zm0 5h16v1.5H4z"/>
               <circle cx="9" cy="7" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
@@ -88,7 +88,7 @@
             <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
             <p class="key-order-preview" id="key-order-preview" data-testid="key-order-preview"></p>
             <div class="group-row">
-              <span id="start-key-label">Default key</span>
+              <span id="start-key-label">Major key</span>
             </div>
             <div class="row wrap" id="setup-keys" role="group" aria-labelledby="start-key-label"></div>
           </section>
@@ -158,6 +158,10 @@
                 </button>
                 <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
               </div>
+              <header class="staff-key" id="staff-key" data-testid="staff-key" hidden>
+                <p class="staff-key-name" id="staff-key-name">F minor</p>
+                <p class="staff-key-count" id="staff-key-count">Key 1 of 12</p>
+              </header>
               <section class="chart-card" id="music-surface" aria-label="Music">
                 <div class="paper-wrap">
                   <div id="notation" class="paper" aria-label="Staff notation"></div>

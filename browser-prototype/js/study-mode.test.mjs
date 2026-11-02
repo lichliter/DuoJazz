@@ -9,6 +9,7 @@ import {
   handlePlaybackEnded,
   lessonById,
   lessonSessionPlan,
+  lickKeyQueue,
   sessionCreateArgs,
   isPracticeLesson,
   moduleLessonsComplete,
@@ -50,12 +51,16 @@ test("Master starts at the default key and follows the cycle type", () => {
   assert.equal(fourthsQueue[1], "C");
 
   const chromatic = lessonSessionPlan("master-lick", { ...defaultPrefs(), keyMode: "chromatic", startKeyId: "C" });
-  const chromaticQueue = buildKeyQueue(chromatic.keyMode, chromatic.startKeyId);
+  const chromaticQueue = lickKeyQueue(chromatic.keyMode, chromatic.majorKeyId, "minor");
   assert.equal(chromatic.keyMode, "chromatic");
-  assert.deepEqual(chromaticQueue.slice(0, 4), ["C", "B", "Bb", "A"]);
+  assert.equal(chromatic.majorKeyId, "C");
+  assert.equal(chromatic.startKeyId, "A");
+  assert.deepEqual(chromaticQueue.slice(0, 4), ["A", "Ab", "G", "Gb"]);
 
   const fromF = lessonSessionPlan("emr-master", { ...defaultPrefs(), keyMode: "fourths", startKeyId: "F" });
-  assert.equal(buildKeyQueue(fromF.keyMode, fromF.startKeyId)[0], "F");
+  assert.equal(fromF.majorKeyId, "F");
+  assert.equal(fromF.startKeyId, "D");
+  assert.equal(lickKeyQueue(fromF.keyMode, fromF.majorKeyId, "minor")[0], "D");
   assert.equal(sessionShowsCycle(createSession({ lessonId: "master-lick", ...fourths })), true);
   assert.equal(sessionShowsCycle(createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "G" })), false);
 });
@@ -70,19 +75,20 @@ test("tune lessons use their own key, not the settings default", () => {
   assert.equal(bossa.startKeyId, "C");
   assert.equal(summer.startKeyId, "A");
   assert.equal(cry.startKeyId, "Eb");
-  assert.equal(learn.startKeyId, "G");
+  assert.equal(learn.majorKeyId, "G");
+  assert.equal(learn.startKeyId, "E");
   assert.equal(learn.keyMode, "one");
 });
 
 test("the settings pill names instrument, tempo, default key, and cycle", () => {
-  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm · G · Cycle: 4ths");
+  assert.equal(settingsSummaryShort(defaultPrefs()), "Piano · 96 bpm · B♭ major · Cycle: 4ths");
   assert.equal(
     settingsSummaryShort({ instrumentId: "trombone", tempo: 96, startKeyId: "G", keyMode: "fourths" }),
-    "Trombone · 96 bpm · G · Cycle: 4ths",
+    "Trombone · 96 bpm · B♭ major · Cycle: 4ths",
   );
   assert.equal(
     settingsSummaryShort({ instrumentId: "piano", tempo: 120, startKeyId: "Eb", keyMode: "chromatic" }),
-    "Piano · 120 bpm · E♭ · Cycle: Chromatic",
+    "Piano · 120 bpm · G♭ major · Cycle: Chromatic",
   );
   assert.equal(normalizePrefs({ keyMode: "one" }).keyMode, "fourths");
   assert.equal(normalizePrefs({ keyMode: "random" }).keyMode, "random");
@@ -186,8 +192,8 @@ test("createAndShow and a bare Master session both run 12 keys from the default 
   const launched = createSession({ instrumentId: "trombone", ...planned });
   assert.equal(launched.keyQueue.length, 12);
   assert.equal(launched.keyMode, "chromatic");
-  assert.equal(launched.keyQueue[0], "F");
-  assert.deepEqual(launched.keyQueue.slice(0, 4), ["F", "E", "Eb", "D"]);
+  assert.equal(launched.keyQueue[0], "D");
+  assert.deepEqual(launched.keyQueue.slice(0, 4), ["D", "Db", "C", "B"]);
 });
 
 test("tune lessons are ungraded practice after Learn and Master", () => {
@@ -234,4 +240,21 @@ test("the lick banner opens the module list and the hamburger is gone", async ()
   assert.match(app, /isPracticeLesson\(session\.lessonId\)\) return beginPracticeLoop/);
   const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
   assert.match(pass, /isPracticeLesson\(session\.lessonId\)\) return/);
+});
+
+test("the module banner uses a chevron and Lesson 2 names the key above the staff", async () => {
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  assert.match(app, /banner-chevron/);
+  assert.match(app, /of 12 keys mastered/);
+  assert.doesNotMatch(app, /medal-badge/);
+  assert.match(styles, /\.banner-chevron/);
+  assert.match(index, /id="staff-key"/);
+  assert.match(index, /id="start-key-label">Major key/);
+  assert.match(app, /displayMode, "major"\)/);
+  assert.match(app, /els\.staffKey\.hidden = !cycling/);
+  assert.match(app, /fillMusicLabel\(\s*els\.staffKeyName/);
+  assert.match(index, /\?v=139/);
+  assert.doesNotMatch(index, /\?v=137/);
 });

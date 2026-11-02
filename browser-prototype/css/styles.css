@@ -1734,61 +1734,18 @@ input[type="checkbox"] {
   color: #f8ead8;
 }
 
-.medal-badge {
+.banner-chevron {
   flex: 0 0 auto;
-  width: 5.4rem;
-  height: 5.4rem;
-  border-radius: 50%;
   display: grid;
-  place-content: center;
-  text-align: center;
-  background: #8a3a24;
-  box-shadow: inset 0 0 0 4px #f3d2b8, 0 4px 0 #6d2c1b;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
   color: #f8ead8;
 }
 
-.medal-badge[data-medal="none"] {
-  background: #8a3a24;
-  box-shadow: inset 0 0 0 4px dashed #f3d2b8, 0 4px 0 #6d2c1b;
-}
-
-.medal-badge[data-medal="none"] .medal-mark {
-  display: none;
-}
-
-.medal-badge[data-medal="bronze"] {
-  background: #b56a32;
-  color: #2b211a;
-  box-shadow: inset 0 0 0 4px #f0c089, 0 4px 0 #6d2c1b;
-}
-
-.medal-badge[data-medal="silver"] {
-  background: #d5cfc3;
-  color: #2b211a;
-  box-shadow: inset 0 0 0 4px #f7f3ea, 0 4px 0 #6d2c1b;
-}
-
-.medal-badge[data-medal="gold"] {
-  background: #e0b44a;
-  color: #2b211a;
-  box-shadow: inset 0 0 0 4px #f8e3a1, 0 4px 0 #6d2c1b;
-}
-
-.medal-count {
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  font-size: 1.2rem;
-  letter-spacing: 0.04em;
-  line-height: 1;
-}
-
-.medal-badge .medal-mark {
-  margin: 0.15rem 0 0;
-  font-family: "Source Sans 3", "Segoe UI", sans-serif;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: inherit;
-  line-height: 1.1;
+.banner-chevron svg {
+  width: 100%;
+  height: 100%;
 }
 
 .lesson-path {
@@ -2311,9 +2268,9 @@ input[type="checkbox"] {
     font-size: clamp(1.45rem, 7vw, 2rem);
   }
 
-  .medal-badge {
-    width: 4.5rem;
-    height: 4.5rem;
+  .banner-chevron {
+    width: 1.85rem;
+    height: 1.85rem;
   }
 
   .sleeve-stage,
@@ -2345,9 +2302,9 @@ input[type="checkbox"] {
     font-size: 0.9rem;
   }
 
-  .medal-badge {
-    width: 3.8rem;
-    height: 3.8rem;
+  .banner-chevron {
+    width: 1.6rem;
+    height: 1.6rem;
   }
 
   .lesson-path {
@@ -2419,13 +2376,9 @@ input[type="checkbox"] {
     font-size: 1.08rem;
   }
 
-  .medal-badge {
-    width: 5.8rem;
-    height: 5.8rem;
-  }
-
-  .medal-count {
-    font-size: 1.35rem;
+  .banner-chevron {
+    width: 2.4rem;
+    height: 2.4rem;
   }
 
   .lesson-path {
@@ -2483,9 +2436,9 @@ input[type="checkbox"] {
     font-size: clamp(1.6rem, 2.4vw, 2.1rem);
   }
 
-  .medal-badge {
-    width: 4.6rem;
-    height: 4.6rem;
+  .banner-chevron {
+    width: 2rem;
+    height: 2rem;
   }
 
   .lesson-path {
