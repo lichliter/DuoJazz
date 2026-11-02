@@ -1669,12 +1669,17 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  width: 100%;
   padding: 1rem 1.15rem 1.05rem;
+  border: 0;
   border-radius: 28px;
   background: #c45c3a;
   color: #f8ead8;
   box-shadow: 0 8px 0 #8a3a24;
   min-height: 6.4rem;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .banner-copy {

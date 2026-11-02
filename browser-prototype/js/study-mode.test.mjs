@@ -9,6 +9,10 @@ import {
   handlePlaybackEnded,
   lessonById,
   lessonSessionPlan,
+  sessionCreateArgs,
+  isPracticeLesson,
+  moduleLessonsComplete,
+  moduleRoadNodes,
   normalizePrefs,
   sessionShowsCycle,
   settingsSummaryShort,
@@ -106,11 +110,13 @@ test("Master blurs the staff until Show notes, and a reveal does not count", asy
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   assert.match(index, /id="show-notes"[^>]*aria-label="Show notes"/);
-  assert.match(hig, /\.paper\.staff-blurred \.note/);
-  assert.match(hig, /filter:\s*blur\(6px\)/);
-  assert.doesNotMatch(hig, /\.paper\.staff-blurred \.harm \{[^}]*filter:\s*blur/);
-  assert.match(app, /staff-blurred/);
+  assert.match(hig, /\.paper-wrap\.notes-hidden::before[\s\S]*backdrop-filter:\s*blur\(/);
+  assert.match(hig, /\.paper-wrap\.notes-hidden \.paper \{[\s\S]*filter:\s*blur\(14px\)/);
+  assert.doesNotMatch(hig, /\.paper\.staff-blurred \.note/);
+  assert.match(app, /notes-hidden/);
+  assert.match(app, /closest\("\.paper-wrap"\)/);
   assert.match(app, /kind === "master" && !notesRevealed/);
+  assert.doesNotMatch(app, /Hide notes/);
   assert.match(app, /notesShown: notesPeeked/);
   const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
   assert.match(pass, /recordLearnPass/);
@@ -165,4 +171,51 @@ test("one card on Master auto-advances across all 12 keys, then wraps up", () =>
   let mastery = emptyMastery();
   mastery = recordQuizPass(mastery, "master-lick", "G");
   assert.equal(isKeyMastered(mastery, "G", "cmar"), true);
+});
+
+test("createAndShow and a bare Master session both run 12 keys from the default key", () => {
+  const bare = createSession({ lessonId: "master-lick", instrumentId: "trombone" });
+  assert.equal(bare.keyQueue.length, 12);
+  assert.equal(bare.keyMode, "fourths");
+  assert.equal(bare.keyQueue[0], "G");
+  const prefs = { ...defaultPrefs(), keyMode: "chromatic", startKeyId: "F" };
+  const planned = sessionCreateArgs("master-lick", prefs, { instrumentId: "trombone" });
+  const launched = createSession({ instrumentId: "trombone", ...planned });
+  assert.equal(launched.keyQueue.length, 12);
+  assert.equal(launched.keyMode, "chromatic");
+  assert.equal(launched.keyQueue[0], "F");
+  assert.deepEqual(launched.keyQueue.slice(0, 4), ["F", "E", "Eb", "D"]);
+});
+
+test("tune lessons are ungraded practice after Learn and Master", () => {
+  assert.equal(isPracticeLesson("cmar-integrate-blue-bossa"), true);
+  assert.equal(isPracticeLesson("learn-lick"), false);
+  assert.equal(isPracticeLesson("master-lick"), false);
+  const nodes = moduleRoadNodes(MODULES[0], defaultPrefs(), {});
+  assert.equal(nodes[0].number, "01");
+  assert.equal(nodes[1].number, "02");
+  assert.ok(nodes.slice(2).every((node) => node.number === "Practice" && node.practice));
+  assert.equal(moduleLessonsComplete(MODULES[0], {
+    "learn-lick": ["G"],
+    "master-lick": TWELVE_KEY_IDS,
+  }), true);
+  assert.equal(lessonById("cmar-integrate-blue-bossa").kind, "integrate");
+});
+
+test("the lick banner opens the module list and the hamburger is gone", async () => {
+  const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(index, /modules-menu/);
+  assert.doesNotMatch(index, /id="quick-view-btn"/);
+  assert.match(index, /id="settings-btn"[^>]*aria-label="Settings"/);
+  assert.match(index, /id="home-summary"/);
+  assert.match(app, /aria-label", `Choose a lick\. \$\{module\.name\}`/);
+  assert.match(app, /requestQuickView\(\)/);
+  const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginListening"));
+  assert.match(practice, /recordBackingConfig\(session\)/);
+  assert.match(practice, /looping|recordBacking = true/);
+  assert.doesNotMatch(practice, /monitor\.start|createFollower|finishRapid/);
+  assert.match(app, /isPracticeLesson\(session\.lessonId\)\) return beginPracticeLoop/);
+  const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  assert.match(pass, /isPracticeLesson\(session\.lessonId\)\) return/);
 });

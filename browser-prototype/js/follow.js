@@ -1,9 +1,11 @@
 /**
  * Ordered note follower for rapid-fire Play.
- * A note counts when the pitch stays within 50 cents of the exact MIDI for ~80 ms.
- * A confidently voiced wrong pitch, including the right pitch class in the
- * wrong octave, fails the take once it has been held for 120 ms. Shorter
- * transients (glides, grace notes, YIN octave flickers) are ignored, and the
+ * A note counts when the pitch stays within 50 cents of the target for ~80 ms.
+ * Written-octave mode (Lesson 1, and Master after Show notes) uses the engraved MIDI.
+ * Any-octave mode (Master while the staff is hidden) accepts one consistent
+ * octave shift for the whole phrase: pitch class and intervals must match.
+ * A confidently voiced wrong pitch fails the take once it has been held for 120 ms.
+ * Shorter transients (glides, grace notes, YIN octave flickers) are ignored, and the
  * previous expected note may keep ringing. A wrong pitch must stay within
  * 50 cents of where it started, so scoops and slides into a note never fail. Timing is not judged.
  * A frame is voiced when YIN confidence is high and the level clears an
@@ -45,6 +47,11 @@ export function hintForIndex(index) {
   return `${ordinal(index + 1)} note`;
 }
 
+/** Lesson 1 always uses the written octave. Master does too, once the notes are shown. */
+export function octaveModeForLesson(kind, notesRevealed) {
+  return kind === "master" && !notesRevealed ? "any" : "written";
+}
+
 /** Cents error against the exact expected MIDI. An octave shift is not a match. */
 export function nearestPitch(hz, expectedMidi) {
   if (midiFromHz(hz) == null || expectedMidi == null) return null;
@@ -53,13 +60,42 @@ export function nearestPitch(hz, expectedMidi) {
   return { cents, midi: expectedMidi, shift: 0 };
 }
 
-export function matchPitch(hz, expectedMidi, limit = FOLLOW_CENTS) {
-  const near = nearestPitch(hz, expectedMidi);
+/** Closest octave of the expected pitch class. The shift is a multiple of 12. */
+export function pitchShiftFor(hz, expectedMidi) {
+  if (midiFromHz(hz) == null || expectedMidi == null) return null;
+  const written = Math.round(expectedMidi);
+  let best = null;
+  for (let oct = -6; oct <= 6; oct += 1) {
+    const midi = written + oct * 12;
+    const cents = centsBetween(hz, midi);
+    if (cents == null) continue;
+    if (!best || Math.abs(cents) < Math.abs(best.cents)) {
+      best = { cents, midi, shift: midi - written };
+    }
+  }
+  return best;
+}
+
+export function matchPitch(hz, expectedMidi, limit = FOLLOW_CENTS, options = null) {
+  const octave = options?.octave === "any" ? "any" : "written";
+  let near = null;
+  if (octave === "any") {
+    const shift = options?.shift;
+    if (shift == null) {
+      near = pitchShiftFor(hz, expectedMidi);
+    } else {
+      const midi = Math.round(expectedMidi) + shift;
+      const cents = centsBetween(hz, midi);
+      near = cents == null ? null : { cents, midi, shift };
+    }
+  } else {
+    near = nearestPitch(hz, expectedMidi);
+  }
   if (!near || Math.abs(near.cents) > limit) return null;
   return near;
 }
 
-export function createFollower(expected, origin = null) {
+export function createFollower(expected, origin = null, options = null) {
   const notes = Array.isArray(expected) ? expected.slice() : [];
   return {
     expected: notes,
@@ -81,6 +117,9 @@ export function createFollower(expected, origin = null) {
     noise: [],
     wrongMs: 0,
     wrongAnchor: null,
+    octave: options?.octave === "any" ? "any" : "written",
+    octaveShift: null,
+    pendingShift: null,
   };
 }
 
@@ -133,8 +172,37 @@ export function heardPitch(hz) {
   return { midi, cents, hz };
 }
 
+function matchOptions(state) {
+  return {
+    octave: state?.octave === "any" ? "any" : "written",
+    shift: state?.octave === "any" ? state.octaveShift : null,
+  };
+}
+
+/** The first note may pick any octave. Later notes stay on that same shift. */
+function acceptMatch(state, match) {
+  if (!match) return null;
+  if (state.octave !== "any" || state.octaveShift != null) return match;
+  if (state.pendingShift == null || state.pendingShift === match.shift) {
+    state.pendingShift = match.shift;
+    return match;
+  }
+  return null;
+}
+
+function clearPending(state) {
+  if (state.octaveShift == null) state.pendingShift = null;
+}
+
+function commitShift(state, match) {
+  if (state.octave === "any" && state.octaveShift == null && Number.isFinite(match?.shift)) {
+    state.octaveShift = match.shift;
+    state.pendingShift = match.shift;
+  }
+}
+
 function rememberClosest(state, frame, expectedMidi) {
-  const near = nearestPitch(frame.hz, expectedMidi);
+  const near = matchPitch(frame.hz, expectedMidi, Infinity, matchOptions(state));
   const heard = heardPitch(frame.hz);
   if (!near || !heard) return;
   const previous = state.closest;
@@ -152,6 +220,7 @@ function rememberClosest(state, frame, expectedMidi) {
 }
 
 function confirm(state, match, frame) {
+  commitShift(state, match);
   state.heard.push({
     index: state.index,
     cents: match.cents,
@@ -204,10 +273,11 @@ function isPreviousRing(state, hz) {
   const expected = state.expected[state.index];
   if (prev == null || expected == null) return false;
   if (Math.round(prev) === Math.round(expected)) return false;
-  return matchPitch(hz, prev) != null;
+  return matchPitch(hz, prev, FOLLOW_CENTS, matchOptions(state)) != null;
 }
 
 function trackWrong(state, frame, prevVoiced) {
+  clearPending(state);
   const t = Number(frame.t);
   const amp = frame.amp ?? 0;
   const heard = midiFromHz(frame.hz);
@@ -271,7 +341,8 @@ export function stepFollower(state, frame) {
   }
 
   const expectedMidi = state.expected[state.index];
-  const match = expectedMidi == null ? null : matchPitch(hz, expectedMidi);
+  const rawMatch = expectedMidi == null ? null : matchPitch(hz, expectedMidi, FOLLOW_CENTS, matchOptions(state));
+  const match = acceptMatch(state, rawMatch);
   const prevVoiced = state.lastVoicedT;
 
   if (expectedMidi != null && !match && isPreviousRing(state, hz)) {
@@ -313,7 +384,10 @@ export function stepFollower(state, frame) {
   state.wrongAnchor = null;
   if (prevVoiced != null) {
     const gap = t - prevVoiced;
-    if (gap > HOLD_GAP_MS) state.sustainMs = 0;
+    if (gap > HOLD_GAP_MS) {
+      state.sustainMs = 0;
+      clearPending(state);
+    }
     else if (gap > 0) state.sustainMs += gap;
   }
   if (amp > state.peak) state.peak = amp;
@@ -323,8 +397,8 @@ export function stepFollower(state, frame) {
   return state;
 }
 
-export function runFollower(expected, frames, origin = 0) {
-  let state = createFollower(expected, origin);
+export function runFollower(expected, frames, origin = 0, options = null) {
+  let state = createFollower(expected, origin, options);
   for (const frame of frames) state = stepFollower(state, frame);
   return state;
 }

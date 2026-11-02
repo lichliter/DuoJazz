@@ -90,10 +90,9 @@ test("index and gallery load Verovio instead of abcjs", async () => {
 test("home uses the record road and a Modules sheet; session keeps the round play cluster", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(index, /class="lesson-path"/);
-  assert.match(index, /id="quick-view-btn"/);
-  assert.match(index, /id="quick-view-btn"[^>]*aria-label="Modules"/);
-  assert.match(index, /class="icon-btn modules-menu"/);
-  assert.doesNotMatch(index, /id="quick-view-btn"[^>]*>\s*Modules\s*</);
+  assert.doesNotMatch(index, /id="quick-view-btn"/);
+  assert.doesNotMatch(index, /class="icon-btn modules-menu"/);
+  assert.doesNotMatch(index, /aria-label="Modules"/);
   assert.match(index, />Modules</);
   assert.match(index, /id="quick-view-title">Modules</);
   assert.match(index, /family=Oswald/);
@@ -195,8 +194,7 @@ test("tokens restore the warm palette and keep the iOS type scale", async () => 
   assert.match(hig, /@media \(max-width: 390px\)/);
   assert.match(hig, /\.home-settings \.home-summary \{[\s\S]*?min-height:\s*var\(--tap\)/);
   assert.match(hig, /\.home-settings \{[\s\S]*?background:\s*var\(--bg-grouped-secondary\)/);
-  assert.match(hig, /\.modules-menu \{[\s\S]*?min-width:\s*var\(--tap\)/);
-  assert.match(hig, /\.modules-menu \{[\s\S]*?min-height:\s*var\(--tap\)/);
+  assert.match(hig, /button\.module-banner \{[\s\S]*?cursor:\s*pointer/);
   assert.match(hig, /\.app-tab-bar \{[\s\S]*?height:\s*calc\(49px \+ var\(--safe-bottom\)\)/);
   assert.match(hig, /@media \(min-width: 768px\)/);
   assert.match(hig, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
