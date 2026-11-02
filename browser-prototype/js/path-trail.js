@@ -86,7 +86,7 @@ function copyStop(to) {
     captionLeft: to.captionLeft,
     captionRight: to.captionRight,
     captionTop: to.captionTop,
-    captionBottom: to.captionBottom ?? to.cy,
+    captionBottom: to.captionBottom,
   };
 }
 

@@ -129,16 +129,6 @@ export function sessionCreateArgs(lessonId, prefs, options = {}) {
   };
 }
 
-export const CARD_SETS = [
-  { id: "all", label: "All cards" },
-  { id: "listen-quiz", label: "Listen + Quiz" },
-];
-
-export const STUDY_MODES = [
-  { id: "learn", label: "Learn" },
-  { id: "practice", label: "Practice" },
-];
-
 export function normalizeStudyMode(mode) {
   return mode === "practice" ? "practice" : "learn";
 }
@@ -489,7 +479,7 @@ export function normalizePrefs(raw) {
   const seed = raw?.lessons?.["learn-lick"] ?? {};
   merged.keyMode = cycleModeId(raw?.keyMode ?? seed.keyMode);
   merged.startKeyId = normalizeKeyId(raw?.startKeyId ?? seed.startKeyId ?? DEFAULT_KEY_ID);
-  merged.cardSet = raw?.cardSet === "listen-quiz" || seed.cardSet === "listen-quiz" ? "listen-quiz" : "all";
+  merged.cardSet = "all";
   merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
   merged.auto = raw?.auto !== false;
   merged.headphonesTipSeen = Boolean(raw?.headphonesTipSeen)
@@ -503,7 +493,7 @@ export function normalizePrefs(raw) {
       ...incoming,
       keyMode: KEY_MODES.some((mode) => mode.id === incoming.keyMode) ? incoming.keyMode : "one",
       startKeyId: normalizeKeyId(incoming.startKeyId ?? defaultLessonPref(lesson.id).startKeyId),
-      cardSet: incoming.cardSet === "listen-quiz" ? "listen-quiz" : "all",
+      cardSet: "all",
       tempo: Math.min(160, Math.max(60, Number(incoming.tempo) || 96)),
       melodyRegister: incoming.melodyRegister === -1 || incoming.melodyRegister === 1
         ? incoming.melodyRegister
@@ -588,7 +578,6 @@ export function createSession({
   lessonId = "learn-lick",
   keyMode = "one",
   startKeyId = DEFAULT_KEY_ID,
-  cardSet = "all",
   tempo = 96,
   melodyRegister = 0,
   instrumentId = DEFAULT_INSTRUMENT_ID,
@@ -601,7 +590,7 @@ export function createSession({
   rng = Math.random,
 } = {}) {
   const lesson = lessonById(lessonId);
-  const cards = cardsFor(cardSet, lesson.id);
+  const cards = cardsFor();
   const resolvedMode = lesson.kind === "master" ? cycleModeId(keyMode) : keyModeById(keyMode).id;
   const keyQueue = buildKeyQueue(resolvedMode, startKeyId, rng);
   const instrument = instrumentOrDefault(instrumentId);
@@ -610,7 +599,7 @@ export function createSession({
     lessonId: lesson.id,
     keyMode: resolvedMode,
     startKeyId: normalizeKeyId(startKeyId),
-    cardSet: cardSet === "listen-quiz" ? "listen-quiz" : "all",
+    cardSet: "all",
     studyMode: normalizeStudyMode(studyMode),
     demo: false,
     cards,

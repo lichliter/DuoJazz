@@ -240,6 +240,22 @@ test("finishing a twelve-key lap starts a new lap", () => {
   assert.equal(currentKeyId(next), "G");
 });
 
+test("stored card sets are ignored and every session uses all cards", () => {
+  const stored = normalizePrefs({
+    cardSet: "listen-quiz",
+    lessons: {
+      "learn-lick": { cardSet: "listen-quiz", tempo: 80 },
+    },
+  });
+  assert.equal(stored.cardSet, "all");
+  assert.equal(stored.lessons["learn-lick"].cardSet, "all");
+  assert.equal(stored.lessons["learn-lick"].tempo, 80);
+  assert.equal(stored.lessons["integrate-minor-home"].cardSet, "all");
+  const session = createSession({ lessonId: "learn-lick", cardSet: "listen-quiz" });
+  assert.equal(session.cardSet, "all");
+  assert.deepEqual(session.cards, ["play"]);
+});
+
 test("per-lesson preferences stay independent", () => {
   const prefs = defaultPrefs();
   prefs.lessons["integrate-minor-home"].keyMode = "fourths";
