@@ -43,7 +43,7 @@ test("gallery Learn and landing ABC stay on bass clef without changing pitches",
   const gts = galleryPanels().find((panel) => panel.id === "gts-learn-bb");
   const abc = abcForPanel(gts);
   assert.match(abc, /K:Bb clef=bass/);
-  assert.match(abc, /"Dm7"/);
+  assert.match(abc, /"D−7"/);
   const play = galleryPanels().find((panel) => panel.id === "billies-bounce-play");
   const landing = abcForPanel(play);
   assert.match(landing, /K:F clef=bass/);
@@ -56,7 +56,7 @@ test("gallery Learn and landing MEI stay on bass clef with harm and cue dirs", (
   const gts = galleryPanels().find((panel) => panel.id === "gts-learn-bb");
   const mei = meiForPanel(gts);
   assert.match(mei, /clef\.shape="F"/);
-  assert.match(mei, /<harm[^>]*>[\s\S]*Dm7[\s\S]*<\/harm>/);
+  assert.match(mei, /<harm[^>]*>[\s\S]*D-7[\s\S]*<\/harm>/);
   const play = galleryPanels().find((panel) => panel.id === "billies-bounce-play");
   const landing = meiForPanel(play);
   assert.match(landing, /clef\.shape="F"/);
@@ -71,7 +71,7 @@ test("workbook licks 6-30 gallery cards render in each lick’s default key", ()
   assert.equal(cell.keyId, "G");
   const abc = abcForPanel(cell);
   assert.match(abc, /K:G clef=bass/);
-  assert.match(abc, /"Gmaj7"/);
+  assert.match(abc, /"G△7"/);
   assert.match(abc, /\|/);
   const mei = meiForPanel(cell);
   assert.match(mei, /clef\.shape="F"/);

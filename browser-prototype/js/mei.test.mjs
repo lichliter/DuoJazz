@@ -25,6 +25,8 @@ import {
   countSystemBreaks,
   landingMEI,
   meiBeamGroupsCrossBeat3,
+  meiDurAttrs,
+  groupLayerTokens,
   meiHasBowing,
   modelMEI,
   phraseMEI,
@@ -63,7 +65,7 @@ test("phrase MEI is bass clef with the Learn chord and the cell pitches", () => 
   const mei = phraseMEI(getKey("G"), "concert", "minor-home");
   assert.equal(clefShape(mei), "F");
   assert.equal(keysig(mei), "2f");
-  assert.ok(harms(mei).includes("Gm6"));
+  assert.ok(harms(mei).includes("G-6"));
   assert.match(mei, /pname="a" oct="3"/);
   assert.match(mei, /<tuplet num="3" numbase="2"/);
   assert.equal(meiHasBowing(mei), false);
@@ -84,10 +86,10 @@ test("clef and B-flat names do not change concert spelling in MEI", () => {
 test("a two-chord bar places the second harm on beat 3", () => {
   const gts = phraseMEI(getKey("G"), "concert", "gts-learn");
   const gtsHarms = harmAttrs(gts);
-  assert.ok(gtsHarms.some((harm) => harm.text === "Bm7" && /tstamp="1"/.test(harm.attrs)));
+  assert.ok(gtsHarms.some((harm) => harm.text === "B-7" && /tstamp="1"/.test(harm.attrs)));
   assert.ok(gtsHarms.some((harm) => harm.text === "E7" && /tstamp="3"/.test(harm.attrs)));
   const st = landingMEI(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
-  assert.ok(harms(st).includes("Cmaj7"));
+  assert.ok(harms(st).includes("CM7"));
   assert.ok(harms(st).includes("F7"));
   assert.ok(harms(st).includes("C7/E"));
   assert.match(st, /<rend fontfam="sans-serif"/);
@@ -107,7 +109,7 @@ test("empty bars are a single mRest; partial bars never hide beat 3", () => {
 
 test("landing MEI keeps lick notes and slashes empty bars", () => {
   const mei = landingMEI(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
-  assert.ok(harms(mei).includes("Cm7"));
+  assert.ok(harms(mei).includes("C-7"));
   assert.match(mei, /head\.shape="slash"/);
   assert.ok(dirs(mei).includes("HERE"));
   assert.equal(dirs(mei).includes("Get ready"), false);
@@ -147,7 +149,7 @@ test("MEI beams eighths inside a half-bar and never a u/v bowing artic", () => {
     assert.equal(meiHasBowing(mei), false);
     assert.equal(meiBeamGroupsCrossBeat3(mei), false);
   }
-  assert.match(phraseMEI(getKey("G"), "concert", "gts-learn"), /<beam>/);
+  assert.match(phraseMEI(getKey("G"), "concert", "gts-learn"), /<beam[\s>]/);
 });
 
 test("Learn MEI spells against the key signature in C, G, B♭, F♯, and E♭", () => {
@@ -197,8 +199,8 @@ test("staccato and tenuto encode as artic, never bowing", () => {
 
 test("flat and sharp chord names encode without spaces so Verovio will not figbass-split them", () => {
   const gts = phraseMEI(getKey("Bb"), "concert", "gts-learn");
-  assert.ok(harms(gts).includes("Bbmaj7"));
-  assert.match(gts, /<rend fontfam="sans-serif"[^>]*>Bbmaj7<\/rend>/);
+  assert.ok(harms(gts).includes("BbM7"));
+  assert.match(gts, /<rend fontfam="sans-serif"[^>]*>BbM7<\/rend>/);
   assert.doesNotMatch(gts, /B♭\s+maj7|Bb\s+maj7/);
   const billies = landingMEI(getKey("F"), "concert", "bo-billies");
   assert.ok(harms(billies).some((name) => /Bb|B♭|o7|°/.test(name)));
@@ -207,7 +209,7 @@ test("flat and sharp chord names encode without spaces so Verovio will not figba
 
 test("chords-only MEI keeps barlines and chord symbols without lick notes", () => {
   const mei = chordsOnlyMEI(getKey("G"), "concert", "minor-home", "bass", { isolated: true });
-  assert.ok(harms(mei).includes("Gm6"));
+  assert.ok(harms(mei).includes("G-6"));
   assert.equal(countMeasures(mei), 2);
   assert.match(mei, /<space /);
   assert.doesNotMatch(mei, /pname="a" oct="3"/);
@@ -356,6 +358,140 @@ test("engraved spelling round-trips to the shown MIDI in every key, instrument, 
         }
       }
     }
+  }
+});
+
+function beamNote(beats, pname, oct, dur) {
+  return {
+    beats,
+    beamable: beats < 1,
+    pname,
+    oct,
+    xml: `<note pname="${pname}" oct="${oct}" dur="${dur}"/>`,
+  };
+}
+
+function beamRest(beats, dur) {
+  return { beats, beamable: false, xml: `<rest dur="${dur}"/>` };
+}
+
+function plainBeams(mei) {
+  const body = String(mei).replace(/<tuplet\b[\s\S]*?<\/tuplet>/g, "");
+  return [...body.matchAll(/<beam\b([^>]*)>([\s\S]*?)<\/beam>/g)].map((match) => ({
+    attrs: match[1],
+    inner: match[2],
+    durs: [...match[2].matchAll(/\bdur="(\d+)"/g)].map((item) => item[1]),
+  }));
+}
+
+function writtenBeats(inner) {
+  let total = 0;
+  for (const note of inner.matchAll(/<note\b([^>]*)\/?>/g)) {
+    const dur = Number(note[1].match(/\bdur="(\d+)"/)?.[1] ?? 0);
+    const dots = Number(note[1].match(/\bdots="(\d+)"/)?.[1] ?? 0);
+    let beats = 4 / dur;
+    if (dots) beats *= 1.5;
+    total += beats;
+  }
+  return total;
+}
+
+test("eighths beam in half-bar groups of four, and shorter notes stay on the beat", () => {
+  assert.equal(meiDurAttrs(0.125), 'dur="32"');
+  assert.equal(meiDurAttrs(0.25), 'dur="16"');
+  assert.equal(meiDurAttrs(0.5), 'dur="8"');
+  const thirtySeconds = groupLayerTokens(
+    Array.from({ length: 8 }, () => beamNote(0.125, "b", 3, "32")),
+    "bass",
+  );
+  assert.equal([...thirtySeconds.matchAll(/<beam\b/g)].length, 1);
+  assert.match(thirtySeconds, /stem\.dir="down"/);
+  const fourEighths = groupLayerTokens(
+    Array.from({ length: 4 }, () => beamNote(0.5, "g", 2, "8")),
+    "bass",
+  );
+  assert.deepEqual(plainBeams(fourEighths).map((beam) => beam.durs.join("+")), ["8+8+8+8"]);
+  assert.match(fourEighths, /stem\.dir="up"/);
+  const eightEighths = groupLayerTokens(
+    Array.from({ length: 8 }, () => beamNote(0.5, "c", 3, "8")),
+    "bass",
+  );
+  assert.deepEqual(plainBeams(eightEighths).map((beam) => beam.durs.join("+")), ["8+8+8+8", "8+8+8+8"]);
+  const fromBeat2 = groupLayerTokens(
+    Array.from({ length: 4 }, () => beamNote(0.5, "c", 3, "8")),
+    "bass",
+    1,
+  );
+  assert.deepEqual(plainBeams(fromBeat2).map((beam) => beam.durs.join("+")), ["8+8", "8+8"]);
+  const sixteenths = groupLayerTokens(
+    Array.from({ length: 8 }, () => beamNote(0.25, "d", 3, "16")),
+    "bass",
+  );
+  assert.deepEqual(plainBeams(sixteenths).map((beam) => beam.durs.join("+")), ["16+16+16+16", "16+16+16+16"]);
+  assert.doesNotMatch(sixteenths, /breaksec=/);
+  const broken = groupLayerTokens([
+    beamNote(0.25, "c", 3, "16"),
+    beamRest(0.25, "16"),
+    beamNote(0.25, "d", 3, "16"),
+    beamNote(0.25, "e", 3, "16"),
+  ], "bass");
+  assert.equal([...broken.matchAll(/<beam\b/g)].length, 1);
+  assert.match(broken, /^<note /);
+  const restSplit = groupLayerTokens([
+    beamNote(0.5, "c", 3, "8"),
+    beamNote(0.5, "d", 3, "8"),
+    beamRest(1, "4"),
+    beamNote(0.5, "e", 3, "8"),
+    beamNote(0.5, "f", 3, "8"),
+    beamNote(0.5, "g", 3, "8"),
+    beamNote(0.5, "a", 3, "8"),
+  ], "bass");
+  assert.deepEqual(plainBeams(restSplit).map((beam) => beam.durs.join("+")), ["8+8", "8+8+8+8"]);
+  const tupletSplit = groupLayerTokens([
+    ...Array.from({ length: 4 }, () => beamNote(0.5, "c", 3, "8")),
+    {
+      type: "tuplet",
+      beats: 1,
+      notes: ["g", "a", "b"].map((pname) => beamNote(1 / 3, pname, 3, "8")),
+    },
+    beamNote(0.5, "c", 4, "8"),
+    beamNote(0.5, "d", 4, "8"),
+  ], "bass");
+  assert.deepEqual(plainBeams(tupletSplit).map((beam) => beam.durs.join("+")), ["8+8+8+8", "8+8"]);
+  assert.match(tupletSplit, /<tuplet\b/);
+  const mixed = groupLayerTokens([
+    beamNote(0.5, "c", 3, "8"),
+    beamNote(0.25, "d", 3, "16"),
+    beamNote(0.25, "e", 3, "16"),
+    beamNote(0.25, "f", 3, "16"),
+    beamNote(0.25, "g", 3, "16"),
+    beamNote(0.5, "a", 3, "8"),
+  ], "bass");
+  const mixedBeams = plainBeams(mixed);
+  assert.deepEqual(mixedBeams.map((beam) => beam.durs.join("+")), ["8+16+16+16+16+8"]);
+  assert.equal([...mixed.matchAll(/breaksec="1"/g)].length, 1);
+  const thirtyMix = groupLayerTokens([
+    beamNote(0.5, "c", 3, "8"),
+    ...Array.from({ length: 8 }, () => beamNote(0.125, "d", 3, "32")),
+    beamNote(0.5, "e", 3, "8"),
+  ], "bass");
+  assert.equal(plainBeams(thirtyMix).length, 1);
+  assert.equal([...thirtyMix.matchAll(/breaksec="1"/g)].length, 1);
+  const gts = plainBeams(phraseMEI(getKey("G"), "concert", "gts-learn"));
+  assert.deepEqual(
+    gts.filter((beam) => beam.durs.every((dur) => dur === "8")).map((beam) => beam.durs.length),
+    [4, 4, 4, 4],
+  );
+  const nnr = phraseMEI(getKey("C"), "concert", "nnr-learn");
+  const beams = plainBeams(nnr);
+  assert.ok(beams.some((beam) => beam.durs.join("+").includes("8+16+16")), beams.map((beam) => beam.durs.join("+")).join(" "));
+  for (const beam of beams) {
+    const subOnly = beam.durs.every((dur) => Number(dur) >= 16);
+    assert.ok(writtenBeats(beam.inner) <= (subOnly ? 1 : 2) + 1e-6, beam.durs.join("+"));
+    const stems = [...beam.inner.matchAll(/stem\.dir="(up|down)"/g)].map((item) => item[1]);
+    assert.ok(stems.length >= 2);
+    assert.ok(stems.every((stem) => stem === stems[0]));
+    assert.match(beam.attrs, new RegExp(`stem\\.dir="${stems[0]}"`));
   }
 });
 

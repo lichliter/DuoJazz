@@ -42,6 +42,7 @@ import {
   keySignatureByLetter,
   keySignatureCount,
   chordSymbolName,
+  CHORD_QUALITY_SYMBOL,
   learnChords,
   spellPitchInKey,
   spellMidi,
@@ -146,6 +147,19 @@ test("B-flat written names are a major second above concert and audio MIDI stays
   assert.equal(chordDisplayName(g, 0, "minor6", "bb-written"), "Am6");
 });
 
+test("engraved chord qualities use jazz symbols", () => {
+  const c = getKey("C");
+  for (const [quality, symbol] of Object.entries(CHORD_QUALITY_SYMBOL)) {
+    assert.equal(chordSymbolName(c, 0, quality, "concert", "major"), `C${symbol}`, quality);
+  }
+  assert.equal(chordSymbolName(c, 0, "minor7", "concert", "major"), "C−7");
+  assert.equal(chordSymbolName(c, 0, "major7", "concert", "major"), "C△7");
+  assert.equal(chordSymbolName(c, 0, "halfdim7", "concert", "major"), "Cø7");
+  assert.equal(chordSymbolName(c, 4, "minor7b5", "concert", "major"), "Eø7");
+  assert.equal(chordSymbolName(c, 0, "diminished7", "concert", "major"), "C°7");
+  assert.equal(chordSymbolName(c, 0, "minormaj7", "concert", "major"), "C−△7");
+});
+
 test("transposing the excerpt tonic moves the cell with the form", () => {
   const c = getKey("C");
   const notes = phraseNotes(c, "concert", "minor-home");
@@ -163,7 +177,7 @@ test("phrase ABC defaults to bass clef with beat-grouped eighth beams", () => {
   assert.equal(DEFAULT_CLEF, "bass");
   const abc = phraseABC(getKey("G"), "concert", "minor-home");
   assert.match(abc, /K:Gmin clef=bass/);
-  assert.match(abc, /"Gm6"/);
+  assert.match(abc, /"G−6"/);
   assert.match(abc, /A2 \(3GDB, A,G, z2/);
   const treble = phraseABC(getKey("G"), "concert", "minor-home", "treble");
   assert.match(treble, /clef=treble/);
@@ -213,8 +227,8 @@ test("each contextual model is a full eight-bar original solo with the cell at i
     assert.ok(last.beat + last.beats <= 32 + 1e-9);
     assert.ok(last.beat + last.beats > 28);
     const abc = modelABC(getKey("G"), "concert", app.id);
-    assert.match(abc, /Cm7/);
-    assert.match(abc, /Gm6/);
+    assert.match(abc, /C−7/);
+    assert.match(abc, /G−6/);
   }
 });
 
@@ -409,8 +423,8 @@ test("phrase ABC follows melody register while clef and B♭ names stay independ
   const trebleModel = modelABC(g, "concert", "minor-home", "treble", -1);
   assert.match(bassModel, /clef=bass/);
   assert.match(trebleModel, /clef=treble/);
-  assert.match(bassModel, /"Cm7"/);
-  assert.match(trebleModel, /"Cm7"/);
+  assert.match(bassModel, /"C−7"/);
+  assert.match(trebleModel, /"C−7"/);
 });
 
 test("isolated-cell hearing uses the same melody register as the chorus model", () => {
@@ -440,10 +454,10 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   const g = getKey("G");
   const abc = landingABC(g, "concert", "minor-home", "bass", 0, { showCues: true });
   assert.match(abc, /K:Gmin clef=bass/);
-  assert.match(abc, /"Cm7"/);
+  assert.match(abc, /"C−7"/);
   assert.match(abc, /z8/);
   assert.doesNotMatch(abc, /z2z2z2z2/);
-  assert.match(abc, /"Gm6""_HERE"/);
+  assert.match(abc, /"G−6""_HERE"/);
   assert.match(abc, /A2 \(3GDB, A,G, z2/);
   assert.doesNotMatch(abc, /Get ready/);
   const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
@@ -466,8 +480,8 @@ test("slash staff is rhythmic slashes with chord symbols, not model pitches or r
   const g = getKey("G");
   const slashes = slashABC(g, "concert", "minor-home", "bass");
   assert.match(slashes, /K:Gmin clef=bass/);
-  assert.match(slashes, /"Cm7"/);
-  assert.match(slashes, /"Gm6"/);
+  assert.match(slashes, /"C−7"/);
+  assert.match(slashes, /"G−6"/);
   assert.match(slashes, /D, D, D, D,/);
   assert.doesNotMatch(slashes, /A,G,/);
   assert.doesNotMatch(slashes, /Get ready|HERE/);
@@ -481,14 +495,14 @@ test("slash staff is rhythmic slashes with chord symbols, not model pitches or r
   assert.match(altered, /"D7""_HERE"/);
   assert.doesNotMatch(altered, /Get ready/);
   const f = slashABC(getKey("F"), "concert", "minor-home", "bass", { showCues: true });
-  assert.match(f, /"Fm6""_HERE"/);
+  assert.match(f, /"F−6""_HERE"/);
   assert.doesNotMatch(f, /Gm6/);
 });
 
 test("model staff marks the entrance with HERE and no Get ready cue", () => {
   const cued = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
   assert.doesNotMatch(cued, /Get ready/);
-  assert.match(cued, /"Gm6""_HERE"/);
+  assert.match(cued, /"G−6""_HERE"/);
   const fAlt = applicationContext(getKey("F"), "concert", "altered-dominant");
   assert.equal(fAlt.readyBar, 5);
   assert.equal(fAlt.enterBar, 6);
@@ -500,10 +514,10 @@ test("stand-portrait ABC breaks every two bars without changing pitches", () => 
   const two = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true, barsPerLine: 2 });
   assert.equal(four.split("\n").filter((line) => line.includes("|")).length, 2);
   assert.equal(two.split("\n").filter((line) => line.includes("|")).length, 4);
-  assert.match(two, /"Cm7"/);
+  assert.match(two, /"C−7"/);
   assert.match(two, /"F7"/);
   assert.doesNotMatch(two, /Get ready/);
-  assert.match(two, /"Gm6""_HERE"/);
+  assert.match(two, /"G−6""_HERE"/);
   const slashTwo = slashABC(getKey("G"), "concert", "minor-home", "bass", { showCues: true, barsPerLine: 2 });
   assert.equal(slashTwo.split("\n").filter((line) => line.includes("|")).length, 4);
 });
@@ -512,28 +526,29 @@ test("four-bar landing systems keep bars 7–8 together with the lick on the doo
   const abc = landingABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true, barsPerLine: 4 });
   const systems = abc.split("\n").filter((line) => line.includes("|"));
   assert.equal(systems.length, 2);
-  assert.match(systems[0], /"Cm7"/);
+  assert.match(systems[0], /"C−7"/);
   assert.doesNotMatch(systems[0], /HERE|A,G,/);
   assert.doesNotMatch(systems[1], /Get ready/);
-  assert.match(systems[1], /"Gm6""_HERE"/);
+  assert.match(systems[1], /"G−6""_HERE"/);
   assert.match(systems[1], /A2 \(3GDB, A,G, z2/);
-  assert.match(systems[1], /"Gm6""_HERE".+"Gm6"/);
+  assert.match(systems[1], /"G−6""_HERE".+"G−6"/);
   assert.doesNotMatch(systems[1], /\n/);
 });
 
 test("ABC chord names keep the accidental on the root for jazzchords", () => {
   const g = modelABC(getKey("G"), "concert", "minor-home", "bass");
-  assert.match(g, /"B♭maj7"/);
-  assert.match(g, /"E♭maj7"/);
-  assert.match(g, /"Am7♭5"/);
+  assert.match(g, /"B♭△7"/);
+  assert.match(g, /"E♭△7"/);
+  assert.match(g, /"Aø7"/);
   assert.doesNotMatch(g, /Bbmaj7|Ebmaj7|Am7b5/);
   const e = modelABC(getKey("E"), "concert", "minor-home", "bass");
-  assert.match(e, /"F♯m7♭5"/);
+  assert.match(e, /"F♯ø7"/);
   const bb = modelABC(getKey("Bb"), "concert", "minor-home", "bass");
-  assert.match(bb, /"D♭maj7"/);
-  assert.match(bb, /"G♭maj7"/);
+  assert.match(bb, /"D♭△7"/);
+  assert.match(bb, /"G♭△7"/);
   const written = modelABC(getKey("G"), "bb-written", "minor-home", "bass");
-  assert.match(written, /"Cmaj7"/);
+  assert.match(written, /"C△7"/);
+  assert.deepEqual(jazzChordRootParts("B♭△7"), { letter: "B", accidental: "♭", rest: "△7" });
   assert.deepEqual(jazzChordRootParts("B♭maj7"), { letter: "B", accidental: "♭", rest: "maj7" });
   assert.deepEqual(jazzChordRootParts("F♯"), { letter: "F", accidental: "♯", rest: "" });
   assert.equal(jazzChordRootParts("Am7♭5"), null);
@@ -597,9 +612,9 @@ test("a two-chord bar places the second chord on beat 3", () => {
   assert.equal(chords[0].startBeat, 0);
   assert.equal(chords[1].startBeat, 2);
   const abc = phraseABC(getKey("G"), "concert", "gts-learn");
-  assert.match(abc, /"Bm7".+"E7"/);
+  assert.match(abc, /"B−7".+"E7"/);
   const st = landingABC(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
-  assert.match(st, /"Cmaj7".+"F7"/);
+  assert.match(st, /"C△7".+"F7"/);
   assert.match(st, /C7\/E/);
 });
 
@@ -642,8 +657,8 @@ test("short Learn licks stay on one system up to five bars", () => {
 
 test("empty bars draw a whole rest instead of a blank spacer", () => {
   const integrate = modelABC(getKey("C"), "concert", "cmar-blue-bossa");
-  assert.match(integrate, /"Cm7"yyz8/);
-  assert.match(integrate, /"Dm7♭5"yyz8/);
+  assert.match(integrate, /"C−7"yyz8/);
+  assert.match(integrate, /"Dø7"yyz8/);
   assert.doesNotMatch(integrate, /\bx8\b/);
   const learn = phraseABC(getKey("D"), "concert", "bo-learn");
   assert.match(learn, /z8/);
@@ -664,11 +679,11 @@ test("empty-bar ABC is a single whole rest; partial bars never hide beat 3", () 
   assert.deepEqual(restBeatsForSpan(3, 1), [1]);
   assert.deepEqual(restBeatsForSpan(2.5, 1.5), [0.5, 1]);
   const landing = landingABC(getKey("C"), "concert", "cmar-blue-bossa");
-  const emptyBars = [...landing.matchAll(/"Cm7"yy([^"|]+)/g)].map((match) => match[1].trim());
+  const emptyBars = [...landing.matchAll(/"C−7"yy([^"|]+)/g)].map((match) => match[1].trim());
   assert.ok(emptyBars.some((body) => body === "z8"));
   assert.ok(emptyBars.every((body) => !/z2z2/.test(body)));
   const gts = phraseABC(getKey("G"), "concert", "gts-learn");
-  assert.match(gts, /"Gmaj7"yyB,4 z4/);
+  assert.match(gts, /"G△7"yyB,4 z4/);
   assert.doesNotMatch(gts, /z2z2/);
 });
 
