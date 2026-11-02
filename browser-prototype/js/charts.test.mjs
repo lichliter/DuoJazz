@@ -68,8 +68,8 @@ test("chart grid is four bars per row with section letters and concert chords", 
   assert.deepEqual(
     blueBossa.rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
     [
-      "C−7", "C−7", "F−7", "F−7", "D−7♭5", "G7♭9", "C−7", "C−7",
-      "E♭−7", "A♭7", "D♭△7", "D♭△7", "D−7♭5", "G7♭9", "C−7", "D−7♭5", "G7♭9",
+      "C−7", "C−7", "F−7", "F−7", "Dø7", "G7♭9", "C−7", "C−7",
+      "E♭−7", "A♭7", "D♭△7", "D♭△7", "Dø7", "G7♭9", "C−7", "Dø7", "G7♭9",
     ],
   );
   assert.equal(blueBossa.rows[3].bars[3].chords.map((chord) => chord.beats).join(" "), "2 2");

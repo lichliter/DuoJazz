@@ -154,13 +154,13 @@ const QUALITY_ASCII = {
 /**
  * Symbols drawn on the staff and in the chart.
  * Minor is a minus (−) and major seventh is a triangle (△).
- * Half-diminished stays ø, diminished stays °.
+ * Half-diminished is ø (minor7b5 and halfdim7), diminished is °.
  */
 export const CHORD_QUALITY_SYMBOL = Object.freeze({
   minor7: "−7",
   dominant7: "7",
   major7: "△7",
-  minor7b5: "−7♭5",
+  minor7b5: "ø7",
   minor6: "−6",
   halfdim7: "ø7",
   dominant7b9: "7♭9",
