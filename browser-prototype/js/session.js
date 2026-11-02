@@ -58,6 +58,54 @@ export const KEY_MODES = [
   { id: "random", label: "Random" },
 ];
 
+/** Cycle types for Master the lick. One-key lessons do not use this. */
+export const CYCLE_MODES = [
+  { id: "fourths", label: "4ths" },
+  { id: "chromatic", label: "Descending chromatic" },
+  { id: "random", label: "Random" },
+];
+
+export function cycleModeId(mode) {
+  return CYCLE_MODES.some((item) => item.id === mode) ? mode : "fourths";
+}
+
+export function cycleModeLabel(mode) {
+  const id = cycleModeId(mode);
+  if (id === "chromatic") return "Chromatic";
+  if (id === "random") return "Random";
+  return "4ths";
+}
+
+export function isIsolatedLesson(lesson) {
+  return lesson?.kind === "learn" || lesson?.kind === "master";
+}
+
+export function lessonKeyTarget(lesson) {
+  return lesson?.kind === "master" ? 12 : 1;
+}
+
+export function sessionShowsCycle(session) {
+  if (!session) return false;
+  return lessonById(session.lessonId).kind === "master";
+}
+
+/**
+ * Learn uses the settings default key, once.
+ * Master cycles all 12 keys from that key in the selected cycle.
+ * Tune and integration lessons use the lesson's own key, once.
+ */
+export function lessonSessionPlan(lessonId, prefs) {
+  const lesson = lessonById(lessonId);
+  const stored = normalizePrefs(prefs);
+  if (lesson.kind === "master") {
+    return { keyMode: cycleModeId(stored.keyMode), startKeyId: stored.startKeyId };
+  }
+  if (lesson.kind === "learn") {
+    return { keyMode: "one", startKeyId: stored.startKeyId };
+  }
+  return { keyMode: "one", startKeyId: lesson.defaultKeyId ?? stored.startKeyId };
+}
+
 export const CARD_SETS = [
   { id: "all", label: "All cards" },
   { id: "listen-quiz", label: "Listen + Quiz" },
@@ -139,14 +187,14 @@ export function sessionModeHeading(_session) {
 }
 
 /**
- * Learn and Practice engrave the same MEI and the same staff metrics.
- * Practice only hides the note ink (`memory`), so chord symbols stay put.
+ * Learn and Master engrave the same lick. Master hides it with CSS blur,
+ * not by dropping the note ink, so chord symbols can stay put.
  */
 export function sessionEngraveSpec(session) {
   const lesson = lessonById(session.lessonId);
   const view = sessionPresentation(session);
-  const memory = Boolean(view.showChordsOnly);
-  const phrase = lesson.kind === "learn";
+  const memory = false;
+  const phrase = isIsolatedLesson(lesson);
   let mei = "landing";
   if (phrase) mei = "phrase";
   else if (!memory && view.showModelNotation) mei = "model";
@@ -178,9 +226,15 @@ export function vinylTier(count) {
   return "black";
 }
 
-export function sleeveCaption(context, passedCount) {
+export function sleeveCaption(context, passedCount, total = 12) {
   if (!passedCount) return context;
-  return `${context} · ${passedCount}/12 keys`;
+  if (total <= 1) return `${context} · passed`;
+  return `${context} · ${passedCount}/${total} keys`;
+}
+
+export function lessonVinylTier(lesson, count) {
+  if (lessonKeyTarget(lesson) <= 1) return count >= 1 ? "gold" : "black";
+  return vinylTier(count);
 }
 
 export function lessonById(id) {
@@ -197,7 +251,8 @@ export function lessonSleeve(lessonId) {
 export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] } = {}) {
   const passed = [...new Set(passedKeys)];
   const passedCount = passed.length;
-  const tier = vinylTier(passedCount);
+  const keyTarget = lessonKeyTarget(lesson);
+  const tier = lessonVinylTier(lesson, passedCount);
   return {
     id: lesson.id,
     index,
@@ -206,11 +261,12 @@ export function lessonPathNode(lesson, index, { recommendedId, passedKeys = [] }
     coverTitle: lesson.coverTitle,
     summary: lesson.summary,
     context: lesson.context,
-    caption: sleeveCaption(lesson.context, passedCount),
+    caption: sleeveCaption(lesson.context, passedCount, keyTarget),
     sleeve: lesson.sleeve,
     align: PATH_ALIGNS[index % PATH_ALIGNS.length],
     recommended: lesson.id === recommendedId,
-    complete: passedCount >= 12,
+    complete: passedCount >= keyTarget,
+    keyTarget,
     passedCount,
     passedKeys: passed,
     vinylTier: tier,
@@ -246,7 +302,7 @@ export function modulePathNodes(module, prefs, lessonKeys = {}) {
 /** Road nodes for a module home: hides Your tunes lessons, keeps numbering sequential. */
 export function moduleRoadNodes(module, prefs, lessonKeys = {}) {
   const visible = module.lessons.filter((lesson) => lesson.group !== "your-tunes");
-  const unfinished = visible.find((lesson) => [...new Set(lessonKeys[lesson.id] ?? [])].length < 12);
+  const unfinished = visible.find((lesson) => !lessonIsComplete(lessonKeys, lesson.id));
   const recommendedId = unfinished?.id ?? null;
   return visible.map((lesson, index) => lessonPathNode({
     ...lesson,
@@ -373,7 +429,7 @@ export function defaultPrefs() {
     swing: true,
     metronome: false,
     guideTones: true,
-    keyMode: "one",
+    keyMode: "fourths",
     startKeyId: DEFAULT_KEY_ID,
     cardSet: "all",
     tempo: 96,
@@ -395,9 +451,7 @@ export function normalizePrefs(raw) {
   merged.metronome = Boolean(merged.metronome);
   merged.guideTones = merged.guideTones !== false;
   const seed = raw?.lessons?.["learn-lick"] ?? {};
-  merged.keyMode = KEY_MODES.some((mode) => mode.id === raw?.keyMode)
-    ? raw.keyMode
-    : (KEY_MODES.some((mode) => mode.id === seed.keyMode) ? seed.keyMode : "one");
+  merged.keyMode = cycleModeId(raw?.keyMode ?? seed.keyMode);
   merged.startKeyId = normalizeKeyId(raw?.startKeyId ?? seed.startKeyId ?? DEFAULT_KEY_ID);
   merged.cardSet = raw?.cardSet === "listen-quiz" || seed.cardSet === "listen-quiz" ? "listen-quiz" : "all";
   merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
@@ -442,13 +496,11 @@ export function dismissHeadphonesTip(prefs) {
 }
 
 /**
- * First lesson in order that is not yet 12/12. Null when every lesson is complete.
+ * First lesson that is not finished. Master needs 12 keys; every other lesson needs one.
+ * Null when every lesson is complete.
  */
 export function recommendedLessonId(lessonKeys = {}) {
-  const unfinished = LESSONS.find((lesson) => {
-    const passed = [...new Set(lessonKeys[lesson.id] ?? [])];
-    return passed.length < 12;
-  });
+  const unfinished = LESSONS.find((lesson) => !lessonIsComplete(lessonKeys, lesson.id));
   return unfinished?.id ?? null;
 }
 
@@ -632,7 +684,8 @@ export function settingsSummary(prefs) {
 export function settingsSummaryShort(prefs) {
   const p = normalizePrefs(prefs);
   const instrument = instrumentOrDefault(p.instrumentId);
-  return `${instrument.label} · ${p.tempo} bpm`;
+  const keyName = displayKey(getKey(p.startKeyId), p.displayMode, "minor").name.replace(/ minor$/, "");
+  return `${instrument.label} · ${p.tempo} bpm · ${keyName} · Cycle: ${cycleModeLabel(p.keyMode)}`;
 }
 
 export function visibleModuleLessons(module) {
@@ -640,7 +693,8 @@ export function visibleModuleLessons(module) {
 }
 
 export function lessonIsComplete(lessonKeys, lessonId) {
-  return [...new Set(lessonKeys?.[lessonId] ?? [])].length >= 12;
+  const lesson = lessonById(lessonId);
+  return [...new Set(lessonKeys?.[lessonId] ?? [])].length >= lessonKeyTarget(lesson);
 }
 
 export function moduleLessonsComplete(module, lessonKeys = {}) {
@@ -995,7 +1049,7 @@ export function markLessonStarted(prefs, lessonId, keyId) {
 /** Lesson.js-compatible state so audio scheduling and existing tests stay intact. */
 export function practiceStateFor(session) {
   const lesson = lessonById(session.lessonId);
-  const isolated = lesson.kind === "learn";
+  const isolated = isIsolatedLesson(lesson);
   const base = {
     ...defaultState(),
     concertKeyId: currentKeyId(session),
@@ -1015,11 +1069,6 @@ export function practiceStateFor(session) {
       ? { ...base, goal: "learn", cellMode: "hear" }
       : { ...base, goal: "integrate", support: "listen" };
   }
-  if (session.studyMode === "practice") {
-    return isolated
-      ? { ...base, goal: "check", checkKind: "recall", revealed: false }
-      : { ...base, goal: "check", checkKind: "application", revealed: false };
-  }
   return isolated
     ? { ...base, goal: "learn", cellMode: "echo" }
     : { ...base, goal: "integrate", support: "help" };
@@ -1028,23 +1077,7 @@ export function practiceStateFor(session) {
 export function sessionPresentation(session) {
   const lesson = lessonById(session.lessonId);
   const view = presentation(practiceStateFor(session));
-  const isolated = lesson.kind === "learn";
-  const memory = session.studyMode === "practice" && !session.demo;
-
-  if (memory) {
-    return {
-      ...view,
-      looping: false,
-      hideStaff: false,
-      hideMelody: true,
-      showChordsOnly: true,
-      showPhraseNotation: false,
-      showModelNotation: false,
-      showSlashNotation: false,
-      showLandingNotation: false,
-      showEntranceCues: false,
-    };
-  }
+  const isolated = isIsolatedLesson(lesson);
 
   if (isolated) {
     return {
@@ -1147,12 +1180,8 @@ export function sessionChartCopy(session) {
     lesson.applicationId,
   );
   const formName = ctx.formTitle ?? "the form";
-  const mode = session.studyMode === "practice" ? "Practice" : "Learn";
-  if (session.studyMode === "practice") {
-    return { title: "From memory", meta: `${ctx.tuneName} · chords stay` };
-  }
-  if (lesson.kind === "learn") {
-    return { title: ctx.lickName ?? "The lick", meta: `${ctx.tuneName} · ${mode}` };
+  if (isIsolatedLesson(lesson)) {
+    return { title: ctx.lickName ?? "The lick", meta: ctx.tuneName };
   }
   return { title: "Play it in the form", meta: `${formName} · ${ctx.tuneName}` };
 }
@@ -1167,17 +1196,10 @@ export function sessionCue(session, snap = {}) {
   const playing = Boolean(snap.playing || snap.paused);
   if (playing) return livePrompt(practiceStateFor(session), snap);
 
-  if (session.studyMode === "practice") {
-    const noun = ctx.noun ?? "lick";
-    return lesson.kind === "learn"
-      ? `Play the ${noun} from memory. Chord symbols and the bar stay.`
-      : `From memory. Chords stay. Bring the phrase in bar ${ctx.enterBar}.`;
-  }
-
   if (lesson.group === "my-tunes" || lesson.group === "your-tunes") {
     return `First spot: bar ${ctx.enterBar}, ${ctx.spotLickName} on ${ctx.targetChord}.`;
   }
-  if (lesson.kind === "learn") {
+  if (isIsolatedLesson(lesson)) {
     const noun = ctx.noun ?? "lick";
     return `Play the ${noun}. The staff is there if you need it.`;
   }

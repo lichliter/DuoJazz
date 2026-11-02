@@ -1343,6 +1343,24 @@ export const MODULES = [
 
 const CORE_SLEEVE_START = MODULES.reduce((sum, module) => sum + module.lessons.length, 0) % 3;
 MODULES.push(...buildWorkbookModules(CORE_SLEEVE_START));
+
+for (const module of MODULES) {
+  if (module.lessons.some((lesson) => lesson.kind === "master")) continue;
+  const learnIndex = module.lessons.findIndex((lesson) => lesson.kind === "learn");
+  if (learnIndex < 0) continue;
+  const learn = module.lessons[learnIndex];
+  module.lessons.splice(learnIndex + 1, 0, {
+    id: module.id === "cmar" ? "master-lick" : `${module.id}-master`,
+    kind: "master",
+    applicationId: learn.applicationId,
+    title: "Master the lick",
+    coverTitle: "Master the lick",
+    summary: "Play the lick in all 12 keys, starting from your default key.",
+    context: "All 12 keys",
+    defaultKeyId: learn.defaultKeyId,
+  });
+}
+
 let sleeveIndex = 0;
 for (const module of MODULES) {
   module.lessons = withSleeves(module.lessons, sleeveIndex % 3);

@@ -100,7 +100,10 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /class="play-round"/);
   assert.doesNotMatch(index, /class="session-bottom"/);
   assert.match(index, /id="home-summary"/);
-  assert.match(index, /id="home-mode"/);
+  assert.doesNotMatch(index, /id="home-mode"/);
+  assert.match(index, /id="settings-btn"[^>]*aria-label="Settings"/);
+  assert.match(index, /id="settings-modal"/);
+  assert.match(index, /id="settings-close"[^>]*aria-label="Close"/);
   assert.match(index, /id="card-badge">Play</);
   assert.match(index, /class="session-transport play-well"/);
   assert.match(index, /class="lick-tools"/);
@@ -119,10 +122,10 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /class="session-links"/);
   assert.doesNotMatch(index, />Hear it</);
   assert.doesNotMatch(index, /id="continue-btn"[^>]*>\s*Skip\s*</);
-  assert.match(index, /id="app-tab-bar"/);
-  assert.match(index, /data-testid="tab-licks"/);
-  assert.match(index, /data-testid="tab-charts"/);
-  assert.match(index, /data-testid="tab-settings"/);
+  assert.doesNotMatch(index, /id="app-tab-bar"/);
+  assert.doesNotMatch(index, /data-testid="tab-licks"/);
+  assert.doesNotMatch(index, /data-testid="tab-charts"/);
+  assert.doesNotMatch(index, /data-testid="tab-settings"/);
   assert.match(index, /id="next-module"/);
   assert.match(index, /id="instrument-list"/);
   assert.doesNotMatch(index, /class="settings-gear"/);
@@ -304,7 +307,8 @@ test("accidentals stay in the same font run as the letters", async () => {
   assert.match(app, /renderKeyCycle\(/);
   assert.match(app, /sessionModeHeading\(session\)/);
   assert.doesNotMatch(app, /cardBadge\.textContent = "Play"/);
-  assert.match(app, /renderHomeMode\(/);
+  assert.match(app, /function openSettings\(/);
+  assert.doesNotMatch(app, /study-switch/);
   assert.doesNotMatch(app, /section\.append\(copy, badge, studySwitch/);
 });
 

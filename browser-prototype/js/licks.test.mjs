@@ -69,25 +69,27 @@ test("registry has thirty modules: five with standards plus workbook 6–30", ()
   assert.equal(MODULES.length, 30);
   assert.deepEqual(
     MODULES.slice(0, 5).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
-    [7, 5, 4, 4, 5],
+    [8, 6, 5, 5, 6],
   );
-  assert.deepEqual(MODULES.slice(0, 5).map((module) => module.lessons.length), [10, 8, 8, 10, 13]);
+  assert.deepEqual(MODULES.slice(0, 5).map((module) => module.lessons.length), [11, 9, 9, 11, 14]);
   assert.ok(MODULES.slice(5).every((module) => {
     const n = module.lessons.length;
-    return n >= 2 && n <= 4 && module.lessons[0].kind === "learn"
-      && module.lessons.slice(1).every((lesson) => lesson.kind === "integrate");
+    return n >= 3 && n <= 5 && module.lessons[0].kind === "learn"
+      && module.lessons[1].kind === "master"
+      && module.lessons.slice(2).every((lesson) => lesson.kind === "integrate");
   }));
   assert.equal(
     LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length,
-    25 + 25 + WORKBOOK_TRACKS.length,
+    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length,
   );
-  assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "integrate"));
+  assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "master" || lesson.kind === "integrate"));
   for (const lick of LICKS) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);
   }
   assert.equal(LESSONS[0].id, "learn-lick");
-  assert.equal(LESSONS[1].id, "integrate-minor-home");
-  assert.equal(LESSONS[2].id, "integrate-altered-dominant");
+  assert.equal(LESSONS[1].id, "master-lick");
+  assert.equal(LESSONS[2].id, "integrate-minor-home");
+  assert.equal(LESSONS[1].title, "Master the lick");
 });
 
 test("each lick’s sounding beats match the workbook cell", () => {
@@ -316,13 +318,14 @@ test("saved CMAR mastery survives and new lessons start empty", () => {
     medal: "bronze",
   };
   const next = normalizeMastery(legacy);
-  assert.deepEqual(lessonPassedKeys(next, "learn-lick"), ["G", "C"]);
+  assert.deepEqual(lessonPassedKeys(next, "master-lick").slice().sort(), ["C", "G"]);
+  assert.deepEqual(lessonPassedKeys(next, "learn-lick"), []);
   assert.equal(isKeyMastered(next, "G"), true);
-  assert.equal(isKeyMastered(next, "C"), false);
+  assert.equal(isKeyMastered(next, "C"), true);
   assert.equal(next.medal, "bronze");
   assert.deepEqual(lessonPassedKeys(next, "emr-learn"), []);
   assert.equal(moduleMastery(next, "emr").medal, "none");
-  const afterEmr = recordQuizPass(recordQuizPass(next, "emr-learn", "A"), "emr-integrate-autumn-leaves", "A");
+  const afterEmr = recordQuizPass(next, "emr-master", "A");
   assert.equal(isKeyMastered(afterEmr, "A", "emr"), true);
   assert.equal(isKeyMastered(afterEmr, "A", "cmar"), false);
   assert.equal(moduleMastery(afterEmr, "cmar").medal, "bronze");

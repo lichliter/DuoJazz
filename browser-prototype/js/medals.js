@@ -1,7 +1,8 @@
 /**
- * Module medals from graded Quiz passes.
- * A key is mastered when Quiz is passed in Learn the lick and in at least one
- * integration lesson in that key. Progress is monotonic.
+ * Module medals from Master the lick.
+ * A key is mastered when it is passed there without revealing the notes.
+ * Learn and tune passes complete those lessons and do not fill the 12-key medal.
+ * Progress is monotonic.
  */
 
 import { LESSONS, TWELVE_KEY_IDS, normalizeKeyId, moduleForLesson, MODULES } from "./session.js";
@@ -30,6 +31,25 @@ export function normalizeMastery(raw) {
     base.lessons[lesson.id].passedKeys = [...new Set(passed)];
     base.lessons[lesson.id].learnedKeys = [...new Set(learned)];
   }
+  // Old Practice passes lived on the learn lesson. Move them onto Master the lick
+  // once. A later save includes master-lick, so Learn passes stay on Learn.
+  const legacy = !Object.prototype.hasOwnProperty.call(raw.lessons ?? {}, "master-lick");
+  if (legacy) {
+    for (const module of MODULES) {
+      const learn = module.lessons.find((lesson) => lesson.kind === "learn");
+      const master = module.lessons.find((lesson) => lesson.kind === "master");
+      if (!learn || !master) continue;
+      const practice = base.lessons[learn.id]?.passedKeys ?? [];
+      const learned = base.lessons[learn.id]?.learnedKeys ?? [];
+      const stored = (raw.modules?.[module.id]?.masteredKeys ?? []).map(normalizeKeyId);
+      base.lessons[master.id].passedKeys = [...new Set([
+        ...(base.lessons[master.id]?.passedKeys ?? []),
+        ...practice,
+        ...stored,
+      ])];
+      base.lessons[learn.id].passedKeys = [...new Set(learned)];
+    }
+  }
   base.masteredKeys = [...new Set((raw.masteredKeys ?? []).map(normalizeKeyId))];
   base.medal = medalForCount(base.masteredKeys.length);
   return reconcileMastery(base);
@@ -57,11 +77,8 @@ export function homeMedalMark(count, medal) {
 export function isKeyMastered(mastery, keyId, moduleId = "cmar") {
   const id = normalizeKeyId(keyId);
   const lessons = LESSONS.filter((lesson) => (lesson.moduleId ?? moduleForLesson(lesson.id).id) === moduleId);
-  const learn = lessons.find((lesson) => lesson.kind === "learn");
-  const integrate = lessons.filter((lesson) => lesson.kind === "integrate");
-  const learned = Boolean(learn && mastery.lessons[learn.id]?.passedKeys.includes(id));
-  const applied = integrate.some((lesson) => mastery.lessons[lesson.id]?.passedKeys.includes(id));
-  return Boolean(learned && applied);
+  const master = lessons.find((lesson) => lesson.kind === "master");
+  return Boolean(master && mastery.lessons[master.id]?.passedKeys.includes(id));
 }
 
 export function reconcileMastery(mastery) {
