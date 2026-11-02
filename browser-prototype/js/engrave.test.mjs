@@ -262,7 +262,9 @@ test("chord symbols compact figbass and internal gaps", () => {
   assert.equal(compactChordSymbol("F\u00A0♯\u202F°7"), "F♯°7");
   assert.equal(compactChordSymbol("Bbmaj7"), "B♭△7");
   assert.equal(compactChordSymbol("Ebmaj7"), "E♭△7");
-  assert.equal(compactChordSymbol("Am7b5"), "A−7♭5");
+  assert.equal(compactChordSymbol("Am7b5"), "Aø7");
+  assert.equal(compactChordSymbol("E−7♭5"), "Eø7");
+  assert.equal(compactChordSymbol("E-7b5"), "Eø7");
   assert.equal(compactChordSymbol("A7b9"), "A7♭9");
   assert.equal(compactChordSymbol("F#o7"), "F♯°7");
   assert.equal(compactChordSymbol("Cm7"), "C−7");

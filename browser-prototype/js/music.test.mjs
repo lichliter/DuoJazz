@@ -155,6 +155,7 @@ test("engraved chord qualities use jazz symbols", () => {
   assert.equal(chordSymbolName(c, 0, "minor7", "concert", "major"), "C−7");
   assert.equal(chordSymbolName(c, 0, "major7", "concert", "major"), "C△7");
   assert.equal(chordSymbolName(c, 0, "halfdim7", "concert", "major"), "Cø7");
+  assert.equal(chordSymbolName(c, 4, "minor7b5", "concert", "major"), "Eø7");
   assert.equal(chordSymbolName(c, 0, "diminished7", "concert", "major"), "C°7");
   assert.equal(chordSymbolName(c, 0, "minormaj7", "concert", "major"), "C−△7");
 });
@@ -538,10 +539,10 @@ test("ABC chord names keep the accidental on the root for jazzchords", () => {
   const g = modelABC(getKey("G"), "concert", "minor-home", "bass");
   assert.match(g, /"B♭△7"/);
   assert.match(g, /"E♭△7"/);
-  assert.match(g, /"A−7♭5"/);
+  assert.match(g, /"Aø7"/);
   assert.doesNotMatch(g, /Bbmaj7|Ebmaj7|Am7b5/);
   const e = modelABC(getKey("E"), "concert", "minor-home", "bass");
-  assert.match(e, /"F♯−7♭5"/);
+  assert.match(e, /"F♯ø7"/);
   const bb = modelABC(getKey("Bb"), "concert", "minor-home", "bass");
   assert.match(bb, /"D♭△7"/);
   assert.match(bb, /"G♭△7"/);
@@ -657,7 +658,7 @@ test("short Learn licks stay on one system up to five bars", () => {
 test("empty bars draw a whole rest instead of a blank spacer", () => {
   const integrate = modelABC(getKey("C"), "concert", "cmar-blue-bossa");
   assert.match(integrate, /"C−7"yyz8/);
-  assert.match(integrate, /"D−7♭5"yyz8/);
+  assert.match(integrate, /"Dø7"yyz8/);
   assert.doesNotMatch(integrate, /\bx8\b/);
   const learn = phraseABC(getKey("D"), "concert", "bo-learn");
   assert.match(learn, /z8/);
