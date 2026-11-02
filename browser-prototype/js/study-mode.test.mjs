@@ -88,17 +88,20 @@ test("the settings pill names instrument, tempo, default key, and cycle", () => 
   assert.equal(normalizePrefs({ keyMode: "random" }).keyMode, "random");
 });
 
-test("settings modal opens from the pill and the cog, and closes from the X and the backdrop", async () => {
+test("settings modal opens from the summary pill and closes from the X and the backdrop", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
-  assert.match(index, /id="home-summary"/);
-  assert.match(index, /id="settings-btn"[^>]*aria-label="Settings"/);
+  assert.match(index, /id="home-summary"[^>]*aria-haspopup="dialog"/);
+  assert.match(index, /class="home-summary-icon"/);
+  assert.doesNotMatch(index, /id="settings-btn"/);
+  assert.doesNotMatch(index, /id="card-sets"/);
   assert.match(index, /id="settings-modal"/);
   assert.match(index, /id="settings-close"[^>]*aria-label="Close"/);
   assert.doesNotMatch(index, /id="app-tab-bar"/);
   assert.doesNotMatch(index, /id="home-mode"/);
   assert.match(app, /els\.homeSummary\?\.addEventListener\("click", \(\) => openSettings\(\)\)/);
-  assert.match(app, /els\.settingsBtn\?\.addEventListener\("click", \(\) => openSettings\(\)\)/);
+  assert.doesNotMatch(app, /settingsBtn/);
+  assert.doesNotMatch(app, /CARD_SETS/);
   assert.match(app, /els\.settingsClose\?\.addEventListener\("click", \(\) => closeSettings\(\)\)/);
   assert.match(app, /if \(!inside\) closeSettings\(\)/);
   assert.match(app, /settingsModal\.showModal\(\)/);
@@ -202,13 +205,26 @@ test("tune lessons are ungraded practice after Learn and Master", () => {
   assert.equal(lessonById("cmar-integrate-blue-bossa").kind, "integrate");
 });
 
+test("home shares one side gutter and an even stack", async () => {
+  const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  const session = await readFile(new URL("./session.js", import.meta.url), "utf8");
+  assert.match(hig, /\.app-shell\[data-screen="home"\] \.masthead,\s*\.app-shell\[data-screen="home"\] \.workspace \{[^}]*2 \* var\(--margin-regular\)/);
+  assert.match(hig, /\.home-settings \{[^}]*margin:\s*0;/);
+  assert.match(styles, /#screen-home \{[^}]*gap:\s*var\(--space-5\)/);
+  assert.match(styles, /\.lesson-path \{[^}]*padding:\s*0 0 1\.1rem/);
+  assert.doesNotMatch(styles, /outline:\s*2px solid var\(--accent\)/);
+  assert.doesNotMatch(session, /export const CARD_SETS/);
+  assert.doesNotMatch(session, /export const STUDY_MODES/);
+});
+
 test("the lick banner opens the module list and the hamburger is gone", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   assert.doesNotMatch(index, /modules-menu/);
   assert.doesNotMatch(index, /id="quick-view-btn"/);
-  assert.match(index, /id="settings-btn"[^>]*aria-label="Settings"/);
-  assert.match(index, /id="home-summary"/);
+  assert.doesNotMatch(index, /id="settings-btn"/);
+  assert.match(index, /id="home-summary"[^>]*aria-controls="settings-modal"/);
   assert.match(app, /aria-label", `Choose a lick\. \$\{module\.name\}`/);
   assert.match(app, /requestQuickView\(\)/);
   const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginListening"));

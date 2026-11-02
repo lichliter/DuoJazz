@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=135";
+import { Transport } from "./audio.js?v=136";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=135";
+} from "./lesson.js?v=136";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,14 +31,13 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=135";
+} from "./engrave.js?v=136";
 import {
   PREFS_KEY,
   MODULE,
   MODULES,
   LESSONS,
   CYCLE_MODES,
-  CARD_SETS,
   TWELVE_KEY_IDS,
   lessonById,
   normalizePrefs,
@@ -70,7 +69,6 @@ import {
   modulesSheetData,
   moduleById,
   lessonSleeve,
-  sleeveCaption,
   moduleForLesson,
   sessionKeyQuality,
   canGoBack,
@@ -99,7 +97,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=135";
+} from "./session.js?v=136";
 import {
   tuneById,
   licksInTune,
@@ -111,7 +109,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=135";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=136";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -125,7 +123,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=135";
+} from "./rapid.js?v=136";
 import {
   emptyMastery,
   displayMedal,
@@ -139,7 +137,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=135";
+import { PitchMonitor, micCopy } from "./pitch.js?v=136";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -148,7 +146,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=135";
+} from "./take-dump.js?v=136";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -203,8 +201,8 @@ const els = {
   settingsModal: document.getElementById("settings-modal"),
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
-  settingsBtn: document.getElementById("settings-btn"),
   homeSummary: document.getElementById("home-summary"),
+  homeSummaryText: document.getElementById("home-summary-text"),
   settingsClose: document.getElementById("settings-close"),
   chartsList: document.getElementById("charts-list"),
   chartDetail: document.getElementById("chart-detail"),
@@ -220,8 +218,6 @@ const els = {
   setup: document.getElementById("setup"),
   setupTitle: document.getElementById("setup-title"),
   setupSummary: document.getElementById("setup-summary"),
-  settingsSummary: document.getElementById("home-summary"),
-  settingsSummaryBtn: document.getElementById("home-summary"),
   settingsForm: document.getElementById("settings-form"),
   nextModule: document.getElementById("next-module"),
   quickViewBtn: document.getElementById("quick-view-btn"),
@@ -231,7 +227,6 @@ const els = {
   keyModes: document.getElementById("key-modes"),
   keyOrderPreview: document.getElementById("key-order-preview"),
   setupKeys: document.getElementById("setup-keys"),
-  cardSets: document.getElementById("card-sets"),
   sessionOctave: document.getElementById("session-octave"),
   headphonesTip: document.getElementById("headphones-tip"),
   headphonesDismiss: document.getElementById("headphones-dismiss"),
@@ -893,7 +888,6 @@ function startLesson(lessonId) {
     lessonId: lesson.id,
     keyMode: plan.keyMode,
     startKeyId: plan.startKeyId,
-    cardSet: prefs.cardSet,
     tempo: prefs.tempo,
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
     instrumentId: prefs.instrumentId,
@@ -1306,22 +1300,12 @@ function renderHome() {
 }
 
 function sleeveBoxFromStage(stage, svgRect) {
-  const node = stage.closest(".sleeve-node");
   const stageRect = stage.getBoundingClientRect();
-  const context = node?.querySelector(".sleeve-context")?.getBoundingClientRect();
-  const captionTop = context?.top ?? stageRect.bottom;
-  const captionBottom = context?.bottom ?? stageRect.bottom;
-  const captionLeft = context?.left ?? stageRect.left;
-  const captionRight = context?.right ?? stageRect.right;
   return {
     cx: stageRect.left + stageRect.width / 2 - svgRect.left,
     cy: stageRect.top + stageRect.height / 2 - svgRect.top,
     halfW: stageRect.width / 2,
     halfH: stageRect.height / 2,
-    captionTop: captionTop - svgRect.top,
-    captionBottom: captionBottom - svgRect.top,
-    captionLeft: captionLeft - svgRect.left,
-    captionRight: captionRight - svgRect.left,
   };
 }
 
@@ -1383,11 +1367,6 @@ function sleeveButton(node) {
   stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
   btn.append(stage);
 
-  const context = document.createElement("span");
-  context.className = "sleeve-context";
-  fillMusicLabel(context, node.caption ?? sleeveCaption(node.context, node.passedCount));
-  btn.append(context);
-
   btn.addEventListener("click", () => openSetup(node.id));
   return btn;
 }
@@ -1410,10 +1389,14 @@ function renderSetup() {
   renderSettings();
 }
 
+function setHomeSummary(summary) {
+  if (els.homeSummaryText) els.homeSummaryText.textContent = summary;
+  if (els.homeSummary) els.homeSummary.setAttribute("aria-label", `Settings, ${summary}`);
+}
+
 function renderSettings() {
   const summary = settingsSummaryShort(prefs);
-  if (els.homeSummary) els.homeSummary.textContent = summary;
-  if (els.settingsSummary) els.settingsSummary.textContent = summary;
+  setHomeSummary(summary);
   chipRow(els.keyModes, CYCLE_MODES, cycleModeId(prefs.keyMode), (id) => {
     prefs.keyMode = cycleModeId(id);
     persist();
@@ -1441,11 +1424,6 @@ function renderSettings() {
       return btn;
     }),
   );
-  chipRow(els.cardSets, CARD_SETS, prefs.cardSet, (id) => {
-    prefs.cardSet = id;
-    persist();
-    renderSettings();
-  });
   if (els.tempoReadout) els.tempoReadout.textContent = String(prefs.tempo);
 }
 
@@ -1922,9 +1900,7 @@ function applyInstrument(instrumentId) {
 }
 
 function renderCopy(snap = transport.snapshot()) {
-  const summary = settingsSummaryShort(prefs);
-  if (els.homeSummary) els.homeSummary.textContent = summary;
-  if (els.settingsSummary) els.settingsSummary.textContent = summary;
+  setHomeSummary(settingsSummaryShort(prefs));
   els.swing.checked = prefs.swing;
   els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
@@ -2296,7 +2272,6 @@ function applyDeepLink() {
       lessonId,
       keyMode: plan.keyMode,
       startKeyId: plan.startKeyId,
-      cardSet: params.get("cards") || prefs.cardSet,
       tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       instrumentId: prefs.instrumentId,
@@ -2428,7 +2403,6 @@ transport.onEnded = () => {
 };
 
 els.homeSummary?.addEventListener("click", () => openSettings());
-els.settingsBtn?.addEventListener("click", () => openSettings());
 els.settingsClose?.addEventListener("click", () => closeSettings());
 els.settingsModal?.addEventListener("click", (event) => {
   const dialog = els.settingsModal;
