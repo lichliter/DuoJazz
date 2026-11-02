@@ -170,8 +170,8 @@ test("Nutville is C minor, 24 bars, with one-bar B-section dominants and G7♯5"
 test("wrap-up of a module’s last lesson offers the next module", () => {
   const first = MODULES[0];
   const last = MODULES.at(-1);
-  const lastVisible = visibleModuleLessons(first).at(-1);
-  const session = createSession({ lessonId: lastVisible.id, startKeyId: first.lessons[0].defaultKeyId });
+  const lastGraded = visibleModuleLessons(first).find((lesson) => lesson.kind === "master");
+  const session = createSession({ lessonId: lastGraded.id, startKeyId: first.lessons[0].defaultKeyId });
   assert.match(wrapupNextModule(session).label, /^Next: Module 2 · /);
   const done = Object.fromEntries(visibleModuleLessons(first).map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.match(homeNextModule(first, done).label, /^Next: Module 2 · /);

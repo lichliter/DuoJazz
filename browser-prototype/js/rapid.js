@@ -5,14 +5,15 @@
  * except during the celebration, where it still advances and does not listen.
  */
 
-import { advanceKey, currentCard, currentKeyId, markKeyOutcome, skipCard, skipResult } from "./session.js";
+import { advanceKey, currentCard, currentKeyId, lessonById, markKeyOutcome, skipCard, skipResult } from "./session.js";
 
 export const CELEBRATE_MS = 2000;
 export const READ_MS = 500;
 export const RETRY_MS = 900;
 
 export function shouldRecordMastery(session, passed, { notesShown = false } = {}) {
-  return Boolean(session && passed && session.studyMode === "practice" && !notesShown);
+  if (!session || !passed || notesShown) return false;
+  return lessonById(session.lessonId).kind === "master";
 }
 
 export function isLastRapidKey(session) {
