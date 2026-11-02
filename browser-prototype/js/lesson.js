@@ -419,11 +419,11 @@ export const PHONE_WIDTH = 600;
 /** Chord cap height as a fraction of staff height (~17px at STAFF_PX, ~25px on iPad portrait). */
 export const CHORD_CAP_RATIO = 0.42;
 
-/** One chord size for every instrument at a given staff. Never under 16px. */
+/** Chord size tracks the staff, and the staff already includes the notation scale. */
 export function chordTargetCss(staffPx) {
   const px = Number(staffPx);
-  if (!(px > 0)) return 16;
-  return Math.max(16, Math.round(px * CHORD_CAP_RATIO));
+  if (!(px > 0)) return 12;
+  return Math.max(9, Math.round(px * CHORD_CAP_RATIO));
 }
 /** Cue labels sit just under the lowest stem, in CSS px at 1.0×. */
 export const CUE_PX = 12;
@@ -721,7 +721,7 @@ export function notationLayout({
       minPadding: 6,
       timeBasedLayout: { minPadding: 9, align: "left" },
       barsPerLine,
-      chordfont: "Noto Sans 16",
+      chordfont: `DuoJazz Music ${chordCssPx}`,
       annotationfont: "Source Sans 3 13",
       annotationPx,
       chordCssPx,
@@ -754,7 +754,7 @@ export function notationLayout({
     barsPerLine,
     engravingRatio: 1,
     minEngravingRatio: 1,
-    chordfont: "Noto Sans 16",
+    chordfont: `DuoJazz Music ${chordCssPx}`,
     annotationfont: "Source Sans 3 13",
     annotationPx,
     chordCssPx,

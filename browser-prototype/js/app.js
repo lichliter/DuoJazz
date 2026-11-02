@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=135";
+import { Transport } from "./audio.js?v=138";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=135";
+} from "./lesson.js?v=138";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=135";
+} from "./engrave.js?v=138";
 import {
   PREFS_KEY,
   MODULE,
@@ -99,7 +99,7 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=135";
+} from "./session.js?v=138";
 import {
   tuneById,
   licksInTune,
@@ -111,7 +111,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=135";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=138";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -125,7 +125,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=135";
+} from "./rapid.js?v=138";
 import {
   emptyMastery,
   displayMedal,
@@ -139,7 +139,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=135";
+import { PitchMonitor, micCopy } from "./pitch.js?v=138";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -148,7 +148,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=135";
+} from "./take-dump.js?v=138";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();

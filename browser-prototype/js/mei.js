@@ -68,7 +68,9 @@ function meiDur(beats) {
     [1, "4", 0],
     [0.75, "8", 1],
     [0.5, "8", 0],
+    [0.375, "16", 1],
     [0.25, "16", 0],
+    [0.125, "32", 0],
   ];
   for (const [value, dur, dots] of table) {
     if (almost(beats, value)) return { dur, dots };
@@ -84,6 +86,10 @@ function meiDur(beats) {
 function durAttrs(beats) {
   const { dur, dots } = meiDur(beats);
   return dots ? `dur="${dur}" dots="${dots}"` : `dur="${dur}"`;
+}
+
+export function meiDurAttrs(beats) {
+  return durAttrs(beats);
 }
 
 function formContext(concertKey, displayMode, applicationId, melodyRegister, clef = DEFAULT_CLEF) {
@@ -159,8 +165,10 @@ function noteXml(item, ctx, beats, tie = "") {
   return {
     id,
     beats,
-    beamable: almost(beats, 0.5) && item.tuplet !== 3,
+    beamable: beats < 1 - 1e-6 && item.tuplet !== 3,
     tuplet: item.tuplet === 3,
+    pname: pitch.pname,
+    oct: pitch.oct,
     xml: `<note xml:id="${id}" pname="${pitch.pname}" oct="${pitch.oct}" ${durAttrs(beats)}${accid}${tieAttr}>${inner}</note>`,
   };
 }
@@ -256,37 +264,69 @@ function sliceTokens(items, start, end, ctx, slashRests) {
   return tokens;
 }
 
-function halfBarOf(cursor) {
-  return cursor < 2 - 1e-6 ? 0 : 1;
+const DIATONIC = { c: 0, d: 1, e: 2, f: 3, g: 4, a: 5, b: 6 };
+
+function stemDirForNotes(notes, clef) {
+  const middle = clef === "treble" ? 4 * 7 + DIATONIC.b : 3 * 7 + DIATONIC.d;
+  let extreme = 0;
+  for (const note of notes) {
+    if (!note?.pname || note.oct == null) continue;
+    const step = note.oct * 7 + (DIATONIC[note.pname] ?? 0);
+    const delta = step - middle;
+    if (Math.abs(delta) > Math.abs(extreme) || (Math.abs(delta) === Math.abs(extreme) && delta > extreme)) {
+      extreme = delta;
+    }
+  }
+  return extreme < 0 ? "up" : "down";
 }
 
-function emitLayer(tokens) {
+function withStemDir(xml, dir) {
+  if (!xml || xml.includes("stem.dir=")) return xml;
+  return xml.replace("<note ", `<note stem.dir="${dir}" `);
+}
+
+function beamableNote(token) {
+  return Boolean(token?.beamable) && token.beats < 1 - 1e-6;
+}
+
+function emitLayer(tokens, clef = "bass") {
   const out = [];
   let i = 0;
   let cursor = 0;
   while (i < tokens.length) {
     const token = tokens[i];
     if (token.type === "tuplet") {
-      const inner = token.notes.map((note) => note.xml).join("");
-      out.push(`<tuplet num="3" numbase="2" bracket.visible="false"><beam>${inner}</beam></tuplet>`);
+      const dir = stemDirForNotes(token.notes, clef);
+      const inner = token.notes.map((note) => withStemDir(note.xml, dir)).join("");
+      out.push(`<tuplet num="3" numbase="2" bracket.visible="false"><beam stem.dir="${dir}">${inner}</beam></tuplet>`);
       cursor += token.beats;
       i += 1;
       continue;
     }
-    if (token.beamable) {
+    if (beamableNote(token)) {
+      const beatEnd = Math.floor(cursor + 1e-6) + 1;
+      if (cursor + token.beats > beatEnd + 1e-6) {
+        out.push(token.xml);
+        cursor += token.beats;
+        i += 1;
+        continue;
+      }
       const group = [];
-      const side = halfBarOf(cursor);
-      while (i < tokens.length && tokens[i].beamable && halfBarOf(cursor + group.reduce((s, n) => s + n.beats, 0)) === side) {
+      while (i < tokens.length && beamableNote(tokens[i])) {
+        const nextEnd = cursor + group.reduce((sum, note) => sum + note.beats, 0) + tokens[i].beats;
+        if (nextEnd > beatEnd + 1e-6) break;
         group.push(tokens[i]);
         i += 1;
-        if (group.reduce((s, n) => s + n.beats, 0) >= 2 - 1e-6) break;
       }
+      const consumed = group.reduce((sum, note) => sum + note.beats, 0);
       if (group.length >= 2) {
-        out.push(`<beam>${group.map((note) => note.xml).join("")}</beam>`);
+        const dir = stemDirForNotes(group, clef);
+        const inner = group.map((note) => withStemDir(note.xml, dir)).join("");
+        out.push(`<beam stem.dir="${dir}">${inner}</beam>`);
       } else {
         out.push(group[0].xml);
       }
-      cursor += group.reduce((s, n) => s + n.beats, 0);
+      cursor += consumed;
       continue;
     }
     out.push(token.xml);
@@ -296,6 +336,10 @@ function emitLayer(tokens) {
   return out.join("");
 }
 
+export function groupLayerTokens(tokens, clef = "bass") {
+  return emitLayer(tokens, clef);
+}
+
 function meiChordText(name) {
   return String(name)
     .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000]+/g, "")
@@ -303,7 +347,9 @@ function meiChordText(name) {
     .replaceAll("♯", "#")
     .replaceAll("°", "o")
     .replaceAll("ø", "h")
-    .replaceAll("Δ", "M");
+    .replaceAll("△", "M")
+    .replaceAll("Δ", "M")
+    .replaceAll("−", "-");
 }
 
 function literalRend(text) {
@@ -376,7 +422,7 @@ function measureXml({
   metcon = true,
   rightBar = "single",
 }) {
-  const layer = emitLayer(tokens);
+  const layer = emitLayer(tokens, ctx.clef);
   const harms = chords.map((chord) => harmXml(ctx, chord, tstampAt(chord.startBeat, barStart)));
   const dirs = [];
   if (section) dirs.push(sectionXml(ctx, section));

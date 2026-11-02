@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chartGrid, chartKeyChoices } from "./charts.js";
 import { chorusChords, getKey } from "./music.js";
+import { compactChordSymbol } from "./engrave.js";
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -262,7 +263,8 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
         if (spec.expectHarms) {
           const rendered = value.harms.join(" ");
           for (const name of spec.expectHarms) {
-            assert.equal(rendered.includes(name.replace(/\s+/g, "")), true, `${spec.name} missing ${name} in ${rendered}`);
+            const want = compactChordSymbol(name).replace(/\s+/g, "");
+            assert.equal(rendered.includes(want), true, `${spec.name} missing ${want} in ${rendered}`);
           }
         }
         for (const gap of value.gaps) {

@@ -151,7 +151,36 @@ const QUALITY_ASCII = {
   major7b5: "maj7♭5",
 };
 
-const QUALITY_ABC = { ...QUALITY_ASCII };
+/**
+ * Symbols drawn on the staff and in the chart.
+ * Minor is a minus (−) and major seventh is a triangle (△).
+ * Half-diminished stays ø, diminished stays °.
+ */
+export const CHORD_QUALITY_SYMBOL = Object.freeze({
+  minor7: "−7",
+  dominant7: "7",
+  major7: "△7",
+  minor7b5: "−7♭5",
+  minor6: "−6",
+  halfdim7: "ø7",
+  dominant7b9: "7♭9",
+  minor: "−",
+  minorb6: "−♭6",
+  major6: "6",
+  dominant7b13: "7♭13",
+  dominant7s11: "7♯11",
+  dominant7s5: "7♯5",
+  dominant7s9: "7♯9",
+  dominant7alt: "7alt",
+  diminished7: "°7",
+  dominant9: "9",
+  dominant7sus: "7sus",
+  minormaj7: "−△7",
+  minor11: "−11",
+  major7b5: "△7♭5",
+});
+
+const QUALITY_ABC = CHORD_QUALITY_SYMBOL;
 
 const QUALITY_INTERVALS = {
   minor7: [0, 3, 7, 10],
