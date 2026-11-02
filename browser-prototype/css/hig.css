@@ -300,6 +300,7 @@ button.module-banner {
 .chord-symbol,
 .chart-row-key,
 #session-key,
+#staff-key-name,
 #chart-heading-meta,
 #next-key,
 #wrapup-heading,
@@ -823,6 +824,35 @@ button.module-banner {
   width: 100%;
   margin: 0 0 var(--screen-margin);
   flex: 0 0 auto;
+}
+
+.staff-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0 0 0.35rem;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.staff-key[hidden] {
+  display: none;
+}
+
+.staff-key-name {
+  margin: 0;
+  font-size: clamp(1.85rem, 4.6vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--label);
+}
+
+.staff-key-count {
+  margin: 0.05rem 0 0;
+  font: var(--text-footnote);
+  color: var(--label-secondary);
 }
 
 .session-screen .notation-block .chart-card {

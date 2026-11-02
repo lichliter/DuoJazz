@@ -11,6 +11,7 @@ import {
   displayKey,
   applicationKeyQuality,
   phraseMeasureCount,
+  wrapPc,
 } from "./music.js";
 import {
   DEFAULT_INSTRUMENT_ID,
@@ -48,7 +49,7 @@ export const MODULE = {
   tune: "Autumn Leaves · opening eight bars",
 };
 
-/** Twelve unique concert minor tonics, flat-side enharmonics. */
+/** Twelve concert pitch classes, flat-side enharmonics. Settings store these as major keys. */
 export const TWELVE_KEY_IDS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
 export const KEY_MODES = [
@@ -95,32 +96,45 @@ export function sessionShowsCycle(session) {
   return lessonById(session.lessonId).kind === "master";
 }
 
+export function lessonKeyQuality(lesson) {
+  return applicationKeyQuality(lesson.applicationId);
+}
+
 /**
- * Learn uses the settings default key, once.
+ * Learn uses the resolved lick key, once.
  * Master cycles all 12 keys from that key in the selected cycle.
+ * The stored preference is a major key; each lick takes its relative tonic.
  * Tune and integration lessons use the lesson's own key, once.
  */
 export function lessonSessionPlan(lessonId, prefs) {
   const lesson = lessonById(lessonId);
   const stored = normalizePrefs(prefs);
-  if (lesson.kind === "master") {
-    return { keyMode: cycleModeId(stored.keyMode), startKeyId: stored.startKeyId };
+  if (lesson.kind === "master" || lesson.kind === "learn") {
+    return {
+      keyMode: lesson.kind === "master" ? cycleModeId(stored.keyMode) : "one",
+      majorKeyId: stored.startKeyId,
+      startKeyId: resolveLickKeyId(stored.startKeyId, lessonKeyQuality(lesson)),
+    };
   }
-  if (lesson.kind === "learn") {
-    return { keyMode: "one", startKeyId: stored.startKeyId };
-  }
-  return { keyMode: "one", startKeyId: lesson.defaultKeyId ?? stored.startKeyId };
+  return { keyMode: "one", startKeyId: lesson.defaultKeyId ?? stored.startKeyId, majorKeyId: null };
 }
 
 /**
  * Home and createAndShow share this. Master always uses the selected cycle
  * and the default key, even when the caller omits a key mode.
+ * An explicit startKeyId is a lick tonic and skips major-key mapping.
  */
 export function sessionCreateArgs(lessonId, prefs, options = {}) {
   const lesson = lessonById(lessonId);
   const plan = lessonSessionPlan(lesson.id, prefs);
-  if (lesson.kind === "master") {
-    return { lessonId: lesson.id, keyMode: plan.keyMode, startKeyId: plan.startKeyId };
+  if (lesson.kind === "master" || lesson.kind === "learn") {
+    const lickOverride = options.startKeyId != null && options.startKeyId !== plan.startKeyId;
+    return {
+      lessonId: lesson.id,
+      keyMode: options.keyMode ?? plan.keyMode,
+      startKeyId: options.startKeyId ?? plan.startKeyId,
+      majorKeyId: lickOverride ? null : (options.majorKeyId ?? plan.majorKeyId),
+    };
   }
   return {
     lessonId: lesson.id,
@@ -357,6 +371,43 @@ export function normalizeKeyId(id) {
   return TWELVE_KEY_IDS.includes(id) ? id : DEFAULT_KEY_ID;
 }
 
+export function keyIdForPc(pc) {
+  const wrapped = wrapPc(pc);
+  return TWELVE_KEY_IDS.find((id) => getKey(id).pc === wrapped) ?? DEFAULT_KEY_ID;
+}
+
+/** Relative minor is a minor third below the major tonic. */
+export function relativeMinorId(majorId) {
+  return keyIdForPc(getKey(normalizeKeyId(majorId)).pc - 3);
+}
+
+/** Relative major is a minor third above the minor tonic. Stored G becomes B♭. */
+export function relativeMajorId(minorId) {
+  return keyIdForPc(getKey(normalizeKeyId(minorId)).pc + 3);
+}
+
+/**
+ * Settings store a major key. A major lick stays on that tonic.
+ * A minor lick moves to the relative minor.
+ */
+export function resolveLickKeyId(majorId, quality = "minor") {
+  const major = normalizeKeyId(majorId);
+  return quality === "major" ? major : relativeMinorId(major);
+}
+
+/**
+ * Prefs saved before major-key settings stored the minor-lick tonic
+ * (G meant G minor). Keep that lick by saving its relative major.
+ * keyBasis "major" means the value is already the chosen major key.
+ */
+export function migrateMajorKeyId(raw) {
+  const fresh = relativeMajorId(DEFAULT_KEY_ID);
+  if (!raw || typeof raw !== "object") return fresh;
+  if (raw.keyBasis === "major") return normalizeKeyId(raw.startKeyId ?? fresh);
+  const stored = raw.startKeyId ?? raw.lessons?.["learn-lick"]?.startKeyId ?? DEFAULT_KEY_ID;
+  return relativeMajorId(stored);
+}
+
 export function shuffleInPlace(items, rng = Math.random) {
   const copy = [...items];
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -411,6 +462,14 @@ export function buildKeyQueue(mode, startKeyId, rng = Math.random) {
 }
 
 /**
+ * Cycle the major-key list, then map each step to the lick's relative key.
+ * A major lick keeps the major tonics. A minor lick takes the relative minors.
+ */
+export function lickKeyQueue(mode, majorKeyId, quality = "minor", rng = Math.random) {
+  return buildKeyQueue(mode, majorKeyId, rng).map((id) => resolveLickKeyId(id, quality));
+}
+
+/**
  * Setup-sheet preview of one lap. Random stays shuffled.
  * Names follow the instrument's written spelling.
  */
@@ -456,7 +515,8 @@ export function defaultPrefs() {
     metronome: false,
     guideTones: true,
     keyMode: "fourths",
-    startKeyId: DEFAULT_KEY_ID,
+    keyBasis: "major",
+    startKeyId: relativeMajorId(DEFAULT_KEY_ID),
     cardSet: "all",
     tempo: 96,
     auto: true,
@@ -478,7 +538,8 @@ export function normalizePrefs(raw) {
   merged.guideTones = merged.guideTones !== false;
   const seed = raw?.lessons?.["learn-lick"] ?? {};
   merged.keyMode = cycleModeId(raw?.keyMode ?? seed.keyMode);
-  merged.startKeyId = normalizeKeyId(raw?.startKeyId ?? seed.startKeyId ?? DEFAULT_KEY_ID);
+  merged.keyBasis = "major";
+  merged.startKeyId = migrateMajorKeyId(raw);
   merged.cardSet = "all";
   merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
   merged.auto = raw?.auto !== false;
@@ -578,6 +639,7 @@ export function createSession({
   lessonId = "learn-lick",
   keyMode = "one",
   startKeyId = DEFAULT_KEY_ID,
+  majorKeyId = null,
   tempo = 96,
   melodyRegister = 0,
   instrumentId = DEFAULT_INSTRUMENT_ID,
@@ -592,13 +654,17 @@ export function createSession({
   const lesson = lessonById(lessonId);
   const cards = cardsFor();
   const resolvedMode = lesson.kind === "master" ? cycleModeId(keyMode) : keyModeById(keyMode).id;
-  const keyQueue = buildKeyQueue(resolvedMode, startKeyId, rng);
+  const useMajor = Boolean(majorKeyId) && (lesson.kind === "learn" || lesson.kind === "master");
+  const keyQueue = useMajor
+    ? lickKeyQueue(resolvedMode, majorKeyId, applicationKeyQuality(lesson.applicationId), rng)
+    : buildKeyQueue(resolvedMode, startKeyId, rng);
+  const resolvedStart = normalizeKeyId(keyQueue[0] ?? startKeyId);
   const instrument = instrumentOrDefault(instrumentId);
   return {
     screen: "session",
     lessonId: lesson.id,
     keyMode: resolvedMode,
-    startKeyId: normalizeKeyId(startKeyId),
+    startKeyId: resolvedStart,
     cardSet: "all",
     studyMode: normalizeStudyMode(studyMode),
     demo: false,
@@ -710,7 +776,7 @@ export function settingsSummary(prefs) {
 export function settingsSummaryShort(prefs) {
   const p = normalizePrefs(prefs);
   const instrument = instrumentOrDefault(p.instrumentId);
-  const keyName = displayKey(getKey(p.startKeyId), p.displayMode, "minor").name.replace(/ minor$/, "");
+  const keyName = displayKey(getKey(p.startKeyId), p.displayMode, "major").name;
   return `${instrument.label} · ${p.tempo} bpm · ${keyName} · Cycle: ${cycleModeLabel(p.keyMode)}`;
 }
 
