@@ -24,6 +24,7 @@ import {
   WORKBOOK_TRACK_FORMS,
   WORKBOOK_TRACK_APPLICATIONS,
 } from "./workbook-tracks.js";
+import { buildPracticeCatalog } from "./practice-catalog.js";
 
 export { TUNES };
 
@@ -1395,6 +1396,12 @@ export const TUNE_LESSONS = TUNE_SECTION.lessons.map((lesson, index) => ({
 }));
 
 export const LESSONS = [...MODULE_LESSONS, ...TUNE_LESSONS];
+
+export const PRACTICE_CATALOG = buildPracticeCatalog({
+  modules: MODULES, tunes: TUNES, applicationById, formById, spotsFor,
+});
+ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);
+LESSONS.push(...PRACTICE_CATALOG.lessons);
 
 export function lickById(id) {
   return LICKS.find((lick) => lick.id === id) ?? LICKS[0];

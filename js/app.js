@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=147";
+import { Transport } from "./audio.js?v=148";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=147";
+} from "./lesson.js?v=148";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=147";
+} from "./engrave.js?v=148";
 import {
   PREFS_KEY,
   MODULE,
@@ -101,7 +101,7 @@ import {
   setAllKeys,
   setStartKey,
   toggleSelectedKey,
-} from "./session.js?v=147";
+} from "./session.js?v=148";
 import {
   tuneById,
   licksInTune,
@@ -111,9 +111,10 @@ import {
 } from "./tunes.js";
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
-import { lickById } from "./registry.js";
+import { lickById, PRACTICE_CATALOG } from "./registry.js";
+import { setupPracticeUI } from "./practice-ui.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=147";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=148";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -127,7 +128,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=147";
+} from "./rapid.js?v=148";
 import {
   emptyMastery,
   displayMedal,
@@ -140,7 +141,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=147";
+import { PitchMonitor, micCopy } from "./pitch.js?v=148";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -149,7 +150,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=147";
+} from "./take-dump.js?v=148";
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 
@@ -1227,7 +1228,10 @@ function anyDialogOpen() {
   return Boolean(
     els.quickView?.open
     || els.leaveConfirm?.open
-    || els.settingsModal?.open,
+    || els.settingsModal?.open
+    || document.getElementById("my-charts")?.open
+    || document.getElementById("add-charts")?.open
+    || document.getElementById("application-charts")?.open,
   );
 }
 
@@ -1328,7 +1332,15 @@ function renderHome() {
   }
   const module = moduleById(selectedModuleId) ?? MODULES[0];
   const keys = keysByLesson();
-  const nodes = moduleRoadNodes(module, prefs, keys);
+  const applications = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
+  const lessons = [
+    ...module.lessons.filter((lesson) => !isPracticeLesson(lesson)),
+    ...applications.map((group) => ({
+      ...lessonById(group.choices[0].lessonId),
+      title: group.label, coverTitle: group.label, context: group.description,
+    })),
+  ];
+  const nodes = moduleRoadNodes({ ...module, lessons }, prefs, keys);
   els.lessonList.replaceChildren(
     moduleBlock(module, nodes, moduleMastery(shownMastery(), module.id)),
     homeNextModuleButton(homeNextModule(module, keys)),
@@ -1404,7 +1416,15 @@ function sleeveButton(node) {
   stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
   btn.append(stage);
 
-  btn.addEventListener("click", () => openSetup(node.id));
+  const applicationId = lessonById(node.id).practiceApplicationId;
+  if (applicationId) {
+    btn.dataset.application = applicationId;
+    btn.setAttribute("aria-haspopup", "dialog");
+    btn.setAttribute("aria-controls", "application-charts");
+  }
+  btn.addEventListener("click", () => applicationId
+    ? practiceUI.openApplication(applicationId)
+    : openSetup(node.id));
   return btn;
 }
 
@@ -2501,6 +2521,8 @@ transport.onEnded = () => {
   const wait = grade.graded && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 900 : 0;
   window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
+
+const practiceUI = setupPracticeUI({ onPractice: startLesson, onChanged: renderStorageNotice });
 
 els.homeSummary?.addEventListener("click", () => openSettings());
 els.settingsClose?.addEventListener("click", () => closeSettings());

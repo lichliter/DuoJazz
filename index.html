@@ -19,12 +19,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=147">
-  <link rel="stylesheet" href="./css/styles.css?v=147">
-  <link rel="stylesheet" href="./css/hig.css?v=147">
+  <link rel="stylesheet" href="./css/tokens.css?v=148">
+  <link rel="stylesheet" href="./css/styles.css?v=148">
+  <link rel="stylesheet" href="./css/hig.css?v=148">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=147" defer></script>
-  <script type="module" src="./js/app.js?v=147"></script>
+  <script src="./js/verovio-bind.js?v=148" defer></script>
+  <script type="module" src="./js/app.js?v=148"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -35,6 +35,7 @@
       <div class="brand">
         <p class="logo">duojazz</p>
       </div>
+      <button type="button" class="quiet my-charts-button" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts">My charts</button>
     </header>
 
     <main id="main" class="workspace">
@@ -275,5 +276,46 @@
     </form>
   </dialog>
 
+  <dialog id="my-charts" class="form-sheet collection-sheet" aria-labelledby="my-charts-title">
+    <header class="sheet-toolbar">
+      <h2 id="my-charts-title">My charts</h2>
+      <button type="button" class="sheet-done" data-close>Done</button>
+    </header>
+    <div class="collection-body">
+      <p class="sr-only" id="my-charts-status" role="status" aria-live="polite"></p>
+      <div id="my-charts-list"></div>
+      <button type="button" class="collection-action add-chart-button" id="add-chart-button" aria-haspopup="dialog" aria-controls="add-charts">+ Add chart</button>
+    </div>
+  </dialog>
+
+  <dialog id="add-charts" class="form-sheet collection-sheet" aria-labelledby="add-charts-title">
+    <header class="sheet-toolbar">
+      <h2 id="add-charts-title">Add chart</h2>
+      <button type="button" class="sheet-done" data-close>Done</button>
+    </header>
+    <div class="collection-body">
+      <label class="group-label" for="my-charts-search">Find a chart to add</label>
+      <input type="search" id="my-charts-search" placeholder="Search charts" autocomplete="off">
+      <p class="sr-only" id="add-charts-status" role="status" aria-live="polite"></p>
+      <div id="my-charts-results"></div>
+    </div>
+  </dialog>
+
+  <dialog id="application-charts" class="form-sheet collection-sheet" aria-labelledby="application-charts-title" aria-describedby="application-charts-description">
+    <header class="sheet-toolbar">
+      <h2 id="application-charts-title">Application</h2>
+      <button type="button" class="sheet-done" data-close>Back</button>
+    </header>
+    <div class="collection-body">
+      <p class="group-label" id="application-charts-lick"></p>
+      <p id="application-charts-description"></p>
+      <div class="collection-section-heading">
+        <h3 id="application-charts-section">Your charts</h3>
+        <button type="button" class="collection-action" id="application-manage-charts">My charts</button>
+      </div>
+      <p class="help" id="application-charts-note"></p>
+      <div id="application-charts-list" class="practice-chart-grid"></div>
+    </div>
+  </dialog>
 </body>
 </html>
