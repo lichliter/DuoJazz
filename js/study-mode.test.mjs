@@ -267,6 +267,6 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(app, /displayMode, "major"\)/);
   assert.match(app, /els\.staffKey\.hidden = !cycling/);
   assert.match(app, /fillMusicLabel\(\s*els\.staffKeyName/);
-  assert.match(index, /\?v=146/);
+  assert.match(index, /\?v=147/);
   assert.doesNotMatch(index, /\?v=145/);
 });
