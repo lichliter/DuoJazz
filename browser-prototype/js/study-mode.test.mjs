@@ -246,6 +246,7 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   assert.match(app, /banner-chevron/);
   assert.match(app, /of 12 keys mastered/);
   assert.doesNotMatch(app, /medal-badge/);
@@ -254,13 +255,15 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(index, /id="start-key-label"[^>]*>Starting key/);
   assert.match(index, /id="start-key"/);
   assert.match(index, /id="all-keys-toggle"/);
-  assert.match(index, /Master in all keys starting on/);
+  assert.match(index, /Cycle through all keys/);
+  assert.match(hig, /\.group-row\.all-keys-row \{[^}]*padding-top:\s*var\(--space-3\)/);
+  assert.match(hig, /#setup-keys \{[^}]*padding-top:\s*var\(--space-4\)/);
   assert.match(index, /id="setup-keys"[^>]*hidden/);
   assert.match(app, /toggleSelectedKey/);
   assert.match(app, /setAllKeys/);
   assert.match(app, /displayMode, "major"\)/);
   assert.match(app, /els\.staffKey\.hidden = !cycling/);
   assert.match(app, /fillMusicLabel\(\s*els\.staffKeyName/);
-  assert.match(index, /\?v=143/);
-  assert.doesNotMatch(index, /\?v=142/);
+  assert.match(index, /\?v=144/);
+  assert.doesNotMatch(index, /\?v=143/);
 });

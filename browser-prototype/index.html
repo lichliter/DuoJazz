@@ -19,12 +19,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=143">
-  <link rel="stylesheet" href="./css/styles.css?v=143">
-  <link rel="stylesheet" href="./css/hig.css?v=143">
+  <link rel="stylesheet" href="./css/tokens.css?v=144">
+  <link rel="stylesheet" href="./css/styles.css?v=144">
+  <link rel="stylesheet" href="./css/hig.css?v=144">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=143" defer></script>
-  <script type="module" src="./js/app.js?v=143"></script>
+  <script src="./js/verovio-bind.js?v=144" defer></script>
+  <script type="module" src="./js/app.js?v=144"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -93,12 +93,12 @@
             <h2 class="group-label" id="key-mode-label">Cycle</h2>
             <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
             <p class="key-order-preview" id="key-order-preview" data-testid="key-order-preview"></p>
-            <div class="group-row">
+            <div class="group-row start-key-row">
               <label id="start-key-label" for="start-key">Starting key</label>
               <select id="start-key" class="key-select music-label" data-testid="start-key"></select>
             </div>
-            <div class="group-row">
-              <span class="all-keys-label" id="all-keys-label">Master in all keys starting on</span>
+            <div class="group-row all-keys-row">
+              <span class="all-keys-label" id="all-keys-label">Cycle through all keys</span>
               <button type="button" class="auto-toggle" id="all-keys-toggle" data-testid="all-keys-toggle" role="switch" aria-checked="true" aria-labelledby="all-keys-label">
                 <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
               </button>

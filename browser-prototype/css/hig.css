@@ -1310,6 +1310,15 @@ button.module-banner {
   border-top: 0.5px solid var(--separator);
 }
 
+.group-row.all-keys-row {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+#setup-keys {
+  padding-top: var(--space-4);
+}
+
 .all-keys-label {
   flex: 1 1 auto;
   min-width: 0;
