@@ -1,12 +1,20 @@
 # AGENTS.md
 
-The app in active use is the browser client in `browser-prototype/`. Product behavior, tests, and the local server all live there. `browser-prototype/README.md` is the operating guide. `CLAUDE.md` and `.claude/skills/` describe the inactive SwiftUI iPad project.
+The app is the web client at the repository root. `README.md` is the operating guide. The retired native app is available only in Git history.
 
-## Cursor Cloud specific instructions
+## Development
 
-Cloud agents run the browser app. `browser-prototype/package.json` has no dependencies, so setup does not install packages. Node.js and Python 3 come from the base image.
+- Plain HTML, CSS, and JavaScript ES modules; no framework, bundler, or npm dependencies.
+- Product behavior lives in `js/`, styling in `css/`, and the main entry point is `index.html`.
+- Keep imports and asset URLs relative so the app can run from a static server or a deployment subdirectory.
+- Preserve existing localStorage keys and schemas unless a migration is explicitly part of the task.
+- Preserve concert/written-pitch handling, instrument transposition, and microphone grading behavior when changing music or audio code.
 
-- Boot serves the app at http://127.0.0.1:4173/ from `browser-prototype/` with `python3 -m http.server 4173 --bind 127.0.0.1`.
-- Tests: `cd browser-prototype && node --test js/*.test.mjs` (or `npm test` from that directory).
+## Run and test
+
+- Requirements: Node.js 22+ and Python 3. No package installation or build step is needed.
+- Serve the repository root at http://127.0.0.1:4173/ with `npm start` or `python3 -m http.server 4173 --bind 127.0.0.1`.
+- Tests: `npm test` or `node --test js/*.test.mjs` from the repository root.
+- Microphone access requires localhost or HTTPS and a user gesture.
 - Engraved notation loads Verovio from `https://www.verovio.org`. Fonts load from `fonts.googleapis.com` and `fonts.gstatic.com`. Those hosts need to be reachable for the staff to draw.
-- The Xcode project under `DuoJazz/` is inactive. It needs macOS and Xcode, which this Linux VM does not have. Do not install a Swift toolchain for it.
+- Do not install Xcode or a Swift toolchain; this repository maintains only the web app.
