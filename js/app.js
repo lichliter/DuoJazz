@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=148";
+import { Transport } from "./audio.js?v=149";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=148";
+} from "./lesson.js?v=149";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=148";
+} from "./engrave.js?v=149";
 import {
   PREFS_KEY,
   MODULE,
@@ -101,7 +101,7 @@ import {
   setAllKeys,
   setStartKey,
   toggleSelectedKey,
-} from "./session.js?v=148";
+} from "./session.js?v=149";
 import {
   tuneById,
   licksInTune,
@@ -112,9 +112,9 @@ import {
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById, PRACTICE_CATALOG } from "./registry.js";
-import { setupPracticeUI } from "./practice-ui.js";
+import { setupPracticeUI } from "./practice-ui.js?v=149";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=148";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=149";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -128,7 +128,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=148";
+} from "./rapid.js?v=149";
 import {
   emptyMastery,
   displayMedal,
@@ -141,7 +141,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=148";
+import { PitchMonitor, micCopy } from "./pitch.js?v=149";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -150,7 +150,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=148";
+} from "./take-dump.js?v=149";
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 
