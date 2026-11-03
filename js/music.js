@@ -635,7 +635,7 @@ export function phraseTimeline(applicationId, isolated = false) {
   const items = [];
   spots.forEach((spot, index) => {
     const { elements, pickupBeats } = elementsForSpot(app, spot, spots[index + 1]);
-    const origin = (spot.bar - 1) * BEATS_PER_BAR - (pickupBeats || 0);
+    const origin = (spot.bar - 1) * BEATS_PER_BAR + (spot.beatOffset ?? 0) - (pickupBeats || 0);
     items.push(...timelineFromElements(elements, origin, spot.anchorInterval ?? 0, index));
   });
   return items.sort((a, b) => a.beat - b.beat);

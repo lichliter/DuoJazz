@@ -6,6 +6,7 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   const catalog = PRACTICE_CATALOG;
   let selected = loadMyCharts(catalog.charts);
   let currentGroup = null;
+  let currentVariantId = null;
   const chartsDialog = document.getElementById("my-charts");
   const addDialog = document.getElementById("add-charts");
   const addButton = document.getElementById("add-chart-button");
@@ -14,6 +15,7 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   const selectedList = document.getElementById("my-charts-list");
   const results = document.getElementById("my-charts-results");
   const status = document.getElementById("my-charts-status");
+  const variantSelect = document.getElementById("application-variant");
 
   function paragraph(text, className = "help") {
     const p = document.createElement("p");
@@ -97,11 +99,24 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     if (!currentGroup) return;
     document.getElementById("application-charts-title").textContent = currentGroup.label;
     document.getElementById("application-charts-description").textContent = currentGroup.description;
-    const { yours, suggested } = chartChoices(currentGroup, selected);
-    document.getElementById("application-charts-section").textContent = yours.length ? "Your charts" : "Suggested charts";
+    const variant = currentGroup.variants.find((item) => item.id === currentVariantId) ?? currentGroup.variants[0];
+    currentVariantId = variant.id;
+    document.getElementById("application-variant-row").hidden = currentGroup.variants.length <= 1;
+    variantSelect.replaceChildren(...currentGroup.variants.map((item) => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.label;
+      return option;
+    }));
+    variantSelect.value = currentVariantId;
+    document.getElementById("application-workbook-source").textContent = `Workbook · page ${variant.page}`;
+    const { yours, suggested } = chartChoices(currentGroup, selected, currentVariantId);
+    document.getElementById("application-charts-section").textContent = yours.length ? "Your charts" : suggested.length ? "Suggested charts" : "Workbook example";
     const note = document.getElementById("application-charts-note");
     note.hidden = yours.length > 0;
-    note.textContent = selected.length
+    note.textContent = !yours.length && !suggested.length
+      ? "No compatible chart passage is available for this version yet. Practice its workbook example below."
+      : selected.length
       ? "None of your charts have a passage for this application yet. Try one of these."
       : "Choose a chart to try this application. Add favorites to My charts anytime.";
     const list = document.getElementById("application-charts-list");
@@ -149,13 +164,24 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   function openApplication(id) {
     currentGroup = catalog.groups.find((group) => group.id === id);
     if (!currentGroup) return;
-    const module = lessonById(currentGroup.choices[0].lessonId).moduleName;
+    currentVariantId = currentGroup.variants[0].id;
+    const module = lessonById(currentGroup.exampleLessonId).moduleName;
     document.getElementById("application-charts-lick").textContent = module;
     renderPicker();
     picker.showModal();
   }
 
   search.addEventListener("input", renderCharts);
+  variantSelect.addEventListener("change", () => {
+    currentVariantId = variantSelect.value;
+    renderPicker();
+  });
+  document.getElementById("application-workbook-example").addEventListener("click", () => {
+    if (!currentGroup) return;
+    const variant = currentGroup.variants.find((item) => item.id === currentVariantId);
+    picker.close();
+    onPractice(variant.exampleLessonId);
+  });
   addButton.addEventListener("click", openAddCharts);
   document.getElementById("my-charts-button").addEventListener("click", openMyCharts);
   document.getElementById("application-manage-charts").addEventListener("click", openMyCharts);

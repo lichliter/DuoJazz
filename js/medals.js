@@ -77,8 +77,8 @@ export function homeMedalMark(count, medal) {
 
 export function isKeyMastered(mastery, keyId, moduleId = "cmar") {
   const id = normalizeKeyId(keyId);
-  const lessons = LESSONS.filter((lesson) => (lesson.moduleId ?? moduleForLesson(lesson.id).id) === moduleId);
-  const master = lessons.find((lesson) => lesson.kind === "master");
+  const module = MODULES.find((module) => module.id === moduleId);
+  const master = module?.lessons.find((lesson) => lesson.kind === "master");
   return Boolean(master && mastery.lessons[master.id]?.passedKeys.includes(id));
 }
 
@@ -134,7 +134,11 @@ export function lessonLearnedKeys(mastery, lessonId) {
 
 /** Filled = Practice mastery. Outline = Learn pass only. */
 export function moduleRingMarks(mastery, moduleId) {
-  const normalized = normalizeMastery(mastery);
+  return moduleRingMarksFromNormalized(normalizeMastery(mastery), moduleId);
+}
+
+/** Reuse a single normalized snapshot when drawing the complete module list. */
+export function moduleRingMarksFromNormalized(normalized, moduleId) {
   const module = normalized.modules[moduleId];
   const mastered = new Set(module?.masteredKeys ?? []);
   const outlined = new Set();

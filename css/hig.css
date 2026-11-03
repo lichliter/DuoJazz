@@ -53,6 +53,10 @@
 .collection-added { margin: 0; color: var(--label-secondary); font: var(--text-footnote); }
 .collection-action[aria-disabled="true"] { color: var(--label-secondary); cursor: default; }
 .add-chart-button { width: 100%; margin-top: 20px; background: var(--tint-fill); font-weight: 600; }
+.application-variant-row { margin-top: 20px; }
+.application-variant-row select { display: block; width: 100%; min-height: 48px; margin-top: 8px; padding: 10px; border: 1px solid var(--separator); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--label); font: var(--text-callout); }
+.workbook-example { margin-top: 24px; border-top: 1px solid var(--separator); padding-top: 16px; }
+.workbook-example .add-chart-button { margin-top: 0; }
 .collection-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .practice-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 18px; margin-top: 20px; }
 .practice-chart-card { min-width: 0; }

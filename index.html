@@ -19,12 +19,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=149">
-  <link rel="stylesheet" href="./css/styles.css?v=149">
-  <link rel="stylesheet" href="./css/hig.css?v=149">
+  <link rel="stylesheet" href="./css/tokens.css?v=150">
+  <link rel="stylesheet" href="./css/styles.css?v=150">
+  <link rel="stylesheet" href="./css/hig.css?v=150">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=149" defer></script>
-  <script type="module" src="./js/app.js?v=149"></script>
+  <script src="./js/verovio-bind.js?v=150" defer></script>
+  <script type="module" src="./js/app.js?v=150"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -309,12 +309,20 @@
     <div class="collection-body">
       <p class="group-label" id="application-charts-lick"></p>
       <p id="application-charts-description"></p>
+      <div id="application-variant-row" class="application-variant-row" hidden>
+        <label class="group-label" for="application-variant">Version</label>
+        <select id="application-variant"></select>
+      </div>
       <div class="collection-section-heading">
         <h3 id="application-charts-section">Your charts</h3>
         <button type="button" class="collection-action" id="application-manage-charts">My charts</button>
       </div>
       <p class="help" id="application-charts-note"></p>
       <div id="application-charts-list" class="practice-chart-grid"></div>
+      <div class="workbook-example">
+        <p class="help" id="application-workbook-source"></p>
+        <button type="button" class="collection-action add-chart-button" id="application-workbook-example">Practice workbook example</button>
+      </div>
     </div>
   </dialog>
 </body>
