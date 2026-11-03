@@ -86,6 +86,12 @@ import {
   visibleModuleLessons,
   sessionCreateArgs,
   isPracticeLesson,
+  practiceMajorKeyIds,
+  selectedMajorQueue,
+  setAllKeys,
+  setStartKey,
+  toggleSelectedKey,
+  sessionShowsCycle,
 } from "./session.js";
 
 function rngFrom(values) {
@@ -843,4 +849,85 @@ test("next-module link follows last lesson wrap-up and completed module home", (
   assert.equal(lastEmpty.label, backLabel);
   assert.equal(wrapLast.id, homeLink.id);
   assert.equal(wrapBookEnd.id, lastEmpty.id);
+});
+
+test("all-keys stays the full cycle and a custom set follows the starting key", () => {
+  const prefs = defaultPrefs();
+  assert.equal(prefs.allKeys, true);
+  assert.equal(normalizePrefs({ startKeyId: "Eb", keyBasis: "major" }).allKeys, true);
+  assert.equal(lessonSessionPlan("master-lick", prefs).keyIds, null);
+  assert.equal(lessonSessionPlan("learn-lick", {
+    ...prefs,
+    allKeys: false,
+    selectedKeyIds: ["Bb", "F"],
+  }).keyMode, "one");
+
+  const custom = {
+    ...prefs,
+    allKeys: false,
+    keyMode: "fourths",
+    startKeyId: "Bb",
+    selectedKeyIds: ["F", "Eb"],
+  };
+  assert.deepEqual(practiceMajorKeyIds(normalizePrefs(custom)), ["Bb", "F", "Eb"]);
+  const plan = lessonSessionPlan("master-lick", custom);
+  const session = createSession(sessionCreateArgs("master-lick", custom));
+  assert.equal(plan.keyMode, "fourths");
+  assert.deepEqual(session.keyQueue, ["G", "C", "D"]);
+  assert.equal(sessionShowsCycle(session), true);
+  assert.equal(
+    keyOrderPreview("fourths", "Bb", "concert", practiceMajorKeyIds(normalizePrefs(custom))),
+    "B♭ · E♭ · F",
+  );
+  assert.equal(
+    settingsSummaryShort(custom),
+    "Piano · 96 bpm · B♭ · E♭ · F · Cycle: 4ths",
+  );
+
+  const major = createSession({
+    lessonId: "gts-master",
+    keyMode: "fourths",
+    majorKeyId: "Bb",
+    keyIds: ["Bb", "Eb", "F"],
+  });
+  assert.deepEqual(major.keyQueue, ["Bb", "Eb", "F"]);
+
+  const only = createSession({
+    lessonId: "master-lick",
+    keyMode: "fourths",
+    majorKeyId: "Bb",
+    keyIds: ["Bb"],
+  });
+  assert.deepEqual(only.keyQueue, ["G"]);
+  assert.equal(sessionShowsCycle(only), false);
+
+  let walking = session;
+  const seen = [];
+  for (let step = 0; step < 3; step += 1) {
+    seen.push(currentKeyId(walking));
+    const next = handlePlaybackEnded(walking, { graded: true, passed: true, outcome: "passed" });
+    walking = next.session;
+    if (step < 2) assert.equal(walking.screen, "session");
+  }
+  assert.deepEqual(seen, ["G", "C", "D"]);
+  assert.equal(walking.screen, "wrapup");
+  assert.deepEqual(nextLapQueue("fourths", ["G", "C", "D"]), ["G", "C", "D"]);
+  const reshuffled = nextLapQueue("random", ["G", "C", "D"], () => 0);
+  assert.equal(reshuffled.length, 3);
+  assert.deepEqual(reshuffled.slice().sort(), ["C", "D", "G"]);
+
+  const added = toggleSelectedKey(custom, "C");
+  assert.equal(added.allKeys, false);
+  assert.ok(added.selectedKeyIds.includes("C"));
+  const dropped = toggleSelectedKey(added, "Bb");
+  assert.equal(dropped.selectedKeyIds.includes("Bb"), false);
+  assert.equal(dropped.startKeyId, selectedMajorQueue("fourths", "Bb", ["Bb", "F", "Eb", "C"]).filter((id) => id !== "Bb")[0]);
+  const stuck = toggleSelectedKey({ ...dropped, selectedKeyIds: [dropped.startKeyId], startKeyId: dropped.startKeyId }, dropped.startKeyId);
+  assert.deepEqual(stuck.selectedKeyIds, [dropped.startKeyId]);
+
+  const moved = setStartKey(setAllKeys(custom, false), "Ab");
+  assert.equal(moved.startKeyId, "Ab");
+  assert.ok(moved.selectedKeyIds.includes("Ab"));
+  assert.equal(setAllKeys(moved, true).allKeys, true);
+  assert.equal(settingsSummaryShort(setAllKeys(moved, true)), "Piano · 96 bpm · A♭ major · Cycle: 4ths");
 });
