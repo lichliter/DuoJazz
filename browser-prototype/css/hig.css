@@ -1289,7 +1289,7 @@ button.module-banner {
 
 .key-order-preview {
   margin: 0;
-  padding: 0 var(--space-4) var(--space-3);
+  padding: 0 var(--space-4);
   font: var(--text-footnote);
   color: var(--label-secondary);
   line-height: 1.4;
@@ -1301,22 +1301,13 @@ button.module-banner {
   justify-content: space-between;
   gap: var(--space-3);
   min-height: var(--tap);
-  padding: 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
   font: var(--text-body);
   margin: 0;
 }
 
 .group-row + .group-row {
   border-top: 0.5px solid var(--separator);
-}
-
-.group-row.all-keys-row {
-  padding-top: var(--space-3);
-  padding-bottom: var(--space-2);
-}
-
-#setup-keys {
-  padding-top: var(--space-4);
 }
 
 .all-keys-label {
