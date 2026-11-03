@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=146";
+import { Transport } from "./audio.js?v=147";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=146";
+} from "./lesson.js?v=147";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=146";
+} from "./engrave.js?v=147";
 import {
   PREFS_KEY,
   MODULE,
@@ -101,7 +101,7 @@ import {
   setAllKeys,
   setStartKey,
   toggleSelectedKey,
-} from "./session.js?v=146";
+} from "./session.js?v=147";
 import {
   tuneById,
   licksInTune,
@@ -113,7 +113,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=146";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=147";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -127,7 +127,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=146";
+} from "./rapid.js?v=147";
 import {
   emptyMastery,
   displayMedal,
@@ -140,7 +140,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=146";
+import { PitchMonitor, micCopy } from "./pitch.js?v=147";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -149,7 +149,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=146";
+} from "./take-dump.js?v=147";
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 
@@ -1252,7 +1252,7 @@ function moduleBanner(module, stats) {
   const chevron = document.createElement("span");
   chevron.className = "banner-chevron";
   chevron.setAttribute("aria-hidden", "true");
-  chevron.innerHTML = `<svg viewBox="0 0 24 24" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M9 5.5 16 12l-7 6.5"/></svg>`;
+  chevron.innerHTML = `<svg viewBox="0 0 24 24" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M5.5 9 12 16l6.5-7"/></svg>`;
   section.append(copy, chevron);
   section.addEventListener("click", () => requestQuickView());
   return section;

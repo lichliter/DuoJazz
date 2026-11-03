@@ -248,6 +248,8 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   assert.match(app, /banner-chevron/);
+  assert.match(app, /d="M5\.5 9 12 16l6\.5-7"/);
+  assert.doesNotMatch(app, /M9 5\.5 16 12l-7 6\.5/);
   assert.match(app, /of 12 keys mastered/);
   assert.doesNotMatch(app, /medal-badge/);
   assert.match(styles, /\.banner-chevron/);
@@ -265,6 +267,6 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(app, /displayMode, "major"\)/);
   assert.match(app, /els\.staffKey\.hidden = !cycling/);
   assert.match(app, /fillMusicLabel\(\s*els\.staffKeyName/);
-  assert.match(index, /\?v=146/);
+  assert.match(index, /\?v=147/);
   assert.doesNotMatch(index, /\?v=145/);
 });
