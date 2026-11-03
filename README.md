@@ -46,6 +46,8 @@ Lessons use New-simple sampled piano, bass, and ride kit for backing, plus the s
 
 ## Music
 
+Source reference: [Essential Jazz Vocabulary Workbook — Bass Clef](references/workbooks/essential-jazz-vocabulary-bass-clef.pdf), supplied by the user. See the [workbook reference notes](references/workbooks/README.md) for attribution and the intended practice structure.
+
 Recognizable **Cry Me a River** minor cell (`9–1–5–♭3–2–1`, one bar) over the **opening eight bars of Autumn Leaves** in concert G minor:
 
 `| Cm7 | F7 | B♭maj7 | E♭maj7 | Am7♭5 | D7 | Gm6 | Gm6 |`
