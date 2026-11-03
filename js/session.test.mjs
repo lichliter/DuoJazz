@@ -386,6 +386,21 @@ test("learn-the-lick uses the cell; integration uses the form, with Hear it as a
   assert.ok(events.some((event) => event.type === "cue"));
 });
 
+test("every lesson demo plays only the phrase shown on its staff", () => {
+  for (const lesson of LESSONS) {
+    const session = createSession({ lessonId: lesson.id });
+    const config = demoAudioConfig(session);
+    for (const sampled of [false, true]) {
+      const melody = livePlaybackEvents(config, { sampled })
+        .filter((event) => event.type === "melody");
+      assert.ok(melody.length > 0, lesson.id);
+      assert.ok(melody.every((event) => event.role === "phrase"), lesson.id);
+    }
+    const spec = sessionEngraveSpec({ ...session, demo: true });
+    assert.ok(["phrase", "landing"].includes(spec.mei), lesson.id);
+  }
+});
+
 test("Hear it demo schedules the melody in Learn and Practice", () => {
   for (const lessonId of ["learn-lick", "cmar-integrate-blue-bossa"]) {
     for (const studyMode of ["learn", "practice"]) {
