@@ -93,7 +93,8 @@ export function lessonKeyTarget(lesson) {
 
 export function sessionShowsCycle(session) {
   if (!session) return false;
-  return lessonById(session.lessonId).kind === "master";
+  if (lessonById(session.lessonId).kind !== "master") return false;
+  return (session.keyQueue?.length ?? 0) > 1;
 }
 
 export function lessonKeyQuality(lesson) {
@@ -102,7 +103,8 @@ export function lessonKeyQuality(lesson) {
 
 /**
  * Learn uses the resolved lick key, once.
- * Master cycles all 12 keys from that key in the selected cycle.
+ * Master walks the chosen keys from the starting key, in cycle order.
+ * All keys uses the full cycle. A custom set keeps that order and drops the rest.
  * The stored preference is a major key; each lick takes its relative tonic.
  * Tune and integration lessons use the lesson's own key, once.
  */
@@ -114,9 +116,17 @@ export function lessonSessionPlan(lessonId, prefs) {
       keyMode: lesson.kind === "master" ? cycleModeId(stored.keyMode) : "one",
       majorKeyId: stored.startKeyId,
       startKeyId: resolveLickKeyId(stored.startKeyId, lessonKeyQuality(lesson)),
+      keyIds: lesson.kind === "master" && stored.allKeys === false
+        ? practiceMajorKeyIds(stored)
+        : null,
     };
   }
-  return { keyMode: "one", startKeyId: lesson.defaultKeyId ?? stored.startKeyId, majorKeyId: null };
+  return {
+    keyMode: "one",
+    startKeyId: lesson.defaultKeyId ?? stored.startKeyId,
+    majorKeyId: null,
+    keyIds: null,
+  };
 }
 
 /**
@@ -134,12 +144,14 @@ export function sessionCreateArgs(lessonId, prefs, options = {}) {
       keyMode: options.keyMode ?? plan.keyMode,
       startKeyId: options.startKeyId ?? plan.startKeyId,
       majorKeyId: lickOverride ? null : (options.majorKeyId ?? plan.majorKeyId),
+      keyIds: lickOverride ? null : (options.keyIds ?? plan.keyIds ?? null),
     };
   }
   return {
     lessonId: lesson.id,
     keyMode: options.keyMode ?? plan.keyMode,
     startKeyId: options.startKeyId ?? plan.startKeyId,
+    keyIds: null,
   };
 }
 
@@ -461,23 +473,69 @@ export function buildKeyQueue(mode, startKeyId, rng = Math.random) {
   return [start, ...shuffleInPlace(rest, rng)];
 }
 
+/** Keep valid major-key ids. An empty list falls back to the starting key. */
+export function normalizeSelectedKeyIds(ids, fallbackId) {
+  const picked = [];
+  if (Array.isArray(ids)) {
+    for (const id of ids) {
+      if (!TWELVE_KEY_IDS.includes(id) || picked.includes(id)) continue;
+      picked.push(id);
+    }
+  }
+  if (picked.length) return picked;
+  return [normalizeKeyId(fallbackId)];
+}
+
+/** Major keys Master will visit. All twelve while the all-keys toggle is on. */
+export function practiceMajorKeyIds(prefs) {
+  const start = normalizeKeyId(prefs?.startKeyId);
+  if (prefs?.allKeys !== false) return [...TWELVE_KEY_IDS];
+  const picked = normalizeSelectedKeyIds(prefs?.selectedKeyIds, start);
+  return picked.includes(start) ? picked : [start, ...picked];
+}
+
+/**
+ * Cycle order limited to the chosen major keys.
+ * The starting key is always included and comes first.
+ */
+export function selectedMajorQueue(mode, startKeyId, keyIds, rng = Math.random) {
+  const start = normalizeKeyId(startKeyId);
+  const picked = normalizeSelectedKeyIds(keyIds, start);
+  const allowed = picked.includes(start) ? picked : [start, ...picked];
+  if (allowed.length >= TWELVE_KEY_IDS.length) return buildKeyQueue(mode, start, rng);
+  if (mode === "random") {
+    const rest = allowed.filter((id) => id !== start);
+    return [start, ...shuffleInPlace(rest, rng)];
+  }
+  const cycleMode = mode === "one" ? "fourths" : mode;
+  const queue = buildKeyQueue(cycleMode, start).filter((id) => allowed.includes(id));
+  return queue.length ? queue : [start];
+}
+
 /**
  * Cycle the major-key list, then map each step to the lick's relative key.
  * A major lick keeps the major tonics. A minor lick takes the relative minors.
+ * keyIds limits the lap to that major-key set.
  */
-export function lickKeyQueue(mode, majorKeyId, quality = "minor", rng = Math.random) {
-  return buildKeyQueue(mode, majorKeyId, rng).map((id) => resolveLickKeyId(id, quality));
+export function lickKeyQueue(mode, majorKeyId, quality = "minor", rng = Math.random, keyIds = null) {
+  const majors = Array.isArray(keyIds)
+    ? selectedMajorQueue(mode, majorKeyId, keyIds, rng)
+    : buildKeyQueue(mode, majorKeyId, rng);
+  return majors.map((id) => resolveLickKeyId(id, quality));
 }
 
 /**
  * Setup-sheet preview of one lap. Random stays shuffled.
  * Names follow the instrument's written spelling.
+ * keyIds limits the preview to that set.
  */
-export function keyOrderPreview(mode, startKeyId, displayMode = "concert") {
+export function keyOrderPreview(mode, startKeyId, displayMode = "concert", keyIds = null) {
   if (mode === "random") return "Shuffled";
-  const queue = buildKeyQueue(mode, startKeyId);
+  const queue = Array.isArray(keyIds)
+    ? selectedMajorQueue(mode, startKeyId, keyIds)
+    : buildKeyQueue(mode, startKeyId);
   const names = queue.map((id) => displayKey(getKey(id), displayMode, "major").name.replace(/ major$/, ""));
-  if (mode === "one") return names[0] ?? "";
+  if (mode === "one" || queue.length === 1) return names[0] ?? "";
   return names.join(" · ");
 }
 
@@ -486,7 +544,10 @@ export function nextLapQueue(mode, previousQueue, rng = Math.random) {
   if (mode === "one") return [...previousQueue];
   if (mode !== "random") return [...previousQueue];
   const last = previousQueue[previousQueue.length - 1];
-  const next = shuffleInPlace([...TWELVE_KEY_IDS], rng);
+  const pool = previousQueue.length === TWELVE_KEY_IDS.length
+    ? [...TWELVE_KEY_IDS]
+    : [...previousQueue];
+  const next = shuffleInPlace(pool, rng);
   if (next[0] === last && next.length > 1) {
     const swapWith = next.findIndex((id, index) => index > 0 && id !== last);
     if (swapWith > 0) [next[0], next[swapWith]] = [next[swapWith], next[0]];
@@ -517,6 +578,8 @@ export function defaultPrefs() {
     keyMode: "fourths",
     keyBasis: "major",
     startKeyId: relativeMajorId(DEFAULT_KEY_ID),
+    allKeys: true,
+    selectedKeyIds: [relativeMajorId(DEFAULT_KEY_ID)],
     cardSet: "all",
     tempo: 96,
     auto: true,
@@ -540,6 +603,8 @@ export function normalizePrefs(raw) {
   merged.keyMode = cycleModeId(raw?.keyMode ?? seed.keyMode);
   merged.keyBasis = "major";
   merged.startKeyId = migrateMajorKeyId(raw);
+  merged.allKeys = raw?.allKeys !== false;
+  merged.selectedKeyIds = normalizeSelectedKeyIds(raw?.selectedKeyIds, merged.startKeyId);
   merged.cardSet = "all";
   merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
   merged.auto = raw?.auto !== false;
@@ -570,6 +635,43 @@ export function normalizePrefs(raw) {
     };
   }
   return merged;
+}
+
+export function setAllKeys(prefs, allKeys) {
+  const next = normalizePrefs(prefs);
+  next.allKeys = Boolean(allKeys);
+  if (!next.allKeys && !next.selectedKeyIds.includes(next.startKeyId)) {
+    next.selectedKeyIds = [next.startKeyId, ...next.selectedKeyIds];
+  }
+  return next;
+}
+
+export function setStartKey(prefs, keyId) {
+  if (!TWELVE_KEY_IDS.includes(keyId)) return normalizePrefs(prefs);
+  const next = normalizePrefs(prefs);
+  next.startKeyId = keyId;
+  if (!next.allKeys && !next.selectedKeyIds.includes(keyId)) {
+    next.selectedKeyIds = [keyId, ...next.selectedKeyIds];
+  }
+  return next;
+}
+
+/** Add or remove one major key. The last remaining key stays selected. */
+export function toggleSelectedKey(prefs, keyId) {
+  if (!TWELVE_KEY_IDS.includes(keyId)) return normalizePrefs(prefs);
+  const next = normalizePrefs(prefs);
+  next.allKeys = false;
+  const picked = practiceMajorKeyIds(next);
+  if (picked.includes(keyId)) {
+    const ordered = selectedMajorQueue(next.keyMode, next.startKeyId, picked);
+    const rest = ordered.filter((id) => id !== keyId);
+    if (!rest.length) return next;
+    next.selectedKeyIds = rest;
+    if (next.startKeyId === keyId) next.startKeyId = rest[0];
+    return next;
+  }
+  next.selectedKeyIds = [...picked, keyId];
+  return next;
 }
 
 export function headphonesTipIsDismissed(prefs, storageValue) {
@@ -649,14 +751,16 @@ export function createSession({
   metronome = false,
   guideTones = true,
   studyMode = "learn",
+  keyIds = null,
   rng = Math.random,
 } = {}) {
   const lesson = lessonById(lessonId);
   const cards = cardsFor();
   const resolvedMode = lesson.kind === "master" ? cycleModeId(keyMode) : keyModeById(keyMode).id;
   const useMajor = Boolean(majorKeyId) && (lesson.kind === "learn" || lesson.kind === "master");
+  const subset = lesson.kind === "master" && Array.isArray(keyIds) ? keyIds : null;
   const keyQueue = useMajor
-    ? lickKeyQueue(resolvedMode, majorKeyId, applicationKeyQuality(lesson.applicationId), rng)
+    ? lickKeyQueue(resolvedMode, majorKeyId, applicationKeyQuality(lesson.applicationId), rng, subset)
     : buildKeyQueue(resolvedMode, startKeyId, rng);
   const resolvedStart = normalizeKeyId(keyQueue[0] ?? startKeyId);
   const instrument = instrumentOrDefault(instrumentId);
@@ -776,8 +880,18 @@ export function settingsSummary(prefs) {
 export function settingsSummaryShort(prefs) {
   const p = normalizePrefs(prefs);
   const instrument = instrumentOrDefault(p.instrumentId);
+  const cycle = `Cycle: ${cycleModeLabel(p.keyMode)}`;
   const keyName = displayKey(getKey(p.startKeyId), p.displayMode, "major").name;
-  return `${instrument.label} · ${p.tempo} bpm · ${keyName} · Cycle: ${cycleModeLabel(p.keyMode)}`;
+  const chosen = practiceMajorKeyIds(p);
+  if (p.allKeys || chosen.length >= TWELVE_KEY_IDS.length) {
+    return `${instrument.label} · ${p.tempo} bpm · ${keyName} · ${cycle}`;
+  }
+  if (p.keyMode === "random" || chosen.length > 4) {
+    return `${instrument.label} · ${p.tempo} bpm · ${chosen.length} keys · ${cycle}`;
+  }
+  const names = selectedMajorQueue(p.keyMode, p.startKeyId, chosen)
+    .map((id) => displayKey(getKey(id), p.displayMode, "major").shortName);
+  return `${instrument.label} · ${p.tempo} bpm · ${names.join(" · ")} · ${cycle}`;
 }
 
 export function visibleModuleLessons(module) {
