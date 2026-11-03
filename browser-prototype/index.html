@@ -19,12 +19,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/tokens.css?v=142">
-  <link rel="stylesheet" href="./css/styles.css?v=142">
-  <link rel="stylesheet" href="./css/hig.css?v=142">
+  <link rel="stylesheet" href="./css/tokens.css?v=143">
+  <link rel="stylesheet" href="./css/styles.css?v=143">
+  <link rel="stylesheet" href="./css/hig.css?v=143">
   <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
-  <script src="./js/verovio-bind.js?v=142" defer></script>
-  <script type="module" src="./js/app.js?v=142"></script>
+  <script src="./js/verovio-bind.js?v=143" defer></script>
+  <script type="module" src="./js/app.js?v=143"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -94,9 +94,16 @@
             <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
             <p class="key-order-preview" id="key-order-preview" data-testid="key-order-preview"></p>
             <div class="group-row">
-              <span id="start-key-label">Major key</span>
+              <label id="start-key-label" for="start-key">Starting key</label>
+              <select id="start-key" class="key-select music-label" data-testid="start-key"></select>
             </div>
-            <div class="row wrap" id="setup-keys" role="group" aria-labelledby="start-key-label"></div>
+            <div class="group-row">
+              <span class="all-keys-label" id="all-keys-label">Master in all keys starting on</span>
+              <button type="button" class="auto-toggle" id="all-keys-toggle" data-testid="all-keys-toggle" role="switch" aria-checked="true" aria-labelledby="all-keys-label">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              </button>
+            </div>
+            <div class="row wrap" id="setup-keys" data-testid="setup-keys" role="group" aria-label="Keys" hidden></div>
           </section>
           <section class="inset-group">
             <h2 class="group-label">Tempo</h2>
