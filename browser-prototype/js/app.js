@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=142";
+import { Transport } from "./audio.js?v=143";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=142";
+} from "./lesson.js?v=143";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=142";
+} from "./engrave.js?v=143";
 import {
   PREFS_KEY,
   MODULE,
@@ -97,7 +97,11 @@ import {
   LEGACY_PREFS_KEY,
   keyOrderPreview,
   keyCycleStates,
-} from "./session.js?v=142";
+  practiceMajorKeyIds,
+  setAllKeys,
+  setStartKey,
+  toggleSelectedKey,
+} from "./session.js?v=143";
 import {
   tuneById,
   licksInTune,
@@ -109,7 +113,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById } from "./registry.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=142";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=143";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -123,7 +127,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=142";
+} from "./rapid.js?v=143";
 import {
   emptyMastery,
   displayMedal,
@@ -136,7 +140,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=142";
+import { PitchMonitor, micCopy } from "./pitch.js?v=143";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -145,7 +149,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=142";
+} from "./take-dump.js?v=143";
 import { sleeveTrailPath } from "./path-trail.js";
 
 const transport = new Transport();
@@ -226,6 +230,9 @@ const els = {
   keyModes: document.getElementById("key-modes"),
   keyOrderPreview: document.getElementById("key-order-preview"),
   setupKeys: document.getElementById("setup-keys"),
+  startKey: document.getElementById("start-key"),
+  allKeysToggle: document.getElementById("all-keys-toggle"),
+  allKeysLabel: document.getElementById("all-keys-label"),
   sessionOctave: document.getElementById("session-octave"),
   headphonesTip: document.getElementById("headphones-tip"),
   headphonesDismiss: document.getElementById("headphones-dismiss"),
@@ -891,6 +898,7 @@ function startLesson(lessonId) {
     keyMode: plan.keyMode,
     startKeyId: plan.startKeyId,
     majorKeyId: plan.majorKeyId,
+    keyIds: plan.keyIds,
     tempo: prefs.tempo,
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
     instrumentId: prefs.instrumentId,
@@ -1391,6 +1399,51 @@ function setHomeSummary(summary) {
   if (els.homeSummary) els.homeSummary.setAttribute("aria-label", `Settings, ${summary}`);
 }
 
+function renderStartKeySelect() {
+  if (!els.startKey) return;
+  const current = prefs.startKeyId;
+  els.startKey.replaceChildren(
+    ...TWELVE_KEY_IDS.map((id) => {
+      const option = document.createElement("option");
+      option.value = id;
+      const shown = displayKey(getKey(id), prefs.displayMode, "major");
+      option.textContent = shown.name;
+      option.selected = id === current;
+      return option;
+    }),
+  );
+}
+
+function renderKeyBubbles() {
+  if (!els.setupKeys) return;
+  const custom = prefs.allKeys === false;
+  els.setupKeys.hidden = !custom;
+  if (!custom) {
+    els.setupKeys.replaceChildren();
+    return;
+  }
+  const selected = new Set(practiceMajorKeyIds(prefs));
+  els.setupKeys.replaceChildren(
+    ...TWELVE_KEY_IDS.map((id) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "key-btn";
+      btn.dataset.testid = `key-bubble-${id}`;
+      const shown = displayKey(getKey(id), prefs.displayMode, "major");
+      fillMusicLabel(btn, shown.shortName);
+      const starting = id === prefs.startKeyId;
+      btn.setAttribute("aria-label", starting ? `${shown.name}, starting key` : shown.name);
+      btn.setAttribute("aria-pressed", String(selected.has(id)));
+      btn.addEventListener("click", () => {
+        prefs = toggleSelectedKey(prefs, id);
+        persist();
+        renderSettings();
+      });
+      return btn;
+    }),
+  );
+}
+
 function renderSettings() {
   const summary = settingsSummaryShort(prefs);
   setHomeSummary(summary);
@@ -1402,27 +1455,19 @@ function renderSettings() {
   if (els.keyOrderPreview) {
     fillMusicLabel(
       els.keyOrderPreview,
-      keyOrderPreview(prefs.keyMode, prefs.startKeyId, prefs.displayMode),
+      keyOrderPreview(
+        prefs.keyMode,
+        prefs.startKeyId,
+        prefs.displayMode,
+        prefs.allKeys === false ? practiceMajorKeyIds(prefs) : null,
+      ),
     );
   }
-  if (!els.setupKeys) return;
-  els.setupKeys.replaceChildren(
-    ...TWELVE_KEY_IDS.map((id) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "key-btn";
-      const shown = displayKey(getKey(id), prefs.displayMode, "major");
-      fillMusicLabel(btn, shown.shortName);
-      btn.setAttribute("aria-label", shown.name);
-      btn.setAttribute("aria-pressed", String(id === prefs.startKeyId));
-      btn.addEventListener("click", () => {
-        prefs.startKeyId = id;
-        persist();
-        renderSettings();
-      });
-      return btn;
-    }),
-  );
+  renderStartKeySelect();
+  if (els.allKeysToggle) {
+    els.allKeysToggle.setAttribute("aria-checked", String(prefs.allKeys !== false));
+  }
+  renderKeyBubbles();
   if (els.tempoReadout) els.tempoReadout.textContent = String(prefs.tempo);
 }
 
@@ -2295,6 +2340,7 @@ function applyDeepLink() {
       keyMode: plan.keyMode,
       startKeyId: plan.startKeyId,
       majorKeyId: plan.majorKeyId,
+      keyIds: plan.majorKeyId ? plan.keyIds : null,
       tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       instrumentId: prefs.instrumentId,
@@ -2532,6 +2578,19 @@ els.tempoUp?.addEventListener("click", () => {
   prefs = persistLessonTempo(prefs, setupLessonId, prefs.tempo);
   persist();
   renderSettings();
+});
+els.startKey?.addEventListener("change", () => {
+  prefs = setStartKey(prefs, els.startKey.value);
+  persist();
+  renderSettings();
+});
+els.allKeysToggle?.addEventListener("click", () => {
+  prefs = setAllKeys(prefs, prefs.allKeys === false);
+  persist();
+  renderSettings();
+});
+els.allKeysLabel?.addEventListener("click", () => {
+  els.allKeysToggle?.click();
 });
 
 for (const [id, key] of [
