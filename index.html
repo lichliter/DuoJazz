@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DuoJazz</title>
+  <meta name="description" content="Practice jazz licks in all 12 keys.">
+  <meta property="og:title" content="DuoJazz">
+  <meta property="og:description" content="Practice jazz licks in all 12 keys.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DuoJazz">
+  <meta name="twitter:card" content="summary">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#201712">
+  <meta name="apple-mobile-web-app-title" content="DuoJazz">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/tokens.css?v=146">
+  <link rel="stylesheet" href="./css/styles.css?v=146">
+  <link rel="stylesheet" href="./css/hig.css?v=146">
+  <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
+  <script src="./js/verovio-bind.js?v=146" defer></script>
+  <script type="module" src="./js/app.js?v=146"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="app-shell" id="app-shell" data-screen="home" data-tab="licks">
+    <p id="storage-notice" class="storage-notice" role="status" hidden></p>
+    <header class="masthead" id="masthead">
+      <div class="brand">
+        <p class="logo">duojazz</p>
+      </div>
+    </header>
+
+    <main id="main" class="workspace">
+      <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
+        <div class="home-settings" data-testid="home-tools">
+          <button type="button" class="home-summary" id="home-summary" data-testid="home-summary" aria-haspopup="dialog" aria-controls="settings-modal" aria-label="Settings, Piano · 96 bpm · B♭ major · Cycle: 4ths">
+            <span class="home-summary-text" id="home-summary-text">Piano · 96 bpm · B♭ major · Cycle: 4ths</span>
+            <svg class="home-summary-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M4 6.25h16v1.5H4zm0 5h16v1.5H4zm0 5h16v1.5H4z"/>
+              <circle cx="9" cy="7" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
+              <circle cx="15" cy="12" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
+              <circle cx="8" cy="17" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+          </button>
+        </div>
+        <section class="lesson-path" aria-label="Lesson path">
+          <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
+            <circle data-trail-cap cx="0" cy="0" r="0" fill="currentColor"></circle>
+          </svg>
+          <div class="path-rail" aria-hidden="true"></div>
+          <div class="lesson-list" id="lesson-list"></div>
+        </section>
+      </section>
+
+      <section class="screen charts-screen" id="screen-charts" data-testid="screen-charts" aria-label="Charts" hidden>
+        <div id="charts-list" class="chart-list" data-testid="charts-list"></div>
+        <article id="chart-detail" class="chart-detail" data-testid="chart-detail" hidden>
+          <button type="button" class="text-link chart-back" id="chart-back" data-testid="chart-back">Charts</button>
+          <header class="chart-heading">
+            <h1 id="chart-heading-title">Chart</h1>
+            <p id="chart-heading-meta" class="help"></p>
+          </header>
+          <div class="chart-key-row">
+            <p class="group-label" id="chart-key-label">Key</p>
+            <div class="row wrap" id="chart-keys" role="group" aria-labelledby="chart-key-label"></div>
+          </div>
+          <div id="chart-grid" class="ireal-grid" data-testid="chart-grid"></div>
+          <section class="chart-licks" aria-labelledby="chart-licks-heading">
+            <h2 id="chart-licks-heading">Licks for this tune</h2>
+            <div id="chart-licks-list" data-testid="chart-licks-list"></div>
+          </section>
+        </article>
+      </section>
+
+      <dialog id="settings-modal" class="form-sheet settings-modal" data-testid="settings-sheet" aria-labelledby="settings-title">
+        <form class="sheet-form settings-page" id="settings-form">
+          <header class="sheet-toolbar">
+            <h1 class="settings-title" id="settings-title">Settings</h1>
+            <button type="button" class="icon-btn settings-close" id="settings-close" data-testid="settings-close" aria-label="Close">×</button>
+          </header>
+          <section class="inset-group">
+            <h2 class="group-label" id="instrument-label">Instrument</h2>
+            <div id="instrument-list" role="radiogroup" aria-labelledby="instrument-label"></div>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label" id="key-mode-label">Cycle</h2>
+            <div class="row wrap" id="key-modes" role="group" aria-labelledby="key-mode-label"></div>
+            <p class="key-order-preview" id="key-order-preview" data-testid="key-order-preview"></p>
+            <div class="group-row">
+              <label id="start-key-label" for="start-key">Starting key</label>
+              <select id="start-key" class="key-select music-label" data-testid="start-key"></select>
+            </div>
+            <div class="group-row">
+              <span class="all-keys-label" id="all-keys-label">Cycle through all keys</span>
+              <button type="button" class="auto-toggle" id="all-keys-toggle" data-testid="all-keys-toggle" role="switch" aria-checked="true" aria-labelledby="all-keys-label">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              </button>
+            </div>
+            <div class="row wrap" id="setup-keys" data-testid="setup-keys" role="group" aria-label="Keys" hidden></div>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label">Tempo</h2>
+            <div class="tempo-field">
+              <div class="tempo">
+                <button type="button" class="stepper" id="tempo-down" aria-label="Slower">−</button>
+                <span id="tempo-readout">96</span>
+                <span class="unit">bpm</span>
+                <button type="button" class="stepper" id="tempo-up" aria-label="Faster">+</button>
+              </div>
+            </div>
+            <div class="group-row">
+              <span>Count-in</span>
+              <span class="row-value">1 bar</span>
+            </div>
+          </section>
+          <section class="inset-group">
+            <h2 class="group-label">Playback</h2>
+            <label class="group-row"><span>Swing eighths</span><input type="checkbox" id="swing" checked></label>
+            <label class="group-row"><span>Guide tones on the helped chorus</span><input type="checkbox" id="guideTones" checked></label>
+            <label class="group-row"><span>Click during the music</span><input type="checkbox" id="metronome"></label>
+          </section>
+          <details class="about-block">
+            <summary>About</summary>
+            <p>Play into your mic. DuoJazz listens for each note in order and moves you to the next key. Space plays or pauses. R restarts.</p>
+            <p>Thirty modules from Essential Jazz Vocabulary. Settings are global and apply to the next lesson you start.</p>
+          </details>
+        </form>
+      </dialog>
+
+      <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
+        <header class="session-top">
+          <button type="button" class="icon-btn" id="session-exit" aria-label="Close">×</button>
+          <div class="session-heading">
+            <h1 class="session-title" id="session-title">Lesson</h1>
+          </div>
+          <div class="session-end">
+            <p class="session-meta" id="session-key">G minor</p>
+            <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
+          </div>
+        </header>
+        <div class="session-body">
+          <div class="session-stage">
+            <h2 class="session-step" id="card-badge">Play</h2>
+            <p class="meter" id="meter" hidden></p>
+            <p class="mic-line" id="session-mic" hidden></p>
+            <p class="grade-line" id="grade-line" hidden aria-live="polite">
+              <span id="grade-main"></span>
+              <span class="grade-hint" id="grade-hint" hidden></span>
+            </p>
+            <div class="debug-strip" id="debug-strip" data-testid="debug-strip" hidden>
+              <p class="debug-live" id="debug-live" data-testid="debug-live"></p>
+              <p class="debug-attempt" id="debug-attempt" data-testid="debug-attempt"></p>
+              <button type="button" class="text-link debug-save" id="save-take" data-testid="save-take" hidden>Save take</button>
+            </div>
+            <div class="notation-block">
+              <div class="lick-tools" data-testid="lick-tools">
+                <button type="button" class="transport-icon hear-it" id="hear-it" data-testid="hear-it" aria-label="Hear it" title="Hear it">
+                  <svg class="transport-glyph hear-it-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M7.4 4.9v14.2a1 1 0 0 0 1.55.84l10.8-7.1a1 1 0 0 0 0-1.68l-10.8-7.1A1 1 0 0 0 7.4 4.9z"/>
+                  </svg>
+                  <svg class="transport-glyph hear-it-stop" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>
+                  </svg>
+                </button>
+                <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
+              </div>
+              <header class="staff-key" id="staff-key" data-testid="staff-key" hidden>
+                <p class="staff-key-name" id="staff-key-name">F minor</p>
+                <p class="staff-key-count" id="staff-key-count">Key 1 of 12</p>
+              </header>
+              <section class="chart-card" id="music-surface" aria-label="Music">
+                <div class="paper-wrap">
+                  <div id="notation" class="paper" aria-label="Staff notation"></div>
+                  <button type="button" class="notes-toggle" id="show-notes" data-testid="show-notes" hidden aria-pressed="false" aria-label="Show notes">Show notes</button>
+                  <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
+                </div>
+                <div class="listen-state" id="listen-state" hidden>
+                  <p class="listen-kicker" id="listen-kicker">Listening</p>
+                  <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
+                </div>
+              </section>
+            </div>
+            <div class="session-transport play-well">
+              <div class="click-wheel" data-testid="click-wheel">
+                <button type="button" class="play-round" id="primary" data-state="idle" aria-label="Record">
+                  <span class="play-round-icon" aria-hidden="true"></span>
+                  <span class="play-round-count" id="primary-count" hidden></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="session-footer">
+          <div class="key-cycle" id="key-cycle" data-testid="key-cycle" role="img" aria-label="Key 1 of 12"></div>
+          <div class="session-footer-bar">
+            <div class="auto-switch">
+              <button type="button" class="auto-toggle" id="auto-toggle" data-testid="auto-toggle" role="switch" aria-checked="true" aria-label="Auto">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              </button>
+              <label class="auto-switch-label" id="auto-label" for="auto-toggle">Auto</label>
+            </div>
+            <button type="button" class="transport-icon" id="continue-btn" data-testid="skip" aria-label="Skip" title="Skip">
+              <svg class="transport-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M4 5.5v13a1 1 0 0 0 1.6.8l8.8-6.5a1 1 0 0 0 0-1.6L5.6 4.7A1 1 0 0 0 4 5.5z"/>
+                <rect x="17.1" y="4.6" width="2.7" height="14.8" rx="0.7" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </footer>
+        <button type="button" class="celebrate" id="celebrate" data-testid="celebrate" hidden>
+          <svg class="celebrate-check" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+            <path d="M14 34.5 26.5 47 51 18" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="celebrate-key" id="celebrate-key" data-testid="celebrate-key"></span>
+        </button>
+      </section>
+
+      <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
+        <p class="kicker" id="wrapup-kicker">Key complete</p>
+        <h1 id="wrapup-heading">G minor</h1>
+        <p class="help" id="wrapup-detail"></p>
+        <div class="wrapup-sleeve" id="wrapup-sleeve" data-testid="wrapup-sleeve" hidden>
+          <div class="sleeve-stage" aria-hidden="true">
+            <span class="vinyl" data-tier="black"><span class="vinyl-label"></span></span>
+            <span class="sleeve">
+              <span class="sleeve-deco"></span>
+              <span class="sleeve-num" id="wrapup-sleeve-num">01</span>
+              <span class="sleeve-title" id="wrapup-sleeve-title">Learn the lick</span>
+            </span>
+          </div>
+        </div>
+        <ul class="result-list" id="result-list"></ul>
+        <section class="medal-panel wrapup-medal" id="wrapup-medal-panel" aria-label="Medal progress">
+          <p class="medal-mark" id="wrapup-medal-mark">Medal</p>
+          <p class="medal-copy" id="wrapup-medal"></p>
+        </section>
+        <div class="wrapup-actions">
+          <button type="button" class="play" id="next-module" data-testid="next-module" hidden>Next module</button>
+          <button type="button" class="play" id="next-key">Next key</button>
+          <button type="button" class="chip" id="again-key">Again</button>
+          <button type="button" class="text-link" id="done-session">Done</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="leave-confirm" class="form-sheet" data-testid="leave-confirm" aria-labelledby="leave-confirm-title">
+    <form method="dialog" class="sheet-form">
+      <header class="sheet-toolbar">
+        <h2 id="leave-confirm-title">Leave this session?</h2>
+      </header>
+      <p class="help">Unfinished cards will be marked skipped.</p>
+      <div class="sheet-actions">
+        <button type="submit" class="play start" id="leave-confirm-leave" value="leave">Leave</button>
+        <button type="submit" class="text-link" value="stay">Stay</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="quick-view" class="form-sheet" data-testid="quick-view" aria-labelledby="quick-view-title">
+    <form method="dialog" class="sheet-form">
+      <header class="sheet-toolbar">
+        <h2 id="quick-view-title">Modules</h2>
+        <button type="submit" class="sheet-done" value="close">Done</button>
+      </header>
+      <div class="quick-view-list" id="quick-view-list"></div>
+    </form>
+  </dialog>
+
+</body>
+</html>

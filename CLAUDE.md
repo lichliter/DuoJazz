@@ -1,24 +1,7 @@
 # DuoJazz
 
-Duolingo-style iPad app for learning jazz licks across all 12 keys. SwiftUI + Swift 6.2, iOS 18+, tablet-first.
+DuoJazz is a browser app for learning jazz licks across all 12 keys.
 
-## Coding Rules
+Follow [AGENTS.md](AGENTS.md) for coding and agent instructions, and [README.md](README.md) for setup, product behavior, and project layout.
 
-1. **Use `@Observable`**, NOT `ObservableObject`/`@Published`
-2. **Use Swift Testing** (`@Test`, `#expect`), NOT XCTest
-3. **Swift 6 strict concurrency** — no `@MainActor` leaks
-4. **No force unwraps** (`!`)
-5. **Typed throws** — `throws(SomeError)` where possible
-6. **View file limit: 100 lines max** — extract to `Components/` folder
-7. **Instrument via `@Environment(\.instrument)`** — never hardcode clef/transposition
-
-## Skills
-
-| Skill | Use when |
-|-------|----------|
-| `duojazz-architecture` | Navigation, session flow, data model |
-| `duojazz-build` | xcodebuild, simulator, device deploy |
-| `write-lick` / `transcribe-lick` / `music-reference` | Lick authoring |
-| `mobile-ios-design` | SwiftUI/HIG patterns |
-
-Scoped rules in `.claude/rules/` auto-apply for music types and audio code.
+The maintained application is at the repository root, not in `browser-prototype/` or a native project. The retired SwiftUI implementation and its native-specific guidance are available in Git history.

@@ -1,0 +1,13 @@
+{
+  "name": "duojazz",
+  "private": true,
+  "type": "module",
+  "description": "A web app for learning jazz licks across all 12 keys.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test js/*.test.mjs",
+    "start": "python3 -m http.server 4173 --bind 127.0.0.1"
+  }
+}
