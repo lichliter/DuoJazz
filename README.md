@@ -46,6 +46,8 @@ Lessons use New-simple sampled piano, bass, and ride kit for backing, plus the s
 
 ## Music
 
+Source reference: [Essential Jazz Vocabulary Workbook — Bass Clef](references/workbooks/essential-jazz-vocabulary-bass-clef.pdf), supplied by the user. See the [workbook reference notes](references/workbooks/README.md) for attribution and the intended practice structure.
+
 Recognizable **Cry Me a River** minor cell (`9–1–5–♭3–2–1`, one bar) over the **opening eight bars of Autumn Leaves** in concert G minor:
 
 `| Cm7 | F7 | B♭maj7 | E♭maj7 | Am7♭5 | D7 | Gm6 | Gm6 |`
@@ -66,6 +68,10 @@ The library contains thirty modules from Essential Jazz Vocabulary. Each module 
 1. **Learn the lick** — play the isolated phrase with notation visible.
 2. **Master the lick** — play the phrase from memory across the selected keys; Show notes is available when needed.
 3. **Integrate** — practice the lick in a tune over looping backing. These lessons are ungraded.
+
+Practice sleeves now represent harmonic applications, such as **Minor home** or **Altered dominant**. Selecting one opens the matching charts from **My charts**; if none match, the picker suggests available charts. Choose a chart to practice that application at its curated passage. Mixed-use passages are separated so notation and demo playback follow only the selected application.
+
+**My charts**, at the top right of the home screen, shows only your added charts, with removal controls. Its Add chart button opens a separate searchable catalog. The selection is saved locally under `duojazz.myCharts.v1`, independently of existing settings and progress. Matching uses the existing curated placements for all thirty licks, rather than assuming every lick works in every selected chart. The grouping and placement variants live in `js/practice-catalog.js` and are registered in `js/registry.js`; the sheets live in `js/practice-ui.js`.
 
 Settings are global and apply to the next lesson started: instrument, tempo, key selection and cycle, swing, metronome, and guide tones. Learn uses one key, Master cycles through the selected keys, and integration uses the tune's key. Each key has a single Play card, rather than a Learn → Play → Listen → Quiz sequence. Hear it plays a model demonstration; Record starts a graded attempt or the integration backing loop. Auto advances graded practice after a pass and retries after a miss.
 

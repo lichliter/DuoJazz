@@ -216,6 +216,7 @@ export function cardKicker(cardId, lessonId) {
 export function sessionScreenTitle(session) {
   const lesson = lessonById(session.lessonId);
   const module = moduleForLesson(session.lessonId);
+  if (lesson.practiceApplicationId) return lesson.title;
   if (isPracticeLesson(lesson)) return `${module.name} · Practice`;
   const graded = (module.lessons ?? []).filter((item) => !isPracticeLesson(item));
   const index = Math.max(1, graded.findIndex((item) => item.id === lesson.id) + 1);

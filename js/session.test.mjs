@@ -724,7 +724,8 @@ test("quick view lists every module and record", () => {
   }, { cmar: ["G"], emr: [] });
   assert.equal(data.length, 31);
   assert.deepEqual(data.map((module) => module.id), [...MODULES.map((module) => module.id), "tunes"]);
-  assert.equal(data.flatMap((module) => module.records).length, LESSONS.length);
+  assert.equal(data.flatMap((module) => module.records).length,
+    LESSONS.filter((lesson) => lesson.group !== "application-practice").length);
   assert.equal(data[0].lickName, "Cry Me a River");
   assert.equal(data[0].keysMastered, 1);
   assert.equal(data[0].records[0].id, "learn-lick");

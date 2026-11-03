@@ -79,7 +79,7 @@ test("registry has thirty modules: five with standards plus workbook 6–30", ()
       && module.lessons.slice(2).every((lesson) => lesson.kind === "integrate");
   }));
   assert.equal(
-    LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes").length,
+    LESSONS.filter((lesson) => !["your-tunes", "my-tunes", "application-practice"].includes(lesson.group)).length,
     25 + 25 + WORKBOOK_TRACKS.length + MODULES.length,
   );
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "master" || lesson.kind === "integrate"));
