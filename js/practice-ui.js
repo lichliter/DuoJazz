@@ -22,17 +22,24 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     return p;
   }
 
-  function change(id, add) {
+  function change(id, add, button) {
     selected = add ? [...new Set([...selected, id])] : selected.filter((item) => item !== id);
     writeStoredJson(MY_CHARTS_KEY, selected);
     onChanged();
-    renderCharts();
+    if (add) {
+      // Keep the clicked row and focus in place while browsing the catalog.
+      renderSelectedCharts();
+      button.textContent = "Added";
+      button.setAttribute("aria-label", `${catalog.charts.find((chart) => chart.id === id).title} added`);
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      renderCharts();
+    }
     renderPicker();
     const message = `${catalog.charts.find((chart) => chart.id === id).title} ${add ? "added" : "removed"}.`;
     status.textContent = message;
     document.getElementById("add-charts-status").textContent = message;
-    if (add) search.focus();
-    else addButton.focus();
+    if (!add) addButton.focus({ preventScroll: true });
   }
 
   function chartRow(chart, isSelected) {
@@ -44,16 +51,23 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     button.className = "collection-action";
     button.textContent = isSelected ? "Remove" : "Add";
     button.setAttribute("aria-label", `${button.textContent} ${chart.title}`);
-    button.addEventListener("click", () => change(chart.id, !isSelected));
+    button.addEventListener("click", () => {
+      if (button.getAttribute("aria-disabled") === "true") return;
+      change(chart.id, !isSelected, button);
+    });
     row.append(button);
     return row;
   }
 
-  function renderCharts() {
+  function renderSelectedCharts() {
     const yours = catalog.charts.filter((chart) => selected.includes(chart.id));
     selectedList.replaceChildren(...(yours.length
       ? yours.map((chart) => chartRow(chart, true))
       : [paragraph("Add charts you know or want to learn. We'll use them for application practice.")]));
+  }
+
+  function renderCharts() {
+    renderSelectedCharts();
     const query = search.value.trim().toLocaleLowerCase();
     const matches = catalog.charts.filter((chart) => chart.title.toLocaleLowerCase().includes(query));
     results.replaceChildren(...(matches.length ? matches.map((chart) => {
