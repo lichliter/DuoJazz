@@ -7,12 +7,13 @@ import { livePlaybackEvents } from "./sound-band.js";
 import { phraseEvents } from "./music.js";
 
 test("all thirty licks have application groups with real playable placements", () => {
+  const prefs = defaultPrefs();
   for (const module of MODULES) {
     const groups = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
     assert.ok(groups.length, module.id);
     for (const group of groups) {
-      assert.ok(group.choices.length, group.id);
-      assert.equal(new Set(group.choices.map((choice) => choice.chartId)).size, group.choices.length);
+      assert.ok(group.variants.every((variant) => lessonById(variant.exampleLessonId).id === variant.exampleLessonId), group.id);
+      assert.equal(new Set(group.choices.map((choice) => `${choice.chartId}:${choice.variantId}`)).size, group.choices.length);
       for (const choice of group.choices) {
         const lesson = lessonById(choice.lessonId);
         assert.equal(lesson.id, choice.lessonId);
@@ -21,7 +22,7 @@ test("all thirty licks have application groups with real playable placements", (
         assert.equal(app.id, lesson.applicationId);
         const length = formById(app.formId).bars.length;
         assert.ok(spotsFor(app.id).every((spot) => spot.bar > 0 && spot.bar <= length));
-        const plan = lessonSessionPlan(lesson.id, defaultPrefs());
+        const plan = lessonSessionPlan(lesson.id, prefs);
         const session = createSession({ lessonId: lesson.id, ...plan });
         const demo = livePlaybackEvents(demoAudioConfig(session));
         assert.ok(demo.some((event) => event.type === "melody"), choice.lessonId);
@@ -36,7 +37,7 @@ test("Autumn Leaves supports distinct CMAR minor-home and altered-dominant passa
     const group = PRACTICE_CATALOG.groups.find((item) => item.id === `cmar:${use}`);
     const choice = group.choices.find((item) => item.chartId === "autumn-leaves");
     const app = applicationById(lessonById(choice.lessonId).applicationId);
-    assert.deepEqual(spotsFor(app.id).map((spot) => [spot.bar, spot.anchorInterval]), [[bar, anchor]]);
+    assert.ok(spotsFor(app.id).some((spot) => spot.bar === bar && spot.anchorInterval === anchor));
   }
 });
 
@@ -46,9 +47,8 @@ test("mixed-use passages contain only the selected application on staff and in a
     const choice = group.choices.find((item) => item.chartId === "take-the-a-train");
     const app = applicationById(lessonById(choice.lessonId).applicationId);
     const spots = spotsFor(app.id);
-    assert.equal(spots.length, 1);
-    assert.equal(spots[0].bar, use === "minor-ii" ? 5 : 6);
-    assert.equal(spots[0].fragment === "hsr-altered", use === "altered-dominant");
+    assert.ok(spots.some((spot) => spot.bar === (use === "minor-ii" ? 5 : 6)));
+    assert.ok(spots.every((spot) => spot.elements[2].interval === (use === "minor-ii" ? -5 : -6)));
     const session = createSession({ lessonId: choice.lessonId });
     const melody = livePlaybackEvents(demoAudioConfig(session)).filter((event) => event.type === "melody");
     assert.deepEqual(melody.map((event) => event.beat), phraseEvents(app.id).map((note) => note.beat));

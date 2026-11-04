@@ -14,4 +14,4 @@ For Cry Me a River, **minor home** and **altered dominant** are applications. Bo
 
 The workbook's printed pages 1–2 introduce Cry Me a River, illustrate its use over different chords, and give examples within common progressions. Use the engraved examples to establish each lick's applications. Distinguish workbook examples from app-selected practice tunes; do not attribute a tune choice to the workbook without evidence.
 
-This records the intended structure for future implementation. Adding this reference does not change the current lesson navigation or application data.
+The [application mapping audit](application-mappings.md) covers all thirty teaching pages, the implemented harmonic uses, and source discrepancies. Application definitions drive the lesson navigation, playable versions, and chart matching.

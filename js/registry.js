@@ -28,6 +28,9 @@ import { buildPracticeCatalog } from "./practice-catalog.js";
 
 export { TUNES };
 
+let applicationIndex = null;
+let lessonIndex = null;
+
 export const TROMBONE_LOW_MIDI = 40; // E2
 /** Preferred ceiling (Bb4). Notes may go higher when a lick cannot fit under it. */
 export const TROMBONE_HIGH_MIDI = 70; // Bb4
@@ -1398,10 +1401,13 @@ export const TUNE_LESSONS = TUNE_SECTION.lessons.map((lesson, index) => ({
 export const LESSONS = [...MODULE_LESSONS, ...TUNE_LESSONS];
 
 export const PRACTICE_CATALOG = buildPracticeCatalog({
-  modules: MODULES, tunes: TUNES, applicationById, formById, spotsFor,
+  modules: MODULES, tunes: TUNES, licks: LICKS, fragments: FRAGMENTS, applicationById, formById,
 });
+Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);
 LESSONS.push(...PRACTICE_CATALOG.lessons);
+applicationIndex = new Map(ALL_APPLICATIONS.map((app) => [app.id, app]));
+lessonIndex = new Map(LESSONS.map((lesson) => [lesson.id, lesson]));
 
 export function lickById(id) {
   return LICKS.find((lick) => lick.id === id) ?? LICKS[0];
@@ -1412,6 +1418,7 @@ export function formById(id) {
 }
 
 export function applicationById(id) {
+  if (applicationIndex) return applicationIndex.get(id) ?? ALL_APPLICATIONS[0];
   return ALL_APPLICATIONS.find((item) => item.id === id) ?? ALL_APPLICATIONS[0];
 }
 
@@ -1421,6 +1428,7 @@ export function moduleById(id) {
 }
 
 export function lessonById(id) {
+  if (lessonIndex) return lessonIndex.get(id) ?? LESSONS[0];
   return LESSONS.find((lesson) => lesson.id === id) ?? LESSONS[0];
 }
 
@@ -1503,6 +1511,9 @@ export function spotsFor(applicationId) {
 }
 
 export function elementsForSpot(app, spot, nextSpot) {
+  if (Array.isArray(spot.elements)) {
+    return { elements: spot.elements, pickupBeats: spot.pickupBeats ?? 0 };
+  }
   const lick = lickById(spot.lickId ?? app.lickId);
   const fragmentId = spot.fragment ?? "full";
   if (fragmentId === "full") {
@@ -1530,7 +1541,7 @@ export function phraseSpanBars(applicationId) {
   spots.forEach((spot, index) => {
     const { elements, pickupBeats } = elementsForSpot(app, spot, spots[index + 1]);
     const sounding = elements.reduce((sum, el) => sum + el.beats, 0);
-    const start = (spot.bar - 1) * 4 - (pickupBeats || 0);
+    const start = (spot.bar - 1) * 4 + (spot.beatOffset ?? 0) - (pickupBeats || 0);
     const end = start + sounding;
     const firstBar = Math.max(1, Math.floor((start + 1e-6) / 4) + 1);
     const lastBar = Math.max(firstBar, Math.ceil((end - 1e-6) / 4));
@@ -1541,7 +1552,7 @@ export function phraseSpanBars(applicationId) {
 
 export function spotNoteRange(app, spot, nextSpot) {
   const { elements, pickupBeats } = elementsForSpot(app, spot, nextSpot);
-  const origin = (spot.bar - 1) * 4 - (pickupBeats || 0);
+  const origin = (spot.bar - 1) * 4 + (spot.beatOffset ?? 0) - (pickupBeats || 0);
   let beat = origin;
   let start = null;
   let end = origin;

@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=149";
+import { Transport } from "./audio.js?v=150";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=149";
+} from "./lesson.js?v=150";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=149";
+} from "./engrave.js?v=150";
 import {
   PREFS_KEY,
   MODULE,
@@ -101,7 +101,7 @@ import {
   setAllKeys,
   setStartKey,
   toggleSelectedKey,
-} from "./session.js?v=149";
+} from "./session.js?v=150";
 import {
   tuneById,
   licksInTune,
@@ -112,9 +112,9 @@ import {
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
 import { lickById, PRACTICE_CATALOG } from "./registry.js";
-import { setupPracticeUI } from "./practice-ui.js?v=149";
+import { setupPracticeUI } from "./practice-ui.js?v=150";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=149";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=150";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -128,7 +128,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=149";
+} from "./rapid.js?v=150";
 import {
   emptyMastery,
   displayMedal,
@@ -136,12 +136,12 @@ import {
   saveMastery,
   recordQuizPass,
   recordLearnPass,
-  moduleRingMarks,
+  moduleRingMarksFromNormalized,
   lessonPassedKeys,
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=149";
+import { PitchMonitor, micCopy } from "./pitch.js?v=150";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -150,7 +150,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=149";
+} from "./take-dump.js?v=150";
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 
@@ -949,8 +949,9 @@ function openSetup(lessonId) {
 function renderQuickView() {
   if (!els.quickViewList) return;
   if (els.quickViewTitle) els.quickViewTitle.textContent = "Modules";
+  const normalized = normalizeMastery(shownMastery());
   const mastered = Object.fromEntries(
-    MODULES.map((module) => [module.id, moduleMastery(shownMastery(), module.id).masteredKeys]),
+    MODULES.map((module) => [module.id, normalized.modules[module.id].masteredKeys]),
   );
   const modules = modulesSheetData(keysByLesson(), mastered);
   els.quickViewList.replaceChildren(
@@ -966,7 +967,7 @@ function renderQuickView() {
       const copy = document.createElement("span");
       copy.className = "module-sheet-copy";
       copy.innerHTML = `<span class="module-sheet-name">${module.lickName}</span><span class="module-sheet-meta">${module.keysMastered} of 12 keys mastered</span>`;
-      const ring = masteryRing(moduleRingMarks(shownMastery(), module.id));
+      const ring = masteryRing(moduleRingMarksFromNormalized(normalized, module.id));
       btn.append(num, copy, ring);
       btn.addEventListener("click", () => jumpFromQuickView(module.id));
       return btn;
@@ -1236,8 +1237,9 @@ function anyDialogOpen() {
 }
 
 function keysByLesson(current = shownMastery()) {
+  const normalized = normalizeMastery(current);
   return Object.fromEntries(
-    LESSONS.map((lesson) => [lesson.id, lessonPassedKeys(current, lesson.id)]),
+    LESSONS.map((lesson) => [lesson.id, [...(normalized.lessons[lesson.id]?.passedKeys ?? [])]]),
   );
 }
 
@@ -1336,7 +1338,7 @@ function renderHome() {
   const lessons = [
     ...module.lessons.filter((lesson) => !isPracticeLesson(lesson)),
     ...applications.map((group) => ({
-      ...lessonById(group.choices[0].lessonId),
+      ...lessonById(group.choices[0]?.lessonId ?? group.exampleLessonId),
       title: group.label, coverTitle: group.label, context: group.description,
     })),
   ];
