@@ -18,3 +18,10 @@ The app is the web client at the repository root. `README.md` is the operating g
 - Microphone access requires localhost or HTTPS and a user gesture.
 - Engraved notation loads Verovio from `https://www.verovio.org`. Fonts load from `fonts.googleapis.com` and `fonts.gstatic.com`. Those hosts need to be reachable for the staff to draw.
 - Do not install Xcode or a Swift toolchain; this repository maintains only the web app.
+
+## Visual review and merge approval
+
+- Before requesting merge approval, provide screenshots or a short video showing the completed changes. Capture the actual updated app; use screenshots for visual changes and video for interactions or motion.
+- Include the captures or accessible links in the review handoff, with a brief explanation of what changed and how it was verified.
+- For changes without a visible app effect, provide the relevant diff and verification results and explain why an app capture is not applicable. If capture is blocked, report the blocker rather than claiming visual verification.
+- Wait for the user's explicit merge approval after presenting the completed changes and review evidence. Do not merge automatically.
