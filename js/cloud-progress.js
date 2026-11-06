@@ -1,4 +1,21 @@
-import { normalizeMastery } from "./medals.js";
+import { normalizeMastery, MASTERY_KEY } from "./medals.js";
+
+export const GUEST_OWNER_KEY = "duojazz.guestProgressOwner.v1";
+
+// Called under a browser lock. Keep the source intact and claim it before
+// importing, so retries are safe and another account never inherits it.
+export function claimGuestProgress(userId, storage = undefined) {
+  try {
+    storage ??= globalThis.localStorage;
+    const owner = storage.getItem(GUEST_OWNER_KEY);
+    if (owner && owner !== userId) return [];
+    const rows = progressRows(JSON.parse(storage.getItem(MASTERY_KEY) ?? "null"), userId);
+    if (rows.length && !owner) storage.setItem(GUEST_OWNER_KEY, userId);
+    return rows;
+  } catch {
+    return []; // Preserve the source when it cannot be safely claimed.
+  }
+}
 
 export function progressRows(mastery, userId) {
   return Object.entries(normalizeMastery(mastery).lessons).flatMap(([lesson_id, lesson]) =>

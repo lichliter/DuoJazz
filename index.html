@@ -10,10 +10,10 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="DuoJazz">
   <meta name="twitter:card" content="summary">
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-  <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=dj-record-1">
+  <link rel="icon" href="./icons/favicon.svg?v=dj-record-1" type="image/svg+xml">
+  <link rel="icon" href="./icons/favicon-32.png?v=dj-record-1" type="image/png" sizes="32x32">
+  <link rel="manifest" href="./manifest.webmanifest?v=dj-record-1">
   <meta name="theme-color" content="#201712">
   <meta name="apple-mobile-web-app-title" content="DuoJazz">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,15 +33,46 @@
     <header class="login-brand"><p class="logo">duojazz</p></header>
     <main class="login-card account-panel">
       <div class="login-record" aria-hidden="true"><span>dj</span></div>
-      <h1 id="login-title">Sign in</h1>
-      <form id="account-guest">
+      <h1 id="login-title" tabindex="-1">Sign in</h1>
+      <form id="account-guest" class="auth-form" data-auth-view="signin">
         <button type="button" id="account-google" hidden disabled>Continue with Google</button>
         <label for="account-email">Email</label>
         <input id="account-email" type="email" autocomplete="email" placeholder="you@example.com" required>
         <label for="account-password">Password</label>
-        <input id="account-password" type="password" autocomplete="current-password" minlength="8" required>
+        <div class="password-field"><input id="account-password" type="password" autocomplete="current-password" required><button type="button" data-show-password="account-password" aria-label="Show password" aria-pressed="false">Show</button></div>
+        <button type="button" class="auth-link" data-auth-nav="reset">Forgot password?</button>
         <button type="submit" id="account-signin" class="login-primary" disabled>Sign in</button>
-        <p class="login-create"><button type="button" id="account-signup" disabled>Create account</button></p>
+        <p class="login-create"><button type="button" id="account-signup" data-auth-nav="signup">Create account</button></p>
+      </form>
+      <form id="signup-form" class="auth-form" data-auth-view="signup" hidden>
+        <label for="signup-email">Email</label>
+        <input id="signup-email" type="email" autocomplete="email" placeholder="you@example.com" aria-describedby="signup-email-help" required>
+        <p id="signup-email-help" class="help field-help">Use this email to sign in and confirm your account.</p>
+        <label for="signup-password">Password</label>
+        <div class="password-field"><input id="signup-password" type="password" autocomplete="new-password" minlength="8" aria-describedby="signup-password-help" required><button type="button" data-show-password="signup-password" aria-label="Show password" aria-pressed="false">Show</button></div>
+        <p id="signup-password-help" class="help field-help">At least 8 characters.</p>
+        <button type="submit" id="signup-submit" class="login-primary" disabled>Create account</button>
+        <p class="login-create"><button type="button" data-auth-nav="signin">Back to sign in</button></p>
+      </form>
+      <section data-auth-view="confirmation" class="auth-form" hidden>
+        <p id="confirmation-message"></p>
+        <p class="help">Check your spam folder if you don’t see it.</p>
+        <button type="button" id="confirmation-resend">Resend email</button>
+        <button type="button" class="auth-link" data-auth-nav="signup" id="confirmation-change">Use a different email</button>
+        <button type="button" class="login-primary" data-auth-nav="signin">Back to sign in</button>
+      </section>
+      <form id="reset-form" class="auth-form" data-auth-view="reset" hidden>
+        <p class="help">Enter your email to get a password reset link.</p>
+        <label for="reset-email">Email</label>
+        <input id="reset-email" type="email" autocomplete="email" required>
+        <button type="submit" id="reset-submit" class="login-primary" disabled>Send reset link</button>
+        <button type="button" class="auth-link" data-auth-nav="signin">Back to sign in</button>
+      </form>
+      <form id="password-form" class="auth-form" data-auth-view="password" hidden>
+        <label for="new-password">New password</label>
+        <div class="password-field"><input id="new-password" type="password" autocomplete="new-password" minlength="8" aria-describedby="new-password-help" required><button type="button" data-show-password="new-password" aria-label="Show password" aria-pressed="false">Show</button></div>
+        <p id="new-password-help" class="help field-help">At least 8 characters.</p>
+        <button type="submit" id="password-submit" class="login-primary" disabled>Save password</button>
       </form>
       <p id="account-status" class="help account-status" role="status" aria-live="polite">Checking your account…</p>
     </main>
@@ -55,10 +86,8 @@
     <div id="account-member" hidden>
       <p id="account-name" class="account-name"></p>
       <p id="account-identity" class="help"></p>
-      <p id="account-sync-status" class="help" role="status" aria-live="polite"></p>
+      <p id="account-error" class="help" role="status" aria-live="polite" hidden></p>
       <div class="account-actions">
-        <button type="button" id="account-sync">Sync now</button>
-        <button type="button" id="account-import">Add this browser’s guest progress</button>
         <button type="button" id="account-signout">Sign out</button>
       </div>
     </div>
@@ -74,8 +103,6 @@
         <button type="button" class="quiet my-charts-button" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts">My charts</button>
         <button type="button" id="account-chip" class="account-chip" aria-haspopup="dialog" aria-controls="account-dialog">
           <span id="account-avatar" class="account-avatar" aria-hidden="true"></span>
-          <span id="account-chip-name" class="account-chip-name"></span>
-          <span aria-hidden="true" class="account-chevron">⌄</span>
         </button>
       </div>
     </header>
