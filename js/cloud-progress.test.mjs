@@ -1,8 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { progressRows, mergeProgress } from "./cloud-progress.js";
+import { progressRows, mergeProgress, claimGuestProgress, GUEST_OWNER_KEY } from "./cloud-progress.js";
 import { emptyMastery, recordQuizPass, recordLearnPass, setMasteryAccount, saveMastery, loadMastery } from "./medals.js";
-import { googleOptions } from "./account.js";
+import { googleOptions, authReturnUrl, accountInitials } from "./account.js";
+
+test("guest migration is repeatable for its owner and never shared with another account", () => {
+  const guest = recordQuizPass(emptyMastery(), "master-lick", "C");
+  const values = new Map([["duojazz-mastery-v1", JSON.stringify(guest)]]);
+  const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
+  const first = claimGuestProgress("user-a", storage);
+  assert.equal(first.length, 1);
+  assert.equal(values.get(GUEST_OWNER_KEY), "user-a");
+  assert.deepEqual(claimGuestProgress("user-a", storage), first);
+  assert.deepEqual(claimGuestProgress("user-b", storage), []);
+  assert.equal(values.get("duojazz-mastery-v1"), JSON.stringify(guest));
+});
+
+test("failed migration ownership write preserves guest progress without importing it", () => {
+  const guest = JSON.stringify(recordQuizPass(emptyMastery(), "master-lick", "C"));
+  const storage = { getItem: key => key === "duojazz-mastery-v1" ? guest : null, setItem() { throw new Error("full"); } };
+  assert.deepEqual(claimGuestProgress("user-a", storage), []);
+});
+
+test("confirmation redirects keep the app path and strip auth state and tokens", () => {
+  assert.equal(authReturnUrl("https://example.com/DuoJazz/?auth=signup&code=secret#token"), "https://example.com/DuoJazz/");
+});
+
+test("initials use email name segments without exposing the email in the header", () => {
+  assert.equal(accountInitials("brian.lichliter"), "BL");
+  assert.equal(accountInitials("Alex Rivera"), "AR");
+});
 
 test("device progress merges without losing passes or inflating medals", () => {
   const first = recordQuizPass(emptyMastery(), "master-lick", "C");

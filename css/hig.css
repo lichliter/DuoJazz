@@ -1951,10 +1951,8 @@ button.module-banner {
 .login-create #account-signup { background: none; border: 0; padding: 0 4px; font-weight: 600; }
 .account-status { min-height: 36px; margin: 18px 0 0; text-align: center; }
 .masthead .masthead-actions { align-items: center; gap: 14px; }
-.account-chip { display: inline-flex; align-items: center; gap: 9px; padding: 5px 10px 5px 5px; min-height: 44px; max-width: 220px; background: var(--bg-secondary); color: var(--label); border: 1px solid var(--separator); border-radius: 999px; font: var(--text-subhead); cursor: pointer; }
+.account-chip { display: inline-flex; align-items: center; justify-content: center; padding: 5px; width: 44px; height: 44px; flex: 0 0 44px; background: var(--bg-secondary); color: var(--label); border: 1px solid var(--separator); border-radius: 999px; font: var(--text-subhead); cursor: pointer; }
 .account-avatar { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; display: grid; place-items: center; color: var(--bg); background: var(--tint); font: 700 12px var(--font); }
-.account-chip-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.account-chevron { color: var(--label-secondary); }
 .account-dialog { width: min(400px, calc(100% - 40px)); max-height: calc(100svh - 48px); padding: 24px; box-sizing: border-box; color: var(--label); background: var(--bg-secondary); border: 1px solid var(--separator); border-radius: 20px; box-shadow: var(--shadow-sheet); }
 .account-dialog::backdrop { background: var(--overlay); }
 .account-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -1966,7 +1964,16 @@ button.module-banner {
 @media (max-width: 480px) {
   .login-screen { padding-top: 24px; }
   .masthead .masthead-actions { gap: 8px; }
-  .account-chip { max-width: 150px; }
-  .account-chip-name { max-width: 65px; }
-  .account-chip .account-chevron { display: none; }
 }
+
+.auth-form { display: grid; gap: 10px; }
+.auth-form[hidden] { display: none !important; }
+.auth-form .field-help { margin: 0 0 6px; font: var(--text-footnote); }
+.auth-form .password-field { position: relative; }
+.auth-form .password-field input { padding-right: 70px; }
+.auth-form .password-field button { position: absolute; right: 4px; top: 3px; min-height: 44px; border: 0; background: transparent; padding: 8px 10px; font: var(--text-footnote); }
+.auth-form .auth-link, .login-create button { border: 0; background: transparent; }
+.auth-form .auth-link { justify-self: start; padding-left: 0; }
+#confirmation-message { line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
+#login-title { text-transform: none; }
+#login-title:focus { outline: none; }

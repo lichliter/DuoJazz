@@ -1,70 +1,109 @@
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, GOOGLE_SIGN_IN_ENABLED } from "./supabase-config.js";
 import { loadMastery, saveMastery, setMasteryAccount, MASTERY_KEY } from "./medals.js";
-import { mergeProgress, progressRows } from "./cloud-progress.js";
+import { mergeProgress, progressRows, claimGuestProgress } from "./cloud-progress.js";
 
-export const googleOptions = redirectTo => ({
-  provider: "google",
-  options: { scopes: "openid email profile", redirectTo },
-});
+export const googleOptions = redirectTo => ({ provider: "google", options: { scopes: "openid email profile", redirectTo } });
+export function authReturnUrl(href) {
+  const url = new URL(href);
+  url.search = "";
+  url.hash = "";
+  return url.href;
+}
+export function accountInitials(name) {
+  return String(name).trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join("").toUpperCase() || "?";
+}
 
 export async function initAccount({ getProgress, onProgress }) {
-  const status = document.getElementById("account-status");
-  const guest = document.getElementById("account-guest");
-  const member = document.getElementById("account-member");
-  const email = document.getElementById("account-email");
-  const password = document.getElementById("account-password");
-  const login = document.getElementById("login-screen");
-  const shell = document.getElementById("app-shell");
-  const dialog = document.getElementById("account-dialog");
-  const chip = document.getElementById("account-chip");
-  let initialized = false;
-  // Deep links must not open an app dialog over the signed-out screen.
+  const $ = id => document.getElementById(id);
+  const login = $("login-screen"), shell = $("app-shell"), dialog = $("account-dialog"), chip = $("account-chip");
+  const returnUrl = authReturnUrl(location.href);
+  let user = null, initialized = false, recovery = false, busy = false;
+  let generation = 0, pending = false, running = false, applying = false;
+  let retryTimer, retryDelay = 5000, resendTimer, resendAt = 0;
+  let confirmation = null;
+  let view = new URL(location.href).searchParams.get("auth") === "signup" ? "signup" : "signin";
+  const titles = { signin: "Sign in", signup: "Create account", confirmation: "Check your email", reset: "Reset password", password: "Choose a new password" };
+  const say = message => { $("account-status").textContent = message; };
+  const syncError = message => {
+    $("account-error").textContent = message;
+    $("account-error").hidden = !message;
+  };
+  function showView(next, { navigate = true, focus = true } = {}) {
+    view = next;
+    for (const panel of document.querySelectorAll("[data-auth-view]")) panel.hidden = panel.dataset.authView !== view;
+    $("login-title").textContent = titles[view];
+    say("");
+    if (navigate) {
+      const url = new URL(location.href);
+      if (view === "signin") url.searchParams.delete("auth");
+      else url.searchParams.set("auth", view);
+      history.pushState({}, "", url);
+    }
+    if (focus) $("login-title").focus({ preventScroll: true });
+  }
+  function showApp() {
+    login.hidden = Boolean(user) && !recovery;
+    shell.hidden = !user || recovery;
+    shell.inert = shell.hidden;
+    $("account-member").hidden = !user;
+  }
+  function clearPasswords() {
+    for (const field of document.querySelectorAll('.password-field input')) { field.value = ""; field.type = "password"; }
+    for (const button of document.querySelectorAll('[data-show-password]')) {
+      button.textContent = "Show"; button.setAttribute("aria-label", "Show password"); button.setAttribute("aria-pressed", "false");
+    }
+  }
   document.querySelectorAll("dialog[open]").forEach(node => node.close());
   chip.onclick = () => dialog.showModal();
-  document.getElementById("account-close").onclick = () => dialog.close();
+  $("account-close").onclick = () => dialog.close();
   dialog.addEventListener("click", event => {
     const rect = dialog.getBoundingClientRect();
     if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
   });
-  document.getElementById("account-google").hidden = !GOOGLE_SIGN_IN_ENABLED;
-  let user = null;
-  let generation = 0;
-  let pending = false;
-  let running = false;
-  let applying = false;
-  const say = message => {
-    status.textContent = message;
-    document.getElementById("account-sync-status").textContent = message;
+  for (const button of document.querySelectorAll("[data-auth-nav]")) button.onclick = () => {
+    if (busy) return;
+    if (button.dataset.authNav === "reset") $("reset-email").value = $("account-email").value;
+    clearPasswords();
+    showView(button.dataset.authNav);
   };
+  for (const button of document.querySelectorAll("[data-show-password]")) button.onclick = () => {
+    const field = $(button.dataset.showPassword), visible = field.type === "password";
+    field.type = visible ? "text" : "password";
+    button.textContent = visible ? "Hide" : "Show";
+    button.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+    button.setAttribute("aria-pressed", String(visible));
+  };
+  addEventListener("popstate", () => {
+    if (user && !recovery) return;
+    const next = new URL(location.href).searchParams.get("auth");
+    showView(recovery ? "password" : next === "signup" || next === "reset" ? next : "signin", { navigate: false });
+  });
+  showView(view, { navigate: false, focus: false });
+  $("account-google").hidden = !GOOGLE_SIGN_IN_ENABLED;
   let client;
   try {
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = new URL("./vendor/supabase-2.119.0.js", import.meta.url).href;
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.append(script);
+      script.onload = resolve; script.onerror = reject; document.head.append(script);
     });
     client = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
-  } catch {
-    say("Couldn’t load sign-in. Please refresh the page to try again.");
-    return;
-  }
+  } catch { say("Couldn’t load sign-in. Refresh the page to try again."); return; }
 
   async function sync() {
     pending = true;
     if (running || !user) return;
+    clearTimeout(retryTimer);
     running = true;
+    let requestGeneration = generation;
     try {
       while (pending && user) {
         pending = false;
-        const current = user;
-        const version = generation;
-        say("Syncing progress…");
+        const current = user, version = generation;
+        requestGeneration = version;
         const rows = progressRows(getProgress(), current.id);
-        // Insert-only union: another device can never erase an earned pass.
         for (let offset = 0; offset < rows.length; offset += 500) {
           if (version !== generation) break;
           const { error } = await client.from("practice_progress").upsert(rows.slice(offset, offset + 500), {
@@ -87,93 +126,138 @@ export async function initAccount({ getProgress, onProgress }) {
         onProgress(merged, false);
         const saved = saveMastery(merged);
         applying = false;
-        say(saved ? "Progress synced." : "Progress synced. Browser storage is unavailable.");
+        syncError(saved ? "" : "Progress is saved to your account, but this browser can’t save an offline copy.");
+        retryDelay = 5000;
       }
     } catch {
-      say("Couldn’t sync. Keep practicing; use Sync now to retry when online.");
+      if (user && requestGeneration === generation) {
+        syncError("Progress hasn’t reached your account yet. We’ll retry automatically.");
+        pending = false;
+        retryTimer = setTimeout(() => void sync(), retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 60000);
+      }
     } finally {
-      applying = false;
-      running = false;
+      applying = false; running = false;
       if (pending && user) void sync();
     }
   }
 
-  function changeAccount(next) {
-    if (initialized && (next?.id ?? null) === (user?.id ?? null)) return;
+  async function changeAccount(next) {
+    if (initialized && (next?.id ?? null) === (user?.id ?? null)) { showApp(); return; }
     const switchingAccount = initialized;
-    initialized = true;
-    generation++;
-    user = next;
-    pending = false;
+    initialized = true; generation++; user = next; pending = false;
+    clearTimeout(retryTimer); syncError("");
+    const version = generation;
     setMasteryAccount(user?.id);
     onProgress(loadMastery(), switchingAccount);
-    guest.hidden = Boolean(user);
-    member.hidden = !user;
-    login.hidden = Boolean(user);
-    shell.hidden = !user;
-    shell.inert = !user;
-    const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Your account";
-    const initials = String(name).trim().split(/\s+/).slice(0, 2).map(part => part[0] || "").join("").toUpperCase();
-    document.getElementById("account-avatar").textContent = initials;
-    document.getElementById("account-chip-name").textContent = name;
-    document.getElementById("account-name").textContent = name;
+    const name = user?.email?.split("@")[0] || "Your account";
+    $("account-avatar").textContent = accountInitials(name);
+    $("account-name").textContent = name;
     chip.setAttribute("aria-label", `Account: ${name}${user?.email ? `, ${user.email}` : ""}`);
-    document.getElementById("account-identity").textContent = user?.email ?? "";
-    password.value = "";
-    say(user ? "Syncing progress…" : "");
+    $("account-identity").textContent = user?.email ?? "";
+    clearPasswords(); say(""); showApp();
     if (!user) {
       document.querySelectorAll("dialog[open]").forEach(node => node.close());
-      email.focus({ preventScroll: true });
-    } else chip.focus({ preventScroll: true });
-    if (user) void sync();
+      if (switchingAccount) showView("signin");
+      return;
+    }
+    const id = user.id;
+    const claim = () => claimGuestProgress(id);
+    const rows = navigator.locks ? await navigator.locks.request("duojazz-guest-migration", claim) : claim();
+    if (generation !== version) return;
+    if (rows.length) {
+      onProgress(mergeProgress(getProgress(), rows), false);
+      applying = true; saveMastery(getProgress()); applying = false;
+    }
+    if (!recovery) {
+      const url = new URL(location.href); url.searchParams.delete("auth"); history.replaceState({}, "", url);
+      chip.focus({ preventScroll: true });
+    }
+    void sync();
   }
-  client.auth.onAuthStateChange((_event, session) => {
-    // Keep Supabase calls outside the auth callback's internal lock.
-    setTimeout(() => changeAccount(session?.user ?? null), 0);
+  client.auth.onAuthStateChange((event, session) => {
+    setTimeout(() => {
+      if (event === "PASSWORD_RECOVERY") recovery = true;
+      if (event === "SIGNED_OUT") recovery = false;
+      void changeAccount(session?.user ?? null);
+      if (recovery) showView("password", { navigate: false });
+    }, 0);
   });
   const { data, error } = await client.auth.getSession();
   if (error) say("Couldn’t restore your account. Please sign in again.");
-  else changeAccount(data.session?.user ?? null);
+  else await changeAccount(data.session?.user ?? null);
 
-  async function act(button, action) {
-    button.disabled = true;
-    try {
-      const result = await action();
-      if (result?.error) throw result.error;
-    } catch (error) {
-      say(error.message || "Couldn’t connect. Please try again.");
-    } finally { button.disabled = false; }
+  async function act(button, action, inAccount = false) {
+    if (busy) return;
+    busy = true;
+    const original = button.textContent;
+    button.disabled = true; button.textContent = "Please wait…";
+    if (inAccount) syncError(""); else say("");
+    try { await action(); }
+    catch (error) { (inAccount ? syncError : say)(error.message || "Couldn’t connect. Please try again."); }
+    finally { busy = false; button.disabled = false; button.textContent = original; }
   }
-  function credentials() {
-    if (!email.reportValidity() || !password.reportValidity()) return null;
-    return { email: email.value.trim(), password: password.value };
-  }
-  guest.addEventListener("submit", event => {
-    event.preventDefault();
-    const button = document.getElementById("account-signin");
-    if (button.disabled) return;
-    void act(button, async () => {
-      const values = credentials();
-      if (values) return client.auth.signInWithPassword(values);
+  function ensure(result) { if (result.error) throw result.error; return result.data; }
+  function onSubmit(id, buttonId, action) {
+    $(id).addEventListener("submit", event => {
+      event.preventDefault();
+      if ($(buttonId).disabled || !$(id).reportValidity()) return;
+      void act($(buttonId), action);
     });
+  }
+  function cooldown() {
+    clearInterval(resendTimer);
+    resendAt = Date.now() + 60000;
+    const update = () => {
+      const remaining = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
+      $("confirmation-resend").disabled = remaining > 0 || busy;
+      $("confirmation-resend").textContent = remaining ? `Resend email (${remaining}s)` : "Resend email";
+      if (!remaining) clearInterval(resendTimer);
+    };
+    update(); resendTimer = setInterval(update, 1000);
+  }
+  function sent(email, kind) {
+    confirmation = { email, kind };
+    $("account-email").value = email;
+    clearPasswords(); showView("confirmation");
+    $("confirmation-message").textContent = kind === "signup"
+      ? `We sent a confirmation link to ${email}. Open it to confirm your account, then sign in.`
+      : `If there’s an account for ${email}, you’ll receive a link to reset your password.`;
+    $("confirmation-change").dataset.authNav = kind === "signup" ? "signup" : "reset";
+    cooldown();
+  }
+  onSubmit("account-guest", "account-signin", async () => {
+    ensure(await client.auth.signInWithPassword({ email: $("account-email").value.trim(), password: $("account-password").value }));
   });
-  document.getElementById("account-signup").onclick = event => act(event.currentTarget, async () => {
-    const values = credentials();
-    if (!values) return;
-    const result = await client.auth.signUp(values);
-    if (!result.error && !result.data.session) say("Check your email to confirm your account, then return here to sign in.");
-    return result;
+  onSubmit("signup-form", "signup-submit", async () => {
+    const email = $("signup-email").value.trim();
+    const data = ensure(await client.auth.signUp({
+      email, password: $("signup-password").value,
+      options: { emailRedirectTo: returnUrl },
+    }));
+    if (!data.session) sent(email, "signup");
   });
-  document.getElementById("account-google").onclick = event => act(event.currentTarget, () =>
-    client.auth.signInWithOAuth(googleOptions(new URL(location.pathname, location.origin).href)));
-  document.getElementById("account-signout").onclick = event => act(event.currentTarget, () => client.auth.signOut({ scope: "local" }));
-  document.getElementById("account-sync").onclick = () => void sync();
-  document.getElementById("account-import").onclick = () => {
-    if (!user) return;
-    const merged = mergeProgress(getProgress(), progressRows(loadMastery(MASTERY_KEY), user.id));
-    onProgress(merged, false);
-    saveMastery(merged);
+  onSubmit("reset-form", "reset-submit", async () => {
+    const email = $("reset-email").value.trim();
+    ensure(await client.auth.resetPasswordForEmail(email, { redirectTo: returnUrl }));
+    sent(email, "recovery");
+  });
+  onSubmit("password-form", "password-submit", async () => {
+    ensure(await client.auth.updateUser({ password: $("new-password").value }));
+    recovery = false; clearPasswords(); showApp(); chip.focus();
+    const url = new URL(location.href); url.searchParams.delete("auth"); history.replaceState({}, "", url);
+  });
+  $("confirmation-resend").onclick = async () => {
+    if (!confirmation || Date.now() < resendAt || busy) return;
+    await act($("confirmation-resend"), async () => {
+      if (confirmation.kind === "signup") ensure(await client.auth.resend({ type: "signup", email: confirmation.email, options: { emailRedirectTo: returnUrl } }));
+      else ensure(await client.auth.resetPasswordForEmail(confirmation.email, { redirectTo: returnUrl }));
+      say("Email sent. Check your inbox.");
+    });
+    cooldown();
   };
+  $("account-google").onclick = event => act(event.currentTarget, async () => ensure(await client.auth.signInWithOAuth(googleOptions(returnUrl))));
+  $("account-signout").onclick = event => act(event.currentTarget, async () => ensure(await client.auth.signOut({ scope: "local" })), true);
   addEventListener("duojazz-progress-saved", () => { if (!applying && user) void sync(); });
   addEventListener("online", () => { if (user) void sync(); });
   addEventListener("focus", () => { if (user) void sync(); });
@@ -183,5 +267,5 @@ export async function initAccount({ getProgress, onProgress }) {
       void sync();
     }
   });
-  for (const button of guest.querySelectorAll("button")) button.disabled = false;
+  for (const id of ["account-signin", "signup-submit", "reset-submit", "password-submit", "account-google"]) $(id).disabled = false;
 }
