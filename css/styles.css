@@ -2486,3 +2486,10 @@ input[type="checkbox"] {
     transform: none;
   }
 }
+.settings-page .account-panel { padding: 16px; }
+.account-panel [hidden] { display: none !important; }
+#account-guest { display: grid; gap: 10px; }
+.account-panel input { width: 100%; min-height: 44px; padding: 8px 12px; box-sizing: border-box; font: inherit; color: var(--label); background: var(--bg); border: 1px solid var(--separator); border-radius: var(--radius-sm); }
+.account-panel button { min-height: 44px; padding: 8px 14px; font: var(--text-subhead); color: var(--tint); background: var(--fill); border: 1px solid var(--separator); border-radius: var(--radius-sm); cursor: pointer; }
+.account-panel button:disabled { opacity: .5; cursor: wait; }
+#account-identity { overflow-wrap: anywhere; }

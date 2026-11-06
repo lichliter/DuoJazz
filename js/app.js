@@ -153,6 +153,7 @@ import {
 } from "./take-dump.js?v=150";
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
+import { initAccount } from "./account.js";
 
 const transport = new Transport();
 const monitor = new PitchMonitor();
@@ -2819,4 +2820,17 @@ if (new URLSearchParams(location.search).get("sheet") === "modules") {
 }
 whenVerovioReady().then(() => {
   if (session?.screen === "session") renderNotation();
+});
+void initAccount({
+  getProgress: () => mastery,
+  onProgress(next, accountChanged) {
+    if (accountChanged) {
+      halt();
+      session = null;
+      masteryPreview = null;
+      wrapupBanner = null;
+    }
+    mastery = next;
+    render();
+  },
 });

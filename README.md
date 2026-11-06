@@ -11,7 +11,7 @@ npm start
 # open http://127.0.0.1:4173/
 ```
 
-There are no npm dependencies to install and no build step. Alternatively, serve the repository with `python3 -m http.server 4173 --bind 127.0.0.1`.
+There are no npm dependencies to install and no build step. The Supabase browser SDK is vendored at version 2.119.0 in `js/vendor/`, with its license. Alternatively, serve the repository with `python3 -m http.server 4173 --bind 127.0.0.1`.
 
 ```bash
 npm test
@@ -81,9 +81,27 @@ Learn and Master use an ordered microphone note follower (YIN in an AudioWorklet
 
 A key contributes to its module's medal only when Master is passed without revealing notes. Showing notes earns Learn credit instead. Bronze / Silver / Gold require 1 / 6 / 12 mastered keys. Progress and settings use the existing localStorage schemas. If browser storage is blocked or full, practice continues in memory and a warning explains that changes may not survive leaving the page.
 
+## Accounts and cloud progress
+
+Supabase project: [DuoJazz](https://supabase.com/dashboard/project/ogttqddpizpnocrtvixi), in Brian's Org, US West.
+
+Signed-out visitors see a dedicated email/password login screen with account creation. After sign-in, an avatar chip at the top right shows the current user; its account dialog contains sync, import, and sign-out controls. Signed-in accounts sync Learn and Master passes and recompute medals. Progress merges by earned key instead of replacing another device's progress. Settings and My charts remain local. Use **Add this browser’s guest progress** to explicitly import existing guest progress. Signing out returns to the login screen and preserves the guest record; each account has a separate local cache. Local caches remain on the device after sign-out, so use a private browser session on shared devices.
+
+`js/supabase-config.js` contains only the public URL and publishable key. Never add service-role keys, OAuth secrets, or database credentials to browser files. `supabase/migrations/` records the deployed schema. `practice_progress` uses insert-only records, row-level security, and owner-only SELECT/INSERT grants. Anonymous database access is denied. Retry sync on reconnect, focus, or **Sync now**.
+
+### Finish production authentication
+
+The database is provisioned; the app changes still need deployment. `vercel.json` configures static hosting with no build step. Import this repository into Vercel using the Hobby/free plan and its assigned `*.vercel.app` domain. The exact deployed URL has not yet been supplied or verified.
+
+In [Supabase URL Configuration](https://supabase.com/dashboard/project/ogttqddpizpnocrtvixi/auth/url-configuration), set **Site URL** to that exact Vercel URL and allow that URL plus `http://127.0.0.1:4173/` for local testing. Avoid wildcard production redirects. These settings cannot be changed through the connected Supabase tools used here.
+
+Keep email confirmation enabled. Verify an actual signup, email confirmation, and sign-in after configuring redirects. Supabase's default email service restricts recipients and is intended for testing; configure [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp) for public signups. Real email delivery and production sign-in have not been tested in this environment.
+
+Google sign-in is deferred and hidden (`GOOGLE_SIGN_IN_ENABLED = false`). To enable later, create a Google OAuth web client with callback `https://ogttqddpizpnocrtvixi.supabase.co/auth/v1/callback`, enter its ID and secret only in [Supabase providers](https://supabase.com/dashboard/project/ogttqddpizpnocrtvixi/auth/providers), configure the exact app redirect above, then enable the flag. The code requests only `openid email profile`, with no extra Google API scopes or offline-access request. See [Supabase's Google guide](https://supabase.com/docs/guides/auth/social-sign-in/auth-google).
+
 ## Scope and history
 
-- No accounts, backend, or paid services.
+- Supabase accounts and practice-progress sync; the web app opens with a login screen when signed out.
 - Real microphone accuracy needs a check on an iPad with a horn. Node tests cover grading and mocked audio lifecycles; `window.__DUOJAZZ__` exposes developer inspection and pitch-track helpers.
 - The web app previously lived in `browser-prototype/`; it now runs directly from the repository root. Keep the same origin (including port) to retain browser-local progress and settings. Existing localStorage keys remain unchanged.
 - The retired SwiftUI app, widget, native tests, and native-only tooling are preserved in Git history, not maintained alongside the web app. Use `git log --all --oneline -- DuoJazz/` to find the native project and inspect a commit before its removal with `git show <commit>:DuoJazz/DuoJazz/DuoJazzApp.swift`.
