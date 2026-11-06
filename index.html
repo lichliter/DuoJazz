@@ -29,13 +29,55 @@
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <div class="app-shell" id="app-shell" data-screen="home" data-tab="licks">
+  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
+    <header class="login-brand"><p class="logo">duojazz</p></header>
+    <main class="login-card account-panel">
+      <div class="login-record" aria-hidden="true"><span>dj</span></div>
+      <h1 id="login-title">Sign in</h1>
+      <form id="account-guest">
+        <button type="button" id="account-google" hidden disabled>Continue with Google</button>
+        <label for="account-email">Email</label>
+        <input id="account-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="account-password">Password</label>
+        <input id="account-password" type="password" autocomplete="current-password" minlength="8" required>
+        <button type="submit" id="account-signin" class="login-primary" disabled>Sign in</button>
+        <p class="login-create"><button type="button" id="account-signup" disabled>Create account</button></p>
+      </form>
+      <p id="account-status" class="help account-status" role="status" aria-live="polite">Checking your account…</p>
+    </main>
+  </section>
+
+  <dialog id="account-dialog" class="account-dialog account-panel" aria-labelledby="account-dialog-title">
+    <header class="account-dialog-header">
+      <h2 id="account-dialog-title">Your account</h2>
+      <button type="button" id="account-close" aria-label="Close account">×</button>
+    </header>
+    <div id="account-member" hidden>
+      <p id="account-name" class="account-name"></p>
+      <p id="account-identity" class="help"></p>
+      <p id="account-sync-status" class="help" role="status" aria-live="polite"></p>
+      <div class="account-actions">
+        <button type="button" id="account-sync">Sync now</button>
+        <button type="button" id="account-import">Add this browser’s guest progress</button>
+        <button type="button" id="account-signout">Sign out</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div hidden inert class="app-shell" id="app-shell" data-screen="home" data-tab="licks">
     <p id="storage-notice" class="storage-notice" role="status" hidden></p>
     <header class="masthead" id="masthead">
       <div class="brand">
         <p class="logo">duojazz</p>
       </div>
-      <button type="button" class="quiet my-charts-button" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts">My charts</button>
+      <div class="masthead-actions">
+        <button type="button" class="quiet my-charts-button" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts">My charts</button>
+        <button type="button" id="account-chip" class="account-chip" aria-haspopup="dialog" aria-controls="account-dialog">
+          <span id="account-avatar" class="account-avatar" aria-hidden="true"></span>
+          <span id="account-chip-name" class="account-chip-name"></span>
+          <span aria-hidden="true" class="account-chevron">⌄</span>
+        </button>
+      </div>
     </header>
 
     <main id="main" class="workspace">

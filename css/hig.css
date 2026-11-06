@@ -1933,3 +1933,40 @@ button.module-banner {
     transition: none;
   }
 }
+
+/* Account entry and signed-in identity. */
+#app-shell[hidden], #login-screen[hidden] { display: none !important; }
+.login-screen { min-height: 100svh; display: flex; flex-direction: column; align-items: center; padding: 36px 20px 24px; box-sizing: border-box; background: radial-gradient(ellipse at 50% 35%, #38271c 0, var(--bg) 64%); }
+.login-brand { width: min(1080px, 100%); display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.login-brand .logo { color: var(--label); }
+.login-card { width: min(100%, 400px); margin: auto; padding: 42px 0 22px; }
+.login-record { width: 76px; height: 76px; margin-bottom: 28px; border-radius: 50%; display: grid; place-items: center; background: repeating-radial-gradient(circle, #15110e 0 3px, #31251e 4px 5px); box-shadow: 0 10px 24px #0004; }
+.login-record span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--tint); color: var(--bg); font: 700 13px var(--font); }
+.login-card h1 { font: 600 clamp(36px, 8vw, 48px)/1.15 var(--font); letter-spacing: -.045em; margin: 10px 0 28px; }
+.login-card #account-guest { gap: 10px; }
+.login-card label { font: var(--text-subhead); margin-top: 8px; }
+.login-card input { min-height: 50px; background: var(--bg-secondary); border-color: #68503c; }
+.login-card button.login-primary { background: var(--tint); color: var(--bg); font-weight: 650; min-height: 50px; margin-top: 14px; border: 0; }
+.login-create { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; color: var(--label-secondary); font: var(--text-subhead); }
+.login-create #account-signup { background: none; border: 0; padding: 0 4px; font-weight: 600; }
+.account-status { min-height: 36px; margin: 18px 0 0; text-align: center; }
+.masthead .masthead-actions { align-items: center; gap: 14px; }
+.account-chip { display: inline-flex; align-items: center; gap: 9px; padding: 5px 10px 5px 5px; min-height: 44px; max-width: 220px; background: var(--bg-secondary); color: var(--label); border: 1px solid var(--separator); border-radius: 999px; font: var(--text-subhead); cursor: pointer; }
+.account-avatar { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; display: grid; place-items: center; color: var(--bg); background: var(--tint); font: 700 12px var(--font); }
+.account-chip-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.account-chevron { color: var(--label-secondary); }
+.account-dialog { width: min(400px, calc(100% - 40px)); max-height: calc(100svh - 48px); padding: 24px; box-sizing: border-box; color: var(--label); background: var(--bg-secondary); border: 1px solid var(--separator); border-radius: 20px; box-shadow: var(--shadow-sheet); }
+.account-dialog::backdrop { background: var(--overlay); }
+.account-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.account-dialog-header h2 { font: var(--text-title-3); margin: 0; }
+.account-dialog #account-close { font-size: 24px; border: 0; background: transparent; }
+.account-name { font: var(--text-headline); margin: 24px 0 6px; overflow-wrap: anywhere; }
+.account-actions { display: grid; gap: 10px; margin-top: 24px; }
+.account-dialog #account-signout { background: transparent; }
+@media (max-width: 480px) {
+  .login-screen { padding-top: 24px; }
+  .masthead .masthead-actions { gap: 8px; }
+  .account-chip { max-width: 150px; }
+  .account-chip-name { max-width: 65px; }
+  .account-chip .account-chevron { display: none; }
+}

@@ -9,6 +9,10 @@ import { LESSONS, TWELVE_KEY_IDS, normalizeKeyId, moduleForLesson, MODULES } fro
 import { writeStoredJson } from "./storage.js";
 
 export const MASTERY_KEY = "duojazz-mastery-v1";
+let activeMasteryKey = MASTERY_KEY;
+export function setMasteryAccount(userId) {
+  activeMasteryKey = userId ? `${MASTERY_KEY}:${userId}` : MASTERY_KEY;
+}
 
 function emptyModuleMastery() {
   return Object.fromEntries(MODULES.map((module) => [module.id, { masteredKeys: [], medal: "none" }]));
@@ -202,14 +206,16 @@ export function lessonPassedCount(mastery, lessonId) {
   return lessonPassedKeys(mastery, lessonId).length;
 }
 
-export function loadMastery() {
+export function loadMastery(key = activeMasteryKey) {
   try {
-    return normalizeMastery(JSON.parse(localStorage.getItem(MASTERY_KEY) ?? "null"));
+    return normalizeMastery(JSON.parse(localStorage.getItem(key) ?? "null"));
   } catch {
     return emptyMastery();
   }
 }
 
 export function saveMastery(mastery) {
-  return writeStoredJson(MASTERY_KEY, normalizeMastery(mastery));
+  const saved = writeStoredJson(activeMasteryKey, normalizeMastery(mastery));
+  globalThis.dispatchEvent?.(new Event("duojazz-progress-saved"));
+  return saved;
 }
