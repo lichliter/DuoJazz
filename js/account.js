@@ -100,12 +100,13 @@ export async function initAccount({ getProgress, onProgress }) {
 
   function changeAccount(next) {
     if (initialized && (next?.id ?? null) === (user?.id ?? null)) return;
+    const switchingAccount = initialized;
     initialized = true;
     generation++;
     user = next;
     pending = false;
     setMasteryAccount(user?.id);
-    onProgress(loadMastery(), true);
+    onProgress(loadMastery(), switchingAccount);
     guest.hidden = Boolean(user);
     member.hidden = !user;
     login.hidden = Boolean(user);
