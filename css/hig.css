@@ -688,6 +688,22 @@ button.module-banner {
   min-height: 0;
 }
 
+/* Keep the session anchored during rotation, even if the document was scrolled
+   on Home. Only .session-body should scroll; hidden overflow on the outer
+   frames lets browser focus/scroll restoration move the header offscreen. */
+.app-shell[data-screen="session"] {
+  position: fixed;
+  inset: 0;
+}
+
+@supports (overflow: clip) {
+  .app-shell[data-screen="session"],
+  .app-shell[data-screen="session"] .workspace,
+  .app-shell[data-screen="session"] #screen-session {
+    overflow: clip;
+  }
+}
+
 .session-screen {
   --screen-margin: var(--margin-regular);
   position: relative;

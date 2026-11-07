@@ -85,7 +85,11 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
     client = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
-  } catch { say("Couldn’t load sign-in. Refresh the page to try again."); return; }
+  } catch {
+    showApp();
+    say("Couldn’t load sign-in. Refresh the page to try again.");
+    return;
+  }
 
   async function sync() {
     pending = true;
@@ -178,9 +182,14 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
       if (recovery) showView("password", { navigate: false });
     }, 0);
   });
-  const { data, error } = await client.auth.getSession();
-  if (error) say("Couldn’t restore your account. Please sign in again.");
-  else await changeAccount(data.session?.user ?? null);
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) throw error;
+    await changeAccount(data.session?.user ?? null);
+  } catch {
+    showApp();
+    say("Couldn’t restore your account. Please sign in again.");
+  }
 
   async function act(button, action, inAccount = false) {
     if (busy) return;
