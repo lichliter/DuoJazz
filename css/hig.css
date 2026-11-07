@@ -882,6 +882,7 @@ button.module-banner {
 }
 
 .session-screen .chart-card {
+  --notation-toolbar-gap: 8px;
   flex: 1 1 auto;
   align-self: stretch;
   width: 100%;
@@ -961,7 +962,7 @@ button.module-banner {
   gap: 8px;
   width: 100%;
   margin: 0;
-  padding: 12px 12px 8px;
+  padding: 12px 12px var(--notation-toolbar-gap);
   background: var(--paper);
   border-radius: 17px 17px 0 0;
   flex: 0 0 auto;
@@ -982,7 +983,7 @@ button.module-banner {
   justify-content: flex-start;
   background: var(--paper);
   border-radius: 0 0 17px 17px;
-  padding: clamp(16px, 3vh, 32px) 6px;
+  padding: clamp(16px, 3vh, 32px) 6px calc(clamp(16px, 3vh, 32px) + var(--notation-toolbar-gap));
   overflow: visible;
 }
 
@@ -1196,7 +1197,8 @@ button.module-banner {
   align-self: center;
   position: absolute;
   left: 50%;
-  top: 50%;
+  /* Center between the toolbar button bottoms and the cream card bottom. */
+  top: calc(50% - var(--notation-toolbar-gap) / 2);
   transform: translate(-50%, -50%);
   z-index: 4;
   flex: 0 0 auto;
