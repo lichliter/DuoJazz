@@ -1229,7 +1229,7 @@ button.module-banner {
   flex-direction: column;
   gap: 8px;
   z-index: 4;
-  padding: 0 var(--margin-regular) calc(8px + var(--safe-bottom));
+  padding: 0 var(--screen-margin) calc(var(--screen-margin) + var(--safe-bottom));
   background: var(--toolbar-bg);
   border-top: 0;
 }
@@ -1798,6 +1798,32 @@ button.module-banner {
     --session-control: 72px;
   }
 
+  .session-screen .notation-block {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .session-screen .session-focus,
+  .session-screen .lick-tools {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    margin: 0 0 var(--screen-margin);
+  }
+
+  .session-screen .session-focus {
+    justify-self: center;
+    width: calc(100% - 2 * (2 * var(--session-control) + 24px));
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .session-screen .notation-block .chart-card {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
   .session-title {
     font-size: 40px;
     line-height: 46px;
@@ -1885,10 +1911,6 @@ button.module-banner {
     padding-block: 0;
   }
 
-  .session-footer {
-    gap: 0;
-    padding-bottom: var(--safe-bottom);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
