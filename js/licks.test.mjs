@@ -224,12 +224,12 @@ test("each lick renders in C, G, B♭ and F♯ with barlines and chord symbols",
     }
   }
   const emr = landingABC(getKey("G"), "concert", "emr-autumn-leaves-a", "bass", 0, { showCues: true });
-  assert.match(emr, /HERE/);
+  assert.doesNotMatch(emr, /HERE/);
   assert.doesNotMatch(emr, /Get ready/);
   const gts = landingABC(getKey("Bb"), "concert", "gts-oleo", "bass", 0, { showCues: true });
-  assert.match(gts, /HERE/);
+  assert.doesNotMatch(gts, /HERE/);
   const hsrV = landingABC(getKey("C"), "concert", "hsr-a-train", "bass", 0, { showCues: true });
-  assert.match(hsrV, /HERE/);
+  assert.doesNotMatch(hsrV, /HERE/);
   assert.doesNotMatch(hsrV, /Get ready/);
 });
 

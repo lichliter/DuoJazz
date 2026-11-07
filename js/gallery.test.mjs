@@ -47,7 +47,7 @@ test("gallery Learn and landing ABC stay on bass clef without changing pitches",
   const play = galleryPanels().find((panel) => panel.id === "billies-bounce-play");
   const landing = abcForPanel(play);
   assert.match(landing, /K:F clef=bass/);
-  assert.match(landing, /"_HERE"/);
+  assert.doesNotMatch(landing, /"_HERE"/);
   const st = galleryPanels().find((panel) => panel.id === "st-thomas");
   assert.match(abcForPanel(st), /Guide tone sequence/);
 });
@@ -60,7 +60,7 @@ test("gallery Learn and landing MEI stay on bass clef with harm and cue dirs", (
   const play = galleryPanels().find((panel) => panel.id === "billies-bounce-play");
   const landing = meiForPanel(play);
   assert.match(landing, /clef\.shape="F"/);
-  assert.match(landing, /<dir[^>]*>HERE<\/dir>/);
+  assert.doesNotMatch(landing, /<dir[^>]*>HERE<\/dir>/);
   const st = meiForPanel(galleryPanels().find((panel) => panel.id === "st-thomas"));
   assert.match(st, /Guide tone(?:<lb\/>)?\s*sequence/);
   assert.match(st, /head\.shape="slash"/);

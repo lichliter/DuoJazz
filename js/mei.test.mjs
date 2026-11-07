@@ -111,7 +111,7 @@ test("landing MEI keeps lick notes and slashes empty bars", () => {
   const mei = landingMEI(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
   assert.ok(harms(mei).includes("C-7"));
   assert.match(mei, /head\.shape="slash"/);
-  assert.ok(dirs(mei).includes("HERE"));
+  assert.ok(!dirs(mei).includes("HERE"));
   assert.equal(dirs(mei).includes("Get ready"), false);
   assert.match(mei, /pname="a" oct="4"/);
   const slashes = slashMEI(getKey("G"), "concert", "minor-home", "bass");
@@ -177,7 +177,7 @@ test("chorusStaffMEI routes slash, landing, and model the same way as ABC", () =
     mode: "landing",
     showCues: true,
   });
-  assert.ok(dirs(landing).includes("HERE"));
+  assert.ok(!dirs(landing).includes("HERE"));
   assert.match(landing, /head\.shape="slash"/);
   const model = chorusStaffMEI({
     concertKey: getKey("F"),

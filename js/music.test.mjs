@@ -457,7 +457,7 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
   assert.match(abc, /"C−7"/);
   assert.match(abc, /z8/);
   assert.doesNotMatch(abc, /z2z2z2z2/);
-  assert.match(abc, /"G−6""_HERE"/);
+  assert.match(abc, /"G−6"/);
   assert.match(abc, /A2 \(3GDB, A,G, z2/);
   assert.doesNotMatch(abc, /Get ready/);
   const up = landingABC(g, "concert", "minor-home", "bass", 1, { showCues: true });
@@ -472,8 +472,8 @@ test("integration Play landing staff shows the lick on the door bar and slashes 
     showCues: true,
     melodyRegister: 0,
   });
-  assert.match(viaChorus, /"D7""_HERE"/);
-  assert.doesNotMatch(viaChorus, /"D7""_HERE"D,2 D,2 D,2 D,2/);
+  assert.match(viaChorus, /"D7"/);
+  assert.doesNotMatch(viaChorus, /"D7"D,2 D,2 D,2 D,2/);
 });
 
 test("slash staff is rhythmic slashes with chord symbols, not model pitches or rests", () => {
@@ -486,23 +486,22 @@ test("slash staff is rhythmic slashes with chord symbols, not model pitches or r
   assert.doesNotMatch(slashes, /A,G,/);
   assert.doesNotMatch(slashes, /Get ready|HERE/);
   const cued = slashABC(g, "concert", "minor-home", "bass", { showCues: true });
-  assert.doesNotMatch(cued, /Get ready/);
-  assert.match(cued, /HERE/);
+  assert.doesNotMatch(cued, /Get ready|HERE/);
   const altered = slashABC(g, "concert", "altered-dominant", "bass", { showCues: true });
   assert.equal(cueCaption(5, "altered-dominant"), "");
-  assert.equal(cueCaption(6, "altered-dominant"), "HERE");
+  assert.equal(cueCaption(6, "altered-dominant"), "");
   assert.equal(cueCaption(7, "altered-dominant"), "");
-  assert.match(altered, /"D7""_HERE"/);
+  assert.match(altered, /"D7"/);
   assert.doesNotMatch(altered, /Get ready/);
   const f = slashABC(getKey("F"), "concert", "minor-home", "bass", { showCues: true });
-  assert.match(f, /"F−6""_HERE"/);
+  assert.match(f, /"F−6"/);
   assert.doesNotMatch(f, /Gm6/);
 });
 
-test("model staff marks the entrance with HERE and no Get ready cue", () => {
+test("model staff omits HERE and Get ready entrance labels", () => {
   const cued = modelABC(getKey("G"), "concert", "minor-home", "bass", 0, { showCues: true });
-  assert.doesNotMatch(cued, /Get ready/);
-  assert.match(cued, /"G−6""_HERE"/);
+  assert.doesNotMatch(cued, /Get ready|HERE/);
+  assert.match(cued, /"G−6"/);
   const fAlt = applicationContext(getKey("F"), "concert", "altered-dominant");
   assert.equal(fAlt.readyBar, 5);
   assert.equal(fAlt.enterBar, 6);
@@ -517,7 +516,7 @@ test("stand-portrait ABC breaks every two bars without changing pitches", () => 
   assert.match(two, /"C−7"/);
   assert.match(two, /"F7"/);
   assert.doesNotMatch(two, /Get ready/);
-  assert.match(two, /"G−6""_HERE"/);
+  assert.match(two, /"G−6"/);
   const slashTwo = slashABC(getKey("G"), "concert", "minor-home", "bass", { showCues: true, barsPerLine: 2 });
   assert.equal(slashTwo.split("\n").filter((line) => line.includes("|")).length, 4);
 });
@@ -529,9 +528,9 @@ test("four-bar landing systems keep bars 7–8 together with the lick on the doo
   assert.match(systems[0], /"C−7"/);
   assert.doesNotMatch(systems[0], /HERE|A,G,/);
   assert.doesNotMatch(systems[1], /Get ready/);
-  assert.match(systems[1], /"G−6""_HERE"/);
+  assert.match(systems[1], /"G−6"/);
   assert.match(systems[1], /A2 \(3GDB, A,G, z2/);
-  assert.match(systems[1], /"G−6""_HERE".+"G−6"/);
+  assert.match(systems[1], /"G−6".+"G−6"/);
   assert.doesNotMatch(systems[1], /\n/);
 });
 
