@@ -982,7 +982,7 @@ button.module-banner {
   justify-content: flex-start;
   background: var(--paper);
   border-radius: 0 0 17px 17px;
-  padding: clamp(16px, 3vh, 32px) 6px clamp(40px, 7vh, 72px);
+  padding: clamp(16px, 3vh, 32px) 6px;
   overflow: visible;
 }
 
