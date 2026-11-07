@@ -432,13 +432,13 @@ test("St. Thomas landing ABC has section-free 4-bar systems and lick labels on t
 test("Play-card landing for Billie's Bounce does not put a half rest in the first spot bar", () => {
   const abc = landingABC(getKey("F"), "concert", "bo-billies", "bass", 0, { showCues: true });
   const measures = abc.split("|");
-  const firstSpot = measures.find((measure) => measure.includes("HERE")) ?? "";
+  const firstSpot = measures.find((measure) => measure.includes("F,2")) ?? "";
   assert.match(firstSpot, /F7/);
   assert.equal(/z4/.test(firstSpot), false, firstSpot);
   assert.equal(/z2/.test(firstSpot), false, firstSpot);
   assert.match(firstSpot, /F,2/);
   assert.equal(measures.some((measure) => measure.includes("Get ready")), false);
-  const empty = measures.find((measure) => measure.includes("B♭7") && !measure.includes("HERE")) ?? "";
+  const empty = measures.find((measure) => measure.includes("B♭7")) ?? "";
   assert.match(empty, /z8/);
   assert.doesNotMatch(empty, /z2z2z2z2/);
 });

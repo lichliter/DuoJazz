@@ -270,7 +270,7 @@ export function cueCaption(bar, applicationId = DEFAULT_APPLICATION_ID) {
   const here = spots.find((spot) => spot.bar === bar);
   if (here) {
     if (app.copyKind === "tune") return lickById(here.lickId ?? app.lickId).shortName;
-    return "HERE";
+    return "";
   }
   return "";
 }

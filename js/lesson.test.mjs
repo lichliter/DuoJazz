@@ -108,8 +108,8 @@ test("play with help uses slash staff, entrance cues, and no default model", () 
   assert.equal(view.showEntranceCues, true);
   assert.equal(view.includeModel, false);
   assert.equal(view.includeCue, true);
-  assert.equal(barCaption(7, true, "minor-home"), "HERE");
-  assert.equal(barCaption(6, true, "altered-dominant"), "HERE");
+  assert.equal(barCaption(7, true, "minor-home"), "");
+  assert.equal(barCaption(6, true, "altered-dominant"), "");
   assert.equal(barCaption(5, true, "altered-dominant"), "");
   const events = scheduleChorus(audioConfigFor(helpState));
   assert.equal(events.filter((event) => event.type === "melody").length, 0);

@@ -110,7 +110,7 @@ import {
 } from "./tunes.js";
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
-import { lickById, PRACTICE_CATALOG } from "./registry.js";
+import { applicationById, lickById, PRACTICE_CATALOG } from "./registry.js";
 import { setupPracticeUI } from "./practice-ui.js?v=150";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=150";
@@ -1653,7 +1653,7 @@ function renderSessionChrome() {
   els.sessionKey.hidden = !practice;
   fillMusicLabel(
     els.sessionKey,
-    displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
+    applicationById(lessonById(session.lessonId).applicationId).label,
   );
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
