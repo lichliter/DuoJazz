@@ -711,6 +711,8 @@ button.module-banner {
 
 .session-screen {
   --screen-margin: var(--margin-regular);
+  --session-control: var(--tap);
+  --title-gutter: 16px;
   position: relative;
   background: var(--bg);
   color: var(--label);
@@ -767,7 +769,7 @@ button.module-banner {
 
 .session-title {
   margin: 0;
-  font: 700 clamp(28px, 5vw, 40px)/1.12 var(--font);
+  font: 700 clamp(22px, 6vw, 28px)/1.12 var(--font);
   text-transform: none;
   letter-spacing: 0;
   max-width: none;
@@ -1229,7 +1231,7 @@ button.module-banner {
   flex-direction: column;
   gap: 8px;
   z-index: 4;
-  padding: 0 var(--margin-regular) calc(8px + var(--safe-bottom));
+  padding: 0 var(--screen-margin) calc(var(--screen-margin) + var(--safe-bottom));
   background: var(--toolbar-bg);
   border-top: 0;
 }
@@ -1813,9 +1815,36 @@ button.module-banner {
   }
 }
 
+.session-screen .notation-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.session-screen .session-focus,
+.session-screen .lick-tools {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  margin: 0 0 var(--screen-margin);
+}
+
+.session-screen .session-focus {
+  justify-self: center;
+  width: calc(100% - 2 * (2 * var(--session-control) + var(--title-gutter)));
+  z-index: 1;
+  pointer-events: none;
+}
+
+.session-screen .notation-block .chart-card {
+  grid-column: 1;
+  grid-row: 2;
+}
+
 @media (min-width: 700px) {
   .session-screen {
     --session-control: 72px;
+    --title-gutter: 24px;
   }
 
   .session-title {
@@ -1905,10 +1934,6 @@ button.module-banner {
     padding-block: 0;
   }
 
-  .session-footer {
-    gap: 0;
-    padding-bottom: var(--safe-bottom);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

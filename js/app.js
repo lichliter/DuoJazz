@@ -1785,7 +1785,9 @@ function layoutClickWheel() {
   const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
   const widthFit = Math.max(0, Math.floor(stage.clientWidth - padX));
   const toolsStyle = tools ? getComputedStyle(tools) : null;
-  const toolsHeight = tools ? tools.getBoundingClientRect().height
+  // Only controls below the card consume the card-to-footer slot.
+  const toolsBelowCard = tools && tools.getBoundingClientRect().top >= card.getBoundingClientRect().top;
+  const toolsHeight = toolsBelowCard ? tools.getBoundingClientRect().height
     + (parseFloat(toolsStyle.marginTop) || 0) + (parseFloat(toolsStyle.marginBottom) || 0) : 0;
   const space = footer.getBoundingClientRect().top - card.getBoundingClientRect().top - toolsHeight;
   const cardStyle = getComputedStyle(card);
