@@ -119,7 +119,6 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     document.getElementById("application-workbook-source").textContent = `Workbook · page ${variant.page}`;
     const { yours, suggested } = chartChoices(currentGroup, selected, currentVariantId);
     document.getElementById("application-favorites-empty").hidden = yours.length > 0;
-    document.getElementById("application-manage-charts").hidden = yours.length === 0;
     const note = document.getElementById("application-charts-note");
     note.textContent = selected.length
       ? "No favorite charts match this version yet. Manage your favorites or try a suggested chart below."
@@ -198,13 +197,6 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   addButton.addEventListener("click", openAddCharts);
   document.getElementById("my-charts-button").addEventListener("click", openMyCharts);
   document.getElementById("application-manage-charts").addEventListener("click", openMyCharts);
-  document.getElementById("application-empty-manage").addEventListener("click", openMyCharts);
-  chartsDialog.addEventListener("close", () => {
-    if (!picker.open) return;
-    // Adding/removing the last matching favorite swaps the visible Manage button.
-    const manage = document.getElementById("application-manage-charts");
-    (manage.hidden ? document.getElementById("application-empty-manage") : manage).focus({ preventScroll: true });
-  });
   for (const dialog of [chartsDialog, addDialog, picker]) {
     dialog.querySelector("[data-close]").addEventListener("click", () => closeSheet(dialog));
     dialog.addEventListener("click", (event) => {
