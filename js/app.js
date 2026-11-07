@@ -196,7 +196,8 @@ let notesPeeked = false;
 let sealToken = 0;
 let liveAt = 0;
 const debugOn = new URLSearchParams(location.search).get("debug") === "1";
-let selectedModuleId = MODULES[0]?.id ?? "cmar";
+const SELECTED_MODULE_KEY = "duojazz.selectedModule.v1";
+let selectedModuleId = loadSelectedModule();
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
 let chartConcertKeyId = null;
@@ -304,6 +305,22 @@ const els = {
   guideTones: document.getElementById("guideTones"),
   metronome: document.getElementById("metronome"),
 };
+
+function loadSelectedModule() {
+  try {
+    const id = JSON.parse(localStorage.getItem(SELECTED_MODULE_KEY));
+    if (MODULES.some((module) => module.id === id)) return id;
+  } catch {
+    // Missing or unavailable storage should not prevent opening the library.
+  }
+  return MODULES[0]?.id ?? "cmar";
+}
+
+function rememberModule(id) {
+  selectedModuleId = MODULES.some((module) => module.id === id) ? id : MODULES[0]?.id;
+  writeStoredJson(SELECTED_MODULE_KEY, selectedModuleId);
+  renderStorageNotice();
+}
 
 function loadPrefs() {
   try {
@@ -918,7 +935,7 @@ function syncTabButtons() {
 function startLesson(lessonId) {
   clearMasteryPreview();
   const lesson = lessonById(lessonId);
-  selectedModuleId = moduleForLesson(lesson.id)?.id ?? selectedModuleId;
+  rememberModule(moduleForLesson(lesson.id)?.id ?? selectedModuleId);
   setupLessonId = lesson.id;
   const plan = lessonSessionPlan(lesson.id, prefs);
   halt();
@@ -1006,8 +1023,7 @@ function currentHomeModuleId() {
 }
 
 function selectModule(id) {
-  const next = MODULES.some((module) => module.id === id) ? id : MODULES[0]?.id;
-  selectedModuleId = next;
+  rememberModule(id);
   renderHome();
   requestAnimationFrame(() => {
     document.getElementById("screen-home")?.scrollIntoView({ block: "start" });
@@ -2603,7 +2619,7 @@ els.nextModule?.addEventListener("click", () => {
   if (!session) return;
   const link = wrapupNextModule(session);
   halt();
-  if (link?.id) selectedModuleId = link.id;
+  if (link?.id) rememberModule(link.id);
   exitSession();
 });
 els.nextKey.addEventListener("click", () => {

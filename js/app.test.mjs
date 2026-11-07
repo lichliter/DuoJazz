@@ -26,6 +26,7 @@ function appContext(names, overrides = {}) {
     parseTabState,
     storageWarning,
     writeStoredJson,
+    SELECTED_MODULE_KEY: "duojazz.selectedModule.v1",
     URLSearchParams,
     prefs: sessions.defaultPrefs(),
     mastery: medals.emptyMastery(),
@@ -78,7 +79,7 @@ for (const demo of ["path", "grades", "medal"]) {
 }
 
 test("failed preference writes do not prevent starting lessons", () => {
-  const context = appContext(["persist", "renderStorageNotice", "clearMasteryPreview", "startLesson"], {
+  const context = appContext(["persist", "rememberModule", "renderStorageNotice", "clearMasteryPreview", "startLesson"], {
     selectedModuleId: "cmar",
     writeStoredJson() { return false; },
     storageWarning() { return "Changes aren't being saved."; },
@@ -87,6 +88,33 @@ test("failed preference writes do not prevent starting lessons", () => {
   assert.doesNotThrow(() => context.startLesson("learn-lick"));
   assert.equal(context.session.screen, "session");
   assert.equal(context.els.storageNotice.hidden, false);
+});
+
+test("the last selected lick survives reopening the app", () => {
+  const stored = new Map();
+  const context = appContext(["loadSelectedModule", "rememberModule", "selectModule", "renderStorageNotice"], {
+    localStorage: { getItem: key => stored.get(key) ?? null },
+    writeStoredJson(key, value) { stored.set(key, JSON.stringify(value)); return true; },
+    renderHome: noop,
+    requestAnimationFrame: noop,
+  });
+  assert.equal(context.loadSelectedModule(), sessions.MODULES[0].id);
+  const id = sessions.MODULES[4].id;
+  context.selectModule(id);
+  assert.equal(context.loadSelectedModule(), id);
+  context.selectedModuleId = null;
+  assert.equal(context.loadSelectedModule(), id);
+});
+
+test("invalid or inaccessible saved licks fall back to the first lick", () => {
+  for (const raw of ['"removed-lick"', '{broken', 'null']) {
+    const context = appContext(["loadSelectedModule"], { localStorage: { getItem: () => raw } });
+    assert.equal(context.loadSelectedModule(), sessions.MODULES[0].id);
+  }
+  const context = appContext(["loadSelectedModule"], {
+    localStorage: { getItem() { throw new Error("Storage blocked"); } },
+  });
+  assert.equal(context.loadSelectedModule(), sessions.MODULES[0].id);
 });
 
 function listeningContext(overrides = {}) {
