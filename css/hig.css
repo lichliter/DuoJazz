@@ -1372,6 +1372,26 @@ button.module-banner {
   color: var(--label);
 }
 
+.sheet-toolbar-back {
+  justify-content: flex-start;
+}
+
+.sheet-back {
+  flex: 0 0 auto;
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--tint);
+  font: var(--text-body);
+  cursor: pointer;
+}
+
+.sheet-back:hover {
+  background: var(--fill);
+}
+
 .dismiss-button {
   display: grid;
   place-items: center;
