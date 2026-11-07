@@ -80,8 +80,8 @@ test("one fixed Verovio scale keeps a 38–42px staff and does not blow up short
 test("index and gallery load Verovio instead of abcjs", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const gallery = await readFile(new URL("../gallery.html", import.meta.url), "utf8");
-  assert.match(index, /verovio-toolkit-wasm/);
-  assert.match(gallery, /verovio-toolkit-wasm/);
+  assert.match(index, /verovio-6.3.0.js/);
+  assert.match(gallery, /verovio-6.3.0.js/);
   assert.match(gallery, /id="gallery-size"/);
   assert.match(gallery, /href="#compare"/);
   assert.doesNotMatch(index, /abcjs/);
@@ -96,7 +96,8 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /aria-label="Modules"/);
   assert.match(index, />Modules</);
   assert.match(index, /id="quick-view-title">Modules</);
-  assert.match(index, /family=Oswald/);
+  assert.match(index, /css\/webfonts.css/);
+  assert.match(await readFile(new URL("../css/webfonts.css", import.meta.url), "utf8"), /font-family: 'Oswald'/);
   assert.match(index, /class="play-round"/);
   assert.doesNotMatch(index, /class="session-bottom"/);
   assert.match(index, /id="account-chip"[^>]*aria-haspopup="dialog"[^>]*aria-controls="settings-modal"/);
@@ -212,11 +213,11 @@ test("index and gallery bind Verovio WASM before the page module", async () => {
   const gallery = await readFile(new URL("../gallery.html", import.meta.url), "utf8");
   const bind = await readFile(new URL("./verovio-bind.js", import.meta.url), "utf8");
   assert.match(bind, /onRuntimeInitialized/);
-  const wasmAt = index.indexOf("verovio-toolkit-wasm");
+  const wasmAt = index.indexOf("verovio-6.3.0.js");
   const bindAt = index.indexOf("verovio-bind.js");
   const appAt = index.indexOf("js/app.js");
   assert.ok(wasmAt >= 0 && bindAt > wasmAt && appAt > bindAt);
-  const gWasm = gallery.indexOf("verovio-toolkit-wasm");
+  const gWasm = gallery.indexOf("verovio-6.3.0.js");
   const gBind = gallery.indexOf("verovio-bind.js");
   const gApp = gallery.indexOf("js/gallery.js");
   assert.ok(gWasm >= 0 && gBind > gWasm && gApp > gBind);

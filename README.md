@@ -18,7 +18,9 @@ npm test
 # equivalent: node --test js/*.test.mjs
 ```
 
-Microphone access needs localhost or HTTPS and a user gesture. Engraved notation loads Verovio from `https://www.verovio.org`; web fonts use `fonts.googleapis.com` and `fonts.gstatic.com`. Those hosts must be reachable for the full experience.
+Microphone access needs localhost or HTTPS and a user gesture. Notation (Verovio 6.3.0), fonts, and instrument samples are served locally. After the first online visit finishes installing the service worker, the app can reopen and practice offline, including under a deployment subdirectory. Returning users can access their saved account’s local progress even if its access token has expired; sign-in and cloud sync require connectivity. Offline sign-out removes the local session. Progress sync retries on reconnect. Browser storage eviction or clearing site data requires another online visit.
+
+The PWA manifest supports installation from the browser. Service-worker releases install atomically and activate after old app tabs close, avoiding mixed versions during practice. After any app/asset change, run `node tools/generate-precache.mjs` and commit `precache.js`; its content hash versions each release. The worker caches only the listed static assets, never account API responses.
 
 ## Project layout
 

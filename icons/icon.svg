@@ -4,8 +4,8 @@
     <radialGradient id="grooves" gradientUnits="userSpaceOnUse" cx="256" cy="256" r="26.3158" spreadMethod="repeat">
       <stop offset="0" stop-color="#15110e"/>
       <stop offset=".6" stop-color="#15110e"/>
-      <stop offset=".8" stop-color="#31251e"/>
-      <stop offset="1" stop-color="#31251e"/>
+      <stop offset=".8" stop-color="#413127"/>
+      <stop offset="1" stop-color="#413127"/>
     </radialGradient>
   </defs>
   <rect width="512" height="512" fill="#89674f"/>

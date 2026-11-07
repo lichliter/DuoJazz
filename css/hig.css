@@ -1910,8 +1910,7 @@ button.module-banner {
 .login-brand { width: min(1080px, 100%); display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .login-brand .logo { color: var(--label); }
 .login-card { width: min(100%, 400px); margin: auto; padding: 42px 0 22px; }
-.login-record { width: 76px; height: 76px; margin-bottom: 28px; border-radius: 50%; display: grid; place-items: center; background: repeating-radial-gradient(circle, #15110e 0 3px, #31251e 4px 5px); box-shadow: 0 10px 24px #0004; }
-.login-record span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--tint); color: var(--bg); font: 700 13px var(--font); }
+.login-record { width: 98px; height: 98px; margin: -11px 0 17px -11px; display: block; border-radius: 18px; }
 .login-card h1 { font: 600 clamp(36px, 8vw, 48px)/1.15 var(--font); letter-spacing: 0; margin: 10px 0 28px; }
 .login-card #account-guest { gap: 10px; }
 .login-card label { font: var(--text-subhead); margin-top: 8px; }
@@ -1958,3 +1957,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
     font-size: max(16px, 1em) !important;
   }
 }
+
+.offline-status { position: sticky; top: 0; z-index: 100; margin: 0; padding: 8px 16px; background: #edbf7e; color: #201712; text-align: center; font-size: 14px; }
+.offline-status[hidden] { display: none; }

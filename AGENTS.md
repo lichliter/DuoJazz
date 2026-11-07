@@ -16,7 +16,7 @@ The app is the web client at the repository root. `README.md` is the operating g
 - Serve the repository root at http://127.0.0.1:4173/ with `npm start` or `python3 -m http.server 4173 --bind 127.0.0.1`.
 - Tests: `npm test` or `node --test js/*.test.mjs` from the repository root.
 - Microphone access requires localhost or HTTPS and a user gesture.
-- Engraved notation loads Verovio from `https://www.verovio.org`. Fonts load from `fonts.googleapis.com` and `fonts.gstatic.com`. Those hosts need to be reachable for the staff to draw.
+- Notation and fonts are vendored locally for offline use. After app/asset changes, run `node tools/generate-precache.mjs` and commit `precache.js`.
 - Do not install Xcode or a Swift toolchain; this repository maintains only the web app.
 
 ## Verification and merging

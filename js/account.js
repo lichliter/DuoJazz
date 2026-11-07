@@ -92,6 +92,10 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
   }
 
   async function sync() {
+    if (!navigator.onLine) {
+      if (user) syncError("Offline — progress is saved on this device and will sync when you reconnect.");
+      return;
+    }
     pending = true;
     if (running || !user) return;
     clearTimeout(retryTimer);
@@ -178,17 +182,28 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
     setTimeout(() => {
       if (event === "PASSWORD_RECOVERY") recovery = true;
       if (event === "SIGNED_OUT") recovery = false;
+      if (!navigator.onLine && user && !session && event !== "SIGNED_OUT") return;
       void changeAccount(session?.user ?? null);
       if (recovery) showView("password", { navigate: false });
     }, 0);
   });
+  // This identity only selects local practice data; server access still requires auth.
+  if (!navigator.onLine) {
+    try {
+      const key = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+      const saved = JSON.parse(localStorage.getItem(key));
+      if (saved?.user?.id && saved?.access_token && saved?.refresh_token) await changeAccount(saved.user);
+    } catch { /* Missing or unavailable local session: keep the sign-in screen. */ }
+  }
   try {
-    const { data, error } = await client.auth.getSession();
-    if (error) throw error;
-    await changeAccount(data.session?.user ?? null);
+    if (navigator.onLine) {
+      const { data, error } = await client.auth.getSession();
+      if (error) throw error;
+      await changeAccount(data.session?.user ?? null);
+    } else showApp();
   } catch {
     showApp();
-    say("Couldn’t restore your account. Please sign in again.");
+    if (!user) say("Couldn’t restore your account. Please sign in again.");
   }
 
   async function act(button, action, inAccount = false) {
@@ -261,7 +276,16 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
     cooldown();
   };
   $("account-google").onclick = event => act(event.currentTarget, async () => ensure(await client.auth.signInWithOAuth(googleOptions(returnUrl))));
-  $("account-signout").onclick = event => act(event.currentTarget, async () => ensure(await client.auth.signOut({ scope: "local" })), true);
+  $("account-signout").onclick = event => act(event.currentTarget, async () => {
+    if (!navigator.onLine) {
+      const key = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+      localStorage.removeItem(key);
+      localStorage.removeItem(`${key}-code-verifier`);
+      location.reload();
+      return;
+    }
+    ensure(await client.auth.signOut({ scope: "local" }));
+  }, true);
   addEventListener("duojazz-progress-saved", () => { if (!applying && user) void sync(); });
   addEventListener("online", () => { if (user) void sync(); });
   addEventListener("focus", () => { if (user) void sync(); });
