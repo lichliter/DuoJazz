@@ -979,10 +979,10 @@ button.module-banner {
   min-height: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   background: var(--paper);
   border-radius: 0 0 17px 17px;
-  padding: 4px 6px;
+  padding: clamp(16px, 3vh, 32px) 6px 4px;
   overflow: visible;
 }
 
@@ -1923,9 +1923,6 @@ button.module-banner {
     padding-block: 0;
   }
 
-  .session-screen .paper-wrap {
-    padding-block: 0;
-  }
 
 }
 
