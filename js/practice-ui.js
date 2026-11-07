@@ -99,7 +99,9 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     document.getElementById("add-charts-status").textContent = "";
     renderCharts();
     addDialog.showModal();
-    search.focus();
+    // Start with the title and search visible; focus search only when requested
+    // so opening this stacked drawer does not summon the mobile keyboard.
+    addDialog.scrollTop = 0;
   }
 
   function renderPicker() {
