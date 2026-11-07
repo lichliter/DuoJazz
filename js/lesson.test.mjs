@@ -42,7 +42,6 @@ import {
   staffPxForScale,
   NOTATION_SCALE_KEY,
   NOTATION_SCALE_VALUES,
-  MIN_STAFF_SYSTEMS,
   systemGapCss,
   minWheelDiameter,
   minWheelCenterPx,
@@ -755,8 +754,7 @@ test("chord symbols scale with the notation scale", () => {
   assert.ok(portrait.chordCssPx > chordTargetCss(PORTRAIT_STAFF_PX));
 });
 
-test("staff card is at least three systems and grows when the engraving is taller", () => {
-  assert.equal(MIN_STAFF_SYSTEMS, 3);
+test("staff card fits one, two, and four systems without reserving blank rows", () => {
   assert.equal(systemGapCss(96), 72);
   assert.equal(systemGapCss(0), 0);
   assert.ok(systemGapCss(PORTRAIT_STAFF_PX) > systemGapCss(STAFF_PX));
@@ -766,11 +764,8 @@ test("staff card is at least three systems and grows when the engraving is talle
   assert.equal(oneLine.systemGap, 0);
   const phone = staffCardContentHeight(withSystemGap(oneLine, PHONE_STAFF_FLOOR_PX));
   const portrait = staffCardContentHeight(withSystemGap(oneLine, PORTRAIT_STAFF_PX));
-  const phoneGap = systemGapCss(PHONE_STAFF_FLOOR_PX);
-  const portraitGap = systemGapCss(PORTRAIT_STAFF_PX);
-  assert.equal(phone, 170 + 2 * (150 + phoneGap));
-  assert.equal(portrait, 170 + 2 * (150 + portraitGap));
-  assert.ok(portrait > phone);
+  assert.equal(phone, 170);
+  assert.equal(portrait, 170);
 
   const two = staffSystemMetricsFromBoxes([
     { top: 0, bottom: 100, height: 100 },
@@ -779,7 +774,7 @@ test("staff card is at least three systems and grows when the engraving is talle
   assert.equal(two.count, 2);
   assert.equal(two.systemGap, 40);
   assert.equal(two.pitch, 140);
-  assert.equal(staffCardContentHeight(withSystemGap(two, PORTRAIT_STAFF_PX)), 250 + 140);
+  assert.equal(staffCardContentHeight(withSystemGap(two, PORTRAIT_STAFF_PX)), 250);
 
   const four = staffSystemMetricsFromBoxes([
     { top: 0, bottom: 80, height: 80 },
@@ -791,7 +786,7 @@ test("staff card is at least three systems and grows when the engraving is talle
   assert.equal(staffCardContentHeight(four), 430);
 });
 
-test("the click wheel shrinks for a three-system card and floors before the page scrolls", () => {
+test("the click wheel shrinks for a content-sized card and floors before the page scrolls", () => {
   assert.equal(minWheelCenterPx(1024), 156);
   assert.equal(minWheelCenterPx(1366), 156);
   assert.equal(minWheelCenterPx(390), 84);
@@ -835,7 +830,7 @@ test("the click wheel shrinks for a three-system card and floors before the page
   assert.equal(widthCapped.cardHeight, card);
 
   const tight = sessionWheelLayout({
-    space: 640,
+    space: 440,
     cardHeight: card,
     chrome: 80,
     margin: 16,
@@ -877,7 +872,7 @@ test("the click wheel shrinks for a three-system card and floors before the page
   assert.equal(tooTall.diameter, phoneWheel);
 });
 
-test("session layout reserves three systems without shrinking the staff", async () => {
+test("session layout fits the card without shrinking the staff", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");

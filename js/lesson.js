@@ -553,8 +553,6 @@ export function notationCardWidth({
   return width;
 }
 
-/** Session staff card stays at least this many systems tall. */
-export const MIN_STAFF_SYSTEMS = 3;
 /**
  * Verovio adds `spacingSystem` (6) × unit (12) = 72 user units between systems.
  * The 5-line staff is 96 user units, so the gap scales with the staff.
@@ -619,26 +617,9 @@ export function withSystemGap(metrics, staffPx) {
   return { ...metrics, systemGap: systemGapCss(staffPx) };
 }
 
-/**
- * Cream-card content height. Shorter than three systems grows by whole system
- * slots (chord box + gap). Four or more systems keep their real height.
- */
-export function staffCardContentHeight({
-  systemCount,
-  count: systemCountAlias = 1,
-  systemHeight = 0,
-  systemGap = 0,
-  pitch = 0,
-  contentHeight = 0,
-} = {}) {
-  const count = Math.max(0, Number(systemCount ?? systemCountAlias) || 0);
-  const height = Math.max(0, Number(systemHeight) || 0);
-  const content = Math.max(0, Number(contentHeight) || 0);
-  const slot = Number(pitch) > 0
-    ? Number(pitch)
-    : Math.max(0, height + (Number(systemGap) || 0));
-  const extra = Math.max(0, MIN_STAFF_SYSTEMS - count);
-  return content + extra * slot;
+/** Fit the card to the engraving; CSS supplies the surrounding inset. */
+export function staffCardContentHeight({ contentHeight = 0 } = {}) {
+  return Math.max(0, Number(contentHeight) || 0);
 }
 
 /**

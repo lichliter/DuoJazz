@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=150";
+} from "./lesson.js?v=152";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -1770,7 +1770,7 @@ function layoutClickWheel() {
   if (!screen || !wheel || !stage || !footer || !card || !wrap) return;
   const svg = els.notation?.querySelector("svg");
   // Measure the card-to-footer slot with the wheel collapsed and the card
-  // unpinned, so a previous three-system minimum cannot shrink the slot.
+  // unpinned, so a previous engraving cannot shrink the slot.
   delete screen.dataset.columnScroll;
   delete screen.dataset.pageScroll;
   const scroller = screen.querySelector(".session-body");

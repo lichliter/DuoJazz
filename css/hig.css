@@ -982,7 +982,7 @@ button.module-banner {
   justify-content: flex-start;
   background: var(--paper);
   border-radius: 0 0 17px 17px;
-  padding: clamp(16px, 3vh, 32px) 6px 4px;
+  padding: clamp(16px, 3vh, 32px) 6px;
   overflow: visible;
 }
 
@@ -1812,9 +1812,10 @@ button.module-banner {
 }
 
 .session-screen .notation-block {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
 }
 
 .session-screen .session-focus {
