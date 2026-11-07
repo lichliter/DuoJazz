@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-input-mode="pointer">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -78,21 +78,6 @@
     </main>
   </section>
 
-  <dialog id="account-dialog" class="account-dialog account-panel" aria-labelledby="account-dialog-title">
-    <header class="account-dialog-header">
-      <h2 id="account-dialog-title">Your account</h2>
-      <button type="button" id="account-close" aria-label="Close account">×</button>
-    </header>
-    <div id="account-member" hidden>
-      <p id="account-name" class="account-name"></p>
-      <p id="account-identity" class="help"></p>
-      <p id="account-error" class="help" role="status" aria-live="polite" hidden></p>
-      <div class="account-actions">
-        <button type="button" id="account-signout">Sign out</button>
-      </div>
-    </div>
-  </dialog>
-
   <div hidden inert class="app-shell" id="app-shell" data-screen="home" data-tab="licks">
     <p id="storage-notice" class="storage-notice" role="status" hidden></p>
     <header class="masthead" id="masthead">
@@ -101,25 +86,14 @@
       </div>
       <div class="masthead-actions">
         <button type="button" class="quiet my-charts-button" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts">My charts</button>
-        <button type="button" id="account-chip" class="account-chip" aria-haspopup="dialog" aria-controls="account-dialog">
+        <button type="button" id="account-chip" class="account-chip" aria-haspopup="dialog" aria-controls="settings-modal">
           <span id="account-avatar" class="account-avatar" aria-hidden="true"></span>
         </button>
       </div>
     </header>
 
-    <main id="main" class="workspace">
+    <main id="main" class="workspace" tabindex="-1">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
-        <div class="home-settings" data-testid="home-tools">
-          <button type="button" class="home-summary" id="home-summary" data-testid="home-summary" aria-haspopup="dialog" aria-controls="settings-modal" aria-label="Settings, Piano · 96 bpm · B♭ major · Cycle: 4ths">
-            <span class="home-summary-text" id="home-summary-text">Piano · 96 bpm · B♭ major · Cycle: 4ths</span>
-            <svg class="home-summary-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-              <path fill="currentColor" d="M4 6.25h16v1.5H4zm0 5h16v1.5H4zm0 5h16v1.5H4z"/>
-              <circle cx="9" cy="7" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
-              <circle cx="15" cy="12" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
-              <circle cx="8" cy="17" r="2.15" fill="var(--bg-grouped-secondary)" stroke="currentColor" stroke-width="1.7"/>
-            </svg>
-          </button>
-        </div>
         <section class="lesson-path" aria-label="Lesson path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
             <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
@@ -150,12 +124,17 @@
         </article>
       </section>
 
-      <dialog id="settings-modal" class="form-sheet settings-modal" data-testid="settings-sheet" aria-labelledby="settings-title">
+      <dialog id="settings-modal" class="form-sheet settings-modal profile-sheet" data-testid="settings-sheet" aria-labelledby="settings-title">
         <form class="sheet-form settings-page" id="settings-form">
           <header class="sheet-toolbar">
-            <h1 class="settings-title" id="settings-title">Settings</h1>
-            <button type="button" class="icon-btn settings-close" id="settings-close" data-testid="settings-close" aria-label="Close">×</button>
+            <h2 id="settings-title">Profile</h2>
+            <button type="button" class="sheet-done" id="settings-close" data-testid="settings-close">Done</button>
           </header>
+          <div id="account-member" class="profile-identity" hidden>
+            <p id="account-name" class="account-name"></p>
+            <p id="account-identity" class="help"></p>
+            <p id="account-error" class="help" role="status" aria-live="polite" hidden></p>
+          </div>
           <section class="inset-group">
             <h2 class="group-label" id="instrument-label">Instrument</h2>
             <div id="instrument-list" role="radiogroup" aria-labelledby="instrument-label"></div>
@@ -197,11 +176,9 @@
             <label class="group-row"><span>Guide tones on the helped chorus</span><input type="checkbox" id="guideTones" checked></label>
             <label class="group-row"><span>Click during the music</span><input type="checkbox" id="metronome"></label>
           </section>
-          <details class="about-block">
-            <summary>About</summary>
-            <p>Play into your mic. DuoJazz listens for each note in order and moves you to the next key. Space plays or pauses. R restarts.</p>
-            <p>Thirty modules from Essential Jazz Vocabulary. Settings are global and apply to the next lesson you start.</p>
-          </details>
+          <div class="profile-actions">
+            <button type="button" id="account-signout">Sign out</button>
+          </div>
         </form>
       </dialog>
 
@@ -352,8 +329,8 @@
     </header>
     <div class="collection-body">
       <p class="sr-only" id="my-charts-status" role="status" aria-live="polite"></p>
-      <div id="my-charts-list"></div>
       <button type="button" class="collection-action add-chart-button" id="add-chart-button" aria-haspopup="dialog" aria-controls="add-charts">+ Add chart</button>
+      <div id="my-charts-list"></div>
     </div>
   </dialog>
 

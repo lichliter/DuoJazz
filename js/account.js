@@ -13,9 +13,9 @@ export function accountInitials(name) {
   return String(name).trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join("").toUpperCase() || "?";
 }
 
-export async function initAccount({ getProgress, onProgress }) {
+export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
   const $ = id => document.getElementById(id);
-  const login = $("login-screen"), shell = $("app-shell"), dialog = $("account-dialog"), chip = $("account-chip");
+  const login = $("login-screen"), shell = $("app-shell"), chip = $("account-chip");
   const returnUrl = authReturnUrl(location.href);
   let user = null, initialized = false, recovery = false, busy = false;
   let generation = 0, pending = false, running = false, applying = false;
@@ -54,12 +54,7 @@ export async function initAccount({ getProgress, onProgress }) {
     }
   }
   document.querySelectorAll("dialog[open]").forEach(node => node.close());
-  chip.onclick = () => dialog.showModal();
-  $("account-close").onclick = () => dialog.close();
-  dialog.addEventListener("click", event => {
-    const rect = dialog.getBoundingClientRect();
-    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
-  });
+  chip.onclick = onOpenProfile;
   for (const button of document.querySelectorAll("[data-auth-nav]")) button.onclick = () => {
     if (busy) return;
     if (button.dataset.authNav === "reset") $("reset-email").value = $("account-email").value;
@@ -153,7 +148,7 @@ export async function initAccount({ getProgress, onProgress }) {
     const name = user?.email?.split("@")[0] || "Your account";
     $("account-avatar").textContent = accountInitials(name);
     $("account-name").textContent = name;
-    chip.setAttribute("aria-label", `Account: ${name}${user?.email ? `, ${user.email}` : ""}`);
+    chip.setAttribute("aria-label", `Profile: ${name}${user?.email ? `, ${user.email}` : ""}`);
     $("account-identity").textContent = user?.email ?? "";
     clearPasswords(); say(""); showApp();
     if (!user) {
@@ -171,7 +166,7 @@ export async function initAccount({ getProgress, onProgress }) {
     }
     if (!recovery) {
       const url = new URL(location.href); url.searchParams.delete("auth"); history.replaceState({}, "", url);
-      chip.focus({ preventScroll: true });
+      $("main").focus({ preventScroll: true });
     }
     void sync();
   }
@@ -244,7 +239,7 @@ export async function initAccount({ getProgress, onProgress }) {
   });
   onSubmit("password-form", "password-submit", async () => {
     ensure(await client.auth.updateUser({ password: $("new-password").value }));
-    recovery = false; clearPasswords(); showApp(); chip.focus();
+    recovery = false; clearPasswords(); showApp(); $("main").focus({ preventScroll: true });
     const url = new URL(location.href); url.searchParams.delete("auth"); history.replaceState({}, "", url);
   });
   $("confirmation-resend").onclick = async () => {

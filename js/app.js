@@ -82,7 +82,6 @@ import {
   persistLessonTempo,
   wrapupNextModule,
   homeNextModule,
-  settingsSummaryShort,
   lessonSessionPlan,
   sessionCreateArgs,
   isPracticeLesson,
@@ -154,6 +153,9 @@ import {
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { initAccount } from "./account.js";
+import { closeSheet, initDialogInteractions } from "./dialogs.js";
+
+initDialogInteractions();
 
 const transport = new Transport();
 const monitor = new PitchMonitor();
@@ -209,8 +211,6 @@ const els = {
   settingsModal: document.getElementById("settings-modal"),
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
-  homeSummary: document.getElementById("home-summary"),
-  homeSummaryText: document.getElementById("home-summary-text"),
   settingsClose: document.getElementById("settings-close"),
   chartsList: document.getElementById("charts-list"),
   chartDetail: document.getElementById("chart-detail"),
@@ -876,7 +876,7 @@ function openSettings() {
 }
 
 function closeSettings() {
-  if (els.settingsModal?.open) els.settingsModal.close();
+  closeSheet(els.settingsModal);
 }
 
 function saveTabScroll() {
@@ -982,7 +982,7 @@ function openQuickView() {
 }
 
 function closeQuickView() {
-  if (els.quickView?.open) els.quickView.close();
+  closeSheet(els.quickView);
 }
 
 function requestQuickView() {
@@ -1449,10 +1449,6 @@ function renderSetup() {
   renderSettings();
 }
 
-function setHomeSummary(summary) {
-  if (els.homeSummaryText) els.homeSummaryText.textContent = summary;
-  if (els.homeSummary) els.homeSummary.setAttribute("aria-label", `Settings, ${summary}`);
-}
 
 function renderStartKeySelect() {
   if (!els.startKey) return;
@@ -1500,8 +1496,6 @@ function renderKeyBubbles() {
 }
 
 function renderSettings() {
-  const summary = settingsSummaryShort(prefs);
-  setHomeSummary(summary);
   chipRow(els.keyModes, CYCLE_MODES, cycleModeId(prefs.keyMode), (id) => {
     prefs.keyMode = cycleModeId(id);
     persist();
@@ -2019,7 +2013,6 @@ function applyInstrument(instrumentId) {
 }
 
 function renderCopy(snap = transport.snapshot()) {
-  setHomeSummary(settingsSummaryShort(prefs));
   els.swing.checked = prefs.swing;
   els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
@@ -2527,8 +2520,10 @@ transport.onEnded = () => {
 
 const practiceUI = setupPracticeUI({ onPractice: startLesson, onChanged: renderStorageNotice });
 
-els.homeSummary?.addEventListener("click", () => openSettings());
 els.settingsClose?.addEventListener("click", () => closeSettings());
+els.settingsModal?.addEventListener("close", () => {
+  if (!els.shell.hidden) document.getElementById("account-chip")?.focus({ preventScroll: true });
+});
 els.settingsModal?.addEventListener("click", (event) => {
   const dialog = els.settingsModal;
   if (!dialog || event.target !== dialog) return;
@@ -2822,6 +2817,7 @@ whenVerovioReady().then(() => {
   if (session?.screen === "session") renderNotation();
 });
 void initAccount({
+  onOpenProfile: openSettings,
   getProgress: () => mastery,
   onProgress(next, accountChanged) {
     if (accountChanged) {
