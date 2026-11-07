@@ -1026,7 +1026,7 @@ button.module-banner {
 }
 
 .click-wheel {
-  --wheel-face: #3a2e27;
+  /* Keep the sizing container so the record button stays in place. */
   container-type: size;
   display: grid;
   place-items: center;
@@ -1035,11 +1035,6 @@ button.module-banner {
   aspect-ratio: 1;
   margin-top: var(--screen-margin);
   margin-inline: auto;
-  border-radius: 50%;
-  background: var(--wheel-face);
-  box-shadow:
-    inset 0 1px 0 rgba(245, 233, 213, 0.28),
-    inset 0 0 0 1px rgba(245, 233, 213, 0.14);
 }
 
 .session-octave {

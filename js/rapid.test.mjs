@@ -366,9 +366,7 @@ test("octave down then octave up sit in the lick toolbar at 44px", async () => {
   assert.match(hig, /\.play-round \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(index, /class="click-wheel"/);
   assert.match(index, /class="click-wheel"[\s\S]*id="primary"/);
-  assert.match(hig, /\.click-wheel\s*\{[^}]*border-radius:\s*50%/);
-  assert.match(hig, /\.click-wheel\s*\{[^}]*background:\s*var\(--wheel-face\)/);
-  assert.doesNotMatch(hig.slice(hig.indexOf(".click-wheel {"), hig.indexOf(".session-octave {")), /radial-gradient/);
+  assert.doesNotMatch(hig.slice(hig.indexOf(".click-wheel {"), hig.indexOf(".session-octave {")), /background:|box-shadow:|border-radius:/);
   assert.match(hig, /\.session-transport \.play-round\s*\{[^}]*--play-size:\s*42cqmin/);
   assert.match(hig, /\.session-transport \.play-round\s*\{[^}]*box-shadow:\s*0 0 0 3px var\(--bg\)/);
   assert.match(hig, /@media \(min-width: 700px\)/);

@@ -19,9 +19,9 @@ The app is the web client at the repository root. `README.md` is the operating g
 - Engraved notation loads Verovio from `https://www.verovio.org`. Fonts load from `fonts.googleapis.com` and `fonts.gstatic.com`. Those hosts need to be reachable for the staff to draw.
 - Do not install Xcode or a Swift toolchain; this repository maintains only the web app.
 
-## Visual review and merging
+## Verification and merging
 
-- Before merging, capture screenshots or a short video showing the completed changes. Capture the actual updated app; use screenshots for visual changes and video for interactions or motion.
-- Include the captures or accessible links in the review handoff, with a brief explanation of what changed and how it was verified.
+- Before merging, verify the completed changes and run checks appropriate to the work. Capture the actual updated app; use screenshots for visual changes and video for interactions or motion.
+- Include the captures or accessible links in the completion report, with a brief explanation of what changed and how it was verified.
 - For changes without a visible app effect, provide the relevant diff and verification results and explain why an app capture is not applicable. If capture is blocked, report the blocker rather than claiming visual verification.
-- For now, completed work is preauthorized to merge into `main` and push without asking for another approval ("YOLO merge"). Run relevant checks, review the diff, and report verification results and any limitations with the merge. Respect branch protections and never force-push `main`.
+- After verifying your own work and passing the relevant checks, merge into `main` and push without requesting separate user approval. Respect branch protections and never force-push `main`. If verification fails or is blocked, resolve or report the issue instead of claiming the work is verified.
