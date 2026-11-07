@@ -340,7 +340,7 @@ test("octave down then octave up sit in the lick toolbar at 44px", async () => {
   assert.match(fn, /className = "octave-btn"/);
   assert.doesNotMatch(fn, /textContent = "Octave"/);
   assert.doesNotMatch(fn, /innerHTML/);
-  const tools = index.slice(index.indexOf('class="lick-tools"'), index.indexOf('class="session-transport play-well"'));
+  const tools = index.slice(index.indexOf('class="lick-tools"'), index.indexOf('class="paper-wrap"'));
   assert.match(tools, /aria-label="Hear it"/);
   const hearAt = tools.indexOf('id="hear-it"');
   const octaveAt = tools.indexOf('id="session-octave"');

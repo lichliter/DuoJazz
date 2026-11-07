@@ -1764,7 +1764,6 @@ function layoutClickWheel() {
   const screen = els.session;
   const wheel = screen?.querySelector(".click-wheel");
   const stage = screen?.querySelector(".session-stage");
-  const tools = screen?.querySelector(".lick-tools");
   const footer = screen?.querySelector(".session-footer");
   const card = screen?.querySelector(".chart-card");
   const wrap = card?.querySelector(".paper-wrap");
@@ -1784,10 +1783,7 @@ function layoutClickWheel() {
   const stageStyle = getComputedStyle(stage);
   const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
   const widthFit = Math.max(0, Math.floor(stage.clientWidth - padX));
-  const toolsStyle = tools ? getComputedStyle(tools) : null;
-  const toolsHeight = tools ? tools.getBoundingClientRect().height
-    + (parseFloat(toolsStyle.marginTop) || 0) + (parseFloat(toolsStyle.marginBottom) || 0) : 0;
-  const space = footer.getBoundingClientRect().top - card.getBoundingClientRect().top - toolsHeight;
+  const space = footer.getBoundingClientRect().top - card.getBoundingClientRect().top;
   const cardStyle = getComputedStyle(card);
   const wrapStyle = getComputedStyle(wrap);
   const wrapPadY = (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);

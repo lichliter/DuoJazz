@@ -944,7 +944,10 @@ button.module-banner {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  margin: 12px 0 0;
+  margin: 0;
+  padding: 12px 12px 8px;
+  background: var(--paper);
+  border-radius: 17px 17px 0 0;
   flex: 0 0 auto;
 }
 
@@ -962,7 +965,7 @@ button.module-banner {
   align-items: center;
   justify-content: center;
   background: var(--paper);
-  border-radius: 12px;
+  border-radius: 0 0 17px 17px;
   padding: 4px 6px;
   overflow: visible;
 }
