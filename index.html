@@ -190,7 +190,7 @@
 
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
-          <button type="button" class="dismiss-button" id="session-exit" aria-label="Close">×</button>
+          <button type="button" class="session-back" id="session-exit">← Back</button>
           <div class="session-heading">
             <p class="session-module" id="session-module"></p>
           </div>
@@ -209,11 +209,11 @@
               <p class="debug-attempt" id="debug-attempt" data-testid="debug-attempt"></p>
               <button type="button" class="text-link debug-save" id="save-take" data-testid="save-take" hidden>Save take</button>
             </div>
-            <header class="session-focus">
-              <h1 class="session-title" id="session-title"></h1>
-              <p class="session-meta" id="session-key" hidden></p>
-            </header>
             <div class="notation-block">
+              <header class="session-focus">
+                <h1 class="session-title" id="session-title"></h1>
+                <p class="session-meta" id="session-key" hidden></p>
+              </header>
               <section class="chart-card" id="music-surface" aria-label="Music">
                 <div class="paper-wrap">
                   <div id="notation" class="paper" aria-label="Staff notation"></div>
