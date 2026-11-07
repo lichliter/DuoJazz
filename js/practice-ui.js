@@ -1,6 +1,7 @@
 import { PRACTICE_CATALOG, lessonById } from "./registry.js";
 import { MY_CHARTS_KEY, loadMyCharts, chartChoices } from "./practice-catalog.js";
 import { writeStoredJson } from "./storage.js";
+import { closeSheet } from "./dialogs.js";
 
 export function setupPracticeUI({ onPractice, onChanged }) {
   const catalog = PRACTICE_CATALOG;
@@ -138,7 +139,7 @@ export function setupPracticeUI({ onPractice, onChanged }) {
       button.append(art, paragraph(choice.title, "collection-title"),
         paragraph(choice.context.replace(`${choice.title} · `, ""), "help"));
       button.addEventListener("click", () => {
-        picker.close();
+        closeSheet(picker);
         onPractice(choice.lessonId);
       });
       card.append(button);
@@ -179,18 +180,18 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   document.getElementById("application-workbook-example").addEventListener("click", () => {
     if (!currentGroup) return;
     const variant = currentGroup.variants.find((item) => item.id === currentVariantId);
-    picker.close();
+    closeSheet(picker);
     onPractice(variant.exampleLessonId);
   });
   addButton.addEventListener("click", openAddCharts);
   document.getElementById("my-charts-button").addEventListener("click", openMyCharts);
   document.getElementById("application-manage-charts").addEventListener("click", openMyCharts);
   for (const dialog of [chartsDialog, addDialog, picker]) {
-    dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+    dialog.querySelector("[data-close]").addEventListener("click", () => closeSheet(dialog));
     dialog.addEventListener("click", (event) => {
       if (event.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
-      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet(dialog);
     });
   }
   return { openApplication, openMyCharts };

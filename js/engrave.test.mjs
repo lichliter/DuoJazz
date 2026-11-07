@@ -99,13 +99,13 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.match(index, /family=Oswald/);
   assert.match(index, /class="play-round"/);
   assert.doesNotMatch(index, /class="session-bottom"/);
-  assert.match(index, /id="home-summary"[^>]*aria-haspopup="dialog"/);
-  assert.match(index, /class="home-summary-icon"/);
+  assert.match(index, /id="account-chip"[^>]*aria-haspopup="dialog"[^>]*aria-controls="settings-modal"/);
+  assert.doesNotMatch(index, /id="account-dialog"|id="home-summary"/);
   assert.doesNotMatch(index, /id="home-mode"/);
   assert.doesNotMatch(index, /id="settings-btn"/);
   assert.doesNotMatch(index, /id="card-set-label"/);
   assert.match(index, /id="settings-modal"/);
-  assert.match(index, /id="settings-close"[^>]*aria-label="Close"/);
+  assert.match(index, /id="settings-close"[^>]*>Done<\/button>/);
   assert.match(index, /id="card-badge">Play</);
   assert.match(index, /class="session-transport play-well"/);
   assert.match(index, /class="lick-tools"/);
@@ -134,8 +134,8 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /id="settings-summary-btn"/);
   assert.match(index, /id="settings-form"/);
   const settingsForm = index.slice(index.indexOf('id="settings-form"'), index.indexOf("id=\"screen-session\""));
-  assert.doesNotMatch(settingsForm, /sheet-done/);
-  assert.doesNotMatch(settingsForm, />Done</);
+  assert.match(settingsForm, /sheet-done/);
+  assert.match(settingsForm, />Done</);
   assert.match(index, /id="session-title"/);
   assert.match(index, /class="sheet-done"/);
   assert.match(index, /class="session-stage"/);
@@ -195,8 +195,6 @@ test("tokens restore the warm palette and keep the iOS type scale", async () => 
   assert.doesNotMatch(tokens, /--sidebar-width/);
   assert.match(hig, /line-clamp:\s*2/);
   assert.match(hig, /@media \(max-width: 390px\)/);
-  assert.match(hig, /\.home-settings \.home-summary \{[\s\S]*?min-height:\s*var\(--tap\)/);
-  assert.match(hig, /\.home-settings \{[\s\S]*?background:\s*var\(--bg-grouped-secondary\)/);
   assert.match(hig, /button\.module-banner \{[\s\S]*?cursor:\s*pointer/);
   assert.match(hig, /\.app-tab-bar \{[\s\S]*?height:\s*calc\(49px \+ var\(--safe-bottom\)\)/);
   assert.match(hig, /@media \(min-width: 768px\)/);
