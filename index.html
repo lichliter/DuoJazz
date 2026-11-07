@@ -192,11 +192,7 @@
         <header class="session-top">
           <button type="button" class="icon-btn" id="session-exit" aria-label="Close">×</button>
           <div class="session-heading">
-            <h1 class="session-title" id="session-title">Lesson</h1>
-          </div>
-          <div class="session-end">
-            <p class="session-meta" id="session-key">G minor</p>
-            <p class="session-meta muted" id="session-key-count">Key 1 of 12</p>
+            <p class="session-module" id="session-module"></p>
           </div>
         </header>
         <div class="session-body">
@@ -213,22 +209,11 @@
               <p class="debug-attempt" id="debug-attempt" data-testid="debug-attempt"></p>
               <button type="button" class="text-link debug-save" id="save-take" data-testid="save-take" hidden>Save take</button>
             </div>
+            <header class="session-focus">
+              <h1 class="session-title" id="session-title"></h1>
+              <p class="session-meta" id="session-key" hidden></p>
+            </header>
             <div class="notation-block">
-              <div class="lick-tools" data-testid="lick-tools">
-                <button type="button" class="transport-icon hear-it" id="hear-it" data-testid="hear-it" aria-label="Hear it" title="Hear it">
-                  <svg class="transport-glyph hear-it-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path fill="currentColor" d="M7.4 4.9v14.2a1 1 0 0 0 1.55.84l10.8-7.1a1 1 0 0 0 0-1.68l-10.8-7.1A1 1 0 0 0 7.4 4.9z"/>
-                  </svg>
-                  <svg class="transport-glyph hear-it-stop" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
-                    <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>
-                  </svg>
-                </button>
-                <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
-              </div>
-              <header class="staff-key" id="staff-key" data-testid="staff-key" hidden>
-                <p class="staff-key-name" id="staff-key-name">F minor</p>
-                <p class="staff-key-count" id="staff-key-count">Key 1 of 12</p>
-              </header>
               <section class="chart-card" id="music-surface" aria-label="Music">
                 <div class="paper-wrap">
                   <div id="notation" class="paper" aria-label="Staff notation"></div>
@@ -240,6 +225,17 @@
                   <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
                 </div>
               </section>
+              <div class="lick-tools" data-testid="lick-tools">
+                <button type="button" class="transport-icon hear-it" id="hear-it" data-testid="hear-it" aria-label="Hear it" title="Hear it">
+                  <svg class="transport-glyph hear-it-play" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M7.4 4.9v14.2a1 1 0 0 0 1.55.84l10.8-7.1a1 1 0 0 0 0-1.68l-10.8-7.1A1 1 0 0 0 7.4 4.9z"/>
+                  </svg>
+                  <svg class="transport-glyph hear-it-stop" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>
+                  </svg>
+                </button>
+                <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
+              </div>
             </div>
             <div class="session-transport play-well">
               <div class="click-wheel" data-testid="click-wheel">

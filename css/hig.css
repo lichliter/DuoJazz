@@ -385,7 +385,7 @@ button.module-banner {
 .chord-symbol,
 .chart-row-key,
 #session-key,
-#staff-key-name,
+#session-title.music-label,
 #chart-heading-meta,
 #next-key,
 #wrapup-heading,
@@ -726,39 +726,50 @@ button.module-banner {
 
 .session-top {
   display: grid;
-  grid-template-columns: var(--tap) minmax(0, 1fr) auto;
+  grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
   align-items: center;
   gap: var(--gap-controls);
   min-height: calc(var(--tap) + var(--safe-top));
-  padding: var(--safe-top) var(--margin-regular) 0;
+  padding: calc(var(--safe-top) + 12px) var(--margin-regular) 12px;
   border-bottom: 0.5px solid var(--separator);
   background: var(--toolbar-bg);
 }
 
-.session-end {
+.session-focus {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--gap-controls);
-  min-width: 0;
+  flex: 0 0 auto;
+  gap: 4px;
+  width: 100%;
+  margin: 0 0 var(--screen-margin);
+  text-align: center;
+}
+
+.session-module {
+  margin: 0;
+  color: var(--label-secondary);
+  font: 600 12px/16px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
 }
 
 .session-title {
   margin: 0;
-  font: var(--text-headline);
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font: 700 clamp(28px, 5vw, 40px)/1.12 var(--font);
   text-transform: none;
   letter-spacing: 0;
-  font-family: var(--font);
   max-width: none;
+  text-align: center;
+  overflow-wrap: anywhere;
   color: var(--label);
 }
 
 .session-meta {
+  margin: 0;
   font: var(--text-footnote);
-  color: var(--label);
+  color: var(--label-secondary);
 }
 
 .session-jump {
@@ -923,37 +934,8 @@ button.module-banner {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  margin: 0 0 var(--screen-margin);
+  margin: 12px 0 0;
   flex: 0 0 auto;
-}
-
-.staff-key {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  margin: 0 0 0.35rem;
-  text-align: center;
-  flex: 0 0 auto;
-}
-
-.staff-key[hidden] {
-  display: none;
-}
-
-.staff-key-name {
-  margin: 0;
-  font-size: clamp(1.85rem, 4.6vw, 2.75rem);
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--label);
-}
-
-.staff-key-count {
-  margin: 0.05rem 0 0;
-  font: var(--text-footnote);
-  color: var(--label-secondary);
 }
 
 .session-screen .notation-block .chart-card {
@@ -1159,11 +1141,12 @@ button.module-banner {
 }
 
 .lick-tools .transport-icon,
-.session-octave .octave-btn {
-  border: 0;
-  background: var(--tint-solid);
-  color: var(--tint-on-solid);
-  border-radius: 50%;
+.session-octave .octave-btn,
+.session-footer .transport-icon {
+  border: 1px solid var(--separator);
+  background: var(--fill);
+  color: var(--label);
+  border-radius: 12px;
 }
 
 .session-octave .octave-btn {
@@ -1190,15 +1173,15 @@ button.module-banner {
   flex: 0 0 auto;
   margin: 0;
   min-width: 8.5rem;
-  min-height: 52px;
-  padding: 0 1.25rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--tint-solid);
-  color: var(--tint-on-solid);
-  font: 700 20px/24px var(--font);
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--separator);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--label);
+  font: 600 16px/20px var(--font);
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(20, 12, 8, 0.35);
+  box-shadow: none;
 }
 
 .session-screen .paper-wrap.notes-hidden .paper {
@@ -1578,7 +1561,7 @@ button.module-banner {
   }
 
   .session-top {
-    grid-template-columns: var(--tap) minmax(0, 1fr) auto;
+    grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
     padding-inline: var(--margin-compact);
   }
 
@@ -1795,7 +1778,7 @@ button.module-banner {
   }
 
   .session-top {
-    grid-template-columns: var(--session-control) minmax(0, 1fr) auto;
+    grid-template-columns: var(--session-control) minmax(0, 1fr) var(--session-control);
     min-height: calc(var(--session-control) + var(--safe-top));
   }
 
@@ -1806,8 +1789,8 @@ button.module-banner {
   }
 
   .session-title {
-    font-size: 28px;
-    line-height: 34px;
+    font-size: 40px;
+    line-height: 46px;
   }
 
   .session-meta {
@@ -1884,17 +1867,6 @@ button.module-banner {
     padding-top: var(--screen-margin);
   }
 
-  .session-screen .lick-tools {
-    position: absolute;
-    top: 0;
-    left: calc(var(--margin-regular) + var(--session-control) + 8px);
-    right: calc(var(--margin-regular) + 212px);
-    width: auto;
-    height: var(--session-control);
-    margin: 0;
-    z-index: 6;
-  }
-
   .session-screen .chart-card {
     padding-block: 0;
   }
@@ -1906,15 +1878,6 @@ button.module-banner {
   .session-footer {
     gap: 0;
     padding-bottom: var(--safe-bottom);
-  }
-
-  .session-screen .session-heading {
-    padding-left: 120px;
-    padding-right: 168px;
-  }
-
-  .session-top:has(#session-key-count[hidden]) .session-heading {
-    padding-right: 292px;
   }
 }
 

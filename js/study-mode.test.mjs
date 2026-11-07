@@ -256,7 +256,8 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(app, /of 12 keys mastered/);
   assert.doesNotMatch(app, /medal-badge/);
   assert.match(styles, /\.banner-chevron/);
-  assert.match(index, /id="staff-key"/);
+  assert.match(index, /id="session-module"/);
+  assert.doesNotMatch(index, /id="staff-key"|id="session-key-count"/);
   assert.match(index, /id="start-key-label"[^>]*>Starting key/);
   assert.match(index, /id="start-key"/);
   assert.match(index, /id="all-keys-toggle"/);
@@ -268,8 +269,8 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(app, /toggleSelectedKey/);
   assert.match(app, /setAllKeys/);
   assert.match(app, /displayMode, "major"\)/);
-  assert.match(app, /els\.staffKey\.hidden = !cycling/);
-  assert.match(app, /fillMusicLabel\(\s*els\.staffKeyName/);
+  assert.match(app, /els\.sessionKey\.hidden = !practice/);
+  assert.match(app, /fillMusicLabel\(els\.sessionTitle/);
   assert.match(index, /\?v=150/);
   assert.doesNotMatch(index, /\?v=145/);
 });

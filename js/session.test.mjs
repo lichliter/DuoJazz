@@ -779,9 +779,9 @@ test("global settings summary and lesson-1 labels", () => {
   assert.equal(cardLabel("learn", "learn-lick"), "Hear it");
   assert.equal(cardKicker("quiz", "learn-lick"), "MEMORY");
   assert.equal(cardLabel("learn", "integrate-minor-home"), "Learn");
-  assert.equal(sessionScreenTitle(createSession({ lessonId: "learn-lick" })), "Cry Me a River · Lesson 1");
-  assert.equal(sessionScreenTitle(createSession({ lessonId: "master-lick", keyMode: "fourths" })), "Cry Me a River · Lesson 2");
-  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Cry Me a River · Practice");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "learn-lick" })), "G minor");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "master-lick", keyMode: "fourths" })), "G minor");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "integrate-minor-home" })), "Autumn Leaves");
   const twelve = createSession({ lessonId: "learn-lick", keyMode: "fourths" });
   assert.deepEqual(sessionProgress(twelve), { index: 1, total: 12, ratio: 0 });
   const hear = createSession({ lessonId: "learn-lick" });
@@ -946,4 +946,11 @@ test("all-keys stays the full cycle and a custom set follows the starting key", 
   assert.ok(moved.selectedKeyIds.includes("Ab"));
   assert.equal(setAllKeys(moved, true).allKeys, true);
   assert.equal(settingsSummaryShort(setAllKeys(moved, true)), "Piano · 96 bpm · A♭ major · Cycle: 4ths");
+});
+
+test("session headings emphasize the current key or tune without lesson numbers", () => {
+  const master = createSession({ lessonId: "master-lick", startKeyId: "G", keyMode: "fourths" });
+  assert.equal(sessionScreenTitle(master), "G minor");
+  assert.equal(sessionScreenTitle(advanceKey(master)), "C minor");
+  assert.equal(sessionScreenTitle(createSession({ lessonId: "tune-st-thomas-emr" })), "St. Thomas");
 });

@@ -81,6 +81,8 @@ for (const demo of ["path", "grades", "medal"]) {
 test("failed preference writes do not prevent starting lessons", () => {
   const context = appContext(["persist", "rememberModule", "renderStorageNotice", "clearMasteryPreview", "startLesson"], {
     selectedModuleId: "cmar",
+    screenName: () => "home",
+    saveTabScroll: noop,
     writeStoredJson() { return false; },
     storageWarning() { return "Changes aren't being saved."; },
     applySession(next) { context.session = next; },
@@ -260,4 +262,32 @@ test("shortcuts are inactive outside sessions and ignore modified or repeated ke
     context.handler(keyEvent({ [property]: true }));
   }
   assert.deepEqual(actions, []);
+});
+
+test("closing a lesson restores the module page scroll position", () => {
+  const window = { scrollY: 620, scrollTo({ top }) { this.scrollY = top; } };
+  const context = appContext([
+    "saveTabScroll", "restoreTabScroll", "startLesson", "exitSession",
+  ], {
+    window,
+    nav: { tab: "home" },
+    tabScroll: {},
+    selectedModuleId: "cmar",
+    screenName: () => context.session?.screen ?? "home",
+    clearMasteryPreview: noop,
+    rememberModule: noop,
+    persist: noop,
+    releaseMic: noop,
+    resetPitchTake: noop,
+    applySession(next) { context.session = next; window.scrollY = 0; },
+    render() { window.scrollY = 0; },
+  });
+  context.startLesson("master-lick");
+  assert.equal(window.scrollY, 0);
+  context.exitSession();
+  assert.equal(window.scrollY, 620);
+  window.scrollY = 350;
+  context.startLesson("learn-lick");
+  context.exitSession();
+  assert.equal(window.scrollY, 350);
 });

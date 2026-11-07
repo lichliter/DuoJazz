@@ -340,7 +340,7 @@ test("octave down then octave up sit in the lick toolbar at 44px", async () => {
   assert.match(fn, /className = "octave-btn"/);
   assert.doesNotMatch(fn, /textContent = "Octave"/);
   assert.doesNotMatch(fn, /innerHTML/);
-  const tools = index.slice(index.indexOf('class="lick-tools"'), index.indexOf('class="chart-card"'));
+  const tools = index.slice(index.indexOf('class="lick-tools"'), index.indexOf('class="session-transport play-well"'));
   assert.match(tools, /aria-label="Hear it"/);
   const hearAt = tools.indexOf('id="hear-it"');
   const octaveAt = tools.indexOf('id="session-octave"');
@@ -360,9 +360,8 @@ test("octave down then octave up sit in the lick toolbar at 44px", async () => {
   assert.match(hig, /\.session-octave \.octave-btn \{[^}]*min-width:\s*var\(--tap\)/);
   assert.match(hig, /\.session-octave \.octave-btn \{[^}]*min-height:\s*var\(--tap\)/);
   assert.match(hig, /\.session-octave \.octave-btn \{[^}]*font-style:\s*italic/);
-  assert.match(hig, /\.session-octave \.octave-btn \{[^}]*background:\s*var\(--tint-solid\)/);
-  assert.match(hig, /\.session-octave \.octave-btn \{[^}]*color:\s*var\(--tint-on-solid\)/);
-  assert.match(hig, /\.lick-tools \.transport-icon,\s*\n\.session-octave \.octave-btn \{[^}]*background:\s*var\(--tint-solid\)/);
+  assert.match(hig, /\.session-footer \.transport-icon \{[^}]*background:\s*var\(--fill\)/);
+  assert.match(hig, /\.session-footer \.transport-icon \{[^}]*color:\s*var\(--label\)/);
   assert.match(hig, /\.play-round \{[^}]*background:\s*var\(--tint-solid\)/);
   assert.match(index, /class="click-wheel"/);
   assert.match(index, /class="click-wheel"[\s\S]*id="primary"/);

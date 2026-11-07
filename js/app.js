@@ -232,6 +232,7 @@ const els = {
   quickViewBtn: document.getElementById("quick-view-btn"),
   quickViewTitle: document.getElementById("quick-view-title"),
   sessionTitle: document.getElementById("session-title"),
+  sessionModule: document.getElementById("session-module"),
   primaryCount: document.getElementById("primary-count"),
   keyModes: document.getElementById("key-modes"),
   keyOrderPreview: document.getElementById("key-order-preview"),
@@ -256,10 +257,6 @@ const els = {
   quickViewList: document.getElementById("quick-view-list"),
   leaveConfirm: document.getElementById("leave-confirm"),
   sessionKey: document.getElementById("session-key"),
-  sessionKeyCount: document.getElementById("session-key-count"),
-  staffKey: document.getElementById("staff-key"),
-  staffKeyName: document.getElementById("staff-key-name"),
-  staffKeyCount: document.getElementById("staff-key-count"),
   keyCycle: document.getElementById("key-cycle"),
   sessionProgressFill: document.getElementById("session-progress-fill"),
   cardBadge: document.getElementById("card-badge"),
@@ -933,6 +930,7 @@ function syncTabButtons() {
 }
 
 function startLesson(lessonId) {
+  if (screenName() === "home") saveTabScroll();
   clearMasteryPreview();
   const lesson = lessonById(lessonId);
   rememberModule(moduleForLesson(lesson.id)?.id ?? selectedModuleId);
@@ -1053,6 +1051,7 @@ function exitSession() {
   lastSessionSlot = "";
   session = null;
   render();
+  restoreTabScroll();
 }
 
 function sessionKeyToken(value) {
@@ -1646,10 +1645,12 @@ function applyMelodyOctave(register) {
 }
 
 function renderSessionChrome() {
-  const ordinal = keyOrdinal(session);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
   if (els.cardBadge) els.cardBadge.textContent = sessionModeHeading(session);
-  if (els.sessionTitle) els.sessionTitle.textContent = sessionScreenTitle(session);
+  const practice = isPracticeLesson(session.lessonId);
+  if (els.sessionModule) els.sessionModule.textContent = moduleForLesson(session.lessonId).name;
+  if (els.sessionTitle) fillMusicLabel(els.sessionTitle, sessionScreenTitle(session));
+  els.sessionKey.hidden = !practice;
   fillMusicLabel(
     els.sessionKey,
     displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
@@ -1657,22 +1658,6 @@ function renderSessionChrome() {
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
   if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId);
-  if (els.sessionKeyCount) {
-    els.sessionKeyCount.hidden = !cycling;
-    els.sessionKeyCount.textContent = cycling ? `Key ${ordinal.index} of ${ordinal.total}` : "";
-  }
-  if (els.staffKey) {
-    els.staffKey.hidden = !cycling;
-    if (cycling && els.staffKeyName) {
-      fillMusicLabel(
-        els.staffKeyName,
-        displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session)),
-      );
-    }
-    if (els.staffKeyCount) {
-      els.staffKeyCount.textContent = cycling ? `Key ${ordinal.index} of ${ordinal.total}` : "";
-    }
-  }
   if (els.continueBtn) els.continueBtn.hidden = !cycling;
   renderKeyCycle();
 }
@@ -1785,7 +1770,7 @@ function layoutClickWheel() {
   const wrap = card?.querySelector(".paper-wrap");
   if (!screen || !wheel || !stage || !footer || !card || !wrap) return;
   const svg = els.notation?.querySelector("svg");
-  // Measure the tools-to-footer slot with the wheel collapsed and the card
+  // Measure the card-to-footer slot with the wheel collapsed and the card
   // unpinned, so a previous three-system minimum cannot shrink the slot.
   delete screen.dataset.columnScroll;
   delete screen.dataset.pageScroll;
@@ -1799,16 +1784,10 @@ function layoutClickWheel() {
   const stageStyle = getComputedStyle(stage);
   const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
   const widthFit = Math.max(0, Math.floor(stage.clientWidth - padX));
-  const toolsBottom = tools ? tools.getBoundingClientRect().bottom : stage.getBoundingClientRect().top;
-  const staffKey = screen.querySelector(".staff-key");
-  let staffKeyHeight = 0;
-  if (staffKey && !staffKey.hidden) {
-    const staffKeyStyle = getComputedStyle(staffKey);
-    staffKeyHeight = staffKey.getBoundingClientRect().height
-      + (parseFloat(staffKeyStyle.marginTop) || 0)
-      + (parseFloat(staffKeyStyle.marginBottom) || 0);
-  }
-  const space = footer.getBoundingClientRect().top - toolsBottom - staffKeyHeight;
+  const toolsStyle = tools ? getComputedStyle(tools) : null;
+  const toolsHeight = tools ? tools.getBoundingClientRect().height
+    + (parseFloat(toolsStyle.marginTop) || 0) + (parseFloat(toolsStyle.marginBottom) || 0) : 0;
+  const space = footer.getBoundingClientRect().top - card.getBoundingClientRect().top - toolsHeight;
   const cardStyle = getComputedStyle(card);
   const wrapStyle = getComputedStyle(wrap);
   const wrapPadY = (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
