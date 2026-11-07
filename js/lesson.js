@@ -561,12 +561,12 @@ export const MIN_STAFF_SYSTEMS = 3;
  */
 const SYSTEM_GAP_USER = 72;
 const STAFF_USER_UNITS = 96;
-/** Center button is 42% of the wheel (`42cqmin`). */
-export const WHEEL_CENTER_RATIO = 0.42;
+/** Center button is 54% of its layout container (`54cqmin`). */
+export const WHEEL_CENTER_RATIO = 0.54;
 /** Center control stays about this size; the wheel grows to keep the ratio. */
-export const MIN_WHEEL_CENTER_PX = 120;
+export const MIN_WHEEL_CENTER_PX = 156;
 /** Phone can shrink further so a tall staff still fits without scrolling the page. */
-export const MIN_WHEEL_CENTER_PHONE_PX = 64;
+export const MIN_WHEEL_CENTER_PHONE_PX = 84;
 
 /** CSS px between systems at the current staff size, including the chord lane's share of the gap. */
 export function systemGapCss(staffPx) {

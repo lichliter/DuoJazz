@@ -102,7 +102,7 @@ test("profile combines account details and settings and opens from the avatar", 
   assert.doesNotMatch(index, /id="settings-btn"/);
   assert.doesNotMatch(index, /id="card-sets"/);
   assert.match(index, /id="settings-modal"/);
-  assert.match(index, /id="settings-close"[^>]*>Done<\/button>/);
+  assert.match(index, /id="settings-close"[^>]*>×<\/button>/);
   assert.doesNotMatch(index, /id="app-tab-bar"/);
   assert.doesNotMatch(index, /id="home-mode"/);
   assert.match(app, /onOpenProfile: openSettings/);

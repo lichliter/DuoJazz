@@ -730,9 +730,19 @@ button.module-banner {
   align-items: center;
   gap: var(--gap-controls);
   min-height: calc(var(--tap) + var(--safe-top));
-  padding: calc(var(--safe-top) + 12px) var(--margin-regular) 12px;
+  padding: calc(var(--safe-top) + 4px) var(--margin-regular) 4px;
   border-bottom: 0.5px solid var(--separator);
   background: var(--toolbar-bg);
+}
+
+.session-top .session-heading {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.session-top .dismiss-button {
+  grid-column: 3;
+  grid-row: 1;
 }
 
 .session-focus {
@@ -1036,7 +1046,7 @@ button.module-banner {
 
 .session-transport .play-round {
   flex: 0 0 auto;
-  --play-size: 42cqmin;
+  --play-size: 54cqmin;
   z-index: 1;
   box-shadow: 0 0 0 3px var(--bg);
 }
@@ -1362,15 +1372,26 @@ button.module-banner {
   color: var(--label);
 }
 
-.sheet-done {
+.dismiss-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--tap);
+  height: var(--tap);
   min-height: var(--tap);
   min-width: var(--tap);
+  padding: 0;
   border: 0;
+  border-radius: 50%;
   background: transparent;
-  color: var(--tint);
-  font: var(--text-body);
-  font-weight: 600;
+  color: var(--label-secondary);
+  font: 400 28px/1 var(--font);
   cursor: pointer;
+}
+
+.dismiss-button:hover {
+  background: var(--fill);
+  color: var(--label);
 }
 
 .sheet-form {
@@ -1775,17 +1796,6 @@ button.module-banner {
 @media (min-width: 700px) {
   .session-screen {
     --session-control: 72px;
-  }
-
-  .session-top {
-    grid-template-columns: var(--session-control) minmax(0, 1fr) var(--session-control);
-    min-height: calc(var(--session-control) + var(--safe-top));
-  }
-
-  .session-screen .session-top .icon-btn {
-    min-width: var(--session-control);
-    min-height: var(--session-control);
-    font-size: 46px;
   }
 
   .session-title {

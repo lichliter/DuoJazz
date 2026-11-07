@@ -105,7 +105,7 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /id="settings-btn"/);
   assert.doesNotMatch(index, /id="card-set-label"/);
   assert.match(index, /id="settings-modal"/);
-  assert.match(index, /id="settings-close"[^>]*>Done<\/button>/);
+  assert.match(index, /id="settings-close"[^>]*>×<\/button>/);
   assert.match(index, /id="card-badge">Play</);
   assert.match(index, /class="session-transport play-well"/);
   assert.match(index, /class="lick-tools"/);
@@ -134,10 +134,10 @@ test("home uses the record road and a Modules sheet; session keeps the round pla
   assert.doesNotMatch(index, /id="settings-summary-btn"/);
   assert.match(index, /id="settings-form"/);
   const settingsForm = index.slice(index.indexOf('id="settings-form"'), index.indexOf("id=\"screen-session\""));
-  assert.match(settingsForm, /sheet-done/);
-  assert.match(settingsForm, />Done</);
+  assert.match(settingsForm, /dismiss-button/);
+  assert.match(settingsForm, /aria-label="Close profile"/);
   assert.match(index, /id="session-title"/);
-  assert.match(index, /class="sheet-done"/);
+  assert.match(index, /class="dismiss-button"/);
   assert.match(index, /class="session-stage"/);
   assert.doesNotMatch(index, /class="headphones-banner"/);
   assert.doesNotMatch(index, /id="headphones-dismiss"/);

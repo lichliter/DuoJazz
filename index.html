@@ -127,7 +127,7 @@
         <form class="sheet-form settings-page" id="settings-form">
           <header class="sheet-toolbar">
             <h2 id="settings-title">Profile</h2>
-            <button type="button" class="sheet-done" id="settings-close" data-testid="settings-close">Done</button>
+            <button type="button" class="dismiss-button" aria-label="Close profile" id="settings-close" data-testid="settings-close">×</button>
           </header>
           <div id="account-member" class="profile-identity" hidden>
             <p id="account-name" class="account-name"></p>
@@ -190,7 +190,7 @@
 
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
-          <button type="button" class="icon-btn" id="session-exit" aria-label="Close">×</button>
+          <button type="button" class="dismiss-button" id="session-exit" aria-label="Close">×</button>
           <div class="session-heading">
             <p class="session-module" id="session-module"></p>
           </div>
@@ -305,6 +305,7 @@
     <form method="dialog" class="sheet-form">
       <header class="sheet-toolbar">
         <h2 id="leave-confirm-title">Leave this session?</h2>
+        <button type="submit" class="dismiss-button" aria-label="Close confirmation" value="stay">×</button>
       </header>
       <p class="help">Unfinished cards will be marked skipped.</p>
       <div class="sheet-actions">
@@ -318,7 +319,7 @@
     <form method="dialog" class="sheet-form">
       <header class="sheet-toolbar">
         <h2 id="quick-view-title">Modules</h2>
-        <button type="submit" class="sheet-done" value="close">Done</button>
+        <button type="submit" class="dismiss-button" aria-label="Close modules" value="close">×</button>
       </header>
       <div class="quick-view-list" id="quick-view-list"></div>
     </form>
@@ -327,7 +328,7 @@
   <dialog id="my-charts" class="form-sheet collection-sheet" aria-labelledby="my-charts-title">
     <header class="sheet-toolbar">
       <h2 id="my-charts-title">Favorite charts</h2>
-      <button type="button" class="sheet-done" data-close>Done</button>
+      <button type="button" class="dismiss-button" aria-label="Close favorite charts" data-close>×</button>
     </header>
     <div class="collection-body">
       <p class="sr-only" id="my-charts-status" role="status" aria-live="polite"></p>
@@ -339,7 +340,7 @@
   <dialog id="add-charts" class="form-sheet collection-sheet" aria-labelledby="add-charts-title">
     <header class="sheet-toolbar">
       <h2 id="add-charts-title">Add chart</h2>
-      <button type="button" class="sheet-done" data-close autofocus>Done</button>
+      <button type="button" class="dismiss-button" aria-label="Close add chart" data-close autofocus>×</button>
     </header>
     <div class="collection-body">
       <label class="group-label" for="my-charts-search">Find a chart to add</label>
@@ -352,7 +353,7 @@
   <dialog id="application-charts" class="form-sheet collection-sheet" aria-labelledby="application-charts-title" aria-describedby="application-charts-description">
     <header class="sheet-toolbar">
       <h2 id="application-charts-title">Application</h2>
-      <button type="button" class="sheet-done" data-close>Back</button>
+      <button type="button" class="dismiss-button" aria-label="Close application" data-close>×</button>
     </header>
     <div class="collection-body">
       <p class="group-label" id="application-charts-lick"></p>
