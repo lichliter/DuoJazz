@@ -1271,7 +1271,7 @@ function moduleBanner(module, stats) {
   section.setAttribute("aria-label", `Choose a lick. ${module.name}`);
   const copy = document.createElement("div");
   copy.className = "banner-copy";
-  copy.innerHTML = `<p class="banner-kicker">Module ${module.number} · a lick</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
+  copy.innerHTML = `<p class="banner-kicker">Module ${module.number}</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
   const chevron = document.createElement("span");
   chevron.className = "banner-chevron";
   chevron.setAttribute("aria-hidden", "true");
