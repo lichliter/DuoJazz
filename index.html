@@ -10,29 +10,29 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="DuoJazz">
   <meta name="twitter:card" content="summary">
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=dj-record-2">
-  <link rel="icon" href="./icons/favicon.svg?v=dj-record-2" type="image/svg+xml">
-  <link rel="icon" href="./icons/favicon-32.png?v=dj-record-2" type="image/png" sizes="32x32">
-  <link rel="manifest" href="./manifest.webmanifest?v=dj-record-2">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=dj-record-3">
+  <link rel="icon" href="./icons/favicon.svg?v=dj-record-3" type="image/svg+xml">
+  <link rel="icon" href="./icons/favicon-32.png?v=dj-record-3" type="image/png" sizes="32x32">
+  <link rel="manifest" href="./manifest.webmanifest?v=dj-record-3">
   <meta name="theme-color" content="#201712">
   <meta name="apple-mobile-web-app-title" content="DuoJazz">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=150">
   <link rel="stylesheet" href="./css/styles.css?v=150">
   <link rel="stylesheet" href="./css/hig.css?v=150">
-  <script src="https://www.verovio.org/javascript/6.3.0/verovio-toolkit-wasm.js" defer></script>
+  <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
   <script type="module" src="./js/app.js?v=150"></script>
+  <script type="module" src="./js/pwa.js"></script>
 </head>
 <body>
+  <p id="offline-status" class="offline-status" role="status" hidden></p>
   <a class="skip-link" href="#main">Skip to main content</a>
 
   <section id="login-screen" class="login-screen" aria-labelledby="login-title" hidden>
     <header class="login-brand"><p class="logo">duojazz</p></header>
     <main class="login-card account-panel">
-      <div class="login-record" aria-hidden="true"><span>dj</span></div>
+      <img class="login-record" src="./icons/icon.svg?v=dj-record-3" alt="" width="98" height="98">
       <h1 id="login-title" tabindex="-1">Sign in</h1>
       <form id="account-guest" class="auth-form" data-auth-view="signin">
         <button type="button" id="account-google" hidden disabled>Continue with Google</button>
@@ -190,7 +190,7 @@
 
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
-          <button type="button" class="dismiss-button" id="session-exit" aria-label="Close">×</button>
+          <button type="button" class="session-back" id="session-exit">← Back</button>
           <div class="session-heading">
             <p class="session-module" id="session-module"></p>
           </div>
@@ -326,9 +326,9 @@
   </dialog>
 
   <dialog id="my-charts" class="form-sheet collection-sheet" aria-labelledby="my-charts-title">
-    <header class="sheet-toolbar sheet-toolbar-back">
-      <button type="button" class="sheet-back" data-close>← Back</button>
+    <header class="sheet-toolbar">
       <h2 id="my-charts-title">Favorite charts</h2>
+      <button type="button" class="dismiss-button" aria-label="Close favorite charts" data-close>×</button>
     </header>
     <div class="collection-body">
       <p class="sr-only" id="my-charts-status" role="status" aria-live="polite"></p>
@@ -338,9 +338,9 @@
   </dialog>
 
   <dialog id="add-charts" class="form-sheet collection-sheet" aria-labelledby="add-charts-title">
-    <header class="sheet-toolbar sheet-toolbar-back">
-      <button type="button" class="sheet-back" data-close autofocus>← Back</button>
+    <header class="sheet-toolbar">
       <h2 id="add-charts-title">Add chart</h2>
+      <button type="button" class="dismiss-button" aria-label="Close add chart" data-close autofocus>×</button>
     </header>
     <div class="collection-body">
       <label class="group-label" for="my-charts-search">Find a chart to add</label>
@@ -351,9 +351,9 @@
   </dialog>
 
   <dialog id="application-charts" class="form-sheet collection-sheet" aria-labelledby="application-charts-title" aria-describedby="application-charts-description">
-    <header class="sheet-toolbar sheet-toolbar-back">
-      <button type="button" class="sheet-back" data-close>← Back</button>
+    <header class="sheet-toolbar">
       <h2 id="application-charts-title">Application</h2>
+      <button type="button" class="dismiss-button" aria-label="Close application" data-close>×</button>
     </header>
     <div class="collection-body">
       <p class="group-label" id="application-charts-lick"></p>
