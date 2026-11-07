@@ -728,7 +728,7 @@ button.module-banner {
 
 .session-top {
   display: grid;
-  grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
+  grid-template-columns: 80px minmax(0, 1fr) 80px;
   align-items: center;
   gap: var(--gap-controls);
   min-height: calc(var(--tap) + var(--safe-top));
@@ -742,9 +742,23 @@ button.module-banner {
   grid-row: 1;
 }
 
-.session-top .dismiss-button {
-  grid-column: 3;
+.session-top .session-back {
+  grid-column: 1;
   grid-row: 1;
+  justify-self: start;
+  min-height: var(--tap);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--tint);
+  font: var(--text-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.session-back:hover {
+  background: var(--fill);
 }
 
 .session-focus {
@@ -1374,26 +1388,6 @@ button.module-banner {
   color: var(--label);
 }
 
-.sheet-toolbar-back {
-  justify-content: flex-start;
-}
-
-.sheet-back {
-  flex: 0 0 auto;
-  min-height: var(--tap);
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--tint);
-  font: var(--text-body);
-  cursor: pointer;
-}
-
-.sheet-back:hover {
-  background: var(--fill);
-}
-
 .dismiss-button {
   display: grid;
   place-items: center;
@@ -1604,7 +1598,6 @@ button.module-banner {
   }
 
   .session-top {
-    grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
     padding-inline: var(--margin-compact);
   }
 
