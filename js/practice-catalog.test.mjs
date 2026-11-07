@@ -55,13 +55,20 @@ test("mixed-use passages contain only the selected application on staff and in a
   }
 });
 
-test("your charts are filtered by application; suggestions appear only without matches", () => {
+test("favorite charts are filtered by application and other matches remain suggested", () => {
   const group = PRACTICE_CATALOG.groups.find((item) => item.id === "cmar:altered-dominant");
   assert.deepEqual(chartChoices(group, ["autumn-leaves"]).yours.map((choice) => choice.chartId), ["autumn-leaves"]);
-  assert.deepEqual(chartChoices(group, ["autumn-leaves"]).suggested, []);
+  assert.deepEqual(chartChoices(group, ["autumn-leaves"]).suggested, group.choices.filter(choice => choice.chartId !== "autumn-leaves"));
   assert.deepEqual(chartChoices(group, ["so-what"]).yours, []);
   assert.deepEqual(chartChoices(group, ["so-what"]).suggested, group.choices);
   assert.deepEqual(chartChoices(group, []).suggested, group.choices);
+});
+
+test("suggestions stay below favorites without duplicating selected charts", () => {
+  const group = { choices: [{ chartId: "first" }, { chartId: "second" }, { chartId: "third" }] };
+  assert.deepEqual(chartChoices(group, ["second"]), {
+    yours: [group.choices[1]], suggested: [group.choices[0], group.choices[2]],
+  });
 });
 
 test("chart selection survives reload and safely handles malformed or blocked storage", () => {

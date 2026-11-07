@@ -1,12 +1,15 @@
 /* Phase 1 session/sheet chrome on the restored warm road home. */
 
-.my-charts-button {
-  min-height: 44px;
-  border: 0;
-  padding: 8px 0 8px 12px;
-  background: transparent;
-  cursor: pointer;
+.inset-group.profile-charts-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
 }
+.profile-charts-card h2 { margin: 0 0 var(--space-1); font: var(--text-headline); }
+.profile-charts-card .help { margin: 0; }
+.profile-charts-card .collection-action { background: var(--tint-fill); padding-inline: var(--space-3); }
 
 .collection-sheet { overscroll-behavior: contain; }
 .collection-sheet .sheet-toolbar { z-index: 2; }
@@ -66,6 +69,9 @@
 .workbook-example { margin-top: 24px; border-top: 1px solid var(--separator); padding-top: 16px; }
 .workbook-example .add-chart-button { margin-top: 0; }
 .collection-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.favorite-charts-empty { margin-top: 12px; padding: 16px; border-radius: var(--radius-md); background: var(--bg-grouped-secondary); }
+.favorite-charts-empty .help { margin: 0 0 8px; }
+.favorite-charts-empty .collection-action { padding-inline: 0; font-weight: 600; }
 .practice-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 18px; margin-top: 20px; }
 .practice-chart-card { min-width: 0; }
 .practice-chart-choice {

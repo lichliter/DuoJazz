@@ -85,7 +85,6 @@
         <p class="logo">duojazz</p>
       </div>
       <div class="masthead-actions">
-        <button type="button" class="quiet my-charts-button" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts">Charts</button>
         <button type="button" id="account-chip" class="account-chip" aria-haspopup="dialog" aria-controls="settings-modal">
           <span id="account-avatar" class="account-avatar" aria-hidden="true"></span>
         </button>
@@ -135,6 +134,13 @@
             <p id="account-identity" class="help"></p>
             <p id="account-error" class="help" role="status" aria-live="polite" hidden></p>
           </div>
+          <section class="inset-group profile-charts-card" aria-labelledby="profile-charts-title">
+            <div>
+              <h2 id="profile-charts-title">Charts</h2>
+              <p id="profile-charts-summary" class="help">0 favorite charts selected</p>
+            </div>
+            <button type="button" class="collection-action" id="my-charts-button" aria-haspopup="dialog" aria-controls="my-charts" aria-describedby="profile-charts-summary">Manage</button>
+          </section>
           <section class="inset-group">
             <h2 class="group-label" id="instrument-label">Instrument</h2>
             <div id="instrument-list" role="radiogroup" aria-labelledby="instrument-label"></div>
@@ -360,11 +366,19 @@
         <select id="application-variant"></select>
       </div>
       <div class="collection-section-heading">
-        <h3 id="application-charts-section">Your charts</h3>
-        <button type="button" class="collection-action" id="application-manage-charts">My charts</button>
+        <h3 id="application-charts-section">Favorite charts</h3>
+        <button type="button" class="collection-action" id="application-manage-charts" aria-haspopup="dialog" aria-controls="my-charts">Manage charts</button>
       </div>
-      <p class="help" id="application-charts-note"></p>
+      <div id="application-favorites-empty" class="favorite-charts-empty">
+        <p class="help" id="application-charts-note"></p>
+        <button type="button" class="collection-action" id="application-empty-manage" aria-haspopup="dialog" aria-controls="my-charts">Manage charts</button>
+      </div>
       <div id="application-charts-list" class="practice-chart-grid"></div>
+      <section aria-labelledby="application-suggested-title">
+        <h3 id="application-suggested-title">Suggested charts</h3>
+        <p id="application-suggested-empty" class="help" hidden>No other matching charts for this version. Try the workbook example below.</p>
+        <div id="application-suggested-list" class="practice-chart-grid"></div>
+      </section>
       <div class="workbook-example">
         <p class="help" id="application-workbook-source"></p>
         <button type="button" class="collection-action add-chart-button" id="application-workbook-example">Practice workbook example</button>

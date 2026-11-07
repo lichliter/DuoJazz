@@ -18,6 +18,11 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   const status = document.getElementById("my-charts-status");
   const variantSelect = document.getElementById("application-variant");
 
+  function renderChartSummary() {
+    document.getElementById("profile-charts-summary").textContent =
+      `${selected.length} favorite ${selected.length === 1 ? "chart" : "charts"} selected`;
+  }
+
   function paragraph(text, className = "help") {
     const p = document.createElement("p");
     p.className = className;
@@ -28,6 +33,7 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   function change(id, add, button) {
     selected = add ? [...new Set([...selected, id])] : selected.filter((item) => item !== id);
     writeStoredJson(MY_CHARTS_KEY, selected);
+    renderChartSummary();
     onChanged();
     if (add) {
       // Keep the clicked row and focus in place while browsing the catalog.
@@ -112,16 +118,18 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     variantSelect.value = currentVariantId;
     document.getElementById("application-workbook-source").textContent = `Workbook · page ${variant.page}`;
     const { yours, suggested } = chartChoices(currentGroup, selected, currentVariantId);
-    document.getElementById("application-charts-section").textContent = yours.length ? "Your charts" : suggested.length ? "Suggested charts" : "Workbook example";
+    document.getElementById("application-favorites-empty").hidden = yours.length > 0;
+    document.getElementById("application-manage-charts").hidden = yours.length === 0;
     const note = document.getElementById("application-charts-note");
-    note.hidden = yours.length > 0;
-    note.textContent = !yours.length && !suggested.length
-      ? "No compatible chart passage is available for this version yet. Practice its workbook example below."
-      : selected.length
-      ? "None of your charts have a passage for this application yet. Try one of these."
-      : "Choose a chart to try this application. Add favorites to My charts anytime.";
+    note.textContent = selected.length
+      ? "No favorite charts match this version yet. Manage your favorites or try a suggested chart below."
+      : "No favorite charts yet. Add charts you know or want to learn.";
     const list = document.getElementById("application-charts-list");
-    list.replaceChildren(...[...yours, ...suggested].map((choice, index) => {
+    const suggestions = document.getElementById("application-suggested-list");
+    list.hidden = yours.length === 0;
+    suggestions.hidden = suggested.length === 0;
+    document.getElementById("application-suggested-empty").hidden = suggested.length > 0;
+    function chartCard(choice, index) {
       const card = document.createElement("div");
       card.className = "practice-chart-card";
       const button = document.createElement("button");
@@ -147,19 +155,22 @@ export function setupPracticeUI({ onPractice, onChanged }) {
         const add = document.createElement("button");
         add.type = "button";
         add.className = "collection-action";
-        add.textContent = "+ My charts";
-        add.setAttribute("aria-label", `Add ${choice.title} to My charts`);
+        add.textContent = "+ Favorite";
+        add.setAttribute("aria-label", `Add ${choice.title} to favorite charts`);
         add.addEventListener("click", () => {
           selected = [...selected, choice.chartId];
           writeStoredJson(MY_CHARTS_KEY, selected);
+          renderChartSummary();
           onChanged();
           renderPicker();
-          list.querySelector("button")?.focus();
+          list.querySelector(`[data-testid="practice-chart-${choice.chartId}"]`)?.focus({ preventScroll: true });
         });
         card.append(add);
       }
       return card;
-    }));
+    }
+    list.replaceChildren(...yours.map(chartCard));
+    suggestions.replaceChildren(...suggested.map(chartCard));
   }
 
   function openApplication(id) {
@@ -172,6 +183,7 @@ export function setupPracticeUI({ onPractice, onChanged }) {
     picker.showModal();
   }
 
+  renderChartSummary();
   search.addEventListener("input", renderCharts);
   variantSelect.addEventListener("change", () => {
     currentVariantId = variantSelect.value;
@@ -186,6 +198,13 @@ export function setupPracticeUI({ onPractice, onChanged }) {
   addButton.addEventListener("click", openAddCharts);
   document.getElementById("my-charts-button").addEventListener("click", openMyCharts);
   document.getElementById("application-manage-charts").addEventListener("click", openMyCharts);
+  document.getElementById("application-empty-manage").addEventListener("click", openMyCharts);
+  chartsDialog.addEventListener("close", () => {
+    if (!picker.open) return;
+    // Adding/removing the last matching favorite swaps the visible Manage button.
+    const manage = document.getElementById("application-manage-charts");
+    (manage.hidden ? document.getElementById("application-empty-manage") : manage).focus({ preventScroll: true });
+  });
   for (const dialog of [chartsDialog, addDialog, picker]) {
     dialog.querySelector("[data-close]").addEventListener("click", () => closeSheet(dialog));
     dialog.addEventListener("click", (event) => {

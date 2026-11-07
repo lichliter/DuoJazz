@@ -186,7 +186,7 @@ export function chartChoices(group, selectedIds, variantId = group.variants?.[0]
   const selected = new Set(selectedIds);
   const choices = group.choices.filter((choice) => !variantId || choice.variantId === variantId);
   const yours = choices.filter((choice) => selected.has(choice.chartId));
-  return { yours, suggested: yours.length ? [] : choices };
+  return { yours, suggested: choices.filter((choice) => !selected.has(choice.chartId)) };
 }
 
 export const MY_CHARTS_KEY = "duojazz.myCharts.v1";
