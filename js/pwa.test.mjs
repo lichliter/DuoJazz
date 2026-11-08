@@ -4,6 +4,66 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { precacheSource } from '../tools/generate-precache.mjs';
 
+async function pwaHarness({ online = true, failure = false, active = false } = {}) {
+  const status = { textContent: '', hidden: true };
+  const events = {};
+  const workerEvents = {};
+  const worker = { state: 'installing', addEventListener(name, handler) { workerEvents[name] = handler; } };
+  const registration = { active: active ? {} : null, installing: worker, addEventListener() {} };
+  const navigator = { onLine: online, serviceWorker: {
+    controller: active ? {} : null,
+    async register() {
+      if (failure) throw new Error('Registration failed');
+      return registration;
+    },
+  } };
+  const source = (await readFile(new URL('./pwa.js', import.meta.url), 'utf8'))
+    .replace('import.meta.url', JSON.stringify('https://example.test/DuoJazz/js/pwa.js'));
+  vm.runInNewContext(source, {
+    URL, navigator, document: { getElementById: () => status },
+    addEventListener(name, handler) { events[name] = handler; },
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  return { status, navigator, events, registration,
+    recover() { failure = false; },
+    state(value) { worker.state = value; workerEvents.statechange(); },
+  };
+}
+
+test('PWA setup, activation and normal offline use stay silent', async () => {
+  for (const online of [true, false]) {
+    const app = await pwaHarness({ online });
+    assert.equal(app.status.hidden, true);
+    app.state('installed');
+    assert.equal(app.status.hidden, true);
+    app.state('activated');
+    assert.equal(app.status.hidden, true);
+    assert.equal(app.status.textContent, '');
+  }
+});
+
+test('PWA installation and update failures appear and clear after recovery', async () => {
+  for (const active of [true, false]) {
+    const app = await pwaHarness({ active });
+    app.state('redundant');
+    assert.equal(app.status.hidden, false);
+    assert.match(app.status.textContent, /could not finish/);
+    app.state('activated');
+    assert.equal(app.status.hidden, true);
+  }
+});
+
+test('registration failures persist until a successful reconnect', async () => {
+  const app = await pwaHarness({ failure: true });
+  assert.equal(app.status.hidden, false);
+  assert.match(app.status.textContent, /could not finish/);
+  app.recover();
+  app.registration.active = {};
+  app.registration.installing = null;
+  await app.events.online();
+  assert.equal(app.status.hidden, true);
+});
+
 test('offline release includes the current application assets', async () => {
   assert.equal(await readFile(new URL('../precache.js', import.meta.url), 'utf8'), await precacheSource());
 });

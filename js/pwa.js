@@ -3,34 +3,27 @@ function show(message = '') {
   status.textContent = message;
   status.hidden = !message;
 }
-function connection() {
-  show(navigator.onLine ? '' : 'Offline — saved practice is available. Sign-in and sync need a connection.');
-}
-connection();
-addEventListener('offline', connection);
-addEventListener('online', connection);
+const setupError = 'Offline setup could not finish. Reconnect and reload to try again.';
 if ('serviceWorker' in navigator) {
   async function register() {
     try {
       const registration = await navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' });
+      if (registration.active && !registration.installing) show();
       const watch = () => {
         const worker = registration.installing;
-        if (!worker || navigator.serviceWorker.controller) return;
-        if (navigator.onLine) show('Saving practice for offline use…');
+        if (!worker) return;
         worker.addEventListener('statechange', () => {
-          if (!navigator.onLine) return;
-          if (worker.state === 'activated') {
-            show('Ready for offline practice.');
-            setTimeout(connection, 5000);
+          if (worker.state === 'installed' || worker.state === 'activated') {
+            show();
           } else if (worker.state === 'redundant') {
-            show('Offline setup could not finish. Reconnect and reload to try again.');
+            show(setupError);
           }
         });
       };
       registration.addEventListener('updatefound', watch);
       watch();
     } catch {
-      if (navigator.onLine) show('Offline setup could not finish. Reconnect and reload to try again.');
+      show(setupError);
     }
   }
   void register();
