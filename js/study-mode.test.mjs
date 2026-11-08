@@ -6,6 +6,8 @@ import {
   createSession,
   currentKeyId,
   defaultPrefs,
+  demoAudioConfig,
+  recordBackingConfig,
   handlePlaybackEnded,
   lessonById,
   lessonSessionPlan,
@@ -261,7 +263,10 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(index, /id="start-key-label"[^>]*>Starting key/);
   assert.match(index, /id="start-key"/);
   assert.match(index, /id="all-keys-toggle"/);
-  assert.match(index, /Cycle through all keys/);
+  assert.match(index, /Cycle through selected keys/);
+  assert.match(index, /id="all-keys-toggle"[^>]*aria-checked="false"/);
+  assert.match(app, /aria-checked", String\(prefs\.allKeys === false\)/);
+  assert.doesNotMatch(index, /id="guideTones"/);
   assert.match(hig, /\.group-row \{[^}]*padding:\s*var\(--space-3\) var\(--space-4\)/);
   assert.doesNotMatch(hig, /#setup-keys/);
   assert.doesNotMatch(index, /all-keys-row|start-key-row/);
@@ -273,4 +278,15 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(app, /fillMusicLabel\(els\.sessionTitle/);
   assert.match(index, /\?v=150/);
   assert.doesNotMatch(index, /\?v=145/);
+});
+
+
+test("current demo and record playback never use the retired guide-tone setting", () => {
+  for (const lessonId of ["learn-lick", "master-lick", "cmar-integrate-blue-bossa"]) {
+    for (const guideTones of [true, false]) {
+      const session = createSession({ lessonId, guideTones });
+      assert.equal(demoAudioConfig(session).includeGuides, false, lessonId);
+      assert.equal(recordBackingConfig(session).includeGuides, false, lessonId);
+    }
+  }
 });

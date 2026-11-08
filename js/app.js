@@ -299,7 +299,6 @@ const els = {
   againKey: document.getElementById("again-key"),
   doneSession: document.getElementById("done-session"),
   swing: document.getElementById("swing"),
-  guideTones: document.getElementById("guideTones"),
   metronome: document.getElementById("metronome"),
 };
 
@@ -1529,7 +1528,7 @@ function renderSettings() {
   }
   renderStartKeySelect();
   if (els.allKeysToggle) {
-    els.allKeysToggle.setAttribute("aria-checked", String(prefs.allKeys !== false));
+    els.allKeysToggle.setAttribute("aria-checked", String(prefs.allKeys === false));
   }
   renderKeyBubbles();
   if (els.tempoReadout) els.tempoReadout.textContent = String(prefs.tempo);
@@ -2005,7 +2004,6 @@ function applyInstrument(instrumentId) {
 
 function renderCopy(snap = transport.snapshot()) {
   els.swing.checked = prefs.swing;
-  els.guideTones.checked = prefs.guideTones;
   els.metronome.checked = prefs.metronome;
   renderInstruments();
 }
@@ -2637,7 +2635,6 @@ els.allKeysLabel?.addEventListener("click", () => {
 
 for (const [id, key] of [
   ["swing", "swing"],
-  ["guideTones", "guideTones"],
   ["metronome", "metronome"],
 ]) {
   els[id].addEventListener("change", () => {

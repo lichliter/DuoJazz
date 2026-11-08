@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="./css/hig.css?v=153">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=152"></script>
+  <script type="module" src="./js/app.js?v=154"></script>
   <script type="module" src="./js/pwa.js"></script>
 </head>
 <body>
@@ -154,8 +154,8 @@
               <select id="start-key" class="key-select music-label" data-testid="start-key"></select>
             </div>
             <div class="group-row">
-              <span class="all-keys-label" id="all-keys-label">Cycle through all keys</span>
-              <button type="button" class="auto-toggle" id="all-keys-toggle" data-testid="all-keys-toggle" role="switch" aria-checked="true" aria-labelledby="all-keys-label">
+              <span class="all-keys-label" id="all-keys-label">Cycle through selected keys</span>
+              <button type="button" class="auto-toggle" id="all-keys-toggle" data-testid="all-keys-toggle" role="switch" aria-checked="false" aria-labelledby="all-keys-label">
                 <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
               </button>
             </div>
@@ -179,7 +179,6 @@
           <section class="inset-group">
             <h2 class="group-label">Playback</h2>
             <label class="group-row"><span>Swing eighths</span><input type="checkbox" id="swing" checked></label>
-            <label class="group-row"><span>Guide tones on the helped chorus</span><input type="checkbox" id="guideTones" checked></label>
             <label class="group-row"><span>Click during the music</span><input type="checkbox" id="metronome"></label>
           </section>
           <div class="profile-actions">
