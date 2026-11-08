@@ -44,7 +44,7 @@ See [AGENTS.md](AGENTS.md) for contributor and coding-agent guidance.
 - `/?screen=home&demo=medal`
 - `/?screen=session&lesson=learn-lick&card=play&mic=denied`
 
-Lessons use New-simple sampled piano, bass, and ride kit for backing, plus the selected instrument for the demo line, with synth fallback. Demo progress links show temporary previews only; they never replace saved progress.
+Lessons use New-simple sampled piano, bass, and ride kit for backing, plus the selected instrument for the demo line, with synth fallback. Horn and guitar demos use recorded acoustic samples; piano and guitar retain short natural release tails. Source credits and conversion details are in `sound/CREDITS.md`. Demo progress links show temporary previews only; they never replace saved progress.
 
 ## Music
 

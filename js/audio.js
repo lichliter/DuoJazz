@@ -246,24 +246,24 @@ export class Transport {
     osc.stop(time + duration + 0.05);
   }
 
-  playBuffer(buffer, time, { bus, gain = 0.2, duration = 0.5, playbackRate = 1 } = {}) {
+  playBuffer(buffer, time, { bus, gain = 0.2, duration = 0.5, playbackRate = 1, attack = 0.002, release = 0.07 } = {}) {
     if (!buffer) return;
     const src = this.ctx.createBufferSource();
     const env = this.ctx.createGain();
     src.buffer = buffer;
     src.playbackRate.value = playbackRate;
-    const attack = 0.008;
-    const release = Math.min(0.12, Math.max(0.04, duration * 0.25));
+    // Preserve the recorded attack and let note-off decay beyond the written gate.
+    const noteOff = time + Math.max(attack, duration);
+    const end = noteOff + release;
     env.gain.setValueAtTime(0.0001, time);
     env.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), time + attack);
-    const hold = Math.max(time + attack, time + duration - release);
-    env.gain.setValueAtTime(Math.max(0.0002, gain), hold);
-    env.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    env.gain.setValueAtTime(Math.max(0.0002, gain), noteOff);
+    env.gain.exponentialRampToValueAtTime(0.0001, end);
     src.connect(env);
     env.connect(bus ?? this.master);
     this.trackSource(src, env);
     src.start(time);
-    src.stop(time + duration + 0.05);
+    src.stop(end + 0.01);
   }
 
   noiseClick(time, { strong = false, gain = 0.18 } = {}) {
@@ -326,6 +326,8 @@ export class Transport {
         this.playBuffer(pick.buffer, time, {
           bus: this.melodyBus ?? this.master,
           gain: melodyPlayGain(this.melodyKind, sampleMidi, vel),
+          attack: 0.002,
+          release: this.melodyKind === "piano" ? 0.16 : this.melodyKind === "guitar" ? 0.12 : 0.045,
           duration: dur,
           playbackRate: pick.playbackRate,
         });
@@ -351,6 +353,7 @@ export class Transport {
         this.playBuffer(pick.buffer, time, {
           bus: this.pianoBus ?? this.master,
           gain: PIANO_NOTE_GAIN * vel,
+          release: 0.16,
           duration: dur,
           playbackRate: pick.playbackRate,
         });

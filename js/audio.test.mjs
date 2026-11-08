@@ -15,11 +15,12 @@ after(() => {
 class AudioParamMock {
   constructor() {
     this.value = 0;
+    this.events = [];
   }
 
-  setValueAtTime() {}
+  setValueAtTime(value, time) { this.events.push({ type: "set", value, time }); }
 
-  exponentialRampToValueAtTime() {}
+  exponentialRampToValueAtTime(value, time) { this.events.push({ type: "ramp", value, time }); }
 }
 
 class AudioNodeMock {
@@ -271,12 +272,12 @@ for (const TransportClass of [Transport, BandTransport]) {
       transport.scheduleEvent({ type: "bass", midi: 36, ...placement }, 10);
       const source = context.created.at(-2);
       almost(source.startAt, time);
-      almost(source.stopAt - source.startAt - 0.05, duration);
+      almost(source.stopAt - source.startAt - (TransportClass === Transport ? 0.08 : 0.05), duration);
       if (transport.eventTime) assert.deepEqual(transport.eventTime(placement, 10), { time, dur: duration });
     }
     transport.swing = false;
     transport.scheduleEvent({ type: "bass", midi: 36, beat: 0.5, durationBeats: 0.5 }, 10);
-    almost(context.created.at(-2).stopAt - context.created.at(-2).startAt - 0.05, 0.25);
+    almost(context.created.at(-2).stopAt - context.created.at(-2).startAt - (TransportClass === Transport ? 0.08 : 0.05), 0.25);
     transport.library = null;
     transport.swing = true;
     const before = context.created.length;
@@ -438,3 +439,24 @@ for (const TransportClass of [Transport, BandTransport]) {
     for (const node of context.created.slice(beforeStop)) assert.equal(node.disconnected, true);
   });
 }
+
+
+test("recorded notes preserve their attack, written note-off, and instrument release", async () => {
+  const { transport, context } = await setup();
+  transport.library = sampledLibrary();
+  transport.tempo = 120;
+  transport.swing = false;
+  for (const [instrument, release] of [["piano", 0.16], ["guitar", 0.12], ["trumpet", 0.045]]) {
+    transport.melodyKind = instrument;
+    transport.scheduleEvent({ type: "melody", midi: 60, beat: 0, durationBeats: 0.5 }, 10);
+    const [source, envelope] = context.created.slice(-2);
+    almost(source.startAt, 10);
+    almost(envelope.gain.events[1].time, 10.002);
+    almost(envelope.gain.events[2].time, 10.25);
+    almost(envelope.gain.events[3].time, 10.25 + release);
+    assert.equal(envelope.gain.events[2].value, envelope.gain.events[1].value);
+    almost(source.stopAt, 10.25 + release + 0.01);
+  }
+  transport.stop();
+  assert.equal(transport.nodes.length, 0);
+});

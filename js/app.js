@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=150";
+import { Transport } from "./audio.js?v=155";
 import {
   notationLayout,
   resolveNotationScale,

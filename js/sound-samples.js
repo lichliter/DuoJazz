@@ -2,7 +2,7 @@
  * Lazy-load + Cache Storage for sampled backing and the selected instrument's demo line.
  */
 
-export const SAMPLE_VERSION = "duojazz-sound-v2";
+export const SAMPLE_VERSION = "duojazz-sound-v3";
 export const MANIFEST_URL = new URL("../sound/manifest.json", import.meta.url);
 
 export const PIANO_NOTES = [

@@ -1,42 +1,42 @@
 {
-  "totalBytes": 1292441,
-  "totalKB": 1262.1,
+  "totalBytes": 2236426,
+  "totalKB": 2184.0,
   "files": [
     {
       "path": "alto-sax/As3.m4a",
-      "bytes": 18469
+      "bytes": 37972
     },
     {
       "path": "alto-sax/As4.m4a",
-      "bytes": 18459
+      "bytes": 37801
     },
     {
       "path": "alto-sax/C5.m4a",
-      "bytes": 18448
+      "bytes": 38004
     },
     {
       "path": "alto-sax/Cs3.m4a",
-      "bytes": 18479
+      "bytes": 37929
     },
     {
       "path": "alto-sax/Cs4.m4a",
-      "bytes": 18454
+      "bytes": 37947
     },
     {
       "path": "alto-sax/E3.m4a",
-      "bytes": 18399
+      "bytes": 38124
     },
     {
       "path": "alto-sax/E4.m4a",
-      "bytes": 18449
+      "bytes": 37988
     },
     {
       "path": "alto-sax/G3.m4a",
-      "bytes": 18467
+      "bytes": 38075
     },
     {
       "path": "alto-sax/G4.m4a",
-      "bytes": 18422
+      "bytes": 37946
     },
     {
       "path": "bass/A1.m4a",
@@ -112,43 +112,43 @@
     },
     {
       "path": "guitar/As2.m4a",
-      "bytes": 17252
+      "bytes": 37797
     },
     {
       "path": "guitar/As3.m4a",
-      "bytes": 16932
+      "bytes": 37645
     },
     {
       "path": "guitar/Cs3.m4a",
-      "bytes": 17865
+      "bytes": 37887
     },
     {
       "path": "guitar/Cs4.m4a",
-      "bytes": 17695
+      "bytes": 37699
     },
     {
       "path": "guitar/E2.m4a",
-      "bytes": 17700
+      "bytes": 37787
     },
     {
       "path": "guitar/E3.m4a",
-      "bytes": 17782
+      "bytes": 37854
     },
     {
       "path": "guitar/E4.m4a",
-      "bytes": 18116
+      "bytes": 37568
     },
     {
       "path": "guitar/G2.m4a",
-      "bytes": 17714
+      "bytes": 37859
     },
     {
       "path": "guitar/G3.m4a",
-      "bytes": 16688
+      "bytes": 37216
     },
     {
       "path": "guitar/G4.m4a",
-      "bytes": 18239
+      "bytes": 37609
     },
     {
       "path": "piano/A2.m4a",
@@ -192,119 +192,119 @@
     },
     {
       "path": "tenor-sax/B2.m4a",
-      "bytes": 18412
+      "bytes": 38098
     },
     {
       "path": "tenor-sax/B3.m4a",
-      "bytes": 18445
+      "bytes": 38031
     },
     {
       "path": "tenor-sax/D3.m4a",
-      "bytes": 18520
+      "bytes": 37853
     },
     {
       "path": "tenor-sax/D4.m4a",
-      "bytes": 18430
+      "bytes": 37943
     },
     {
       "path": "tenor-sax/F3.m4a",
-      "bytes": 18461
+      "bytes": 38376
     },
     {
       "path": "tenor-sax/F4.m4a",
-      "bytes": 18504
+      "bytes": 37949
     },
     {
       "path": "tenor-sax/G4.m4a",
-      "bytes": 18506
+      "bytes": 37946
     },
     {
       "path": "tenor-sax/Gs2.m4a",
-      "bytes": 18465
+      "bytes": 37973
     },
     {
       "path": "tenor-sax/Gs3.m4a",
-      "bytes": 18463
+      "bytes": 37924
     },
     {
       "path": "trombone/As2.m4a",
-      "bytes": 18515
+      "bytes": 37957
     },
     {
       "path": "trombone/As3.m4a",
-      "bytes": 18430
+      "bytes": 37972
     },
     {
       "path": "trombone/Cs3.m4a",
-      "bytes": 18501
+      "bytes": 38059
     },
     {
       "path": "trombone/Cs4.m4a",
-      "bytes": 18420
+      "bytes": 37968
     },
     {
       "path": "trombone/E2.m4a",
-      "bytes": 18473
+      "bytes": 37865
     },
     {
       "path": "trombone/E3.m4a",
-      "bytes": 18489
+      "bytes": 38254
     },
     {
       "path": "trombone/E4.m4a",
-      "bytes": 18469
+      "bytes": 37961
     },
     {
       "path": "trombone/G2.m4a",
-      "bytes": 18444
+      "bytes": 38302
     },
     {
       "path": "trombone/G3.m4a",
-      "bytes": 18435
+      "bytes": 37946
     },
     {
       "path": "trombone/G4.m4a",
-      "bytes": 18445
+      "bytes": 37939
     },
     {
       "path": "trumpet/As3.m4a",
-      "bytes": 18473
+      "bytes": 37958
     },
     {
       "path": "trumpet/As4.m4a",
-      "bytes": 18528
+      "bytes": 37892
     },
     {
       "path": "trumpet/Cs4.m4a",
-      "bytes": 18513
+      "bytes": 37865
     },
     {
       "path": "trumpet/Cs5.m4a",
-      "bytes": 18460
+      "bytes": 37990
     },
     {
       "path": "trumpet/E3.m4a",
-      "bytes": 18162
+      "bytes": 37991
     },
     {
       "path": "trumpet/E4.m4a",
-      "bytes": 18265
+      "bytes": 37978
     },
     {
       "path": "trumpet/E5.m4a",
-      "bytes": 18543
+      "bytes": 37999
     },
     {
       "path": "trumpet/G3.m4a",
-      "bytes": 18196
+      "bytes": 38229
     },
     {
       "path": "trumpet/G4.m4a",
-      "bytes": 18339
+      "bytes": 37894
     },
     {
       "path": "trumpet/G5.m4a",
-      "bytes": 18526
+      "bytes": 38027
     }
   ]
 }
