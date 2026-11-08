@@ -1,3 +1,4 @@
+import { SETTINGS_KEY } from "./cloud-settings.js";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, GOOGLE_SIGN_IN_ENABLED } from "./supabase-config.js";
 import { loadMastery, saveMastery, setMasteryAccount, MASTERY_KEY } from "./medals.js";
 import { mergeProgress, progressRows, claimGuestProgress } from "./cloud-progress.js";
@@ -13,7 +14,7 @@ export function accountInitials(name) {
   return String(name).trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join("").toUpperCase() || "?";
 }
 
-export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
+export async function initAccount({ getProgress, onProgress, onOpenProfile, settings, onSettings, onSettingsAccount }) {
   const $ = id => document.getElementById(id);
   const login = $("login-screen"), shell = $("app-shell"), chip = $("account-chip");
   const returnUrl = authReturnUrl(location.href);
@@ -93,7 +94,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
 
   async function sync() {
     if (!navigator.onLine) {
-      if (user) syncError("Offline — progress is saved on this device and will sync when you reconnect.");
+      if (user) syncError("Offline — account sync will resume when you reconnect.");
       return;
     }
     pending = true;
@@ -106,6 +107,9 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
         pending = false;
         const current = user, version = generation;
         requestGeneration = version;
+        const settingsSaved = await settings.sync(client);
+        if (version !== generation) continue;
+        onSettings();
         const rows = progressRows(getProgress(), current.id);
         for (let offset = 0; offset < rows.length; offset += 500) {
           if (version !== generation) break;
@@ -129,12 +133,12 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
         onProgress(merged, false);
         const saved = saveMastery(merged);
         applying = false;
-        syncError(saved ? "" : "Progress is saved to your account, but this browser can’t save an offline copy.");
+        syncError(saved && settingsSaved ? "" : "Your changes are saved to your account, but this browser can’t save an offline copy.");
         retryDelay = 5000;
       }
     } catch {
       if (user && requestGeneration === generation) {
-        syncError("Progress hasn’t reached your account yet. We’ll retry automatically.");
+        syncError("Your changes haven’t reached your account yet. We’ll retry automatically.");
         pending = false;
         retryTimer = setTimeout(() => void sync(), retryDelay);
         retryDelay = Math.min(retryDelay * 2, 60000);
@@ -151,6 +155,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
     initialized = true; generation++; user = next; pending = false;
     clearTimeout(retryTimer); syncError("");
     const version = generation;
+    onSettingsAccount(user?.id ?? null);
     setMasteryAccount(user?.id);
     onProgress(loadMastery(), switchingAccount);
     const name = user?.email?.split("@")[0] || "Your account";
@@ -286,10 +291,16 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile }) {
     }
     ensure(await client.auth.signOut({ scope: "local" }));
   }, true);
+  addEventListener("duojazz-settings-changed", () => { if (user) void sync(); });
   addEventListener("duojazz-progress-saved", () => { if (!applying && user) void sync(); });
   addEventListener("online", () => { if (user) void sync(); });
   addEventListener("focus", () => { if (user) void sync(); });
   addEventListener("storage", event => {
+    if (user && event.key === `${SETTINGS_KEY}:${user.id}`) {
+      settings.reload();
+      onSettings();
+      if (settings.hasPending()) void sync();
+    }
     if (user && event.key === `${MASTERY_KEY}:${user.id}`) {
       onProgress(mergeProgress(getProgress(), progressRows(loadMastery(), user.id)), false);
       void sync();

@@ -153,6 +153,7 @@ import {
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { initAccount } from "./account.js";
+import { createCloudSettings, PREFERENCE_NAMES } from "./cloud-settings.js";
 import { closeSheet, initDialogInteractions } from "./dialogs.js";
 
 initDialogInteractions();
@@ -162,6 +163,8 @@ const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
 let recordBacking = false;
 let prefs = loadPrefs();
+let savedPrefs = structuredClone(prefs);
+const cloudSettings = createCloudSettings({ onChange: () => window.dispatchEvent(new Event("duojazz-settings-changed")) });
 let mastery = loadMastery();
 let masteryPreview = null;
 let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
@@ -314,7 +317,8 @@ function loadSelectedModule() {
 
 function rememberModule(id) {
   selectedModuleId = MODULES.some((module) => module.id === id) ? id : MODULES[0]?.id;
-  writeStoredJson(SELECTED_MODULE_KEY, selectedModuleId);
+  if (cloudSettings.userId) cloudSettings.set({ selectedModuleId });
+  else writeStoredJson(SELECTED_MODULE_KEY, selectedModuleId);
   renderStorageNotice();
 }
 
@@ -328,7 +332,11 @@ function loadPrefs() {
 }
 
 function persist() {
-  writeStoredJson(PREFS_KEY, prefs);
+  if (cloudSettings.userId) {
+    const changed = Object.fromEntries(PREFERENCE_NAMES.filter(name => JSON.stringify(prefs[name]) !== JSON.stringify(savedPrefs[name])).map(name => [name, prefs[name]]));
+    if (Object.keys(changed).length) cloudSettings.set(changed);
+  } else writeStoredJson(PREFS_KEY, prefs);
+  savedPrefs = structuredClone(prefs);
   renderStorageNotice();
 }
 
@@ -2507,7 +2515,19 @@ transport.onEnded = () => {
   window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
 };
 
-const practiceUI = setupPracticeUI({ onPractice: startLesson, onChanged: renderStorageNotice });
+const practiceUI = setupPracticeUI({
+  onPractice: startLesson, onChanged: renderStorageNotice,
+  onSaveCharts: myCharts => cloudSettings.set({ myCharts }),
+});
+const legacySettings = { ...prefs, selectedModuleId, myCharts: practiceUI.getSelected() };
+function applyAccountSettings() {
+  const values = cloudSettings.values();
+  prefs = normalizePrefs(values);
+  savedPrefs = structuredClone(prefs);
+  selectedModuleId = MODULES.some(module => module.id === values.selectedModuleId) ? values.selectedModuleId : MODULES[0].id;
+  practiceUI.setSelected(values.myCharts ?? []);
+  render();
+}
 
 els.settingsClose?.addEventListener("click", () => closeSettings());
 els.settingsModal?.addEventListener("close", () => {
@@ -2805,6 +2825,12 @@ whenVerovioReady().then(() => {
   if (session?.screen === "session") renderNotation();
 });
 void initAccount({
+  settings: cloudSettings,
+  onSettings: applyAccountSettings,
+  onSettingsAccount(id) {
+    cloudSettings.activate(id, legacySettings);
+    applyAccountSettings();
+  },
   onOpenProfile: openSettings,
   getProgress: () => mastery,
   onProgress(next, accountChanged) {

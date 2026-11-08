@@ -1,9 +1,9 @@
 import { PRACTICE_CATALOG, lessonById } from "./registry.js";
-import { MY_CHARTS_KEY, loadMyCharts, chartChoices } from "./practice-catalog.js";
+import { MY_CHARTS_KEY, loadMyCharts, normalizeMyCharts, chartChoices } from "./practice-catalog.js";
 import { writeStoredJson } from "./storage.js";
 import { closeSheet } from "./dialogs.js";
 
-export function setupPracticeUI({ onPractice, onChanged }) {
+export function setupPracticeUI({ onPractice, onChanged, onSaveCharts }) {
   const catalog = PRACTICE_CATALOG;
   let selected = loadMyCharts(catalog.charts);
   let currentGroup = null;
@@ -32,7 +32,8 @@ export function setupPracticeUI({ onPractice, onChanged }) {
 
   function change(id, add, button) {
     selected = add ? [...new Set([...selected, id])] : selected.filter((item) => item !== id);
-    writeStoredJson(MY_CHARTS_KEY, selected);
+    if (onSaveCharts) onSaveCharts(selected);
+    else writeStoredJson(MY_CHARTS_KEY, selected);
     renderChartSummary();
     onChanged();
     if (add) {
@@ -160,7 +161,8 @@ export function setupPracticeUI({ onPractice, onChanged }) {
         add.setAttribute("aria-label", `Add ${choice.title} to favorite charts`);
         add.addEventListener("click", () => {
           selected = [...selected, choice.chartId];
-          writeStoredJson(MY_CHARTS_KEY, selected);
+          if (onSaveCharts) onSaveCharts(selected);
+          else writeStoredJson(MY_CHARTS_KEY, selected);
           renderChartSummary();
           onChanged();
           renderPicker();
@@ -207,5 +209,16 @@ export function setupPracticeUI({ onPractice, onChanged }) {
       if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet(dialog);
     });
   }
-  return { openApplication, openMyCharts };
+  return {
+    openApplication, openMyCharts,
+    getSelected: () => [...selected],
+    setSelected(ids) {
+      const next = normalizeMyCharts(ids, catalog.charts);
+      if (JSON.stringify(next) === JSON.stringify(selected)) return;
+      selected = next;
+      renderCharts();
+      renderChartSummary();
+      renderPicker();
+    },
+  };
 }
