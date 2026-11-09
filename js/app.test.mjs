@@ -36,6 +36,7 @@ function appContext(names, overrides = {}) {
     masteryPreview: null,
     wrapupBanner: null,
     session: null,
+    timedRunActive: false,
     notesRevealed: false,
     notesPeeked: false,
     els: { storageNotice: { textContent: "", hidden: true } },
@@ -45,7 +46,7 @@ function appContext(names, overrides = {}) {
     openSettings: noop,
     ...overrides,
   });
-  for (const name of names) {
+  for (const name of ["isTimedChart", ...names]) {
     const match = new RegExp(`^(?:async )?function ${name}\\(`, "m").exec(source);
     assert.ok(match, `Actual app function ${name} exists`);
     const end = source.indexOf("\n}", match.index) + 2;
@@ -178,6 +179,32 @@ test("sample loading and mic permission delays do not consume the first timeout"
   assert.equal(harness.ended(), null);
   harness.tick(2);
   assert.equal(harness.ended()?.reason, "timeout");
+});
+
+test("timed Master waits for microphone readiness and cancellation prevents a delayed start", async () => {
+  let releaseMic, startingMic;
+  const requested = new Promise(resolve => { startingMic = resolve; });
+  const permission = new Promise(resolve => { releaseMic = resolve; });
+  const starts = [];
+  const context = appContext(['beginTimedChart'], {
+    session: sessions.createSession({ lessonId: 'tones-chart-cry-me-a-river-timed-master' }),
+    startGen: 0,
+    render: noop, resetPitchTake: noop,
+    halt() { context.startGen++; context.timedRunActive = false; },
+    transport: { ensure: async () => {}, prepareBacking: async () => {}, start: async config => starts.push(config) },
+    monitor: { start: async () => { startingMic(); await permission; }, isLive: () => true, reset: noop },
+  });
+  const pending = context.beginTimedChart();
+  await requested;
+  assert.equal(starts.length, 0);
+  context.halt();
+  releaseMic();
+  await pending;
+  assert.equal(starts.length, 0);
+  await context.beginTimedChart();
+  assert.equal(starts.length, 1);
+  assert.equal(starts[0].looping, false);
+  assert.equal(starts[0].includeModel, false);
 });
 
 test("cancelled mic startup does not create an attempt or timer", async () => {

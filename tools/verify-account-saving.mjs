@@ -69,14 +69,14 @@ try {
  assert.equal(progressRequests-initial,0);
  findings.push('PASS: two tabs converge without repeated progress requests');
  await a.page.locator('#settings-close').click();
+ await a.page.locator('#lesson-list .module-banner').click();
  await a.page.locator('[data-library-tab=charts]').click();
- await a.page.locator('#chart-tree .module-banner').click();
  await a.page.locator('#library-search').fill('Autumn Leaves');
  await a.page.getByRole('button',{name:'Add Autumn Leaves to favorites',exact:true}).click();
  await poll(()=>rows.get('test-account-a:chart:autumn-leaves')?.value===true);
  const c=await device();await c.page.locator('#settings-close').click();
+ await c.page.locator('#lesson-list .module-banner').click();
  await c.page.locator('[data-library-tab=charts]').click();
- await c.page.locator('#chart-tree .module-banner').click();
  await c.page.getByRole('button',{name:'Remove Autumn Leaves from favorites',exact:true}).waitFor();
  await c.page.screenshot({path:'artifacts/fixed-account-favorites.png'});
  await c.page.getByRole('button',{name:'Remove Autumn Leaves from favorites',exact:true}).click();

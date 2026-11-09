@@ -30,7 +30,7 @@ test('chart exercises cover every chord in order, preserving sixth, diminished, 
   for (const chart of CHART_LIBRARY) {
     const chords = chart.sections.flatMap(section => section.bars.flat());
     const module = CHART_MODULES.find(module => module.id === `chart-${chart.id}`);
-    assert.equal(module.lessons.length, chords.length * 2);
+    assert.equal(module.lessons.length, chords.length * 2 + 1);
     for (const [index, chord] of chords.entries()) {
       const lesson = module.lessons[index * 2 + 1];
       const plan = lessonSessionPlan(lesson.id, defaultPrefs());

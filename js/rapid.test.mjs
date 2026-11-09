@@ -207,7 +207,7 @@ test("rapid fire keeps one mic open and releases it on pause, hear, leave, wrap-
   assert.match(app, /visibilitychange/);
   assert.match(app, /await monitor\.start\(transport\.ctx, \{ processing: false \}\)/);
   assert.doesNotMatch(app, /await monitor\.start\(transport\.ctx\);/);
-  assert.equal(app.match(/processing:\s*false/g)?.length, 1);
+  assert.equal(begin.match(/processing:\s*false/g)?.length, 1);
   assert.match(app, /debugTextForKey\(lastDebug, currentKeyId\(session\), fresh\)/);
   assert.match(app, /classList\.remove\("is-stop"\)/);
   assert.match(styles, /\.play-round\[data-action="pause"\] \.play-round-icon \{[^}]*linear-gradient\(currentColor, currentColor\) left center/);
@@ -311,7 +311,7 @@ test("Hear it plays a demo without the mic and Stop returns to idle", async () =
   assert.match(button, /hear-it-stop/);
   assert.match(button, /setAttribute\("hidden", ""\)/);
   assert.match(button, /removeAttribute\("hidden"\)/);
-  assert.doesNotMatch(button, /\.hidden\s*=/);
+  assert.match(button, /button.hidden = isTimedChart\(\)/);
 
   const paint = app.slice(app.indexOf("function renderPrimary"), app.indexOf("function renderMeter"));
   assert.match(paint, /!hearDemo/);

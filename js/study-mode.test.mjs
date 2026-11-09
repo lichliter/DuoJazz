@@ -130,7 +130,7 @@ test("Master blurs the staff until Show notes, and a reveal does not count", asy
   assert.doesNotMatch(hig, /\.paper\.staff-blurred \.note/);
   assert.match(app, /notes-hidden/);
   assert.match(app, /closest\("\.paper-wrap"\)/);
-  assert.match(app, /kind === "master" && !notesRevealed/);
+  assert.match(app, /kind === "master" && !lesson.chartTimed && !notesRevealed/);
   assert.doesNotMatch(app, /Hide notes/);
   assert.match(app, /notesShown: notesPeeked/);
   const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
@@ -238,7 +238,7 @@ test("the lick banner opens the module list and the hamburger is gone", async ()
   assert.match(index, /id="account-chip"[^>]*aria-controls="settings-modal"/);
   assert.ok(app.includes('Choose a ${module.chart ? "chart" : "lick"}. ${module.name}'));
   assert.match(app, /requestQuickView\(\)/);
-  const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginListening"));
+  const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginTimedChart"));
   assert.match(practice, /recordBackingConfig\(session\)/);
   assert.match(practice, /looping|recordBacking = true/);
   assert.doesNotMatch(practice, /monitor\.start|createFollower|finishRapid/);

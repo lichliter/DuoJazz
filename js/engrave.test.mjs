@@ -88,14 +88,15 @@ test("index and gallery load Verovio instead of abcjs", async () => {
   assert.doesNotMatch(gallery, /abcjs/);
 });
 
-test("home uses the record road and a Modules sheet; session keeps the round play cluster", async () => {
+test("home uses the record road and a shared library sheet; session keeps the round play cluster", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.match(index, /class="lesson-path"/);
   assert.doesNotMatch(index, /id="quick-view-btn"/);
   assert.doesNotMatch(index, /class="icon-btn modules-menu"/);
   assert.doesNotMatch(index, /aria-label="Modules"/);
-  assert.match(index, />Modules</);
-  assert.match(index, /id="quick-view-title">Modules</);
+  assert.match(index, /id="quick-view-title"[^>]*>Licks</);
+  assert.match(index, /data-library-tab="licks"/);
+  assert.match(index, /data-library-tab="charts"/);
   assert.match(index, /css\/webfonts.css/);
   assert.match(await readFile(new URL("../css/webfonts.css", import.meta.url), "utf8"), /font-family: 'Oswald'/);
   assert.match(index, /class="play-round"/);

@@ -80,7 +80,7 @@ export function cycleModeLabel(mode) {
 }
 
 export function isIsolatedLesson(lesson) {
-  return lesson?.kind === "learn" || lesson?.kind === "master";
+  return !lesson?.chartTimed && (lesson?.kind === "learn" || lesson?.kind === "master");
 }
 
 /** Tune and integration lessons are ungraded play-along. */
@@ -223,6 +223,7 @@ export function cardKicker(cardId, lessonId) {
 
 export function sessionScreenTitle(session) {
   const lesson = lessonById(session.lessonId);
+  if (lesson.chartTimed) return moduleForLesson(lesson.id).name;
   if (lesson.chordTones) return chordSymbolName(getKey(currentKeyId(session)), 0, lesson.chordQuality, session.displayMode, sessionKeyQuality(session));
   if (isPracticeLesson(lesson)) {
     const form = formForApplication(lesson.applicationId);
@@ -951,7 +952,7 @@ export function nextModuleTarget(module) {
 
 /** Wrap-up CTA after the last road lesson of a module. Same destination as the home road-end button. */
 export function wrapupNextModule(session) {
-  if (!session || session.sequence || !isLastVisibleLesson(session.lessonId)) return null;
+  if (!session || lessonById(session.lessonId).chartId || !isLastVisibleLesson(session.lessonId)) return null;
   return nextModuleTarget(moduleForLesson(session.lessonId));
 }
 
@@ -1318,6 +1319,7 @@ export function sessionPresentation(session) {
   const lesson = lessonById(session.lessonId);
   const view = presentation(practiceStateFor(session));
   const isolated = isIsolatedLesson(lesson);
+  if (lesson.chartTimed) return { ...view, looping: false, hideStaff: true, showPhraseNotation: false, showChordsOnly: false, showModelNotation: false, showLandingNotation: false };
 
   if (isolated) {
     return {
@@ -1391,7 +1393,7 @@ export function recordBackingConfig(session) {
     includeCue: false,
     includeGuides: false,
     cueGain: 0,
-    looping: true,
+    looping: !lessonById(session.lessonId).chartTimed,
     duckBacking: false,
   };
 }
@@ -1498,6 +1500,20 @@ export function listenStateCopy(session) {
 }
 
 export function wrapupCopy(session) {
+  if (lessonById(session.lessonId).chartTimed) {
+    const grade = session.cardResults.find(row => row.graded);
+    const bars = [...new Set(grade?.notes?.map(note => note.bar) ?? [])];
+    return {
+      kicker: grade ? (grade.passed ? 'Master · Passed' : 'Master · Keep practicing') : 'Master · Not completed',
+      heading: grade ? `${grade.percent}%` : 'Run ended',
+      detail: grade ? `${grade.passedCount} of ${grade.total} notes in time · ${moduleForLesson(session.lessonId).name}` : 'Finish a full run to receive a grade.',
+      nextKeyName: null, nextKeyLabel: null,
+      results: bars.map(bar => {
+        const notes = grade.notes.filter(note => note.bar === bar);
+        return { cardId: String(bar), label: `Bar ${bar}`, summary: `${notes.filter(note => note.passed).length}/${notes.length} notes in time` };
+      }),
+    };
+  }
   if (session.sequence) {
     const passed = session.sequenceMarks?.filter(mark => mark === 'passed').length ?? 0;
     return {

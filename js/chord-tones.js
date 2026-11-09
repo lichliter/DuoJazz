@@ -47,19 +47,34 @@ export function buildChordToneExercises(charts = []) {
   }
   for (const chart of charts) {
     const parent = { id: `chart-${chart.id}`, name: chart.title, number: null, lessons: [] };
+    const timedSpots = [], timedBars = [];
     let index = 0, bar = 0;
     for (const section of chart.sections) for (const chords of section.bars) {
       bar++;
+      timedBars.push({ chords });
+      let beatOffset = 0;
       for (const [position, chord] of chords.entries()) {
         const applicationId = exercise(`tones-chart-${chart.id}-${index}`, chord.quality, `${chart.title} · bar ${bar}`);
         for (const kind of ['learn', 'master']) parent.lessons.push(lesson(`${applicationId}-${kind}`, applicationId, kind, parent, {
           chartId: chart.id, group: 'chart-tones', chordIndex: index, chordQuality: chord.quality,
           context: `Bar ${bar}${chords.length > 1 ? ` · chord ${position + 1}` : ''}`,
           defaultKeyId: transposeToneKey(chart.key, chord.intervalFromTonic),
+          ...(kind === 'master' ? { chartPractice: true, title: 'Practice chord tones', coverTitle: 'Practice' } : {}),
         }));
+        timedSpots.push({ bar, beatOffset, anchorInterval: chord.intervalFromTonic,
+          elements: chordToneIntervals(chord.quality).map(interval => ({ type: 'note', interval, beats: chord.durationBeats / 4 })) });
+        beatOffset += chord.durationBeats;
         index++;
       }
     }
+    const timedId = exercise(`tones-chart-${chart.id}-timed`, 'major7', chart.title);
+    licks.at(-1).keyQuality = chart.keyQuality;
+    forms[timedId] = { id: timedId, title: chart.title, shortTitle: chart.title, keyQuality: chart.keyQuality, bars: timedBars };
+    applications.at(-1).spots = timedSpots;
+    parent.lessons.push(lesson(`${timedId}-master`, timedId, 'master', parent, {
+      chartId: chart.id, group: 'chart-tones', chartTimed: true, defaultKeyId: chart.key,
+      title: 'Master the changes', coverTitle: 'Master', context: 'From memory · in time', sleeve: 'oxblood',
+    }));
     chartModules.push(parent); lessons.push(...parent.lessons);
   }
   return { module, chartModules, licks, forms, applications, lessons };

@@ -65,7 +65,7 @@ Application copy (shape, target chord, door) is derived from the current concert
 
 ## Lesson flow
 
-The **Licks / Charts** toggle switches between two libraries with the same banner picker. Search either library and tap stars to favorite items; favorites appear first, and **Favorites only** filters the list. Both collections save to the signed-in account and restore across devices. Profile contains account details and settings.
+Open the banner picker and use its **Licks / Charts** toggle to browse either library. Search either library and tap stars to favorite items; favorites appear first, and **Favorites only** filters the list. Both collections save to the signed-in account and restore across devices. Profile contains account details and settings.
 
 **Licks Module 1: Chord Tones** teaches major 7, dominant 7, minor 7, and half-diminished chords. Each quality has Learn with notation and Master from memory across the selected keys. Answer by playing the root, third, fifth, and seventh on your horn. A key is mastered after passing all four qualities without revealing notes.
 
@@ -77,7 +77,13 @@ The following thirty modules come from Essential Jazz Vocabulary. Each module ha
 
 Practice sleeves represent harmonic applications, such as **Minor home** or **Altered dominant**. Selecting one opens matching **Favorite charts**, with other matching charts listed under **Suggested charts**. The favorites section offers **Choose charts** in its header, including when empty. Use **Version** for different starting degrees or forms of the cell. Choose a chart to practice that version at a matching passage. **Practice workbook example** is also available, including when no chart fits. Notation and demo playback use only the selected application and version.
 
-**Charts** opens a matching record-sleeve tree: Learn and Master play structural chord tones one chord at a time in chart order, followed by your favorite licks. Tap a favorite lick to see only its supported applications and versions for that chart, including the matching bars. When none fit, the picker explains that there is no supported match. The collapsed **Chord chart** shows the full grid and key selector; transposing it also transposes both chord-tone exercises and lick applications. Chart completion requires every chord; skips do not award progress. Sixth, diminished, suspended, and altered-fifth chords keep their defining tones; extensions use the structural four tones.
+**Charts** opens a matching record-sleeve tree with three modes, followed by your favorite licks:
+
+- **Learn** shows the notes and works through each chord at your pace.
+- **Practice** shows chord symbols with the notes hidden, advancing as you play each chord correctly. Show notes is available when needed.
+- **Master** gives a count-in and plays the full chart once at the selected tempo. Play four structural chord tones per change: quarter notes for full-bar chords and eighth notes for half-bar chords, following the swing setting. Both chord symbols and notes stay hidden. The band keeps going through mistakes; a pitch-and-timing grade and per-bar results appear only at the end. An overall score of 80% passes. Stopping, leaving, or interrupting a run cancels it without a grade. Previous per-chord progress remains under Practice; it does not count as a completed timed Master run.
+
+Tap a favorite lick to see only its supported applications and versions for that chart, including the matching bars. When none fit, the picker explains that there is no supported match. The collapsed **Chord chart** shows the full grid and key selector; transposing it also transposes both chord-tone exercises and lick applications. Learn and Practice completion require every chord; skips do not award progress. Sixth, diminished, suspended, and altered-fifth chords keep their defining tones; extensions use the structural four tones.
 
 Chart favorites retain the existing per-chart account entries and legacy import from `duojazz.myCharts.v1`. Lick favorites use the same ordered journal with `lick:<id>` entries, including removal tombstones. The shared picker lives in `js/library-ui.js`; chord-tone exercises are generated in `js/chord-tones.js`.
 
@@ -87,7 +93,7 @@ Open Profile from the avatar to see your account details and practice settings. 
 
 Melody octave (−1 / Original / +1) moves only the model line and displayed phrase. The **Instrument** setting (default Piano) sets clef, written transposition, register, and demo samples. Skipping a key is not a pass. Pitch observations reset at the start of every card and every take.
 
-Learn and Master use an ordered microphone note follower (YIN in an AudioWorklet): each target pitch must stay within ±50 cents for about 80 ms. Timing is not graded. A stable wrong pitch held for 120 ms fails the attempt; short transients are ignored. Learn, and Master after Show notes, require the displayed octave. Hidden-note Master accepts one consistent octave shift throughout the phrase. The initial eight-second no-sound timeout starts only when microphone capture is ready.
+Lick Learn/Master and chart Learn/Practice use an ordered microphone note follower (YIN in an AudioWorklet): each target pitch must stay within ±50 cents for about 80 ms. Timing is not graded in these modes. A stable wrong pitch held for 120 ms fails the attempt; short transients are ignored. Learn, and Master or Practice after Show notes, require the displayed octave. Hidden-note exercises accept one consistent octave shift throughout the phrase. The initial eight-second no-sound timeout starts only when microphone capture is ready. Timed chart Master uses the same microphone pitch capture with a separate end-of-run pitch-and-timing grade; silence scores zero.
 
 A key contributes to its module's medal only when Master is passed without revealing notes. Showing notes earns Learn credit instead. Bronze / Silver / Gold require 1 / 6 / 12 mastered keys. Progress and settings sync through Supabase, with the existing localStorage schemas providing an offline cache. If browser storage is blocked or full, practice continues in memory and a warning explains that changes may not survive leaving the page.
 

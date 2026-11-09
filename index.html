@@ -97,10 +97,6 @@
       </div>
     </header>
 
-    <nav id="library-tabs" class="library-tabs" aria-label="Practice library">
-      <button type="button" data-library-tab="licks" aria-pressed="true">Licks</button>
-      <button type="button" data-library-tab="charts" aria-pressed="false">Charts</button>
-    </nav>
     <main id="main" class="workspace" tabindex="-1">
       <section class="screen" id="screen-home" data-testid="screen-home" aria-label="Module home">
         <section class="lesson-path" aria-label="Lesson path">
@@ -223,6 +219,12 @@
                   <div id="notation" class="paper" aria-label="Staff notation"></div>
                   <button type="button" class="notes-toggle" id="show-notes" data-testid="show-notes" hidden aria-pressed="false" aria-label="Show notes">Show notes</button>
                   <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
+                  <div id="timed-chart-panel" class="timed-chart-panel" hidden>
+                    <p class="timed-chart-heading">Play the changes from memory</p>
+                    <p>Four chord tones per change. Keep going with the band. Your grade appears at the end.</p>
+                    <p id="timed-chart-position"></p>
+                    <progress id="timed-chart-progress" max="1" value="0" aria-label="Chart progress"></progress>
+                  </div>
                 </div>
                 <div class="listen-state" id="listen-state" hidden>
                   <p class="listen-kicker" id="listen-kicker">Listening</p>
@@ -310,14 +312,26 @@
 
   <dialog id="quick-view" class="form-sheet" data-testid="quick-view" aria-labelledby="quick-view-title">
     <form method="dialog" class="sheet-form">
-      <header class="sheet-toolbar">
-        <h2 id="quick-view-title">Licks</h2>
-        <button type="submit" class="dismiss-button" aria-label="Close library" value="close">×</button>
-      </header>
-      <div class="library-picker-tools">
-        <label class="sr-only" for="library-search">Search the library</label>
-        <input type="search" id="library-search" placeholder="Search licks" autocomplete="off">
-        <button type="button" id="library-favorites" class="collection-action" aria-pressed="false">Favorites only</button>
+      <div class="library-picker-header">
+        <header class="sheet-toolbar">
+          <h2 id="quick-view-title" class="sr-only">Licks</h2>
+          <div id="library-tabs" class="library-tabs" role="group" aria-label="Practice library">
+            <button type="button" data-library-tab="licks" aria-pressed="true">Licks</button>
+            <button type="button" data-library-tab="charts" aria-pressed="false">Charts</button>
+          </div>
+          <button type="submit" class="dismiss-button" aria-label="Close library" value="close">×</button>
+        </header>
+        <div class="library-picker-tools">
+          <label class="library-search-field" for="library-search">
+            <span class="sr-only">Search the library</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
+            <input type="search" id="library-search" placeholder="Search licks" autocomplete="off">
+          </label>
+          <div class="library-filter-row">
+            <span id="library-count" class="help"></span>
+            <button type="button" id="library-favorites" aria-label="Favorites only" aria-pressed="false"><span aria-hidden="true">★</span> Favorites</button>
+          </div>
+        </div>
         <p class="sr-only" id="library-status" role="status"></p>
       </div>
       <div class="quick-view-list" id="quick-view-list"></div>

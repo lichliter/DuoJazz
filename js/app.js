@@ -206,6 +206,10 @@ let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
 let chartConcertKeyId = null;
 let favoriteLicks = [];
+let timedRunActive = false;
+function isTimedChart() {
+  return Boolean(session && lessonById(session.lessonId).chartTimed);
+}
 const tabScroll = { licks: 0, charts: 0, settings: 0 };
 
 const els = {
@@ -364,6 +368,7 @@ function halt({ keepMic = false } = {}) {
   startGen += 1;
   hearDemo = false;
   recordBacking = false;
+  timedRunActive = false;
   finishing = false;
   samplesLoading = false;
   clearRapidTimers();
@@ -390,7 +395,7 @@ function halt({ keepMic = false } = {}) {
 }
 
 function releaseMic(reason) {
-  if (rapidMicStep(monitor.isLive(), reason) !== "release") return;
+  if (rapidMicStep(monitor.isLive(), reason) !== "release" && !timedRunActive) return;
   const held = session?.keyIndex ?? 0;
   const onSession = session?.screen === "session";
   halt();
@@ -697,8 +702,47 @@ async function beginPracticeLoop() {
   }
 }
 
+async function beginTimedChart() {
+  halt();
+  resetPitchTake();
+  const generation = startGen;
+  timedRunActive = true;
+  rapidPhase = 'listening';
+  render();
+  try {
+    await transport.ensure();
+    if (generation !== startGen || !timedRunActive) return;
+    await transport.prepareBacking({ sampleSet: instrumentOrDefault(session.instrumentId).sampleSet });
+    if (generation !== startGen || !timedRunActive) return;
+    await monitor.start(transport.ctx, { processing: false });
+    if (generation !== startGen || !timedRunActive) return;
+    if (!monitor.isLive()) throw new Error('Microphone unavailable');
+    // Arm the microphone before starting the count-in. The chart never waits for notes.
+    monitor.reset();
+    monitor.holdSignal = false;
+    await transport.start(recordBackingConfig(session), { resume: false });
+  } catch {
+    if (generation !== startGen) return;
+    halt();
+    audioError = 'Microphone or backing failed to start. Try again.';
+    render();
+  }
+}
+
+function renderTimedPosition(snap = transport.snapshot()) {
+  if (!isTimedChart()) return;
+  const length = formBeatsFor(lessonById(session.lessonId).applicationId);
+  const position = document.getElementById('timed-chart-position');
+  position.textContent = !timedRunActive ? `${length / 4} bars · one complete run`
+    : !snap.playing ? 'Getting ready…'
+    : snap.inCountIn ? `Count in · ${Math.max(1, Math.ceil(-snap.beats))}`
+    : `Bar ${snap.bar} of ${length / 4} · Beat ${snap.beatInBar}`;
+  document.getElementById('timed-chart-progress').value = Math.max(0, snap.beats ?? 0) / length;
+}
+
 async function beginListening() {
   if (!session || session.screen !== "session" || session.demo) return;
+  if (isTimedChart()) return beginTimedChart();
   clearMasteryPreview();
   if (isPracticeLesson(session.lessonId)) return beginPracticeLoop();
   const generation = startGen + 1;
@@ -817,6 +861,7 @@ function renderShowNotes() {
     session
     && session.screen === "session"
     && lessonById(session.lessonId).kind === "master"
+    && !isTimedChart()
     && !session.demo,
   );
   const show = master && !notesRevealed;
@@ -934,11 +979,6 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
   restoreTabScroll();
 }
 
-function syncTabButtons() {
-  document.getElementById('library-tabs').hidden = screenName() !== 'home';
-  for (const button of document.querySelectorAll('[data-library-tab]')) button.setAttribute('aria-pressed', String(button.dataset.libraryTab === nav.tab));
-}
-
 function startLesson(lessonId, options = {}) {
   if (screenName() === "home") saveTabScroll();
   clearMasteryPreview();
@@ -1042,6 +1082,7 @@ function sessionKeyToken(value) {
 }
 
 function applySession(next, { autoStart = false } = {}) {
+  const previousScreen = session?.screen;
   clearMasteryPreview();
   const slot = sessionSlot(next);
   if (slot !== lastSessionSlot) resetPitchTake();
@@ -1054,6 +1095,10 @@ function applySession(next, { autoStart = false } = {}) {
   }
   persist();
   render();
+  if (session?.screen !== previousScreen) {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    if (session?.screen === "wrapup") els.wrapup.scrollTop = 0;
+  }
   if (autoStart && session?.screen === "session") start(false);
 }
 
@@ -1067,6 +1112,7 @@ async function start(resume = false) {
 
 function renderHearIt() {
   const button = els.hearIt;
+  if (button) button.hidden = isTimedChart();
   if (!button) return;
   const spec = hearItButton({ active: hearDemo });
   button.setAttribute("aria-label", spec.label);
@@ -1097,7 +1143,7 @@ function stopHearDemo() {
 }
 
 async function playHearDemo() {
-  if (!session || session.screen !== "session") return;
+  if (!session || session.screen !== "session" || isTimedChart()) return;
   const generation = startGen + 1;
   startGen = generation;
   hearDemo = true;
@@ -1160,6 +1206,7 @@ function runPrimary() {
   if (rapidPhase === "settling") return;
   if (rapidPhase === "listening") {
     sessionShot = null;
+    if (isTimedChart()) { halt(); resetPitchTake(); render(); return; }
     releaseMic("pause");
     return;
   }
@@ -1200,6 +1247,7 @@ function goContinue() {
 }
 
 function leaveOutcomeFromTake() {
+  if (isTimedChart()) return leaveCardOutcome(session, { hasTake: false });
   const observations = monitor.observations;
   const hasTake = hasPitchTake(observations);
   const takeResult = hasTake ? finishCard(session, observations) : null;
@@ -1590,13 +1638,15 @@ function renderSessionChrome() {
   const practice = isPracticeLesson(session.lessonId);
   if (els.sessionModule) els.sessionModule.textContent = moduleForLesson(session.lessonId).name;
   if (els.sessionTitle) fillMusicLabel(els.sessionTitle, sessionScreenTitle(session));
-  els.sessionKey.hidden = !practice && !session.sequence;
+  els.sessionKey.hidden = !practice && !session.sequence && !isTimedChart();
   fillMusicLabel(els.sessionKey, session.sequence
     ? `${lessonById(session.lessonId).context} · ${session.sequenceIndex + 1}/${session.sequence.length}`
+    : isTimedChart() ? `Master · ${session.tempo} bpm · from memory`
     : applicationById(lessonById(session.lessonId).applicationId).label);
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
-  if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId);
+  if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId) || isTimedChart();
+  if (els.sessionOctave) els.sessionOctave.hidden = isTimedChart();
   if (els.continueBtn) els.continueBtn.hidden = !cycling && !session.sequence;
   renderKeyCycle();
 }
@@ -1824,7 +1874,8 @@ function renderNotation() {
   const view = sessionPresentation(session);
   const lesson = lessonById(session.lessonId);
   const hideStaff = Boolean(view.hideStaff);
-  els.hiddenAnswer.hidden = !hideStaff;
+  document.getElementById('timed-chart-panel').hidden = !lesson.chartTimed;
+  els.hiddenAnswer.hidden = !hideStaff || lesson.chartTimed;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
   fillListenState();
   els.notation.hidden = hideStaff;
@@ -1832,15 +1883,16 @@ function renderNotation() {
   const spec = sessionEngraveSpec(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
   els.notation.classList.toggle("notation-memory", Boolean(spec.memory && !notesRevealed));
-  const hideNotes = lesson.kind === "master" && !notesRevealed;
+  const hideNotes = lesson.kind === "master" && !lesson.chartTimed && !notesRevealed;
   els.notation.closest(".paper-wrap")?.classList.toggle("notes-hidden", hideNotes);
   lastTimemap = [];
-  lastChordTimings = chordTimingsFor(session);
+  lastChordTimings = lesson.chartTimed ? [] : chordTimingsFor(session);
   if (hideStaff) {
     notationGen += 1;
     els.notation.replaceChildren();
     lastPlayheadSystem = null;
     layoutClickWheel();
+    renderTimedPosition();
     return;
   }
   const width = staffWidth();
@@ -1965,7 +2017,9 @@ function renderPrimary(snap = transport.snapshot()) {
   );
   if (!demoLive) {
     const listening = phase === "listening";
-    const action = rapidFireButton({ listening });
+    const action = isTimedChart()
+      ? { id: listening ? "stop" : "start", label: listening ? "Stop run" : "Start Master run" }
+      : rapidFireButton({ listening });
     const icon = els.primary.querySelector(".play-round-icon");
     els.primary.hidden = false;
     els.primary.disabled = false;
@@ -2078,7 +2132,7 @@ function renderWrapup() {
   }
   if (els.wrapupSleeveNum) {
     const module = moduleForLesson(lesson.id);
-    els.wrapupSleeveNum.textContent = session.sequence ? (lesson.kind === 'learn' ? '01' : '02') : String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
+    els.wrapupSleeveNum.textContent = lesson.chartTimed ? '03' : session.sequence ? (lesson.kind === 'learn' ? '01' : '02') : String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
   }
   if (els.wrapupSleeveTitle) els.wrapupSleeveTitle.textContent = lesson.coverTitle;
   els.resultList.replaceChildren(
@@ -2090,14 +2144,15 @@ function renderWrapup() {
   );
   const moduleStats = moduleMastery(shownMastery(), moduleForLesson(lesson.id).id);
   const count = moduleStats.masteredKeys.length;
+  document.getElementById("wrapup-medal-panel").hidden = Boolean(session.sequence || isTimedChart());
   if (els.wrapupMedalMark) {
-    els.wrapupMedalMark.hidden = Boolean(session.sequence);
+    els.wrapupMedalMark.hidden = Boolean(session.sequence || isTimedChart());
     els.wrapupMedalMark.textContent = wrapupBanner?.upgraded
       ? `Medal up · ${displayMedal(moduleStats.medal)}`
       : (count ? displayMedal(moduleStats.medal) : "Medal");
   }
   if (els.wrapupMedal) {
-    els.wrapupMedal.hidden = Boolean(session.sequence);
+    els.wrapupMedal.hidden = Boolean(session.sequence || isTimedChart());
     els.wrapupMedal.textContent = wrapupBanner?.upgraded
       ? `${displayMedal(moduleStats.medal)} unlocked`
       : (count ? `${count} of 12 keys mastered` : "No medal yet for this module");
@@ -2118,8 +2173,14 @@ function currentChart() {
 function startChartTones(kind) {
   const chart = currentChart();
   const delta = getKey(chartConcertKeyId ?? chart.key).pc - getKey(chart.key).pc;
-  const sequence = CHART_MODULES.find(module => module.id === `chart-${chart.id}`).lessons
-    .filter(lesson => lesson.kind === kind)
+  const parent = CHART_MODULES.find(module => module.id === `chart-${chart.id}`);
+  if (kind === 'master') {
+    const lesson = parent.lessons.find(lesson => lesson.chartTimed);
+    startLesson(lesson.id, { keyId: transposeToneKey(lesson.defaultKeyId, delta) });
+    return;
+  }
+  const sequence = parent.lessons
+    .filter(lesson => !lesson.chartTimed && (kind === 'practice' ? lesson.chartPractice : lesson.kind === 'learn'))
     .map(lesson => ({ lessonId: lesson.id, keyId: transposeToneKey(lesson.defaultKeyId, delta) }));
   startLesson(sequence[0].lessonId, { sequence, keyId: sequence[0].keyId });
 }
@@ -2162,15 +2223,16 @@ function renderChartDetail() {
   const tune = currentChart();
   if (!chartConcertKeyId) chartConcertKeyId = tune.key;
   const parent = CHART_MODULES.find(module => module.id === `chart-${tune.id}`);
-  const first = ['learn', 'master'].map(kind => parent.lessons.find(lesson => lesson.kind === kind));
+  const first = [parent.lessons.find(lesson => lesson.kind === 'learn'), parent.lessons.find(lesson => lesson.chartPractice), parent.lessons.find(lesson => lesson.chartTimed)];
   const progress = keysByLesson();
   const delta = getKey(chartConcertKeyId).pc - getKey(tune.key).pc;
   const nodes = moduleRoadNodes({ ...parent, lessons: first }, prefs, {}).map((node, index) => {
-    const kind = index ? 'master' : 'learn';
-    const lessons = parent.lessons.filter(lesson => lesson.kind === kind);
+    const kind = ['learn', 'practice', 'master'][index];
+    const lessons = parent.lessons.filter(lesson => index === 2 ? lesson.chartTimed : !lesson.chartTimed && (index === 1 ? lesson.chartPractice : lesson.kind === 'learn'));
     const passed = lessons.filter(lesson => progress[lesson.id]?.includes(transposeToneKey(lesson.defaultKeyId, delta))).length;
-    return { ...node, title: index ? 'Master chord tones' : 'Learn chord tones', coverTitle: index ? 'Master' : 'Learn',
-      passedCount: passed, keyTarget: lessons.length, progressUnit: 'chords', complete: passed === lessons.length,
+    const label = ['Learn', 'Practice', 'Master'][index];
+    return { ...node, title: index === 2 ? 'Master the changes from memory, in time' : `${label} chord tones`, coverTitle: label,
+      passedCount: passed, keyTarget: lessons.length, progressUnit: index === 2 ? 'runs' : 'chords', complete: passed === lessons.length,
       vinylTier: passed === lessons.length ? 'gold' : passed ? 'bronze' : 'black',
       onSelect: () => startChartTones(kind) };
   });
@@ -2253,7 +2315,6 @@ function render(snap = transport.snapshot()) {
   els.session.setAttribute("aria-hidden", String(screen !== "session"));
   els.wrapup.setAttribute("aria-hidden", String(screen !== "wrapup"));
   if (els.charts) els.charts.setAttribute("aria-hidden", String(!onCharts));
-  syncTabButtons();
   const moduleName = session ? moduleForLesson(session.lessonId).name : "DuoJazz";
   document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
@@ -2392,6 +2453,7 @@ transport.onUpdate = (snap) => {
   renderPrimary();
   renderHearIt();
   renderMeter(snap);
+  if (isTimedChart()) renderTimedPosition(snap);
   updatePlayhead(snap);
 };
 
@@ -2436,6 +2498,15 @@ function handleTransportEnded() {
   playback.playing = false;
   playback.paused = false;
   playback.ended = true;
+  if (timedRunActive && isTimedChart()) {
+    monitor.stop();
+    const result = gradeSession(session, monitor.observations.filter(frame => frame.beat >= 0));
+    recordPassIfNeeded(result);
+    const done = completeCard(session, result);
+    halt();
+    applySession(done);
+    return;
+  }
   if (recordBacking) {
     recordBacking = false;
     return;
@@ -2520,7 +2591,6 @@ els.settingsModal?.addEventListener("click", (event) => {
     && event.clientY >= rect.top && event.clientY <= rect.bottom;
   if (!inside) closeSettings();
 });
-for (const button of document.querySelectorAll('[data-library-tab]')) button.addEventListener('click', () => selectTab(button.dataset.libraryTab));
 document.querySelector('#chart-applications [data-close]').addEventListener('click', () => closeSheet(document.getElementById('chart-applications')));
 
 els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
