@@ -17,7 +17,6 @@ export function setupLibraryPicker({ modules, charts, getFavorites, getProgress,
     const query = search.value.trim().toLocaleLowerCase();
     const source = type === 'licks' ? modules : charts;
     const matches = source.filter(item => (!favoritesOnly || favorites.has(item.id)) && (item.name ?? item.title).toLocaleLowerCase().includes(query));
-    matches.sort((a,b) => Number(favorites.has(b.id)) - Number(favorites.has(a.id)));
     document.getElementById('library-count').textContent = `${matches.length} ${favoritesOnly ? 'favorite ' : ''}${matches.length === 1 ? type.slice(0, -1) : type}`;
     list.replaceChildren(...matches.map(item => {
       const title = item.name ?? item.title, favorite = favorites.has(item.id);

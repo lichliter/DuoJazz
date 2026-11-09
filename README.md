@@ -65,7 +65,7 @@ Application copy (shape, target chord, door) is derived from the current concert
 
 ## Lesson flow
 
-Open the banner picker and use its **Licks / Charts** toggle to browse either library. Search either library and tap stars to favorite items; favorites appear first, and **Favorites only** filters the list. Both collections save to the signed-in account and restore across devices. Profile contains account details and settings.
+Open the banner picker and use its **Licks / Charts** toggle to browse either library. Search either library and tap stars to favorite items; starring an item keeps the library's normal order, and **Favorites only** filters the list. Both collections save to the signed-in account and restore across devices. Profile contains account details and settings.
 
 **Licks Module 1: Chord Tones** teaches major 7, dominant 7, minor 7, and half-diminished chords. Each quality has Learn with notation and Master from memory across the selected keys. Answer by playing the root, third, fifth, and seventh on your horn. A key is mastered after passing all four qualities without revealing notes.
 
