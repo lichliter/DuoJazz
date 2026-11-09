@@ -13,6 +13,7 @@ import {
   applicationKeyQuality,
   phraseMeasureCount,
   wrapPc,
+  chordSymbolName,
 } from "./music.js";
 import {
   DEFAULT_INSTRUMENT_ID,
@@ -89,7 +90,7 @@ export function isPracticeLesson(lessonOrId) {
 }
 
 export function lessonKeyTarget(lesson) {
-  return lesson?.kind === "master" ? 12 : 1;
+  return lesson?.kind === "master" && !lesson.chartId ? 12 : 1;
 }
 
 export function sessionShowsCycle(session) {
@@ -112,6 +113,12 @@ export function lessonKeyQuality(lesson) {
 export function lessonSessionPlan(lessonId, prefs) {
   const lesson = lessonById(lessonId);
   const stored = normalizePrefs(prefs);
+  if (lesson.chordTones) return {
+    keyMode: lesson.kind === 'master' && !lesson.chartId ? cycleModeId(stored.keyMode) : 'one',
+    startKeyId: lesson.chartId ? lesson.defaultKeyId : stored.startKeyId,
+    majorKeyId: null,
+    keyIds: lesson.kind === 'master' && !lesson.chartId && !stored.allKeys ? practiceMajorKeyIds(stored) : null,
+  };
   if (lesson.kind === "master" || lesson.kind === "learn") {
     return {
       keyMode: lesson.kind === "master" ? cycleModeId(stored.keyMode) : "one",
@@ -216,6 +223,7 @@ export function cardKicker(cardId, lessonId) {
 
 export function sessionScreenTitle(session) {
   const lesson = lessonById(session.lessonId);
+  if (lesson.chordTones) return chordSymbolName(getKey(currentKeyId(session)), 0, lesson.chordQuality, session.displayMode, sessionKeyQuality(session));
   if (isPracticeLesson(lesson)) {
     const form = formForApplication(lesson.applicationId);
     return form.shortTitle ?? form.title;
@@ -696,7 +704,7 @@ export function dismissHeadphonesTip(prefs) {
  * Null when every lesson is complete.
  */
 export function recommendedLessonId(lessonKeys = {}) {
-  const unfinished = LESSONS.find((lesson) => !isPracticeLesson(lesson) && !lessonIsComplete(lessonKeys, lesson.id));
+  const unfinished = MODULES.flatMap(module => module.lessons).find((lesson) => !isPracticeLesson(lesson) && !lessonIsComplete(lessonKeys, lesson.id));
   return unfinished?.id ?? null;
 }
 
@@ -723,6 +731,11 @@ export function markKeyOutcome(session, outcome) {
   while (marks.length < total) marks.push(null);
   const status = outcome === "skipped" ? "skipped" : "passed";
   if (session.keyIndex >= 0 && session.keyIndex < total) marks[session.keyIndex] = status;
+  if (session.sequence) {
+    const sequenceMarks = [...(session.sequenceMarks ?? [])];
+    sequenceMarks[session.sequenceIndex] = status;
+    return { ...session, keyMarks: marks, sequenceMarks };
+  }
   return { ...session, keyMarks: marks };
 }
 
@@ -763,12 +776,12 @@ export function createSession({
 } = {}) {
   const lesson = lessonById(lessonId);
   const cards = cardsFor();
-  const resolvedMode = lesson.kind === "master" ? cycleModeId(keyMode) : keyModeById(keyMode).id;
+  const resolvedMode = lesson.kind === "master" && !lesson.chartId ? cycleModeId(keyMode) : keyModeById(keyMode).id;
   const useMajor = Boolean(majorKeyId) && (lesson.kind === "learn" || lesson.kind === "master");
   const subset = lesson.kind === "master" && Array.isArray(keyIds) ? keyIds : null;
   const keyQueue = useMajor
     ? lickKeyQueue(resolvedMode, majorKeyId, applicationKeyQuality(lesson.applicationId), rng, subset)
-    : buildKeyQueue(resolvedMode, startKeyId, rng);
+    : subset ? selectedMajorQueue(resolvedMode, startKeyId, subset, rng) : buildKeyQueue(resolvedMode, startKeyId, rng);
   const resolvedStart = normalizeKeyId(keyQueue[0] ?? startKeyId);
   const instrument = instrumentOrDefault(instrumentId);
   return {
@@ -938,7 +951,7 @@ export function nextModuleTarget(module) {
 
 /** Wrap-up CTA after the last road lesson of a module. Same destination as the home road-end button. */
 export function wrapupNextModule(session) {
-  if (!session || !isLastVisibleLesson(session.lessonId)) return null;
+  if (!session || session.sequence || !isLastVisibleLesson(session.lessonId)) return null;
   return nextModuleTarget(moduleForLesson(session.lessonId));
 }
 
@@ -1016,7 +1029,9 @@ export function skipCard(session) {
       { cardId, ...skipResult(marked) },
     ],
   };
-  const moreKeys = session.keyMode !== "one" && session.keyIndex + 1 < session.keyQueue.length;
+  const moreKeys = session.sequence
+    ? session.sequenceIndex + 1 < session.sequence.length
+    : session.keyMode !== "one" && session.keyIndex + 1 < session.keyQueue.length;
   if (!moreKeys) {
     return { ...recorded, screen: "wrapup", listenStage: "hear" };
   }
@@ -1040,6 +1055,7 @@ export function canGoNext(session) {
 }
 
 export function sessionProgress(session) {
+  if (session.sequence) return { index: session.sequenceIndex + 1, total: session.sequence.length, ratio: session.sequenceIndex / session.sequence.length };
   const perKey = Math.max(1, session.cards.length);
   const keys = Math.max(1, session.keyQueue.length);
   const total = perKey * keys;
@@ -1190,6 +1206,10 @@ export function resolveQuickViewJump(id) {
 }
 
 export function repeatKey(session) {
+  if (session.sequence && session.screen === 'wrapup') {
+    const first = session.sequence[0];
+    return { ...createSession({ ...session, lessonId: first.lessonId, startKeyId: first.keyId, keyMode: 'one', majorKeyId: null }), sequence: session.sequence, sequenceIndex: 0, sequenceMarks: [] };
+  }
   return {
     ...session,
     screen: "session",
@@ -1200,10 +1220,16 @@ export function repeatKey(session) {
 }
 
 export function hasNextKey(session) {
+  if (session.sequence) return session.sequenceIndex + 1 < session.sequence.length;
   return session.keyMode !== "one";
 }
 
 export function advanceKey(session, rng = Math.random) {
+  if (session.sequence && session.sequenceIndex + 1 < session.sequence.length) {
+    const sequenceIndex = session.sequenceIndex + 1;
+    const item = session.sequence[sequenceIndex];
+    return { ...createSession({ ...session, lessonId: item.lessonId, startKeyId: item.keyId, keyMode: 'one', majorKeyId: null }), sequence: session.sequence, sequenceMarks: session.sequenceMarks, sequenceIndex };
+  }
   if (session.keyMode === "one") return repeatKey(session);
   if (session.keyIndex + 1 < session.keyQueue.length) {
     return {
@@ -1444,6 +1470,7 @@ export function sessionKeyQuality(session) {
 
 export function peekNextKeyId(session) {
   if (!hasNextKey(session)) return null;
+  if (session.sequence) return session.sequence[session.sequenceIndex + 1].keyId;
   if (session.keyIndex + 1 < session.keyQueue.length) return session.keyQueue[session.keyIndex + 1];
   if (session.keyMode === "random") return null;
   return session.keyQueue[0];
@@ -1471,6 +1498,19 @@ export function listenStateCopy(session) {
 }
 
 export function wrapupCopy(session) {
+  if (session.sequence) {
+    const passed = session.sequenceMarks?.filter(mark => mark === 'passed').length ?? 0;
+    return {
+      kicker: 'Chart practice', heading: moduleForLesson(session.lessonId).name,
+      detail: `${passed} of ${session.sequence.length} chords passed`,
+      nextKeyName: null, nextKeyLabel: null,
+      results: session.sequence.map((item, index) => ({
+        cardId: item.lessonId,
+        label: `${lessonById(item.lessonId).context} · ${sessionScreenTitle({ ...session, lessonId: item.lessonId, keyQueue: [item.keyId], keyIndex: 0 })}`,
+        summary: session.sequenceMarks?.[index] === 'passed' ? 'Passed' : 'Skipped',
+      })),
+    };
+  }
   const keyName = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
   const nextId = peekNextKeyId(session);
   return {

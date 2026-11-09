@@ -25,11 +25,13 @@ import {
   WORKBOOK_TRACK_APPLICATIONS,
 } from "./workbook-tracks.js";
 import { buildPracticeCatalog } from "./practice-catalog.js";
+import { buildChordToneExercises } from "./chord-tones.js";
 
 export { TUNES };
 
 let applicationIndex = null;
 let lessonIndex = null;
+const toneLickIndex = new Map();
 
 export const TROMBONE_LOW_MIDI = 40; // E2
 /** Preferred ceiling (Bb4). Notes may go higher when a lick cannot fit under it. */
@@ -1348,6 +1350,13 @@ export const MODULES = [
 const CORE_SLEEVE_START = MODULES.reduce((sum, module) => sum + module.lessons.length, 0) % 3;
 MODULES.push(...buildWorkbookModules(CORE_SLEEVE_START));
 
+const toneFoundations = buildChordToneExercises();
+for (const module of MODULES) module.number += 1;
+MODULES.unshift(toneFoundations.module);
+for (const lick of toneFoundations.licks) toneLickIndex.set(lick.id, lick);
+Object.assign(FORMS, toneFoundations.forms);
+ALL_APPLICATIONS.push(...toneFoundations.applications);
+
 for (const module of MODULES) {
   if (module.lessons.some((lesson) => lesson.kind === "master")) continue;
   const learnIndex = module.lessons.findIndex((lesson) => lesson.kind === "learn");
@@ -1367,6 +1376,7 @@ for (const module of MODULES) {
 
 let sleeveIndex = 0;
 for (const module of MODULES) {
+  if (module.id === 'chord-tones') { module.lessons = withSleeves(module.lessons, 0); continue; }
   module.lessons = withSleeves(module.lessons, sleeveIndex % 3);
   sleeveIndex += module.lessons.length;
 }
@@ -1406,11 +1416,27 @@ export const PRACTICE_CATALOG = buildPracticeCatalog({
 Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);
 LESSONS.push(...PRACTICE_CATALOG.lessons);
+// Include saved excerpt charts as well as complete tunes in the shared picker.
+export const CHART_LIBRARY = PRACTICE_CATALOG.charts.map(chart => {
+  const full = TUNES.find(tune => tune.id === chart.id);
+  if (full) return { ...full, excerpt: false };
+  const choice = PRACTICE_CATALOG.groups.flatMap(group => group.choices).find(item => item.chartId === chart.id);
+  const lesson = PRACTICE_CATALOG.lessons.find(item => item.id === choice?.lessonId);
+  const form = lesson && formById(applicationById(lesson.applicationId).formId);
+  return form ? { ...chart, key: lesson.defaultKeyId, keyQuality: form.keyQuality, excerpt: true, sections: [{ label: 'Excerpt', bars: form.bars.map(bar => bar.chords ?? bar) }] } : null;
+}).filter(Boolean);
+const chartTones = buildChordToneExercises(CHART_LIBRARY);
+export const CHART_MODULES = chartTones.chartModules;
+// The foundation definitions were already registered above.
+for (const lick of chartTones.licks) toneLickIndex.set(lick.id, lick);
+Object.assign(FORMS, Object.fromEntries(Object.entries(chartTones.forms).filter(([id]) => id.startsWith('tones-chart-'))));
+ALL_APPLICATIONS.push(...chartTones.applications.filter(app => app.id.startsWith('tones-chart-')));
+LESSONS.push(...chartTones.lessons);
 applicationIndex = new Map(ALL_APPLICATIONS.map((app) => [app.id, app]));
 lessonIndex = new Map(LESSONS.map((lesson) => [lesson.id, lesson]));
 
 export function lickById(id) {
-  return LICKS.find((lick) => lick.id === id) ?? LICKS[0];
+  return toneLickIndex.get(id) ?? LICKS.find((lick) => lick.id === id) ?? LICKS[0];
 }
 
 export function formById(id) {
@@ -1424,6 +1450,8 @@ export function applicationById(id) {
 
 export function moduleById(id) {
   if (id === TUNE_SECTION.id) return TUNE_SECTION;
+  const chart = CHART_MODULES.find(module => module.id === id);
+  if (chart) return chart;
   return MODULES.find((module) => module.id === id) ?? MODULES[0];
 }
 

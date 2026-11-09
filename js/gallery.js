@@ -39,11 +39,11 @@ const TUNE_PAGES = [
 ];
 
 export function coreModules() {
-  return MODULES.filter((module) => module.number != null && module.number <= 5);
+  return MODULES.filter((module) => ["cmar", "emr", "gts", "bo", "hsr"].includes(module.id));
 }
 
 export function workbookModules() {
-  return MODULES.filter((module) => module.number > 5);
+  return MODULES.filter((module) => module.lickId && module.id !== "chord-tones" && !coreModules().includes(module));
 }
 
 export function learnLessons() {

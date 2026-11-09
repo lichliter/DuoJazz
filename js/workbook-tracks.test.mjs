@@ -64,7 +64,7 @@ test("Recordame is 16 bars, concert A minor, with half-bar walking ii–Vs", () 
 });
 
 test("every workbook module has 1–3 tune lessons on the road", () => {
-  for (const module of MODULES.slice(5)) {
+  for (const module of MODULES.slice(6)) {
     const extras = module.lessons.filter((lesson) => lesson.kind === "integrate");
     assert.ok(extras.length >= 1 && extras.length <= 3, `${module.id} ${extras.length}`);
     assert.deepEqual(extras.map((lesson) => lesson.id), trackLessonsFor(module.id).map((lesson) => lesson.id));
@@ -220,16 +220,16 @@ test("Nutville is C minor, 24 bars, with one-bar B-section dominants and G7♯5"
 });
 
 test("wrap-up of a module’s last lesson offers the next module", () => {
-  const first = MODULES[0];
+  const first = MODULES.find(module => module.id === "cmar");
   const last = MODULES.at(-1);
   const lastGraded = visibleModuleLessons(first).find((lesson) => lesson.kind === "master");
   const session = createSession({ lessonId: lastGraded.id, startKeyId: first.lessons[0].defaultKeyId });
-  assert.match(wrapupNextModule(session).label, /^Next: Module 2 · /);
+  assert.match(wrapupNextModule(session).label, /^Next: Module 3 · /);
   const done = Object.fromEntries(visibleModuleLessons(first).map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
-  assert.match(homeNextModule(first, done).label, /^Next: Module 2 · /);
+  assert.match(homeNextModule(first, done).label, /^Next: Module 3 · /);
   assert.equal(homeNextModule(first, {}).id, wrapupNextModule(session).id);
   assert.match(homeNextModule(last, {}).label, /^Back to Module 1 · /);
-  assert.equal(homeNextModule(last, {}).id, first.id);
+  assert.equal(homeNextModule(last, {}).id, "chord-tones");
   assert.ok(tuneById("recordame"));
   assert.ok(tuneById("nutville"));
   assert.equal(TUNES.at(-1).id, "blue-bossa");

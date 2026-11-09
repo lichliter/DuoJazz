@@ -3,19 +3,19 @@ import { clearStorageFailure, writeStoredJson } from './storage.js';
 export const SETTINGS_KEY = 'duojazz.accountSettings.v1';
 export const SETTINGS_OWNER_KEY = 'duojazz.settingsOwner.v1';
 export const PREFERENCE_NAMES = ['instrumentId', 'keyMode', 'startKeyId', 'allKeys', 'selectedKeyIds', 'tempo', 'swing', 'guideTones', 'metronome', 'auto', 'headphonesTipSeen', 'lessons', 'modules'];
-const scalarNames = [...PREFERENCE_NAMES.filter(n => !['lessons', 'modules'].includes(n)), 'selectedModuleId'];
+const scalarNames = [...PREFERENCE_NAMES.filter(n => !['lessons', 'modules'].includes(n)), 'selectedModuleId', 'selectedChartId'];
 const zeroId = '00000000-0000-0000-0000-000000000000';
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const fieldDefault = name => name.startsWith('lesson:') ? (name.endsWith(':tempo') ? 96 : 0)
   : name.startsWith('module:') ? 'learn' : undefined;
 const newer = (a, b) => !b || a.edit_clock > b.edit_clock || (a.edit_clock === b.edit_clock && a.edit_id > b.edit_id);
-const validName = name => scalarNames.includes(name) || /^chart:[a-z0-9-]+$/.test(name)
+const validName = name => scalarNames.includes(name) || /^(chart|lick):[a-z0-9-]+$/.test(name)
   || /^lesson:[a-z0-9:-]+:(tempo|melodyRegister)$/.test(name) || /^module:[a-z0-9-]+:studyMode$/.test(name);
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keyIds = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 function validValue(name, value) {
   if (typeof name !== 'string' || name.length > 256 || !validName(name)) return false;
-  if (name.startsWith('chart:') || ['allKeys', 'swing', 'guideTones', 'metronome', 'auto', 'headphonesTipSeen'].includes(name)) return typeof value === 'boolean';
+  if (/^(chart|lick):/.test(name) || ['allKeys', 'swing', 'guideTones', 'metronome', 'auto', 'headphonesTipSeen'].includes(name)) return typeof value === 'boolean';
   if (name === 'tempo' || name.endsWith(':tempo')) return Number.isFinite(value) && value >= 60 && value <= 160;
   if (name.endsWith(':melodyRegister')) return [-1, 0, 1].includes(value);
   if (name.endsWith(':studyMode')) return ['learn', 'practice'].includes(value);
@@ -31,6 +31,7 @@ function flatten(values) {
   if (!record(values)) return {};
   const result = Object.fromEntries(scalarNames.filter(n => Object.hasOwn(values, n)).map(n => [n, values[n]]));
   for (const id of Array.isArray(values.myCharts) ? values.myCharts : []) result[`chart:${id}`] = true;
+  for (const id of Array.isArray(values.myLicks) ? values.myLicks : []) result[`lick:${id}`] = true;
   for (const [id, lesson] of Object.entries(values.lessons ?? {})) {
     if (!record(lesson)) continue;
     for (const field of ['tempo', 'melodyRegister']) if (Object.hasOwn(lesson, field)) result[`lesson:${id}:${field}`] = lesson[field];
@@ -44,9 +45,10 @@ function initialSettings(values) {
     && !(name.startsWith('module:') && value === 'learn')));
 }
 function expand(entries) {
-  const result = { myCharts: [], lessons: {}, modules: {} };
+  const result = { myCharts: [], myLicks: [], lessons: {}, modules: {} };
   for (const [name, { value }] of Object.entries(entries)) {
     if (name.startsWith('chart:')) { if (value === true) result.myCharts.push(name.slice(6)); }
+    else if (name.startsWith('lick:')) { if (value === true) result.myLicks.push(name.slice(5)); }
     else if (name.startsWith('lesson:') || name.startsWith('module:')) {
       const group = name.startsWith('lesson:') ? 'lessons' : 'modules';
       const end = name.lastIndexOf(':'), id = name.slice(7, end), field = name.slice(end + 1);
@@ -55,6 +57,7 @@ function expand(entries) {
     } else result[name] = structuredClone(value);
   }
   result.myCharts.sort();
+  result.myLicks.sort();
   return result;
 }
 export function createCloudSettings({ storage, onChange = () => {}, now = Date.now, uuid = () => crypto.randomUUID() } = {}) {
@@ -128,11 +131,12 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
   function set(changes) {
     if (!userId || !record(changes)) return;
     // Compute list differences against what this tab actually displayed.
-    const previousCharts = values().myCharts;
+    const previous = values();
     const flat = flatten(changes);
-    if (Array.isArray(changes.myCharts)) {
-      for (const id of previousCharts) if (!changes.myCharts.includes(id)) flat[`chart:${id}`] = false;
-      for (const id of changes.myCharts) if (previousCharts.includes(id)) delete flat[`chart:${id}`];
+    for (const [field, prefix] of [['myCharts', 'chart'], ['myLicks', 'lick']]) {
+      if (!Array.isArray(changes[field])) continue;
+      for (const id of previous[field]) if (!changes[field].includes(id)) flat[`${prefix}:${id}`] = false;
+      for (const id of changes[field]) if (previous[field].includes(id)) delete flat[`${prefix}:${id}`];
     }
     const changed = Object.entries(flat).filter(([name, value]) => !same(entries[name]?.value ?? fieldDefault(name), value));
     reload();
@@ -142,6 +146,10 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
   function setChart(id, selected) {
     if (!userId || !validValue(`chart:${id}`, selected)) return;
     reload(); edit(`chart:${id}`, selected); persist(); onChange();
+  }
+  function setLick(id, selected) {
+    if (!userId || !validValue(`lick:${id}`, selected)) return;
+    reload(); edit(`lick:${id}`, selected); persist(); onChange();
   }
   async function sync(client) {
     if (!userId) return true;
@@ -182,5 +190,5 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     seed = {};
     return persist();
   }
-  return { activate, set, setChart, values, sync, reload, hasPending: () => operations().length > 0, get userId() { return userId; } };
+  return { activate, set, setChart, setLick, values, sync, reload, hasPending: () => operations().length > 0, get userId() { return userId; } };
 }

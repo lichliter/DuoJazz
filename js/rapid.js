@@ -18,6 +18,7 @@ export function shouldRecordMastery(session, passed, { notesShown = false } = {}
 
 export function isLastRapidKey(session) {
   if (!session) return true;
+  if (session.sequence) return session.sequenceIndex + 1 >= session.sequence.length;
   if (session.keyMode === "one") return true;
   return session.keyIndex + 1 >= session.keyQueue.length;
 }

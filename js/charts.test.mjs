@@ -96,10 +96,10 @@ test("licks-for-tune index lists road tune lessons with module name and bars", (
   assert.ok(four.length >= 1);
   assert.ok(four.every((row) => row.moduleName && row.bars && row.lessonId));
   const cell = four.find((row) => row.lessonId === "1235-integrate-four");
-  assert.equal(cell.moduleNumber, 6);
+  assert.equal(cell.moduleNumber, 7);
   assert.equal(cell.moduleName, "1235 Cell");
   assert.match(cell.bars, /Four/);
-  assert.match(cell.label, /Module 6/);
+  assert.match(cell.label, /Module 7/);
 
   const recordame = licksForTune("recordame");
   assert.ok(recordame.some((row) => row.lessonId === "se-integrate-recordame"));
@@ -108,7 +108,7 @@ test("licks-for-tune index lists road tune lessons with module name and bars", (
 
   const unknown = licksForTune("missing-tune");
   assert.deepEqual(unknown, []);
-  assert.equal(MODULES.length, 30);
+  assert.equal(MODULES.length, 31);
   assert.equal(tuneBarCount(tuneById("nutville")), 24);
 
   const blueBossa = licksForTune("blue-bossa");
@@ -116,7 +116,7 @@ test("licks-for-tune index lists road tune lessons with module name and bars", (
   assert.ok(blueIds.includes("cmar-integrate-blue-bossa"));
   assert.ok(blueIds.includes("emr-integrate-blue-bossa"));
   const cry = blueBossa.find((row) => row.lessonId === "cmar-integrate-blue-bossa");
-  assert.equal(cry.moduleNumber, 1);
+  assert.equal(cry.moduleNumber, 2);
   assert.equal(cry.moduleName, "Cry Me a River");
   assert.match(cry.bars, /Blue Bossa/);
 });

@@ -58,7 +58,7 @@ function midisFor(lick, keyId) {
   return phraseNotes(getKey(keyId), "concert", lesson.applicationId).map((note) => note.concertMidi);
 }
 
-test("registry has thirty modules: five with standards plus workbook 6–30", () => {
+test("registry keeps thirty workbook modules after the chord-tone foundation", () => {
   assert.deepEqual(LICKS.slice(0, 5).map((lick) => lick.id), ["cmar", "emr", "gts", "bo", "hsr"]);
   assert.deepEqual(WORKBOOK_LICKS.map((lick) => lick.id), [
     "1235", "br", "dlr", "acvl", "tm", "tisc", "et", "cbc", "jcdp", "tdp",
@@ -66,30 +66,30 @@ test("registry has thirty modules: five with standards plus workbook 6–30", ()
     "bb", "lg", "bcf", "dss", "nnr",
   ]);
   assert.equal(LICKS.length, 30);
-  assert.equal(MODULES.length, 30);
+  assert.equal(MODULES.length, 31);
   assert.deepEqual(
-    MODULES.slice(0, 5).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
+    MODULES.slice(1, 6).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
     [8, 6, 5, 5, 6],
   );
-  assert.deepEqual(MODULES.slice(0, 5).map((module) => module.lessons.length), [11, 9, 9, 11, 14]);
-  assert.ok(MODULES.slice(5).every((module) => {
+  assert.deepEqual(MODULES.slice(1, 6).map((module) => module.lessons.length), [11, 9, 9, 11, 14]);
+  assert.ok(MODULES.slice(6).every((module) => {
     const n = module.lessons.length;
     return n >= 3 && n <= 5 && module.lessons[0].kind === "learn"
       && module.lessons[1].kind === "master"
       && module.lessons.slice(2).every((lesson) => lesson.kind === "integrate");
   }));
   assert.equal(
-    LESSONS.filter((lesson) => !["your-tunes", "my-tunes", "application-practice"].includes(lesson.group)).length,
-    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length,
+    LESSONS.filter((lesson) => !["your-tunes", "my-tunes", "application-practice", "chart-tones"].includes(lesson.group)).length,
+    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length - 1 + 8,
   );
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "master" || lesson.kind === "integrate"));
   for (const lick of LICKS) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);
   }
-  assert.equal(LESSONS[0].id, "learn-lick");
-  assert.equal(LESSONS[1].id, "master-lick");
-  assert.equal(LESSONS[2].id, "integrate-minor-home");
-  assert.equal(LESSONS[1].title, "Master the lick");
+  assert.equal(LESSONS[8].id, "learn-lick");
+  assert.equal(LESSONS[9].id, "master-lick");
+  assert.equal(LESSONS[10].id, "integrate-minor-home");
+  assert.equal(LESSONS[9].title, "Master the lick");
 });
 
 test("each lick’s sounding beats match the workbook cell", () => {
@@ -333,20 +333,22 @@ test("saved CMAR mastery survives and new lessons start empty", () => {
 });
 
 test("Start bubble walks the module path in book order", () => {
-  assert.equal(recommendedLessonId({}), "learn-lick");
-  const cmarDone = Object.fromEntries(MODULES[0].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
+  assert.equal(recommendedLessonId({}), "tones-major7-learn");
+  const foundationDone = Object.fromEntries(MODULES[0].lessons.map(lesson => [lesson.id, TWELVE_KEY_IDS]));
+  assert.equal(recommendedLessonId(foundationDone), "learn-lick");
+  const cmarDone = { ...foundationDone, ...Object.fromEntries(MODULES.find(module => module.id === "cmar").lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS])) };
   assert.equal(recommendedLessonId(cmarDone), "emr-learn");
   const throughGts = {
     ...cmarDone,
-    ...Object.fromEntries(MODULES[1].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS])),
-    ...Object.fromEntries(MODULES[2].lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS])),
+    ...Object.fromEntries(MODULES.find(module => module.id === "emr").lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS])),
+    ...Object.fromEntries(MODULES.find(module => module.id === "gts").lessons.map((lesson) => [lesson.id, TWELVE_KEY_IDS])),
   };
   assert.equal(recommendedLessonId(throughGts), "bo-learn");
   const all = Object.fromEntries(LESSONS.map((lesson) => [lesson.id, TWELVE_KEY_IDS]));
   assert.equal(recommendedLessonId(all), null);
   const nodes = lessonPathNodes(defaultPrefs(), cmarDone);
   assert.equal(nodes.filter((node) => node.recommended).map((node) => node.id).join(), "emr-learn");
-  assert.equal(nodes.filter((node) => node.number === "01").length, 30);
+  assert.equal(nodes.filter((node) => node.number === "01").length, 31);
 });
 
 test("sleeve colors rotate so neighboring modules do not share an edge color", () => {

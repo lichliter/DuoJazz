@@ -3,106 +3,15 @@ import { MY_CHARTS_KEY, loadMyCharts, normalizeMyCharts, chartChoices } from "./
 import { writeStoredJson } from "./storage.js";
 import { closeSheet } from "./dialogs.js";
 
-export function setupPracticeUI({ onPractice, onChanged, onSaveChart }) {
+export function setupPracticeUI({ onPractice, onChanged, onSaveChart, onManageCharts }) {
   const catalog = PRACTICE_CATALOG;
   let selected = loadMyCharts(catalog.charts);
   let currentGroup = null;
   let currentVariantId = null;
-  const chartsDialog = document.getElementById("my-charts");
-  const addDialog = document.getElementById("add-charts");
-  const addButton = document.getElementById("add-chart-button");
   const picker = document.getElementById("application-charts");
-  const search = document.getElementById("my-charts-search");
-  const selectedList = document.getElementById("my-charts-list");
-  const results = document.getElementById("my-charts-results");
-  const status = document.getElementById("my-charts-status");
   const variantSelect = document.getElementById("application-variant");
-
-  function renderChartSummary() {
-    document.getElementById("profile-charts-summary").textContent =
-      `${selected.length} favorite ${selected.length === 1 ? "chart" : "charts"} selected`;
-  }
-
   function paragraph(text, className = "help") {
-    const p = document.createElement("p");
-    p.className = className;
-    p.textContent = text;
-    return p;
-  }
-
-  function change(id, add, button) {
-    selected = add ? [...new Set([...selected, id])] : selected.filter((item) => item !== id);
-    if (onSaveChart) onSaveChart(id, add);
-    else writeStoredJson(MY_CHARTS_KEY, selected);
-    renderChartSummary();
-    onChanged();
-    if (add) {
-      // Keep the clicked row and focus in place while browsing the catalog.
-      renderSelectedCharts();
-      button.textContent = "Added";
-      button.setAttribute("aria-label", `${catalog.charts.find((chart) => chart.id === id).title} added`);
-      button.setAttribute("aria-disabled", "true");
-    } else {
-      renderCharts();
-    }
-    renderPicker();
-    const message = `${catalog.charts.find((chart) => chart.id === id).title} ${add ? "added" : "removed"}.`;
-    status.textContent = message;
-    document.getElementById("add-charts-status").textContent = message;
-    if (!add) addButton.focus({ preventScroll: true });
-  }
-
-  function chartRow(chart, isSelected) {
-    const row = document.createElement("div");
-    row.className = "collection-row";
-    row.append(paragraph(chart.title, "collection-title"));
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "collection-action";
-    button.textContent = isSelected ? "Remove" : "Add";
-    button.setAttribute("aria-label", `${button.textContent} ${chart.title}`);
-    button.addEventListener("click", () => {
-      if (button.getAttribute("aria-disabled") === "true") return;
-      change(chart.id, !isSelected, button);
-    });
-    row.append(button);
-    return row;
-  }
-
-  function renderSelectedCharts() {
-    const yours = catalog.charts.filter((chart) => selected.includes(chart.id));
-    selectedList.replaceChildren(...(yours.length
-      ? yours.map((chart) => chartRow(chart, true))
-      : [paragraph("Add charts you know or want to learn. We'll use them for application practice.")]));
-  }
-
-  function renderCharts() {
-    renderSelectedCharts();
-    const query = search.value.trim().toLocaleLowerCase();
-    const matches = catalog.charts.filter((chart) => chart.title.toLocaleLowerCase().includes(query));
-    results.replaceChildren(...(matches.length ? matches.map((chart) => {
-      if (!selected.includes(chart.id)) return chartRow(chart, false);
-      const row = document.createElement("div");
-      row.className = "collection-row";
-      row.append(paragraph(chart.title, "collection-title"), paragraph("Added", "collection-added"));
-      return row;
-    }) : [paragraph("No charts found. Try another title.")]));
-  }
-
-  function openMyCharts() {
-    status.textContent = "";
-    renderCharts();
-    chartsDialog.showModal();
-  }
-
-  function openAddCharts() {
-    search.value = "";
-    document.getElementById("add-charts-status").textContent = "";
-    renderCharts();
-    addDialog.showModal();
-    // Start with the title and search visible; focus search only when requested
-    // so opening this stacked drawer does not summon the mobile keyboard.
-    addDialog.scrollTop = 0;
+    const p = document.createElement("p"); p.className = className; p.textContent = text; return p;
   }
 
   function renderPicker() {
@@ -163,7 +72,6 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart }) {
           selected = [...selected, choice.chartId];
           if (onSaveChart) onSaveChart(choice.chartId, true);
           else writeStoredJson(MY_CHARTS_KEY, selected);
-          renderChartSummary();
           onChanged();
           renderPicker();
           list.querySelector(`[data-testid="practice-chart-${choice.chartId}"]`)?.focus({ preventScroll: true });
@@ -186,8 +94,6 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart }) {
     picker.showModal();
   }
 
-  renderChartSummary();
-  search.addEventListener("input", renderCharts);
   variantSelect.addEventListener("change", () => {
     currentVariantId = variantSelect.value;
     renderPicker();
@@ -198,10 +104,11 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart }) {
     closeSheet(picker);
     onPractice(variant.exampleLessonId);
   });
-  addButton.addEventListener("click", openAddCharts);
-  document.getElementById("my-charts-button").addEventListener("click", openMyCharts);
-  document.getElementById("application-manage-charts").addEventListener("click", openMyCharts);
-  for (const dialog of [chartsDialog, addDialog, picker]) {
+  document.getElementById("application-manage-charts").addEventListener("click", () => {
+    closeSheet(picker);
+    onManageCharts();
+  });
+  for (const dialog of [picker]) {
     dialog.querySelector("[data-close]").addEventListener("click", () => closeSheet(dialog));
     dialog.addEventListener("click", (event) => {
       if (event.target !== dialog) return;
@@ -210,14 +117,12 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart }) {
     });
   }
   return {
-    openApplication, openMyCharts,
+    openApplication,
     getSelected: () => [...selected],
     setSelected(ids) {
       const next = normalizeMyCharts(ids, catalog.charts);
       if (JSON.stringify(next) === JSON.stringify(selected)) return;
       selected = next;
-      renderCharts();
-      renderChartSummary();
       renderPicker();
     },
   };

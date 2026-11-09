@@ -36,7 +36,7 @@ function server() {
   };
   return api;
 }
-const empty = { myCharts: [], lessons: {}, modules: {} };
+const empty = { myCharts: [], myLicks: [], lessons: {}, modules: {} };
 
 test('settings and favorites restore in a fresh browser; stale caches do not overwrite them', async () => {
   const api = server();
@@ -223,4 +223,16 @@ test('malformed legacy values and unknown field shapes cannot break activation',
   settings.set({ tempo: {}, selectedKeyIds: {}, myCharts: {}, lessons: { a: [] } });
   assert.deepEqual(settings.values(), empty);
   assert.equal(settings.hasPending(), false);
+});
+
+test('lick and chart favorites sync independently and removals survive a fresh device', async () => {
+  const api = server();
+  const first = createCloudSettings({ storage: storage() }); first.activate('a');
+  first.setLick('cmar', true); first.setChart('four', true); await first.sync(api);
+  const other = createCloudSettings({ storage: storage() }); other.activate('a'); await other.sync(api);
+  assert.deepEqual(other.values().myLicks, ['cmar']); assert.deepEqual(other.values().myCharts, ['four']);
+  other.setLick('cmar', false); first.setLick('hsr', true);
+  await first.sync(api); await other.sync(api);
+  const fresh = createCloudSettings({ storage: storage() }); fresh.activate('a'); await fresh.sync(api);
+  assert.deepEqual(fresh.values().myLicks, ['hsr']); assert.deepEqual(fresh.values().myCharts, ['four']);
 });

@@ -41,8 +41,8 @@ test("lesson key counts are 1, 12, and 1", () => {
   assert.equal(lessonById("learn-lick").kind, "learn");
   assert.equal(lessonById("master-lick").kind, "master");
   assert.equal(lessonById("cmar-integrate-blue-bossa").kind, "integrate");
-  assert.equal(MODULES[0].lessons[1].id, "master-lick");
-  assert.equal(MODULES[0].lessons[1].number ?? MODULES[0].lessons[1].title, "Master the lick");
+  assert.equal(MODULES.find(module => module.id === "cmar").lessons[1].id, "master-lick");
+  assert.equal(MODULES.find(module => module.id === "cmar").lessons[1].number ?? MODULES.find(module => module.id === "cmar").lessons[1].title, "Master the lick");
 });
 
 test("Master starts at the default key and follows the cycle type", () => {
@@ -206,11 +206,11 @@ test("tune lessons are ungraded practice after Learn and Master", () => {
   assert.equal(isPracticeLesson("cmar-integrate-blue-bossa"), true);
   assert.equal(isPracticeLesson("learn-lick"), false);
   assert.equal(isPracticeLesson("master-lick"), false);
-  const nodes = moduleRoadNodes(MODULES[0], defaultPrefs(), {});
+  const nodes = moduleRoadNodes(MODULES.find(module => module.id === "cmar"), defaultPrefs(), {});
   assert.equal(nodes[0].number, "01");
   assert.equal(nodes[1].number, "02");
   assert.ok(nodes.slice(2).every((node) => node.number === "Practice" && node.practice));
-  assert.equal(moduleLessonsComplete(MODULES[0], {
+  assert.equal(moduleLessonsComplete(MODULES.find(module => module.id === "cmar"), {
     "learn-lick": ["G"],
     "master-lick": TWELVE_KEY_IDS,
   }), true);
@@ -236,7 +236,7 @@ test("the lick banner opens the module list and the hamburger is gone", async ()
   assert.doesNotMatch(index, /id="quick-view-btn"/);
   assert.doesNotMatch(index, /id="settings-btn"/);
   assert.match(index, /id="account-chip"[^>]*aria-controls="settings-modal"/);
-  assert.match(app, /aria-label", `Choose a lick\. \$\{module\.name\}`/);
+  assert.ok(app.includes('Choose a ${module.chart ? "chart" : "lick"}. ${module.name}'));
   assert.match(app, /requestQuickView\(\)/);
   const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginListening"));
   assert.match(practice, /recordBackingConfig\(session\)/);

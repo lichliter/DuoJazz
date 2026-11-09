@@ -67,7 +67,6 @@ import {
   setMelodyRegister,
   sessionSlot,
   moduleRoadNodes,
-  modulesSheetData,
   moduleById,
   lessonSleeve,
   moduleForLesson,
@@ -110,8 +109,10 @@ import {
   tunePlayLessonId,
 } from "./tunes.js";
 import { parseTabState, tabSearch } from "./tabs.js";
-import { chartTuneList, chartGrid, chartKeyChoices, licksForTune } from "./charts.js";
-import { applicationById, lickById, PRACTICE_CATALOG } from "./registry.js";
+import { chartGrid, chartKeyChoices } from "./charts.js";
+import { applicationById, lickById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from "./registry.js";
+import { setupLibraryPicker } from "./library-ui.js";
+import { transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js?v=150";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=150";
@@ -136,7 +137,6 @@ import {
   saveMastery,
   recordQuizPass,
   recordLearnPass,
-  moduleRingMarksFromNormalized,
   lessonPassedKeys,
   normalizeMastery,
   moduleMastery,
@@ -205,6 +205,7 @@ let selectedModuleId = loadSelectedModule();
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
 let chartConcertKeyId = null;
+let favoriteLicks = [];
 const tabScroll = { licks: 0, charts: 0, settings: 0 };
 
 const els = {
@@ -217,14 +218,8 @@ const els = {
   session: document.getElementById("screen-session"),
   wrapup: document.getElementById("screen-wrapup"),
   settingsClose: document.getElementById("settings-close"),
-  chartsList: document.getElementById("charts-list"),
-  chartDetail: document.getElementById("chart-detail"),
-  chartBack: document.getElementById("chart-back"),
-  chartHeadingTitle: document.getElementById("chart-heading-title"),
-  chartHeadingMeta: document.getElementById("chart-heading-meta"),
   chartKeys: document.getElementById("chart-keys"),
   chartGrid: document.getElementById("chart-grid"),
-  chartLicksList: document.getElementById("chart-licks-list"),
   lessonList: document.getElementById("lesson-list"),
   instrumentList: document.getElementById("instrument-list"),
   settings: document.getElementById("settings-modal"),
@@ -926,8 +921,10 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
   }
   saveTabScroll();
   if (tab === "charts") {
+    if (tune !== undefined && tune !== lastChartTune) chartConcertKeyId = null;
     if (tune !== undefined) lastChartTune = tune;
-    if (!lastChartTune) chartConcertKeyId = null;
+    if (!CHART_LIBRARY.some(chart => chart.id === lastChartTune)) lastChartTune = CHART_LIBRARY[0].id;
+    if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
     nav = { tab: "charts", tune: lastChartTune };
   } else {
     nav = { tab, tune: null };
@@ -938,19 +935,21 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
 }
 
 function syncTabButtons() {
+  document.getElementById('library-tabs').hidden = screenName() !== 'home';
+  for (const button of document.querySelectorAll('[data-library-tab]')) button.setAttribute('aria-pressed', String(button.dataset.libraryTab === nav.tab));
 }
 
-function startLesson(lessonId) {
+function startLesson(lessonId, options = {}) {
   if (screenName() === "home") saveTabScroll();
   clearMasteryPreview();
   const lesson = lessonById(lessonId);
-  rememberModule(moduleForLesson(lesson.id)?.id ?? selectedModuleId);
+  if (!lesson.chartId) rememberModule(moduleForLesson(lesson.id)?.id ?? selectedModuleId);
   setupLessonId = lesson.id;
-  const plan = lessonSessionPlan(lesson.id, prefs);
+  const plan = { ...lessonSessionPlan(lesson.id, prefs), ...(options.keyId ? { startKeyId: options.keyId, majorKeyId: null } : {}) };
   halt();
   prefs = markLessonStarted(prefs, lesson.id, plan.startKeyId);
   persist();
-  applySession(createSession({
+  const next = createSession({
     lessonId: lesson.id,
     keyMode: plan.keyMode,
     startKeyId: plan.startKeyId,
@@ -962,7 +961,9 @@ function startLesson(lessonId) {
     swing: prefs.swing,
     metronome: prefs.metronome,
     guideTones: prefs.guideTones,
-  }));
+  });
+  if (options.sequence) { next.sequence = options.sequence; next.sequenceIndex = 0; }
+  applySession(next);
 }
 
 function defaultLessonStartKey(lesson) {
@@ -973,38 +974,8 @@ function openSetup(lessonId) {
   startLesson(lessonId);
 }
 
-function renderQuickView() {
-  if (!els.quickViewList) return;
-  if (els.quickViewTitle) els.quickViewTitle.textContent = "Modules";
-  const normalized = normalizeMastery(shownMastery());
-  const mastered = Object.fromEntries(
-    MODULES.map((module) => [module.id, normalized.modules[module.id].masteredKeys]),
-  );
-  const modules = modulesSheetData(keysByLesson(), mastered);
-  els.quickViewList.replaceChildren(
-    ...modules.map((module) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "module-sheet-row";
-      btn.dataset.testid = `quick-view-module-${module.id}`;
-      btn.setAttribute("aria-current", module.id === currentHomeModuleId() ? "page" : "false");
-      const num = document.createElement("span");
-      num.className = "module-sheet-num";
-      num.textContent = String(module.number);
-      const copy = document.createElement("span");
-      copy.className = "module-sheet-copy";
-      copy.innerHTML = `<span class="module-sheet-name">${module.lickName}</span><span class="module-sheet-meta">${module.keysMastered} of 12 keys mastered</span>`;
-      const ring = masteryRing(moduleRingMarksFromNormalized(normalized, module.id));
-      btn.append(num, copy, ring);
-      btn.addEventListener("click", () => jumpFromQuickView(module.id));
-      return btn;
-    }),
-  );
-}
-
 function openQuickView() {
-  renderQuickView();
-  if (els.quickView && !els.quickView.open) els.quickView.showModal();
+  libraryPicker.open(nav.tab === 'charts' ? 'charts' : 'licks');
 }
 
 function closeQuickView() {
@@ -1257,8 +1228,7 @@ function anyDialogOpen() {
     els.quickView?.open
     || els.leaveConfirm?.open
     || els.settingsModal?.open
-    || document.getElementById("my-charts")?.open
-    || document.getElementById("add-charts")?.open
+    || document.getElementById("chart-applications")?.open
     || document.getElementById("application-charts")?.open,
   );
 }
@@ -1278,10 +1248,10 @@ function moduleBanner(module, stats) {
   section.dataset.testid = `module-banner-${module.id}`;
   section.setAttribute("aria-haspopup", "dialog");
   section.setAttribute("aria-controls", "quick-view");
-  section.setAttribute("aria-label", `Choose a lick. ${module.name}`);
+  section.setAttribute("aria-label", `Choose a ${module.chart ? "chart" : "lick"}. ${module.name}`);
   const copy = document.createElement("div");
   copy.className = "banner-copy";
-  copy.innerHTML = `<p class="banner-kicker">Module ${module.number}</p><h2>${module.name}</h2><p class="banner-count">${count} of 12 keys mastered</p>`;
+  copy.innerHTML = `<p class="banner-kicker">${module.chart ? "Chart" : `Module ${module.number}`}</p><h2>${module.name}</h2><p class="banner-count">${module.chart ? stats.description : `${count} of 12 keys mastered`}</p>`;
   const chevron = document.createElement("span");
   chevron.className = "banner-chevron";
   chevron.setAttribute("aria-hidden", "true");
@@ -1289,47 +1259,6 @@ function moduleBanner(module, stats) {
   section.append(copy, chevron);
   section.addEventListener("click", () => requestQuickView());
   return section;
-}
-
-function masteryRing(marks) {
-  const ring = document.createElement("span");
-  ring.className = "mastery-ring segments";
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 36 36");
-  svg.setAttribute("aria-hidden", "true");
-  marks.forEach((mark, index) => {
-    const start = -Math.PI / 2 + (index * 2 * Math.PI) / 12 + 0.06;
-    const end = start + (2 * Math.PI) / 12 - 0.12;
-    const radius = 14;
-    const cx = 18;
-    const cy = 18;
-    const arc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const x1 = cx + radius * Math.cos(start);
-    const y1 = cy + radius * Math.sin(start);
-    const x2 = cx + radius * Math.cos(end);
-    const y2 = cy + radius * Math.sin(end);
-    arc.setAttribute("d", `M ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2}`);
-    arc.setAttribute("fill", "none");
-    arc.setAttribute("stroke-linecap", "butt");
-    arc.dataset.mark = mark.mark;
-    if (mark.mark === "filled") {
-      arc.setAttribute("stroke", "var(--tint)");
-      arc.setAttribute("stroke-width", "4");
-    } else if (mark.mark === "outline") {
-      arc.setAttribute("stroke", "var(--tint)");
-      arc.setAttribute("stroke-width", "1.5");
-    } else {
-      arc.setAttribute("stroke", "var(--fill)");
-      arc.setAttribute("stroke-width", "4");
-    }
-    svg.append(arc);
-  });
-  const filled = marks.filter((mark) => mark.mark === "filled").length;
-  const label = document.createElement("span");
-  label.textContent = String(filled);
-  ring.append(svg, label);
-  ring.setAttribute("aria-label", `${filled} of 12 keys mastered in Practice`);
-  return ring;
 }
 
 function moduleBlock(module, nodes, stats) {
@@ -1433,11 +1362,11 @@ function sleeveButton(node) {
     ? [`Practice: ${node.title}`, node.caption].filter(Boolean)
     : [
       `Lesson ${node.number}: ${node.title}`,
-      `${node.passedCount} of ${node.keyTarget ?? 12} keys passed`,
+      `${node.passedCount} of ${node.keyTarget ?? 12} ${node.progressUnit ?? 'keys'} passed`,
       `${node.vinylTier} vinyl`,
     ];
   if (node.recommended) bits.push("recommended start");
-  if (node.complete) bits.push("all keys passed");
+  if (node.complete) bits.push(`all ${node.progressUnit ?? 'keys'} passed`);
   btn.setAttribute("aria-label", bits.join(". "));
 
   const stage = document.createElement("span");
@@ -1445,13 +1374,13 @@ function sleeveButton(node) {
   stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
   btn.append(stage);
 
-  const applicationId = lessonById(node.id).practiceApplicationId;
+  const applicationId = node.onSelect ? null : lessonById(node.id).practiceApplicationId;
   if (applicationId) {
     btn.dataset.application = applicationId;
     btn.setAttribute("aria-haspopup", "dialog");
     btn.setAttribute("aria-controls", "application-charts");
   }
-  btn.addEventListener("click", () => applicationId
+  btn.addEventListener("click", () => node.onSelect ? node.onSelect() : applicationId
     ? practiceUI.openApplication(applicationId)
     : openSetup(node.id));
   return btn;
@@ -1661,15 +1590,14 @@ function renderSessionChrome() {
   const practice = isPracticeLesson(session.lessonId);
   if (els.sessionModule) els.sessionModule.textContent = moduleForLesson(session.lessonId).name;
   if (els.sessionTitle) fillMusicLabel(els.sessionTitle, sessionScreenTitle(session));
-  els.sessionKey.hidden = !practice;
-  fillMusicLabel(
-    els.sessionKey,
-    applicationById(lessonById(session.lessonId).applicationId).label,
-  );
+  els.sessionKey.hidden = !practice && !session.sequence;
+  fillMusicLabel(els.sessionKey, session.sequence
+    ? `${lessonById(session.lessonId).context} · ${session.sequenceIndex + 1}/${session.sequence.length}`
+    : applicationById(lessonById(session.lessonId).applicationId).label);
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
   if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId);
-  if (els.continueBtn) els.continueBtn.hidden = !cycling;
+  if (els.continueBtn) els.continueBtn.hidden = !cycling && !session.sequence;
   renderKeyCycle();
 }
 
@@ -2143,12 +2071,14 @@ function renderWrapup() {
     els.wrapupSleeve.classList.toggle("is-upgrade", Boolean(wrapupBanner?.upgraded));
     const wrapVinyl = els.wrapupSleeve.querySelector(".vinyl");
     if (wrapVinyl) {
-      wrapVinyl.dataset.tier = lessonVinylTier(lesson, lessonPassedKeys(shownMastery(), lesson.id).length);
+      wrapVinyl.dataset.tier = session.sequence
+        ? (session.sequence.every(item => shownMastery().lessons[item.lessonId]?.passedKeys.includes(item.keyId)) ? 'gold' : 'black')
+        : lessonVinylTier(lesson, lessonPassedKeys(shownMastery(), lesson.id).length);
     }
   }
   if (els.wrapupSleeveNum) {
     const module = moduleForLesson(lesson.id);
-    els.wrapupSleeveNum.textContent = String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
+    els.wrapupSleeveNum.textContent = session.sequence ? (lesson.kind === 'learn' ? '01' : '02') : String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
   }
   if (els.wrapupSleeveTitle) els.wrapupSleeveTitle.textContent = lesson.coverTitle;
   els.resultList.replaceChildren(
@@ -2161,12 +2091,13 @@ function renderWrapup() {
   const moduleStats = moduleMastery(shownMastery(), moduleForLesson(lesson.id).id);
   const count = moduleStats.masteredKeys.length;
   if (els.wrapupMedalMark) {
+    els.wrapupMedalMark.hidden = Boolean(session.sequence);
     els.wrapupMedalMark.textContent = wrapupBanner?.upgraded
       ? `Medal up · ${displayMedal(moduleStats.medal)}`
       : (count ? displayMedal(moduleStats.medal) : "Medal");
   }
   if (els.wrapupMedal) {
-    els.wrapupMedal.hidden = false;
+    els.wrapupMedal.hidden = Boolean(session.sequence);
     els.wrapupMedal.textContent = wrapupBanner?.upgraded
       ? `${displayMedal(moduleStats.medal)} unlocked`
       : (count ? `${count} of 12 keys mastered` : "No medal yet for this module");
@@ -2180,58 +2111,87 @@ function renderWrapup() {
   }
 }
 
-function renderChartList() {
-  if (!els.chartsList) return;
-  els.chartsList.hidden = false;
-  if (els.chartDetail) els.chartDetail.hidden = true;
-  els.chartsList.replaceChildren(
-    ...chartTuneList().map((row) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chart-row";
-      btn.dataset.testid = `chart-row-${row.id}`;
-      const title = document.createElement("span");
-      title.className = "chart-row-title";
-      title.textContent = row.title;
-      const key = document.createElement("span");
-      key.className = "chart-row-key";
-      fillMusicLabel(key, row.key);
-      const meta = document.createElement("span");
-      meta.className = "chart-row-meta";
-      meta.textContent = `${row.composer} · ${row.style}`;
-      btn.append(title, key, meta);
-      btn.addEventListener("click", () => selectTab("charts", { tune: row.id }));
-      return btn;
-    }),
-  );
+function currentChart() {
+  return CHART_LIBRARY.find(chart => chart.id === nav.tune) ?? CHART_LIBRARY.find(chart => chart.id === lastChartTune) ?? CHART_LIBRARY[0];
+}
+
+function startChartTones(kind) {
+  const chart = currentChart();
+  const delta = getKey(chartConcertKeyId ?? chart.key).pc - getKey(chart.key).pc;
+  const sequence = CHART_MODULES.find(module => module.id === `chart-${chart.id}`).lessons
+    .filter(lesson => lesson.kind === kind)
+    .map(lesson => ({ lessonId: lesson.id, keyId: transposeToneKey(lesson.defaultKeyId, delta) }));
+  startLesson(sequence[0].lessonId, { sequence, keyId: sequence[0].keyId });
+}
+
+function chartApplications(chartId, moduleId) {
+  return PRACTICE_CATALOG.groups.filter(group => group.moduleId === moduleId).flatMap(group =>
+    group.choices.filter(choice => choice.chartId === chartId).map(choice => ({ group, choice })));
+}
+
+function openChartApplications(moduleId) {
+  const chart = currentChart(), module = moduleById(moduleId);
+  const dialog = document.getElementById('chart-applications');
+  document.getElementById('chart-applications-title').textContent = module.name;
+  document.getElementById('chart-applications-description').textContent = `Applications in ${chart.title}`;
+  const matches = chartApplications(chart.id, moduleId);
+  const list = document.getElementById('chart-applications-list');
+  list.replaceChildren(...matches.map(({ group, choice }) => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'chart-application-choice';
+    button.dataset.lesson = choice.lessonId;
+    const title = document.createElement('strong'); title.textContent = group.label;
+    const version = group.variants.find(variant => variant.id === choice.variantId);
+    const detail = document.createElement('span'); detail.textContent = `${group.description} ${group.variants.length > 1 ? `${version.label}. ` : ''}${choice.context}`;
+    button.append(title, detail);
+    button.onclick = () => {
+      closeSheet(dialog);
+      const lesson = lessonById(choice.lessonId);
+      const delta = getKey(chartConcertKeyId ?? chart.key).pc - getKey(chart.key).pc;
+      startLesson(lesson.id, { keyId: transposeToneKey(lesson.defaultKeyId, delta) });
+    };
+    return button;
+  }));
+  if (!matches.length) {
+    const empty = document.createElement('p'); empty.className = 'help';
+    empty.textContent = 'No supported applications of this lick match this chart. Try another favorite lick or chart.'; list.append(empty);
+  }
+  dialog.showModal();
 }
 
 function renderChartDetail() {
-  const tune = tuneById(nav.tune);
-  if (!tune || !els.chartDetail) {
-    renderChartList();
-    return;
-  }
-  if (els.chartsList) els.chartsList.hidden = true;
-  els.chartDetail.hidden = false;
+  const tune = currentChart();
   if (!chartConcertKeyId) chartConcertKeyId = tune.key;
-  const grid = chartGrid(tune, {
-    instrumentId: prefs.instrumentId,
-    concertKeyId: chartConcertKeyId,
+  const parent = CHART_MODULES.find(module => module.id === `chart-${tune.id}`);
+  const first = ['learn', 'master'].map(kind => parent.lessons.find(lesson => lesson.kind === kind));
+  const progress = keysByLesson();
+  const delta = getKey(chartConcertKeyId).pc - getKey(tune.key).pc;
+  const nodes = moduleRoadNodes({ ...parent, lessons: first }, prefs, {}).map((node, index) => {
+    const kind = index ? 'master' : 'learn';
+    const lessons = parent.lessons.filter(lesson => lesson.kind === kind);
+    const passed = lessons.filter(lesson => progress[lesson.id]?.includes(transposeToneKey(lesson.defaultKeyId, delta))).length;
+    return { ...node, title: index ? 'Master chord tones' : 'Learn chord tones', coverTitle: index ? 'Master' : 'Learn',
+      passedCount: passed, keyTarget: lessons.length, progressUnit: 'chords', complete: passed === lessons.length,
+      vinylTier: passed === lessons.length ? 'gold' : passed ? 'bronze' : 'black',
+      onSelect: () => startChartTones(kind) };
   });
-  if (els.chartHeadingTitle) els.chartHeadingTitle.textContent = grid.title;
-  if (els.chartHeadingMeta) {
-    fillMusicLabel(els.chartHeadingMeta, `${grid.composer} · ${grid.style} · ${grid.writtenKeyName}`);
+  const block = document.createElement('section'); block.className = 'module-block is-current';
+  block.append(moduleBanner({ ...parent, chart: true }, { masteredKeys: [], description: tune.excerpt ? 'Chord tones · chart excerpt' : 'Chord tones · through the changes' }), ...nodes.map(sleeveButton));
+  const heading = document.createElement('h2'); heading.className = 'chart-favorites-heading'; heading.textContent = 'Your favorite licks'; block.append(heading);
+  const favorites = MODULES.filter(module => favoriteLicks.includes(module.id) && module.id !== 'chord-tones');
+  for (const [index, module] of favorites.entries()) {
+    const matches = chartApplications(tune.id, module.id);
+    const node = { id: `chart-favorite-${module.id}`, title: module.name, coverTitle: module.name, number: 'Lick', practice: true,
+      caption: `${matches.length} matching applications`, sleeve: ['oxblood', 'amber', 'teal'][index % 3], align: index % 2 ? 'right' : 'left',
+      vinylTier: 'black', onSelect: () => openChartApplications(module.id) };
+    block.append(sleeveButton(node));
   }
-  if (els.chartKeys) {
-    chipRow(els.chartKeys, chartKeyChoices(
-      tune.keyQuality === "major" ? "major" : "minor",
-      prefs.instrumentId,
-    ), chartConcertKeyId, (id) => {
-      chartConcertKeyId = id;
-      renderChartDetail();
-    });
+  if (!favorites.length) {
+    const empty = document.createElement('p'); empty.className = 'help library-empty'; empty.textContent = 'Favorite licks in the picker to practice them on this chart.'; block.append(empty);
   }
+  const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'collection-action chart-favorites-manage'; choose.textContent = 'Choose favorite licks'; choose.onclick = () => libraryPicker.open('licks'); block.append(choose);
+  document.getElementById('chart-tree').replaceChildren(block);
+  const grid = chartGrid(tune, { instrumentId: prefs.instrumentId, concertKeyId: chartConcertKeyId });
+  chipRow(els.chartKeys, chartKeyChoices(tune.keyQuality, prefs.instrumentId), chartConcertKeyId, id => { chartConcertKeyId = id; renderChartDetail(); });
   if (els.chartGrid) {
     els.chartGrid.replaceChildren(
       ...grid.rows.map((row) => {
@@ -2273,32 +2233,10 @@ function renderChartDetail() {
       }),
     );
   }
-  if (els.chartLicksList) {
-    const rows = licksForTune(tune.id);
-    if (!rows.length) {
-      const empty = document.createElement("p");
-      empty.className = "help";
-      empty.textContent = "No tune lessons for this chart yet.";
-      els.chartLicksList.replaceChildren(empty);
-    } else {
-      els.chartLicksList.replaceChildren(
-        ...rows.map((row) => {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "chart-lick-row";
-          btn.dataset.testid = `chart-lick-${row.lessonId}`;
-          btn.innerHTML = `<strong>${row.label}</strong><span>${row.detail}</span>`;
-          btn.addEventListener("click", () => startLesson(row.lessonId));
-          return btn;
-        }),
-      );
-    }
-  }
 }
 
 function renderCharts() {
-  if (nav.tune && tuneById(nav.tune)) renderChartDetail();
-  else renderChartList();
+  renderChartDetail();
 }
 
 function render(snap = transport.snapshot()) {
@@ -2531,9 +2469,31 @@ function handleTransportEnded() {
 }
 transport.onEnded = handleTransportEnded;
 
+const libraryPicker = setupLibraryPicker({
+  modules: MODULES, charts: CHART_LIBRARY,
+  getProgress: () => normalizeMastery(shownMastery()).modules,
+  getFavorites: type => type === 'licks' ? favoriteLicks : practiceUI.getSelected(),
+  currentId: type => type === 'licks' ? selectedModuleId : currentChart().id,
+  onFavorite(type, id, selected) {
+    if (type === 'licks') {
+      favoriteLicks = selected ? [...new Set([...favoriteLicks, id])] : favoriteLicks.filter(value => value !== id);
+      cloudSettings.setLick(id, selected);
+    } else {
+      const charts = practiceUI.getSelected();
+      practiceUI.setSelected(selected ? [...charts, id] : charts.filter(value => value !== id));
+      cloudSettings.setChart(id, selected);
+    }
+    render();
+  },
+  onPick(type, id) {
+    if (type === 'charts') selectTab('charts', { tune: id });
+    else { selectTab('licks'); selectModule(id); }
+  },
+});
 const practiceUI = setupPracticeUI({
   onPractice: startLesson, onChanged: renderStorageNotice,
   onSaveChart: (id, selected) => cloudSettings.setChart(id, selected),
+  onManageCharts: () => libraryPicker.open("charts"),
 });
 const legacySettings = { ...prefs, selectedModuleId, myCharts: practiceUI.getSelected() };
 function applyAccountSettings() {
@@ -2542,6 +2502,9 @@ function applyAccountSettings() {
   savedPrefs = structuredClone(prefs);
   selectedModuleId = MODULES.some(module => module.id === values.selectedModuleId) ? values.selectedModuleId : MODULES[0].id;
   practiceUI.setSelected(values.myCharts ?? []);
+  favoriteLicks = (values.myLicks ?? []).filter(id => MODULES.some(module => module.id === id));
+  if (!nav.tune) lastChartTune = values.selectedChartId ?? CHART_LIBRARY[0].id;
+  if (els.quickView?.open) libraryPicker.render();
   render();
 }
 
@@ -2557,10 +2520,14 @@ els.settingsModal?.addEventListener("click", (event) => {
     && event.clientY >= rect.top && event.clientY <= rect.bottom;
   if (!inside) closeSettings();
 });
-els.chartBack?.addEventListener("click", () => selectTab("charts", { tune: null }));
+for (const button of document.querySelectorAll('[data-library-tab]')) button.addEventListener('click', () => selectTab(button.dataset.libraryTab));
+document.querySelector('#chart-applications [data-close]').addEventListener('click', () => closeSheet(document.getElementById('chart-applications')));
+
 els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
 window.addEventListener("popstate", () => {
+  const previousChart = nav.tune;
   nav = parseTabState(location.search);
+  if (nav.tune !== previousChart) chartConcertKeyId = null;
   if (nav.tab === "charts") lastChartTune = nav.tune;
   render();
 });

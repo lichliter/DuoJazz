@@ -86,8 +86,8 @@ export function homeMedalMark(count, medal) {
 export function isKeyMastered(mastery, keyId, moduleId = "cmar") {
   const id = normalizeKeyId(keyId);
   const module = MODULES.find((module) => module.id === moduleId);
-  const master = module?.lessons.find((lesson) => lesson.kind === "master");
-  return Boolean(master && mastery.lessons[master.id]?.passedKeys.includes(id));
+  const masters = module?.lessons.filter((lesson) => lesson.kind === "master") ?? [];
+  return masters.length > 0 && masters.every(master => mastery.lessons[master.id]?.passedKeys.includes(id));
 }
 
 export function reconcileMastery(mastery) {
