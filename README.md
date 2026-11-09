@@ -67,7 +67,7 @@ Application copy (shape, target chord, door) is derived from the current concert
 
 Open the banner picker and use its **Licks / Charts** toggle to browse either library. Search either library and tap stars to favorite items; starring an item keeps the library's normal order, and **Favorites only** filters the list. Both collections save to the signed-in account and restore across devices. Profile contains account details and settings.
 
-**Licks Module 1: Chord Tones** teaches major 7, dominant 7, minor 7, and half-diminished chords. Each quality has Learn with notation and Master from memory across the selected keys. Answer by playing the root, third, fifth, and seventh on your horn. A key is mastered after passing all four qualities without revealing notes.
+**Licks Module 1: Chord Tones** has four sections: Major 7, Dominant 7, Minor 7, and Half-diminished. Each section has Learn with notation and Master from memory across the selected keys. The staff chord symbol and accompaniment use that section's chord quality. Answer by playing the root, third, fifth, and seventh on your horn. A key is mastered after passing all four qualities without revealing notes. Other lick modules group Learn and Master under **Practice**, with applications under **Integrate**.
 
 The following thirty modules come from Essential Jazz Vocabulary. Each module has a winding path of record-sleeve lesson nodes. Tapping a sleeve starts its lesson using the current settings:
 

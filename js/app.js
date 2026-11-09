@@ -112,7 +112,7 @@ import { parseTabState, tabSearch } from "./tabs.js";
 import { chartGrid, chartKeyChoices } from "./charts.js";
 import { applicationById, lickById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from "./registry.js";
 import { setupLibraryPicker } from "./library-ui.js";
-import { transposeToneKey } from "./chord-tones.js";
+import { CHORD_QUALITIES, transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js?v=150";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=150";
@@ -1290,8 +1290,7 @@ function keysByLesson(current = shownMastery()) {
   );
 }
 
-function moduleBanner(module, stats) {
-  const count = stats.masteredKeys.length;
+function moduleBanner(module) {
   const section = document.createElement("button");
   section.type = "button";
   section.className = "module-banner";
@@ -1301,7 +1300,7 @@ function moduleBanner(module, stats) {
   section.setAttribute("aria-label", `Choose a ${module.chart ? "chart" : "lick"}. ${module.name}`);
   const copy = document.createElement("div");
   copy.className = "banner-copy";
-  copy.innerHTML = `<p class="banner-kicker">${module.chart ? "Chart" : `Module ${module.number}`}</p><h2>${module.name}</h2><p class="banner-count">${module.chart ? stats.description : `${count} of 12 keys mastered`}</p>`;
+  copy.innerHTML = `<p class="banner-kicker">${module.chart ? "Chart" : `Module ${module.number}`}</p><h2>${module.name}</h2>`;
   const chevron = document.createElement("span");
   chevron.className = "banner-chevron";
   chevron.setAttribute("aria-hidden", "true");
@@ -1311,11 +1310,31 @@ function moduleBanner(module, stats) {
   return section;
 }
 
-function moduleBlock(module, nodes, stats) {
+function moduleBlock(module, nodes) {
   const wrap = document.createElement("section");
   wrap.className = "module-block is-current";
   wrap.dataset.module = module.id;
-  wrap.append(moduleBanner(module, stats), ...nodes.map((node) => sleeveButton(node)));
+  wrap.append(moduleBanner(module));
+  const groups = module.id === 'chord-tones'
+    ? CHORD_QUALITIES.map(quality => ({ id: quality.id, title: quality.title, nodes: nodes.filter(node => lessonById(node.id).chordQuality === quality.id) }))
+    : [
+      { id: 'practice', title: 'Practice', nodes: nodes.filter(node => !node.practice) },
+      { id: 'integrate', title: 'Integrate', nodes: nodes.filter(node => node.practice) },
+    ];
+  for (const group of groups) {
+    if (!group.nodes.length) continue;
+    const section = document.createElement('section'); section.className = 'lesson-section';
+    const heading = document.createElement('h3'); heading.className = 'lesson-section-title';
+    heading.id = `section-${module.id}-${group.id}`; heading.textContent = group.title;
+    section.setAttribute('aria-labelledby', heading.id);
+    section.append(heading, ...group.nodes.map((node, index) => sleeveButton({
+      ...node,
+      align: group.nodes.length === 2 ? (index ? 'right' : 'left') : ['left', 'center', 'right'][index % 3],
+      coverTitle: node.practice ? node.coverTitle : (lessonById(node.id).kind === 'learn' ? 'Learn' : 'Master'),
+      number: node.practice ? 'Integrate' : node.number,
+    })));
+    wrap.append(section);
+  }
   return wrap;
 }
 
@@ -1350,7 +1369,7 @@ function renderHome() {
   ];
   const nodes = moduleRoadNodes({ ...module, lessons }, prefs, keys);
   els.lessonList.replaceChildren(
-    moduleBlock(module, nodes, moduleMastery(shownMastery(), module.id)),
+    moduleBlock(module, nodes),
     homeNextModuleButton(homeNextModule(module, keys)),
   );
   requestAnimationFrame(paintPathTrail);
@@ -1388,7 +1407,12 @@ function paintPathTrail() {
       cy: rect.top + rect.height / 2 - svgRect.top,
     };
   }
-  path.setAttribute("d", sleeveTrailPath(sleeves, end));
+  const sections = [...els.lessonList.querySelectorAll('.lesson-section')];
+  const trails = sections.map((section, index) => {
+    const group = [...section.querySelectorAll('.sleeve-stage')].map(stage => sleeveBoxFromStage(stage, svgRect));
+    return sleeveTrailPath(group, index === sections.length - 1 ? end : null);
+  });
+  path.setAttribute("d", sections.length ? trails.join(' ') : sleeveTrailPath(sleeves, end));
   const last = end ?? sleeves.at(-1);
   if (cap && last) {
     cap.setAttribute("cx", String(last.cx));
@@ -2239,7 +2263,7 @@ function renderChartDetail() {
       onSelect: () => startChartTones(kind) };
   });
   const block = document.createElement('section'); block.className = 'module-block is-current';
-  block.append(moduleBanner({ ...parent, chart: true }, { masteredKeys: [], description: tune.excerpt ? 'Chord tones · chart excerpt' : 'Chord tones · through the changes' }), ...nodes.map(sleeveButton));
+  block.append(moduleBanner({ ...parent, chart: true }), ...nodes.map(sleeveButton));
   const favoritesHeader = document.createElement('div'); favoritesHeader.className = 'chart-favorites-header';
   const heading = document.createElement('h2'); heading.className = 'chart-favorites-heading'; heading.textContent = 'Favorite Licks';
   const manage = document.createElement('button'); manage.type = 'button'; manage.className = 'collection-action chart-favorites-manage'; manage.textContent = 'Manage';

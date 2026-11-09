@@ -35,7 +35,8 @@ export function buildChordToneExercises(charts = []) {
     const elements = chordToneIntervals(quality).map(interval => ({ type: 'note', interval, beats: 1 }));
     licks.push({ id, name: title, shortName: title, keyQuality: quality.startsWith('minor') || quality === 'halfdim7' ? 'minor' : 'major', defaultKeyId: 'C', octave: -1, pickupBeats: 0, learnBeats: 4, elements });
     forms[id] = { id, title, shortTitle: title, keyQuality: licks.at(-1).keyQuality, bars: [{ chords: [{ intervalFromTonic: 0, quality, durationBeats: 4 }] }] };
-    applications.push({ id, lickId: id, formId: id, label: title, cellTonicInterval: 0, phraseStartBar: 1, leadIn: [], resolve: [], spots: [{ bar: 1, anchorInterval: 0, elements }] });
+    // Isolated notation and backing must use this exercise's explicit harmony.
+    applications.push({ id, lickId: id, formId: id, label: title, copyKind: 'learn', cellTonicInterval: 0, phraseStartBar: 1, leadIn: [], resolve: [], spots: [{ bar: 1, anchorInterval: 0, elements }] });
     return id;
   }
   function lesson(id, applicationId, kind, parent, extra = {}) {

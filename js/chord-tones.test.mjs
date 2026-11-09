@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CHORD_QUALITIES, chordToneIntervals, transposeToneKey } from './chord-tones.js';
 import { MODULES, CHART_LIBRARY, CHART_MODULES, LESSONS } from './registry.js';
-import { createSession, defaultPrefs, lessonSessionPlan, skipCard, wrapupCopy, repeatKey, wrapupNextModule, recommendedLessonId, TWELVE_KEY_IDS } from './session.js';
+import { createSession, defaultPrefs, lessonSessionPlan, skipCard, wrapupCopy, repeatKey, wrapupNextModule, recommendedLessonId, TWELVE_KEY_IDS, demoAudioConfig, sessionScreenTitle } from './session.js';
 import { expectedNotesFor } from './grade.js';
 import { afterPass, isLastRapidKey } from './rapid.js';
 import { emptyMastery, recordQuizPass, moduleMastery } from './medals.js';
-import { getKey } from './music.js';
+import { getKey, learnChords, scheduleChorus } from './music.js';
+import { phraseMEI } from './mei.js';
 import { INSTRUMENTS } from './instruments.js';
 
 test('module one teaches all four qualities with independent learn/master lessons and unchanged workbook IDs', () => {
@@ -34,12 +35,44 @@ test('chart exercises cover every chord in order, preserving sixth, diminished, 
     for (const [index, chord] of chords.entries()) {
       const lesson = module.lessons[index * 2 + 1];
       const plan = lessonSessionPlan(lesson.id, defaultPrefs());
+      const harmony = learnChords(getKey(plan.startKeyId), 'concert', lesson.applicationId);
+      assert.equal(harmony.length, 1);
+      assert.equal(harmony[0].quality, chord.quality);
+      assert.equal(harmony[0].durationBeats, 4);
       for (const instrument of INSTRUMENTS) {
         const session = createSession({ lessonId: lesson.id, ...plan, instrumentId: instrument.id });
         assert.equal(session.keyQueue.length, 1);
         const root = getKey(chart.key).pc + chord.intervalFromTonic;
         assert.deepEqual(expectedNotesFor(session).map(note => (note.midi - root + 120) % 12), chordToneIntervals(chord.quality).map(n => n % 12));
       }
+    }
+  }
+});
+
+test('chord-tone notation and backing use the taught quality in every key and instrument', () => {
+  for (const quality of CHORD_QUALITIES) for (const kind of ['learn', 'master']) {
+    const lessonId = `tones-${quality.id}-${kind}`, applicationId = `tones-${quality.id}`;
+    for (const keyId of TWELVE_KEY_IDS) for (const instrument of INSTRUMENTS) {
+      const session = createSession({ lessonId, startKeyId: keyId, instrumentId: instrument.id });
+      const key = getKey(keyId);
+      const harmony = learnChords(key, session.displayMode, applicationId);
+      assert.equal(harmony.length, 1);
+      assert.equal(harmony[0].quality, quality.id);
+      assert.equal(harmony[0].durationBeats, 4);
+      const events = scheduleChorus(demoAudioConfig(session));
+      const backing = events.filter(event => event.type === 'chord');
+      assert.equal(backing.length, 1);
+      assert.deepEqual(backing[0].midis.map(midi => (midi - key.pc + 120) % 12), quality.intervals);
+      assert.deepEqual(events.filter(event => event.type === 'melody').map(event => event.midi), expectedNotesFor(session).map(note => note.midi));
+    }
+    const suffix = { major7: 'M7', dominant7: '7', minor7: '-7', halfdim7: 'h7' }[quality.id];
+    for (const [instrumentId, writtenRoot] of [['trombone', 'Bb'], ['trumpet', 'C'], ['alto-sax', 'G']]) {
+      const session = createSession({ lessonId, startKeyId: 'Bb', instrumentId });
+      const mei = phraseMEI(getKey('Bb'), session.displayMode, applicationId, session.clef);
+      const symbols = [...mei.matchAll(/<harm\b[^>]*>([\s\S]*?)<\/harm>/g)].map(match => match[1].replace(/<[^>]+>/g, ''));
+      assert.deepEqual(symbols, [writtenRoot + suffix]);
+      const title = sessionScreenTitle(session).replaceAll('♭', 'b').replaceAll('△', 'M').replaceAll('−', '-').replaceAll('ø', 'h');
+      assert.equal(symbols[0], title);
     }
   }
 });

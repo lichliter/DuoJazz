@@ -202,6 +202,11 @@ button.module-banner {
   cursor: pointer;
 }
 
+.lesson-section { display: grid; gap: 20px; min-width: 0; padding-top: 16px; }
+.lesson-section + .lesson-section { margin-top: 16px; }
+.lesson-section-title { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; margin: 0 0 4px; padding: 8px 0; background: var(--bg); color: var(--label); font: var(--text-title-3); text-transform: none; letter-spacing: 0; }
+.lesson-section-title::after { content: ''; height: 1px; flex: 1; background: var(--separator); }
+
 .app-tab-bar {
   position: fixed;
   left: 0;
@@ -2048,7 +2053,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .chart-sheet .sheet-toolbar { flex: 0 0 auto; padding: 12px 20px; }
 .chart-key-field { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; padding: 16px 20px; }
 .chart-key-field label { font: var(--text-headline); }
-.chart-key-field select { flex: 1; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid var(--separator); border-radius: 10px; background: var(--bg-secondary); color: var(--label); font: var(--text-body); }
+.chart-key-select { position: relative; flex: 1; min-width: 0; }
+.chart-key-select select { display: block; width: 100%; min-height: 48px; padding: 10px 44px 10px 12px; -webkit-appearance: none; appearance: none; border: 1px solid var(--separator); border-radius: 10px; background: var(--bg-secondary); color: var(--label); font: var(--text-body); }
+.chart-key-select svg { position: absolute; right: 12px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%); pointer-events: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .chart-sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px calc(24px + var(--safe-bottom)); }
 @media (prefers-reduced-motion: no-preference) {
   .chart-sheet[open] { animation: drawer-in 280ms cubic-bezier(.22, 1, .36, 1) both; }
