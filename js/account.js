@@ -92,6 +92,17 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     return;
   }
 
+  const authStorageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+  // The offline path removes the local session without a network sign-out.
+  // Other tabs must also discard their in-memory identity and stop playback.
+  addEventListener("storage", event => {
+    if (event.storageArea !== localStorage || (event.key !== authStorageKey && event.key !== null)) return;
+    if (localStorage.getItem(authStorageKey) !== null) return;
+    void changeAccount(null);
+    void client.auth.stopAutoRefresh();
+    location.reload();
+  });
+
   async function sync() {
     if (!navigator.onLine) {
       if (user) syncError("Offline — account sync will resume when you reconnect.");
@@ -107,33 +118,46 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
         pending = false;
         const current = user, version = generation;
         requestGeneration = version;
-        const settingsSaved = await settings.sync(client);
+        const results = await Promise.allSettled([
+          (async () => {
+            const saved = await settings.sync(client);
+            if (version === generation) onSettings();
+            return saved;
+          })(),
+          (async () => {
+            // Include earned-key journal entries from a tab that may have closed
+            // before this tab received its storage event.
+            const local = mergeProgress(getProgress(), progressRows(loadMastery(), current.id));
+            onProgress(local, false);
+            const rows = progressRows(local, current.id);
+            for (let offset = 0; offset < rows.length; offset += 500) {
+              if (version !== generation) break;
+              const { error } = await client.from("practice_progress").upsert(rows.slice(offset, offset + 500), {
+                onConflict: "user_id,lesson_id,key_id,kind", ignoreDuplicates: true,
+              });
+              if (error) throw error;
+            }
+            if (version !== generation) return false;
+            const remote = [];
+            for (let offset = 0; ; offset += 500) {
+              const { data, error } = await client.from("practice_progress").select("lesson_id,key_id,kind")
+                .eq("user_id", current.id).order("lesson_id").order("key_id").order("kind").range(offset, offset + 499);
+              if (error) throw error;
+              remote.push(...data);
+              if (data.length < 500 || version !== generation) break;
+            }
+            if (version !== generation) return false;
+            const merged = mergeProgress(getProgress(), remote);
+            applying = true;
+            onProgress(merged, false);
+            const saved = saveMastery(merged);
+            applying = false;
+            return saved;
+          })(),
+        ]);
         if (version !== generation) continue;
-        onSettings();
-        const rows = progressRows(getProgress(), current.id);
-        for (let offset = 0; offset < rows.length; offset += 500) {
-          if (version !== generation) break;
-          const { error } = await client.from("practice_progress").upsert(rows.slice(offset, offset + 500), {
-            onConflict: "user_id,lesson_id,key_id,kind", ignoreDuplicates: true,
-          });
-          if (error) throw error;
-        }
-        if (version !== generation) continue;
-        const remote = [];
-        for (let offset = 0; ; offset += 500) {
-          const { data, error } = await client.from("practice_progress").select("lesson_id,key_id,kind")
-            .eq("user_id", current.id).order("lesson_id").order("key_id").order("kind").range(offset, offset + 499);
-          if (error) throw error;
-          remote.push(...data);
-          if (data.length < 500 || version !== generation) break;
-        }
-        if (version !== generation) continue;
-        const merged = mergeProgress(getProgress(), remote);
-        applying = true;
-        onProgress(merged, false);
-        const saved = saveMastery(merged);
-        applying = false;
-        syncError(saved && settingsSaved ? "" : "Your changes are saved to your account, but this browser can’t save an offline copy.");
+        if (results.some(result => result.status === "rejected")) throw new Error("Account sync incomplete");
+        syncError(results.every(result => result.value) ? "" : "Your changes are saved to your account, but this browser can’t save an offline copy.");
         retryDelay = 5000;
       }
     } catch {
@@ -296,14 +320,17 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   addEventListener("online", () => { if (user) void sync(); });
   addEventListener("focus", () => { if (user) void sync(); });
   addEventListener("storage", event => {
-    if (user && event.key === `${SETTINGS_KEY}:${user.id}`) {
+    if (user && (event.key === `${SETTINGS_KEY}:${user.id}` || event.key?.startsWith(`${SETTINGS_KEY}:${user.id}:edit:`))) {
       settings.reload();
       onSettings();
       if (settings.hasPending()) void sync();
     }
-    if (user && event.key === `${MASTERY_KEY}:${user.id}`) {
-      onProgress(mergeProgress(getProgress(), progressRows(loadMastery(), user.id)), false);
-      void sync();
+    if (user && (event.key === `${MASTERY_KEY}:${user.id}` || event.key?.startsWith(`${MASTERY_KEY}:${user.id}:earned:`))) {
+      const merged = mergeProgress(getProgress(), progressRows(loadMastery(), user.id));
+      if (JSON.stringify(merged) !== JSON.stringify(getProgress())) {
+        onProgress(merged, false);
+        void sync();
+      }
     }
   });
   for (const id of ["account-signin", "signup-submit", "reset-submit", "password-submit", "account-google"]) $(id).disabled = false;

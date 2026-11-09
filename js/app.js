@@ -41,6 +41,7 @@ import {
   TWELVE_KEY_IDS,
   lessonById,
   normalizePrefs,
+  normalizeAccountPrefs,
   defaultPrefs,
   recommendedLessonId,
   createSession,
@@ -2517,12 +2518,12 @@ transport.onEnded = () => {
 
 const practiceUI = setupPracticeUI({
   onPractice: startLesson, onChanged: renderStorageNotice,
-  onSaveCharts: myCharts => cloudSettings.set({ myCharts }),
+  onSaveChart: (id, selected) => cloudSettings.setChart(id, selected),
 });
 const legacySettings = { ...prefs, selectedModuleId, myCharts: practiceUI.getSelected() };
 function applyAccountSettings() {
   const values = cloudSettings.values();
-  prefs = normalizePrefs(values);
+  prefs = normalizeAccountPrefs(values);
   savedPrefs = structuredClone(prefs);
   selectedModuleId = MODULES.some(module => module.id === values.selectedModuleId) ? values.selectedModuleId : MODULES[0].id;
   practiceUI.setSelected(values.myCharts ?? []);

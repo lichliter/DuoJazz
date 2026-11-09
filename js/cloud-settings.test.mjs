@@ -4,48 +4,54 @@ import { createCloudSettings } from './cloud-settings.js';
 
 const storage = () => {
   const map = new Map();
-  return { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) };
+  return { get length() { return map.size; }, key: i => [...map.keys()][i], getItem: key => map.get(key) ?? null,
+    setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key) };
 };
 function server() {
   const rows = new Map();
   const api = { rows, fail: false, beforeWrite: null,
     from(table) {
       assert.equal(table, 'user_preferences');
-      return {
-        select() { return { async eq(_, id) {
+      return { select() { let id; const q = {
+        eq(_, next) { id = next; return q; }, order() { return q; },
+        async range(start, end) {
           if (api.fail) return { error: Error('offline') };
-          return { data: [...rows.values()].filter(row => row.user_id === id).map(row => structuredClone(row)) };
-        } }; },
-        async upsert(batch, options) {
-          if (api.fail) return { error: Error('offline') };
-          if (api.beforeWrite) await api.beforeWrite();
-          for (const row of batch) {
-            const key = `${row.user_id}:${row.name}`;
-            if (!options.ignoreDuplicates || !rows.has(key)) rows.set(key, structuredClone(row));
-          }
-          return {};
+          return { data: [...rows.values()].filter(row => row.user_id === id).sort((a,b) => a.name.localeCompare(b.name)).slice(start,end+1).map(row => structuredClone(row)) };
         },
-      };
+      }; return q; } };
+    },
+    async rpc(name, { changes }) {
+      assert.equal(name, 'save_user_preferences');
+      if (api.fail) return { error: Error('offline') };
+      if (api.beforeWrite) await api.beforeWrite(changes);
+      for (const row of changes) {
+        const key = `${api.userId ?? 'a'}:${row.name}`, saved = rows.get(key);
+        if (!saved || row.edit_clock > saved.edit_clock || (row.edit_clock === saved.edit_clock && row.edit_id > saved.edit_id)) {
+          rows.set(key, { ...structuredClone(row), user_id: api.userId ?? 'a' });
+        }
+      }
+      return {};
     },
   };
   return api;
 }
+const empty = { myCharts: [], lessons: {}, modules: {} };
 
 test('settings and favorites restore in a fresh browser; stale caches do not overwrite them', async () => {
   const api = server();
   const first = createCloudSettings({ storage: storage() });
-  first.activate('a', { tempo: 96, myCharts: ['four'] });
+  first.activate('a', { ...empty, tempo: 96, myCharts: ['four'] });
   await first.sync(api);
   const other = createCloudSettings({ storage: storage() });
   other.activate('a', { tempo: 80, myCharts: [] });
   await other.sync(api);
-  assert.deepEqual(other.values(), { tempo: 96, myCharts: ['four'] });
+  assert.deepEqual(other.values(), { ...empty, tempo: 96, myCharts: ['four'] });
   first.set({ tempo: 120, instrumentId: 'trumpet' });
   await first.sync(api);
   other.set({ myCharts: ['recordame'], metronome: true });
   await other.sync(api);
   await first.sync(api);
-  assert.deepEqual(first.values(), { tempo: 120, instrumentId: 'trumpet', myCharts: ['recordame'], metronome: true });
+  assert.deepEqual(first.values(), { ...empty, tempo: 120, instrumentId: 'trumpet', myCharts: ['recordame'], metronome: true });
 });
 
 test('offline changes survive reopening and retry, including removing all favorites', async () => {
@@ -54,7 +60,7 @@ test('offline changes survive reopening and retry, including removing all favori
   settings.activate('a', { myCharts: ['four'] });
   await settings.sync(api);
   api.fail = true;
-  settings.set({ myCharts: [], swing: false });
+  settings.set({ ...empty, myCharts: [], swing: false });
   await assert.rejects(settings.sync(api));
   settings = createCloudSettings({ storage: disk });
   settings.activate('a');
@@ -66,7 +72,7 @@ test('offline changes survive reopening and retry, including removing all favori
   const fresh = createCloudSettings({ storage: storage() });
   fresh.activate('a');
   await fresh.sync(api);
-  assert.deepEqual(fresh.values(), { myCharts: [], swing: false });
+  assert.deepEqual(fresh.values(), { ...empty, myCharts: [], swing: false });
 });
 
 test('account switches isolate caches, legacy imports, and in-flight responses', async () => {
@@ -76,10 +82,12 @@ test('account switches isolate caches, legacy imports, and in-flight responses',
   settings.set({ tempo: 120 });
   api.beforeWrite = async () => { settings.activate('b', { tempo: 100 }); };
   await settings.sync(api);
-  assert.deepEqual(settings.values(), {});
+  assert.deepEqual(settings.values(), empty);
   api.beforeWrite = null;
+  api.userId = 'b';
   await settings.sync(api);
-  assert.deepEqual(settings.values(), {});
+  assert.deepEqual(settings.values(), empty);
+  api.userId = 'a';
   settings.activate('a');
   await settings.sync(api);
   assert.equal(settings.values().tempo, 120);
@@ -105,7 +113,7 @@ test('two tabs preserve each other’s pending fields', async () => {
   a.activate('a'); b.activate('a');
   a.set({ tempo: 120 }); b.set({ swing: false });
   await b.sync(api); a.reload();
-  assert.deepEqual(a.values(), { tempo: 120, swing: false });
+  assert.deepEqual(a.values(), { ...empty, tempo: 120, swing: false });
   assert.equal(a.hasPending(), false);
 });
 
@@ -115,4 +123,55 @@ test('blocked cache writes still allow account saving', async () => {
   settings.activate('a'); settings.set({ tempo: 120 });
   assert.equal(await settings.sync(api), false);
   assert.equal(api.rows.get('a:tempo').value, 120);
+});
+
+test('a delayed older request cannot undo a newer save or leave the cache stale', async () => {
+  const disk = storage(), api = server();
+  const a = createCloudSettings({ storage: disk }), b = createCloudSettings({ storage: disk });
+  a.activate('a'); b.activate('a');
+  let release, entered;
+  const blocked = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  api.beforeWrite = async rows => { if (rows.some(row => row.name === 'tempo' && row.value === 100)) { entered(); await blocked; } };
+  a.set({ tempo: 100 }); const old = a.sync(api); await started;
+  b.set({ tempo: 120 }); await b.sync(api); release(); await old;
+  a.reload(); b.reload();
+  assert.equal(api.rows.get('a:tempo').value, 120);
+  assert.equal(a.values().tempo, 120); assert.equal(b.values().tempo, 120);
+  assert.equal(a.hasPending(), false); assert.equal(b.hasPending(), false);
+});
+
+test('favorite additions and removals merge across independent devices, including stale replays', async () => {
+  const api = server(), a = createCloudSettings({ storage: storage() }), b = createCloudSettings({ storage: storage() });
+  a.activate('a', { myCharts: ['four'] }); await a.sync(api);
+  b.activate('a'); await b.sync(api);
+  a.setChart('autumn-leaves', true); await a.sync(api);
+  b.setChart('recordame', true); b.setChart('four', false); await b.sync(api);
+  await a.sync(api);
+  assert.deepEqual(a.values().myCharts, ['autumn-leaves', 'recordame']);
+  const fresh = createCloudSettings({ storage: storage() });
+  fresh.activate('a', { myCharts: ['four'] }); await fresh.sync(api);
+  assert.deepEqual(fresh.values().myCharts, ['autumn-leaves', 'recordame']);
+});
+
+test('independent lesson edits do not replace other lessons', async () => {
+  const api = server(), a = createCloudSettings({ storage: storage() }), b = createCloudSettings({ storage: storage() });
+  const lessons = { first: { tempo: 96, melodyRegister: 0 }, second: { tempo: 96, melodyRegister: 0 } };
+  a.activate('a', { lessons }); await a.sync(api); b.activate('a'); await b.sync(api);
+  a.set({ lessons: { ...lessons, first: { tempo: 96, melodyRegister: 1 } } }); await a.sync(api);
+  b.set({ lessons: { ...lessons, second: { tempo: 96, melodyRegister: -1 } } }); await b.sync(api); await a.sync(api);
+  assert.equal(a.values().lessons.first.melodyRegister, 1);
+  assert.equal(a.values().lessons.second.melodyRegister, -1);
+});
+
+test('all twelve account starting keys retain their pitch and selected-key membership', async () => {
+  const { normalizeAccountPrefs, TWELVE_KEY_IDS } = await import('./session.js');
+  for (const key of TWELVE_KEY_IDS) {
+    const api = server(), source = createCloudSettings({ storage: storage() });
+    source.activate('a'); source.set({ startKeyId: key, selectedKeyIds: [key], allKeys: false }); await source.sync(api);
+    const fresh = createCloudSettings({ storage: storage() }); fresh.activate('a'); await fresh.sync(api);
+    const restored = normalizeAccountPrefs(fresh.values());
+    assert.equal(restored.startKeyId, key);
+    assert.deepEqual(restored.selectedKeyIds, [key]);
+  }
 });

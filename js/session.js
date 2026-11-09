@@ -590,6 +590,12 @@ export function defaultPrefs() {
   };
 }
 
+// Account settings always store concert major keys; legacy conversion belongs
+// only to the old browser-preferences import path.
+export function normalizeAccountPrefs(values) {
+  return normalizePrefs({ ...values, keyBasis: "major" });
+}
+
 export function normalizePrefs(raw) {
   const base = defaultPrefs();
   const merged = { ...base, ...(raw ?? {}) };

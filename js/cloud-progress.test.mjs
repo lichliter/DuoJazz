@@ -70,3 +70,31 @@ test("Google requests identity scopes only, without offline access", () => {
     provider: "google", options: { scopes: "openid email profile", redirectTo: "https://example.com/DuoJazz/" },
   });
 });
+
+test('offline passes survive a stale tab and even a stale snapshot overwrite', () => {
+  const original = globalThis.localStorage;
+  const values = new Map();
+  globalThis.localStorage = {
+    get length() { return values.size; }, key: i => [...values.keys()][i],
+    getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value),
+  };
+  try {
+    setMasteryAccount('journal-test');
+    const a = recordQuizPass(emptyMastery(), 'master-lick', 'C');
+    const b = recordQuizPass(emptyMastery(), 'master-lick', 'G');
+    saveMastery(a); saveMastery(b);
+    // Simulate the last snapshot write from an overlapping stale tab.
+    localStorage.setItem('duojazz-mastery-v1:journal-test', JSON.stringify(b));
+    assert.deepEqual(loadMastery().lessons['master-lick'].passedKeys, ['C', 'G']);
+  } finally { globalThis.localStorage = original; setMasteryAccount(null); }
+});
+
+test('opposite progress order converges to byte-identical snapshots', () => {
+  let a = recordQuizPass(emptyMastery(), 'master-lick', 'C');
+  let b = recordQuizPass(emptyMastery(), 'master-lick', 'G');
+  for (let i = 0; i < 4; i++) {
+    a = mergeProgress(a, progressRows(b, 'a'));
+    b = mergeProgress(b, progressRows(a, 'a'));
+    assert.equal(JSON.stringify(a), JSON.stringify(b));
+  }
+});

@@ -3,7 +3,7 @@ import { MY_CHARTS_KEY, loadMyCharts, normalizeMyCharts, chartChoices } from "./
 import { writeStoredJson } from "./storage.js";
 import { closeSheet } from "./dialogs.js";
 
-export function setupPracticeUI({ onPractice, onChanged, onSaveCharts }) {
+export function setupPracticeUI({ onPractice, onChanged, onSaveChart }) {
   const catalog = PRACTICE_CATALOG;
   let selected = loadMyCharts(catalog.charts);
   let currentGroup = null;
@@ -32,7 +32,7 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveCharts }) {
 
   function change(id, add, button) {
     selected = add ? [...new Set([...selected, id])] : selected.filter((item) => item !== id);
-    if (onSaveCharts) onSaveCharts(selected);
+    if (onSaveChart) onSaveChart(id, add);
     else writeStoredJson(MY_CHARTS_KEY, selected);
     renderChartSummary();
     onChanged();
@@ -161,7 +161,7 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveCharts }) {
         add.setAttribute("aria-label", `Add ${choice.title} to favorite charts`);
         add.addEventListener("click", () => {
           selected = [...selected, choice.chartId];
-          if (onSaveCharts) onSaveCharts(selected);
+          if (onSaveChart) onSaveChart(choice.chartId, true);
           else writeStoredJson(MY_CHARTS_KEY, selected);
           renderChartSummary();
           onChanged();

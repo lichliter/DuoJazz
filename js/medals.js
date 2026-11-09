@@ -206,16 +206,55 @@ export function lessonPassedCount(mastery, lessonId) {
   return lessonPassedKeys(mastery, lessonId).length;
 }
 
-export function loadMastery(key = activeMasteryKey) {
-  try {
-    return normalizeMastery(JSON.parse(localStorage.getItem(key) ?? "null"));
-  } catch {
-    return emptyMastery();
+export function canonicalMastery(mastery) {
+  const next = normalizeMastery(mastery);
+  for (const lesson of Object.values(next.lessons)) {
+    lesson.passedKeys.sort();
+    lesson.learnedKeys.sort();
   }
+  return next;
+}
+
+export function mergeMastery(left, right) {
+  const next = normalizeMastery(left), incoming = normalizeMastery(right);
+  for (const [id, lesson] of Object.entries(incoming.lessons)) {
+    for (const kind of ["passedKeys", "learnedKeys"]) {
+      next.lessons[id][kind] = [...new Set([...next.lessons[id][kind], ...lesson[kind]])];
+    }
+  }
+  return canonicalMastery(next);
+}
+
+export function loadMastery(key = activeMasteryKey) {
+  let next = emptyMastery();
+  try { next = normalizeMastery(JSON.parse(localStorage.getItem(key) ?? "null")); } catch {}
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const entry = localStorage.key(i);
+      if (!entry?.startsWith(`${key}:earned:`)) continue;
+      const [id, kind, pitch] = JSON.parse(localStorage.getItem(entry));
+      if (["passedKeys", "learnedKeys"].includes(kind) && next.lessons[id] && TWELVE_KEY_IDS.includes(pitch)) {
+        if (!next.lessons[id][kind].includes(pitch)) next.lessons[id][kind].push(pitch);
+      }
+    }
+  } catch { /* Retain the snapshot if the append-only journal cannot be read. */ }
+  return canonicalMastery(next);
 }
 
 export function saveMastery(mastery) {
-  const saved = writeStoredJson(activeMasteryKey, normalizeMastery(mastery));
+  const next = mergeMastery(loadMastery(), mastery);
+  let journalSaved = true;
+  for (const [id, lesson] of Object.entries(next.lessons)) {
+    for (const kind of ["passedKeys", "learnedKeys"]) for (const pitch of lesson[kind]) {
+      const row = [id, kind, pitch];
+      const key = `${activeMasteryKey}:earned:${encodeURIComponent(JSON.stringify(row))}`;
+      try { if (localStorage.getItem(key) != null) continue; } catch {}
+      journalSaved = writeStoredJson(key, row) && journalSaved;
+    }
+  }
+  // Separate immutable earned-key records survive two tabs replacing the
+  // snapshot simultaneously. The old snapshot schema remains a readable cache.
+  const saved = writeStoredJson(activeMasteryKey, next);
   globalThis.dispatchEvent?.(new Event("duojazz-progress-saved"));
-  return saved;
+  return saved && journalSaved;
 }
