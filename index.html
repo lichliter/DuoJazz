@@ -113,11 +113,7 @@
         <section class="lesson-path" aria-label="Chart practice path">
           <div id="chart-tree" class="lesson-list"></div>
         </section>
-        <details class="chart-reference">
-          <summary>Chord chart</summary>
-          <div id="chart-keys" class="row wrap" role="group" aria-label="Chart key"></div>
-          <div id="chart-grid" class="ireal-grid"></div>
-        </details>
+        <button type="button" id="view-chart" class="chart-view-button" aria-haspopup="dialog" aria-controls="chart-sheet">View Chart</button>
       </section>
 
       <dialog id="settings-modal" class="form-sheet settings-modal profile-sheet" data-testid="settings-sheet" aria-labelledby="settings-title">
@@ -367,6 +363,19 @@
         <p class="help" id="application-workbook-source"></p>
         <button type="button" class="collection-action add-chart-button" id="application-workbook-example">Practice workbook example</button>
       </div>
+    </div>
+  </dialog>
+  <dialog id="chart-sheet" class="form-sheet chart-sheet" aria-labelledby="chart-heading-title">
+    <header class="sheet-toolbar">
+      <h2 id="chart-heading-title">Chart</h2>
+      <button type="button" class="dismiss-button" data-close aria-label="Close chart" autofocus>×</button>
+    </header>
+    <div class="chart-key-field">
+      <label for="chart-keys">Key</label>
+      <select id="chart-keys"></select>
+    </div>
+    <div class="chart-sheet-body">
+      <div id="chart-grid" class="ireal-grid"></div>
     </div>
   </dialog>
   <dialog id="chart-applications" class="form-sheet collection-sheet" aria-labelledby="chart-applications-title">

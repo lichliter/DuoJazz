@@ -102,7 +102,7 @@ const MEASURE = `(() => {
   return {
     fontReady: document.fonts.check('700 16px "DuoJazz Music"') && document.fonts.check('400 16px "DuoJazz Music"'),
     family: sample ? getComputedStyle(sample).fontFamily : "",
-    chips: [...document.querySelectorAll("#chart-keys .chip")].map((el) => el.textContent),
+    chips: [...document.querySelectorAll("#chart-keys option")].map((el) => el.textContent),
     chords: [...document.querySelectorAll(".chord-symbol")].map((el) => el.textContent),
     harms: [...document.querySelectorAll(".harm")].map((el) => (el.textContent ?? "").replace(/\\s+/g, "")),
     sessionKey: document.querySelector("#session-key")?.textContent ?? "",
@@ -189,7 +189,7 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
       {
         name: "blue-bossa-chart",
         path: "/?tab=charts&tune=blue-bossa",
-        ready: `document.querySelector("#chart-heading-title")?.textContent === "Blue Bossa" && document.querySelectorAll("#chart-keys .chip").length === 12 && document.querySelectorAll(".chord-symbol").length > 0`,
+        ready: `document.querySelector("#chart-heading-title")?.textContent === "Blue Bossa" && document.querySelectorAll("#chart-keys option").length === 12 && document.querySelectorAll(".chord-symbol").length > 0`,
         shot: true,
         expectChips: chartKeyChoices("minor").map((choice) => choice.label),
         expectChords: chartGrid("blue-bossa").rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
@@ -197,7 +197,7 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
       {
         name: "recordame-chart",
         path: "/?tab=charts&tune=recordame",
-        ready: `document.querySelector("#chart-heading-title")?.textContent === "Recordame" && document.querySelectorAll("#chart-keys .chip").length === 12 && document.querySelectorAll(".chord-symbol").length > 0`,
+        ready: `document.querySelector("#chart-heading-title")?.textContent === "Recordame" && document.querySelectorAll("#chart-keys option").length === 12 && document.querySelectorAll(".chord-symbol").length > 0`,
         expectChips: chartKeyChoices("minor").map((choice) => choice.label),
         expectChords: chartGrid("recordame").rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
       },
@@ -249,7 +249,8 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
         await client.send("Runtime.evaluate", {
           expression: `document.querySelector("#app-shell").hidden = false;
             document.querySelector("#app-shell").inert = false;
-            document.querySelector("#login-screen").hidden = true;`,
+            document.querySelector("#login-screen").hidden = true;
+            if (new URL(location.href).searchParams.get("tab") === "charts") document.querySelector("#view-chart").click();`,
           returnByValue: true,
         });
         await client.send("Runtime.evaluate", {

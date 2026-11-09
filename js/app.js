@@ -223,6 +223,7 @@ const els = {
   wrapup: document.getElementById("screen-wrapup"),
   settingsClose: document.getElementById("settings-close"),
   chartKeys: document.getElementById("chart-keys"),
+  chartSheet: document.getElementById("chart-sheet"),
   chartGrid: document.getElementById("chart-grid"),
   lessonList: document.getElementById("lesson-list"),
   instrumentList: document.getElementById("instrument-list"),
@@ -1276,6 +1277,7 @@ function anyDialogOpen() {
     els.quickView?.open
     || els.leaveConfirm?.open
     || els.settingsModal?.open
+    || els.chartSheet?.open
     || document.getElementById("chart-applications")?.open
     || document.getElementById("application-charts")?.open,
   );
@@ -2238,7 +2240,12 @@ function renderChartDetail() {
   });
   const block = document.createElement('section'); block.className = 'module-block is-current';
   block.append(moduleBanner({ ...parent, chart: true }, { masteredKeys: [], description: tune.excerpt ? 'Chord tones · chart excerpt' : 'Chord tones · through the changes' }), ...nodes.map(sleeveButton));
-  const heading = document.createElement('h2'); heading.className = 'chart-favorites-heading'; heading.textContent = 'Your favorite licks'; block.append(heading);
+  const favoritesHeader = document.createElement('div'); favoritesHeader.className = 'chart-favorites-header';
+  const heading = document.createElement('h2'); heading.className = 'chart-favorites-heading'; heading.textContent = 'Favorite Licks';
+  const manage = document.createElement('button'); manage.type = 'button'; manage.className = 'collection-action chart-favorites-manage'; manage.textContent = 'Manage';
+  manage.setAttribute('aria-label', 'Manage favorite licks'); manage.setAttribute('aria-haspopup', 'dialog'); manage.setAttribute('aria-controls', 'quick-view');
+  manage.onclick = () => libraryPicker.open('licks');
+  favoritesHeader.append(heading, manage); block.append(favoritesHeader);
   const favorites = MODULES.filter(module => favoriteLicks.includes(module.id) && module.id !== 'chord-tones');
   for (const [index, module] of favorites.entries()) {
     const matches = chartApplications(tune.id, module.id);
@@ -2250,10 +2257,13 @@ function renderChartDetail() {
   if (!favorites.length) {
     const empty = document.createElement('p'); empty.className = 'help library-empty'; empty.textContent = 'Favorite licks in the picker to practice them on this chart.'; block.append(empty);
   }
-  const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'collection-action chart-favorites-manage'; choose.textContent = 'Choose favorite licks'; choose.onclick = () => libraryPicker.open('licks'); block.append(choose);
   document.getElementById('chart-tree').replaceChildren(block);
   const grid = chartGrid(tune, { instrumentId: prefs.instrumentId, concertKeyId: chartConcertKeyId });
-  chipRow(els.chartKeys, chartKeyChoices(tune.keyQuality, prefs.instrumentId), chartConcertKeyId, id => { chartConcertKeyId = id; renderChartDetail(); });
+  document.getElementById('chart-heading-title').textContent = tune.title;
+  els.chartKeys.replaceChildren(...chartKeyChoices(tune.keyQuality, prefs.instrumentId).map(choice => {
+    const option = document.createElement('option'); option.value = choice.id; option.textContent = choice.label; return option;
+  }));
+  els.chartKeys.value = chartConcertKeyId;
   if (els.chartGrid) {
     els.chartGrid.replaceChildren(
       ...grid.rows.map((row) => {
@@ -2592,6 +2602,17 @@ els.settingsModal?.addEventListener("click", (event) => {
   if (!inside) closeSettings();
 });
 document.querySelector('#chart-applications [data-close]').addEventListener('click', () => closeSheet(document.getElementById('chart-applications')));
+document.getElementById('view-chart').addEventListener('click', () => {
+  els.chartSheet.showModal();
+  els.chartSheet.querySelector('.chart-sheet-body').scrollTop = 0;
+});
+els.chartKeys.addEventListener('change', () => { chartConcertKeyId = els.chartKeys.value; renderChartDetail(); });
+els.chartSheet.querySelector('[data-close]').addEventListener('click', () => closeSheet(els.chartSheet));
+els.chartSheet.addEventListener('click', event => {
+  if (event.target !== els.chartSheet) return;
+  const rect = els.chartSheet.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet(els.chartSheet);
+});
 
 els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
 window.addEventListener("popstate", () => {

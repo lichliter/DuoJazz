@@ -2024,20 +2024,35 @@ button, a { -webkit-tap-highlight-color: transparent; }
 #quick-view-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0 max(8px, env(safe-area-inset-bottom)); }
 .library-picker-row { display: grid; grid-template-columns: minmax(0, 1fr) 56px; align-items: center; border-bottom: 1px solid var(--separator); border-left: 3px solid transparent; }
 .library-picker-row[data-current="true"] { background: var(--tint-fill); border-left-color: var(--tint); }
+.library-picker-row:hover,
+.library-picker-row:focus-within { background: var(--fill); }
+.library-picker-row:active { background: var(--fill-pressed); }
+.library-picker-row:has(:focus-visible) { outline: 3px solid var(--tint); outline-offset: -3px; }
+:root[data-input-mode="pointer"] .library-picker-row:has(:focus-visible) { outline: none; }
+.library-picker-row button:focus-visible { outline: none; }
 .library-picker-row .module-sheet-row { display: block; min-width: 0; min-height: 76px; padding: 14px 12px 14px 13px; background: transparent; border: 0; }
-.library-picker-row .module-sheet-row:hover { background: var(--fill); }
 .library-picker-row .module-sheet-copy { gap: 5px; }
 .library-picker-row .module-sheet-name { display: block; overflow: visible; max-height: none; overflow-wrap: normal; line-height: 1.3; font-weight: 600; }
 .library-picker-row .module-sheet-meta { line-height: 1.4; }
 .favorite-toggle { display: grid; place-items: center; width: 48px; min-height: 48px; padding: 10px; border: 0; border-radius: 50%; background: transparent; color: var(--tint); cursor: pointer; }
-.favorite-toggle:hover { background: var(--fill); }
 .favorite-toggle svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 .favorite-toggle[aria-pressed="true"] svg { fill: currentColor; }
 .library-empty { padding: 16px 24px; text-align: center; }
-.chart-favorites-heading { margin: 30px 20px 8px; text-align: center; font: var(--text-title-3); text-transform: none; }
-.chart-favorites-manage { display: block; margin: 24px auto; }
-.chart-reference { max-width: 760px; margin: 24px auto; padding: 16px; border: 1px solid var(--separator); border-radius: 12px; }
-.chart-reference summary { cursor: pointer; min-height: 44px; font: var(--text-headline); }
+.chart-favorites-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 30px; }
+.chart-favorites-heading { margin: 0; text-align: left; font: var(--text-title-3); text-transform: none; }
+.chart-favorites-manage { margin: 0; padding-right: 0; text-align: right; }
+.chart-view-button { align-self: center; margin: 20px auto 32px; min-height: 48px; padding: 12px 24px; border: 1px solid var(--separator); border-radius: 12px; background: transparent; color: var(--tint); font: var(--text-headline); cursor: pointer; }
+.chart-view-button:hover { background: var(--fill); }
+.chart-sheet { width: min(760px, 100%); max-width: 100%; max-height: 92dvh; margin: auto auto 0; border-radius: var(--radius-xl) var(--radius-xl) 0 0; overflow: hidden; }
+.chart-sheet[open] { display: flex; flex-direction: column; }
+.chart-sheet .sheet-toolbar { flex: 0 0 auto; padding: 12px 20px; }
+.chart-key-field { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; padding: 16px 20px; }
+.chart-key-field label { font: var(--text-headline); }
+.chart-key-field select { flex: 1; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid var(--separator); border-radius: 10px; background: var(--bg-secondary); color: var(--label); font: var(--text-body); }
+.chart-sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px calc(24px + var(--safe-bottom)); }
+@media (prefers-reduced-motion: no-preference) {
+  .chart-sheet[open] { animation: drawer-in 280ms cubic-bezier(.22, 1, .36, 1) both; }
+}
 .chart-application-choice { display: grid; gap: 8px; width: 100%; padding: 18px 12px; text-align: left; background: transparent; color: var(--label); border: 0; border-bottom: 1px solid var(--separator); cursor: pointer; }
 .chart-application-choice strong { font: var(--text-headline); }
 .chart-application-choice span { color: var(--label-secondary); font: var(--text-footnote); line-height: 1.5; }
