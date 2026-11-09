@@ -26,13 +26,21 @@
 </head>
 <body>
   <p id="offline-status" class="offline-status" role="status" hidden></p>
-  <a class="skip-link" href="#login-title">Skip to main content</a>
+  <a class="skip-link" href="#account-loading-title">Skip to main content</a>
 
-  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
+  <section id="account-loading" class="login-screen" aria-labelledby="account-loading-title">
+    <main class="account-loading-card">
+      <img class="login-record" src="./icons/icon-512.png?v=dj-record-6" alt="" width="98" height="98">
+      <h1 id="account-loading-title" tabindex="-1">DuoJazz</h1>
+      <p class="help" role="status">Loading…</p>
+    </main>
+  </section>
+
+  <section id="login-screen" class="login-screen" aria-labelledby="login-title" hidden>
     <main class="login-card account-panel">
       <img class="login-record" src="./icons/icon-512.png?v=dj-record-6" alt="DuoJazz" width="98" height="98">
       <h1 id="login-title" tabindex="-1">Sign in</h1>
-      <p id="account-status" class="help account-status" role="status" aria-live="polite">Checking your account…</p>
+      <p id="account-status" class="help account-status" role="status" aria-live="polite"></p>
       <form id="account-guest" class="auth-form" data-auth-view="signin">
         <button type="button" id="account-google" hidden disabled>Continue with Google</button>
         <label for="account-email">Email</label>

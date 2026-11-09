@@ -19,7 +19,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   const $ = id => document.getElementById(id);
   const login = $("login-screen"), shell = $("app-shell"), chip = $("account-chip");
   const returnUrl = authReturnUrl(location.href);
-  let user = null, initialized = false, recovery = false, busy = false;
+  let user = null, initialized = false, restoring = true, recovery = false, busy = false;
   let generation = 0, pending = false, running = false, applying = false;
   let retryTimer, retryDelay = 5000, resendTimer, resendAt = 0;
   let confirmation = null;
@@ -41,14 +41,15 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
       else url.searchParams.set("auth", view);
       history.pushState({}, "", url);
     }
-    if (focus) $("login-title").focus({ preventScroll: true });
+    if (focus && !login.hidden) $("login-title").focus({ preventScroll: true });
   }
   function showApp() {
-    login.hidden = Boolean(user) && !recovery;
-    shell.hidden = !user || recovery;
+    $("account-loading").hidden = !restoring;
+    login.hidden = restoring || (Boolean(user) && !recovery);
+    shell.hidden = restoring || !user || recovery;
     shell.inert = shell.hidden;
     $("account-member").hidden = !user;
-    document.querySelector('.skip-link').href = shell.hidden ? '#login-title' : '#main';
+    document.querySelector('.skip-link').href = restoring ? '#account-loading-title' : shell.hidden ? '#login-title' : '#main';
   }
   function clearPasswords() {
     for (const field of document.querySelectorAll('.password-field input')) { field.value = ""; field.type = "password"; }
@@ -79,7 +80,6 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   });
   showView(view, { navigate: false, focus: false });
   showApp();
-  say("Checking your account…");
   $("account-google").hidden = !GOOGLE_SIGN_IN_ENABLED;
   let client;
   try {
@@ -93,6 +93,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
       global: { fetch: fetchWithTimeout },
     });
   } catch {
+    restoring = false;
     showApp();
     say("Couldn’t load sign-in. Refresh the page to try again.");
     return;
@@ -180,6 +181,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   }
 
   async function changeAccount(next) {
+    restoring = false;
     if (initialized && (next?.id ?? null) === (user?.id ?? null)) { showApp(); return; }
     const switchingAccount = initialized;
     initialized = true; generation++; user = next; pending = false;
@@ -236,8 +238,12 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
       const { data, error } = await withTimeout(client.auth.getSession());
       if (error) throw error;
       if (version === generation) await changeAccount(data.session?.user ?? null);
-    } else showApp();
+    } else {
+      restoring = false;
+      showApp();
+    }
   } catch {
+    restoring = false;
     showApp();
     if (!user) say("Couldn’t restore your account. Please sign in again.");
   }

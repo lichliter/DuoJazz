@@ -1943,8 +1943,12 @@ button.module-banner {
 }
 
 /* Account entry and signed-in identity. */
-#app-shell[hidden], #login-screen[hidden] { display: none !important; }
+#app-shell[hidden], #login-screen[hidden], #account-loading[hidden] { display: none !important; }
 .login-screen { min-height: 100svh; display: flex; flex-direction: column; align-items: center; padding: 36px 20px 24px; box-sizing: border-box; background: radial-gradient(ellipse at 50% 35%, #38271c 0, var(--bg) 64%); }
+.account-loading-card { margin: auto; text-align: center; }
+.account-loading-card .login-record { margin: 0 auto 20px; }
+.account-loading-card h1 { font: var(--text-title-1); margin: 0 0 12px; }
+#account-loading-title:focus { outline: none; }
 .login-card { width: min(100%, 400px); margin: auto; padding: 42px 0 22px; }
 .login-record { width: 98px; height: 98px; margin: 0 0 17px; display: block; border-radius: 18px; }
 .login-card h1 { font: 600 clamp(36px, 8vw, 48px)/1.15 var(--font); letter-spacing: 0; margin: 10px 0 28px; }
