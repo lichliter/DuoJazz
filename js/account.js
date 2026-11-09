@@ -2,6 +2,7 @@ import { SETTINGS_KEY } from "./cloud-settings.js";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, GOOGLE_SIGN_IN_ENABLED } from "./supabase-config.js";
 import { loadMastery, saveMastery, setMasteryAccount, MASTERY_KEY } from "./medals.js";
 import { mergeProgress, progressRows, claimGuestProgress } from "./cloud-progress.js";
+import { fetchWithTimeout, withTimeout } from "./network.js";
 
 export const googleOptions = redirectTo => ({ provider: "google", options: { scopes: "openid email profile", redirectTo } });
 export function authReturnUrl(href) {
@@ -47,6 +48,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     shell.hidden = !user || recovery;
     shell.inert = shell.hidden;
     $("account-member").hidden = !user;
+    document.querySelector('.skip-link').href = shell.hidden ? '#login-title' : '#main';
   }
   function clearPasswords() {
     for (const field of document.querySelectorAll('.password-field input')) { field.value = ""; field.type = "password"; }
@@ -72,19 +74,23 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   addEventListener("popstate", () => {
     if (user && !recovery) return;
     const next = new URL(location.href).searchParams.get("auth");
-    showView(recovery ? "password" : next === "signup" || next === "reset" ? next : "signin", { navigate: false });
+    const target = recovery ? "password" : next === "signup" || next === "reset" ? next : "signin";
+    if (target !== view) showView(target, { navigate: false });
   });
   showView(view, { navigate: false, focus: false });
+  showApp();
+  say("Checking your account…");
   $("account-google").hidden = !GOOGLE_SIGN_IN_ENABLED;
   let client;
   try {
-    await new Promise((resolve, reject) => {
+    await withTimeout(new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = new URL("./vendor/supabase-2.119.0.js", import.meta.url).href;
       script.onload = resolve; script.onerror = reject; document.head.append(script);
-    });
+    }));
     client = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+      global: { fetch: fetchWithTimeout },
     });
   } catch {
     showApp();
@@ -226,9 +232,10 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   }
   try {
     if (navigator.onLine) {
-      const { data, error } = await client.auth.getSession();
+      const version = generation;
+      const { data, error } = await withTimeout(client.auth.getSession());
       if (error) throw error;
-      await changeAccount(data.session?.user ?? null);
+      if (version === generation) await changeAccount(data.session?.user ?? null);
     } else showApp();
   } catch {
     showApp();

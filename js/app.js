@@ -883,7 +883,10 @@ function renderMic() {
   fillListenState();
 }
 
-monitor.onState = () => renderMic();
+monitor.onState = state => {
+  if (state === "interrupted") { halt(); renderPrimary(); }
+  renderMic();
+};
 monitor.beatClock = () => transport.snapshot().beats;
 
 function screenName() {
@@ -1975,6 +1978,11 @@ function renderNotation() {
 function renderInstruments() {
   if (!els.instrumentList) return;
   const current = instrumentOrDefault(prefs.instrumentId).id;
+  const inputs = els.instrumentList.querySelectorAll('input[name="instrument"]');
+  if (inputs.length === INSTRUMENTS.length) {
+    for (const input of inputs) input.checked = input.value === current;
+    return;
+  }
   els.instrumentList.replaceChildren(
     ...INSTRUMENTS.map((instrument) => {
       const label = document.createElement("label");
@@ -2486,7 +2494,7 @@ function restoreStoredGrade() {
   showGrade(resultForCard(session));
 }
 
-transport.onEnded = () => {
+function handleTransportEnded() {
   playback.playing = false;
   playback.paused = false;
   playback.ended = true;
@@ -2513,8 +2521,15 @@ transport.onEnded = () => {
   monitor.stop();
   const next = handlePlaybackEnded(session, grade);
   const wait = grade.graded && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 900 : 0;
-  window.setTimeout(() => applySession(next.session, { autoStart: next.autoStart }), wait);
-};
+  const version = startGen, endedSession = session;
+  if (feedbackTimer) window.clearTimeout(feedbackTimer);
+  feedbackTimer = window.setTimeout(() => {
+    if (version !== startGen || session !== endedSession) return;
+    feedbackTimer = null;
+    applySession(next.session, { autoStart: next.autoStart });
+  }, wait);
+}
+transport.onEnded = handleTransportEnded;
 
 const practiceUI = setupPracticeUI({
   onPractice: startLesson, onChanged: renderStorageNotice,

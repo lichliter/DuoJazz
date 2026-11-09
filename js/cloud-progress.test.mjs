@@ -98,3 +98,34 @@ test('opposite progress order converges to byte-identical snapshots', () => {
     assert.equal(JSON.stringify(a), JSON.stringify(b));
   }
 });
+
+test('damaged progress fields are isolated and invalid keys never earn credit', () => {
+  const progress = emptyMastery();
+  progress.lessons['learn-lick'].passedKeys = 'damaged';
+  progress.lessons['master-lick'].passedKeys = ['C', null, 'invalid', {}, 'G'];
+  progress.masteredKeys = {};
+  const result = mergeProgress(progress, [null, {}, { lesson_id: 'master-lick', kind: 'passedKeys', key_id: 'invalid' }]);
+  assert.deepEqual(result.lessons['master-lick'].passedKeys, ['C', 'G']);
+  assert.deepEqual(result.lessons['learn-lick'].passedKeys, []);
+  assert.equal(result.modules.cmar.masteredKeys.length, 2);
+});
+
+test('a damaged journal record does not hide later passes and saving repairs its copy', () => {
+  const original = globalThis.localStorage, values = new Map();
+  globalThis.localStorage = {
+    get length() { return values.size; }, key: i => [...values.keys()][i],
+    getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value),
+  };
+  try {
+    setMasteryAccount('damaged-test');
+    const prefix = 'duojazz-mastery-v1:damaged-test:earned:';
+    const row = ['master-lick', 'passedKeys', 'C'], key = prefix + encodeURIComponent(JSON.stringify(row));
+    values.set(key, '{');
+    values.set(prefix + 'valid', JSON.stringify(['master-lick', 'passedKeys', 'G']));
+    assert.deepEqual(loadMastery().lessons['master-lick'].passedKeys, ['G']);
+    saveMastery(recordQuizPass(loadMastery(), 'master-lick', 'C'));
+    assert.deepEqual(JSON.parse(values.get(key)), row);
+    values.delete('duojazz-mastery-v1:damaged-test');
+    assert.deepEqual(loadMastery().lessons['master-lick'].passedKeys, ['C', 'G']);
+  } finally { globalThis.localStorage = original; setMasteryAccount(null); }
+});

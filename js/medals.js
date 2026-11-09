@@ -31,8 +31,8 @@ export function normalizeMastery(raw) {
   const base = emptyMastery();
   if (!raw || typeof raw !== "object") return base;
   for (const lesson of LESSONS) {
-    const passed = (raw.lessons?.[lesson.id]?.passedKeys ?? []).map(normalizeKeyId);
-    const learned = (raw.lessons?.[lesson.id]?.learnedKeys ?? []).map(normalizeKeyId);
+    const passed = validKeys(raw.lessons?.[lesson.id]?.passedKeys);
+    const learned = validKeys(raw.lessons?.[lesson.id]?.learnedKeys);
     base.lessons[lesson.id].passedKeys = [...new Set(passed)];
     base.lessons[lesson.id].learnedKeys = [...new Set(learned)];
   }
@@ -46,7 +46,7 @@ export function normalizeMastery(raw) {
       if (!learn || !master) continue;
       const practice = base.lessons[learn.id]?.passedKeys ?? [];
       const learned = base.lessons[learn.id]?.learnedKeys ?? [];
-      const stored = (raw.modules?.[module.id]?.masteredKeys ?? []).map(normalizeKeyId);
+      const stored = validKeys(raw.modules?.[module.id]?.masteredKeys);
       base.lessons[master.id].passedKeys = [...new Set([
         ...(base.lessons[master.id]?.passedKeys ?? []),
         ...practice,
@@ -55,9 +55,13 @@ export function normalizeMastery(raw) {
       base.lessons[learn.id].passedKeys = [...new Set(learned)];
     }
   }
-  base.masteredKeys = [...new Set((raw.masteredKeys ?? []).map(normalizeKeyId))];
+  base.masteredKeys = [...new Set(validKeys(raw.masteredKeys))];
   base.medal = medalForCount(base.masteredKeys.length);
   return reconcileMastery(base);
+}
+
+function validKeys(value) {
+  return Array.isArray(value) ? value.filter(id => TWELVE_KEY_IDS.includes(id)) : [];
 }
 
 export function medalForCount(count) {
@@ -232,10 +236,14 @@ export function loadMastery(key = activeMasteryKey) {
     for (let i = 0; i < localStorage.length; i++) {
       const entry = localStorage.key(i);
       if (!entry?.startsWith(`${key}:earned:`)) continue;
-      const [id, kind, pitch] = JSON.parse(localStorage.getItem(entry));
-      if (["passedKeys", "learnedKeys"].includes(kind) && next.lessons[id] && TWELVE_KEY_IDS.includes(pitch)) {
-        if (!next.lessons[id][kind].includes(pitch)) next.lessons[id][kind].push(pitch);
-      }
+      try {
+        const row = JSON.parse(localStorage.getItem(entry));
+        if (!Array.isArray(row) || row.length !== 3) continue;
+        const [id, kind, pitch] = row;
+        if (["passedKeys", "learnedKeys"].includes(kind) && Object.hasOwn(next.lessons, id) && TWELVE_KEY_IDS.includes(pitch)) {
+          if (!next.lessons[id][kind].includes(pitch)) next.lessons[id][kind].push(pitch);
+        }
+      } catch { /* Keep reading other earned keys when one record is damaged. */ }
     }
   } catch { /* Retain the snapshot if the append-only journal cannot be read. */ }
   return canonicalMastery(next);
@@ -248,7 +256,7 @@ export function saveMastery(mastery) {
     for (const kind of ["passedKeys", "learnedKeys"]) for (const pitch of lesson[kind]) {
       const row = [id, kind, pitch];
       const key = `${activeMasteryKey}:earned:${encodeURIComponent(JSON.stringify(row))}`;
-      try { if (localStorage.getItem(key) != null) continue; } catch {}
+      try { if (localStorage.getItem(key) === JSON.stringify(row)) continue; } catch {}
       journalSaved = writeStoredJson(key, row) && journalSaved;
     }
   }

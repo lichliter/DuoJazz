@@ -25,7 +25,9 @@ export function progressRows(mastery, userId) {
 
 export function mergeProgress(mastery, rows) {
   const next = normalizeMastery(mastery);
-  for (const { lesson_id, key_id, kind } of rows) {
+  for (const row of Array.isArray(rows) ? rows : []) {
+    if (!row || typeof row !== 'object') continue;
+    const { lesson_id, key_id, kind } = row;
     const keys = next.lessons[lesson_id]?.[kind];
     if (["passedKeys", "learnedKeys"].includes(kind) && Array.isArray(keys) && !keys.includes(key_id)) keys.push(key_id);
   }

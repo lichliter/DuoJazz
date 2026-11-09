@@ -80,6 +80,7 @@ export class PitchMonitor {
 
   releaseGraph(graph) {
     if (!graph) return;
+    for (const track of graph.stream?.getTracks?.() ?? []) track.removeEventListener?.('ended', graph.onEnded);
     try {
       if (graph.node?.port) graph.node.port.onmessage = null;
       graph.node?.port.postMessage("stop");
@@ -105,13 +106,14 @@ export class PitchMonitor {
     const sameGraph = this.isLive()
       && this.processing === processing
       && this.ctx
+      && this.ctx.state !== "closed"
       && (!ctx || ctx === this.ctx);
     if (sameGraph) {
       const token = this.startToken;
       const context = this.ctx;
       this.reset();
       try {
-        if (context.state === "suspended") await context.resume();
+        if (context.state === "suspended" || context.state === "interrupted") await context.resume();
       } catch {
         if (token === this.startToken) {
           this.stop();
@@ -133,7 +135,8 @@ export class PitchMonitor {
       graph.ctx = ctx ?? new Ctx();
       this.ctx = graph.ctx;
       this.ownsContext = graph.ownsContext;
-      if (graph.ctx.state === "suspended") await graph.ctx.resume();
+      if (graph.ctx.state === "closed") throw new Error("Audio context closed");
+      if (graph.ctx.state === "suspended" || graph.ctx.state === "interrupted") await graph.ctx.resume();
       if (token !== this.startToken) return;
       if (typeof graph.ctx.audioWorklet?.addModule !== "function") throw new Error("AudioWorklet unavailable");
       this.setState("requesting");
@@ -143,6 +146,16 @@ export class PitchMonitor {
       });
       if (token !== this.startToken) return;
       this.stream = graph.stream;
+      graph.onEnded = () => {
+        if (token !== this.startToken) return;
+        this.stop();
+        this.setState("interrupted");
+      };
+      for (const track of graph.stream.getTracks()) track.addEventListener?.('ended', graph.onEnded);
+      if (!graph.stream.getTracks().some(track => track.readyState === 'live')) {
+        graph.onEnded();
+        return;
+      }
       await graph.ctx.audioWorklet.addModule(WORKLET_URL);
       if (token !== this.startToken) return;
       this.source = graph.source = graph.ctx.createMediaStreamSource(graph.stream);
@@ -152,7 +165,7 @@ export class PitchMonitor {
       graph.source.connect(graph.node);
       graph.node.connect(graph.mute);
       graph.mute.connect(graph.ctx.destination);
-      graph.node.port.onmessage = (event) => this.handleFrame(event.data);
+      graph.node.port.onmessage = (event) => { if (token === this.startToken) this.handleFrame(event.data); };
       this.setState("listening");
     } catch (error) {
       if (token === this.startToken) {
@@ -208,6 +221,7 @@ export class PitchMonitor {
 }
 
 export function micCopy(state) {
+  if (state === "interrupted") return "Microphone disconnected. Reconnect it, then record again.";
   if (state === "denied") return "Microphone blocked. Enable it in Safari settings to grade.";
   if (state === "unsupported") return "This browser cannot run pitch detection. Try iPad Safari.";
   if (state === "no-signal") return "No signal. Play closer to the mic, or use headphones for the backing.";

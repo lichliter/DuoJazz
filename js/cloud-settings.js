@@ -1,4 +1,4 @@
-import { writeStoredJson } from './storage.js';
+import { clearStorageFailure, writeStoredJson } from './storage.js';
 
 export const SETTINGS_KEY = 'duojazz.accountSettings.v1';
 export const SETTINGS_OWNER_KEY = 'duojazz.settingsOwner.v1';
@@ -11,14 +11,32 @@ const fieldDefault = name => name.startsWith('lesson:') ? (name.endsWith(':tempo
 const newer = (a, b) => !b || a.edit_clock > b.edit_clock || (a.edit_clock === b.edit_clock && a.edit_id > b.edit_id);
 const validName = name => scalarNames.includes(name) || /^chart:[a-z0-9-]+$/.test(name)
   || /^lesson:[a-z0-9:-]+:(tempo|melodyRegister)$/.test(name) || /^module:[a-z0-9-]+:studyMode$/.test(name);
+const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const keyIds = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+function validValue(name, value) {
+  if (typeof name !== 'string' || name.length > 256 || !validName(name)) return false;
+  if (name.startsWith('chart:') || ['allKeys', 'swing', 'guideTones', 'metronome', 'auto', 'headphonesTipSeen'].includes(name)) return typeof value === 'boolean';
+  if (name === 'tempo' || name.endsWith(':tempo')) return Number.isFinite(value) && value >= 60 && value <= 160;
+  if (name.endsWith(':melodyRegister')) return [-1, 0, 1].includes(value);
+  if (name.endsWith(':studyMode')) return ['learn', 'practice'].includes(value);
+  if (name === 'keyMode') return ['one', 'chromatic', 'fourths', 'random'].includes(value);
+  if (name === 'startKeyId') return keyIds.includes(value);
+  if (name === 'selectedKeyIds') return Array.isArray(value) && value.length <= 12 && value.every(id => keyIds.includes(id));
+  return typeof value === 'string' && /^[a-z0-9-]+$/.test(value) && value.length <= 128;
+}
+const validRow = row => record(row) && validValue(row.name, row.value)
+  && Number.isSafeInteger(row.edit_clock) && row.edit_clock >= 0
+  && typeof row.edit_id === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(row.edit_id);
 function flatten(values) {
+  if (!record(values)) return {};
   const result = Object.fromEntries(scalarNames.filter(n => Object.hasOwn(values, n)).map(n => [n, values[n]]));
-  for (const id of values.myCharts ?? []) result[`chart:${id}`] = true;
+  for (const id of Array.isArray(values.myCharts) ? values.myCharts : []) result[`chart:${id}`] = true;
   for (const [id, lesson] of Object.entries(values.lessons ?? {})) {
+    if (!record(lesson)) continue;
     for (const field of ['tempo', 'melodyRegister']) if (Object.hasOwn(lesson, field)) result[`lesson:${id}:${field}`] = lesson[field];
   }
-  for (const [id, module] of Object.entries(values.modules ?? {})) result[`module:${id}:studyMode`] = module.studyMode;
-  return Object.fromEntries(Object.entries(result).filter(([name, value]) => validName(name) && value !== undefined));
+  for (const [id, module] of Object.entries(values.modules ?? {})) if (record(module)) result[`module:${id}:studyMode`] = module.studyMode;
+  return Object.fromEntries(Object.entries(result).filter(([name, value]) => validValue(name, value)));
 }
 function initialSettings(values) {
   return Object.fromEntries(Object.entries(flatten(values)).filter(([name, value]) =>
@@ -32,7 +50,8 @@ function expand(entries) {
     else if (name.startsWith('lesson:') || name.startsWith('module:')) {
       const group = name.startsWith('lesson:') ? 'lessons' : 'modules';
       const end = name.lastIndexOf(':'), id = name.slice(7, end), field = name.slice(end + 1);
-      (result[group][id] ??= {})[field] = value;
+      if (!Object.hasOwn(result[group], id)) result[group][id] = {};
+      result[group][id][field] = value;
     } else result[name] = structuredClone(value);
   }
   result.myCharts.sort();
@@ -44,7 +63,7 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
   const key = () => `${SETTINGS_KEY}:${userId}`;
   const prefix = () => `${key()}:edit:`;
   function merge(rows) {
-    for (const row of rows) if (validName(row.name) && (newer(row, entries[row.name]) || (row.edit_clock === entries[row.name]?.edit_clock && row.edit_id === entries[row.name]?.edit_id))) entries[row.name] = structuredClone(row);
+    for (const row of rows) if (validRow(row) && (newer(row, entries[row.name]) || (row.edit_clock === entries[row.name]?.edit_clock && row.edit_id === entries[row.name]?.edit_id))) entries[row.name] = structuredClone(row);
   }
   function operations() {
     const ops = new Map(memory);
@@ -53,8 +72,10 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
       for (let i = 0; i < target.length; i++) {
         const name = target.key(i);
         if (name?.startsWith(prefix())) {
-          const op = JSON.parse(target.getItem(name));
-          if (op && validName(op.name)) ops.set(op.edit_id, op);
+          try {
+            const op = JSON.parse(target.getItem(name));
+            if (validRow(op) && name === prefix() + op.edit_id) ops.set(op.edit_id, op);
+          } catch { /* A damaged record must not hide the remaining edits. */ }
         }
       }
     } catch { /* Memory retains edits when the offline cache is unavailable. */ }
@@ -63,13 +84,16 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
   function reload() {
     try {
       const cache = JSON.parse(store().getItem(key()) ?? 'null');
-      if (cache?.format === 2) merge(Object.values(cache.entries ?? {}));
+      if (cache?.format === 2) {
+        merge(Object.values(cache.entries ?? {}));
+        for (const op of Array.isArray(cache.unsaved) ? cache.unsaved : []) if (validRow(op)) memory.set(op.edit_id, op);
+      }
     } catch {}
     merge(operations());
   }
   function persist() {
     if (!userId) return true;
-    return writeStoredJson(key(), { format: 2, entries, seed }, storage);
+    return writeStoredJson(key(), { format: 2, entries, seed, unsaved: [...memory.values()] }, storage);
   }
   function edit(name, value) {
     const clock = Math.max(now(), ...Object.values(entries).map(e => e.edit_clock + 1));
@@ -84,7 +108,10 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     let oldPending = {};
     try {
       const cache = JSON.parse(store().getItem(key()) ?? 'null');
-      if (cache?.format === 2) { entries = cache.entries ?? {}; seed = cache.seed ?? {}; }
+      if (cache?.format === 2) {
+        merge(Object.values(cache.entries ?? {}));
+        seed = Object.fromEntries(Object.entries(cache.seed ?? {}).filter(([name, value]) => validValue(name, value)));
+      }
       else if (cache) { seed = initialSettings(cache.values ?? {}); oldPending = cache.pending ?? {}; }
       else {
         const owner = store().getItem(SETTINGS_OWNER_KEY);
@@ -99,11 +126,11 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
   }
   function values() { return expand(entries); }
   function set(changes) {
-    if (!userId) return;
+    if (!userId || !record(changes)) return;
     // Compute list differences against what this tab actually displayed.
     const previousCharts = values().myCharts;
     const flat = flatten(changes);
-    if (Object.hasOwn(changes, 'myCharts')) {
+    if (Array.isArray(changes.myCharts)) {
       for (const id of previousCharts) if (!changes.myCharts.includes(id)) flat[`chart:${id}`] = false;
       for (const id of changes.myCharts) if (previousCharts.includes(id)) delete flat[`chart:${id}`];
     }
@@ -113,7 +140,7 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     persist(); onChange();
   }
   function setChart(id, selected) {
-    if (!userId || !validName(`chart:${id}`)) return;
+    if (!userId || !validValue(`chart:${id}`, selected)) return;
     reload(); edit(`chart:${id}`, selected); persist(); onChange();
   }
   async function sync(client) {
@@ -150,6 +177,7 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     for (const op of pending) {
       memory.delete(op.edit_id);
       try { store().removeItem(editPrefix + op.edit_id); } catch { /* Safe to retry the same id. */ }
+      clearStorageFailure(editPrefix + op.edit_id);
     }
     seed = {};
     return persist();

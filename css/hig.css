@@ -1954,7 +1954,7 @@ button.module-banner {
 .login-card button.login-primary { background: var(--tint); color: var(--bg); font-weight: 650; min-height: 50px; margin-top: 14px; border: 0; }
 .login-create { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; color: var(--label-secondary); font: var(--text-subhead); }
 .login-create #account-signup { background: none; border: 0; padding: 0 4px; font-weight: 600; }
-.account-status { min-height: 36px; margin: 18px 0 0; text-align: center; }
+.account-status { min-height: 36px; margin: 0 0 18px; text-align: left; }
 .masthead .masthead-actions { align-items: center; gap: 14px; }
 .account-chip { display: inline-flex; align-items: center; justify-content: center; padding: 5px; width: 44px; height: 44px; flex: 0 0 44px; background: var(--bg-secondary); color: var(--label); border: 1px solid var(--separator); border-radius: 999px; font: var(--text-subhead); cursor: pointer; }
 .account-avatar { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; display: grid; place-items: center; color: var(--bg); background: var(--tint); font: 700 12px var(--font); }

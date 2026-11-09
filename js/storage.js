@@ -1,5 +1,10 @@
 const failedKeys = new Set();
 
+// An acknowledged journal entry no longer needs a browser write.
+export function clearStorageFailure(key) {
+  failedKeys.delete(key);
+}
+
 export function writeStoredJson(key, value, storage = undefined) {
   try {
     const target = storage ?? globalThis.localStorage;

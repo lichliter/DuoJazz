@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCloudSettings } from './cloud-settings.js';
+import { storageWarning } from './storage.js';
 
 const storage = () => {
   const map = new Map();
@@ -174,4 +175,52 @@ test('all twelve account starting keys retain their pitch and selected-key membe
     assert.equal(restored.startKeyId, key);
     assert.deepEqual(restored.selectedKeyIds, [key]);
   }
+});
+
+test('damaged snapshots and journal entries do not hide valid settings or poison new saves', async () => {
+  const disk = storage(), api = server(), prefix = 'duojazz.accountSettings.v1:a';
+  const good = { name: 'swing', value: false, edit_clock: 1, edit_id: crypto.randomUUID() };
+  disk.setItem(prefix, JSON.stringify({ format: 2, entries: {
+    tempo: null, instrumentId: { name: 'instrumentId', value: {}, edit_clock: 'bad', edit_id: 'bad' },
+  }, seed: { metronome: {}, allKeys: false } }));
+  disk.setItem(prefix + ':edit:broken', '{');
+  disk.setItem(prefix + ':edit:' + good.edit_id, JSON.stringify(good));
+  const settings = createCloudSettings({ storage: disk });
+  assert.doesNotThrow(() => settings.activate('a'));
+  assert.equal(settings.values().swing, false);
+  assert.equal(settings.values().allKeys, false);
+  assert.equal(settings.values().metronome, undefined);
+  api.rows.set('a:tempo', { user_id: 'a', name: 'tempo', value: {}, edit_clock: 'broken', edit_id: null });
+  await settings.sync(api);
+  settings.set({ tempo: 120 });
+  // Remove the corrupt server fixture so a subsequent valid write can be stored.
+  api.rows.delete('a:tempo');
+  await settings.sync(api);
+  assert.equal(api.rows.get('a:tempo').value, 120);
+  assert.equal(Number.isSafeInteger(api.rows.get('a:tempo').edit_clock), true);
+  assert.equal(settings.hasPending(), false);
+});
+
+test('a failed journal write survives reopening through the snapshot and still uploads', async () => {
+  const disk = storage(), api = server();
+  const write = disk.setItem;
+  disk.setItem = (key, value) => { if (key.includes(':edit:')) throw Error('quota'); write(key, value); };
+  let settings = createCloudSettings({ storage: disk });
+  settings.activate('a'); settings.set({ tempo: 124 });
+  settings = createCloudSettings({ storage: disk });
+  settings.activate('a');
+  assert.equal(settings.hasPending(), true);
+  await settings.sync(api);
+  assert.equal(api.rows.get('a:tempo').value, 124);
+  assert.equal(storageWarning(), '');
+  settings = createCloudSettings({ storage: disk }); settings.activate('a');
+  assert.equal(settings.hasPending(), false);
+});
+
+test('malformed legacy values and unknown field shapes cannot break activation', () => {
+  const settings = createCloudSettings({ storage: storage() });
+  assert.doesNotThrow(() => settings.activate('a', { myCharts: {}, lessons: { a: null }, modules: { b: null } }));
+  settings.set({ tempo: {}, selectedKeyIds: {}, myCharts: {}, lessons: { a: [] } });
+  assert.deepEqual(settings.values(), empty);
+  assert.equal(settings.hasPending(), false);
 });

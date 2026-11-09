@@ -297,7 +297,7 @@ test("Hear it plays a demo without the mic and Stop returns to idle", async () =
   assert.match(primary, /stopHearDemo\(\)/);
   assert.match(primary, /beginListening\(\)/);
 
-  const ended = app.slice(app.indexOf("transport.onEnded"), app.indexOf("els.homeSummary?.addEventListener"));
+  const ended = app.slice(app.indexOf("function handleTransportEnded"), app.indexOf("transport.onEnded = handleTransportEnded"));
   assert.match(ended, /if \(hearDemo\)/);
   const hearEnd = ended.slice(ended.indexOf("if (hearDemo)"), ended.indexOf("if (!session"));
   assert.match(hearEnd, /hearDemo = false/);

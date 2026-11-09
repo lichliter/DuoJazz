@@ -294,3 +294,22 @@ test("closing a lesson restores the module page scroll position", () => {
   context.exitSession();
   assert.equal(window.scrollY, 350);
 });
+
+test('delayed playback completion cannot reopen a session after leaving or switching accounts', () => {
+  for (const stale of [false, true]) {
+    let callback, applied = 0;
+    const context = appContext(['handleTransportEnded'], {
+      startGen: 1, feedbackTimer: null,
+      playback: {}, recordBacking: false, hearDemo: false,
+      session: { screen: 'session', demo: false },
+      currentCard: () => 'play', gradeCurrentCard: () => ({ graded: true }),
+      monitor: { stop: noop }, handlePlaybackEnded: () => ({ session: {}, autoStart: true }),
+      window: { matchMedia: () => ({ matches: false }), setTimeout(fn) { callback = fn; return 1; }, clearTimeout: noop },
+      applySession() { applied++; },
+    });
+    context.handleTransportEnded();
+    if (stale) { context.startGen++; context.session = null; }
+    callback();
+    assert.equal(applied, stale ? 0 : 1);
+  }
+});

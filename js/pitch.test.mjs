@@ -48,12 +48,12 @@ function installMic() {
   globalThis.navigator.mediaDevices = {
     getUserMedia: async (constraints) => {
       calls.push(constraints);
-      const track = {
+      const track = Object.assign(new EventTarget(), {
         readyState: "live",
         stop() {
           this.readyState = "ended";
         },
-      };
+      });
       tracks.push(track);
       return { getTracks: () => [track] };
     },
@@ -322,4 +322,54 @@ test("resuming an existing graph cleans its stream on failure without closing a 
   assert.equal(tracks[0].readyState, "ended");
   assert.equal(ctx.closeCalls, 0);
   for (const node of nodes) assert.equal(node.disconnects, 1);
+});
+
+test('a disconnected microphone releases its graph and can start again', async () => {
+  const { ctx, tracks, nodes } = startupFixture();
+  const monitor = new PitchMonitor();
+  await monitor.start(ctx);
+  const oldFrame = monitor.node.port.onmessage;
+  tracks[0].readyState = 'ended';
+  tracks[0].dispatchEvent(new Event('ended'));
+  assert.equal(monitor.state, 'interrupted');
+  assert.equal(monitor.isLive(), false);
+  for (const node of nodes) assert.equal(node.disconnects, 1);
+  assert.equal(ctx.closeCalls, 0);
+  await monitor.start(ctx);
+  tracks[0].dispatchEvent(new Event('ended'));
+  oldFrame({ data: { hz: 440, amp: 0.2 } });
+  assert.equal(monitor.state, 'listening');
+  assert.equal(monitor.isLive(), true);
+  assert.equal(monitor.observations.length, 0);
+  monitor.stop();
+});
+
+test('a microphone disconnect during worklet startup cannot leave a phantom live graph', async () => {
+  const { ctx, tracks } = startupFixture();
+  const gate = deferred(), entered = deferred();
+  ctx.audioWorklet.addModule = () => { entered.resolve(); return gate.promise; };
+  const monitor = new PitchMonitor();
+  const pending = monitor.start(ctx);
+  await entered.promise;
+  tracks[0].readyState = 'ended'; tracks[0].dispatchEvent(new Event('ended'));
+  gate.resolve(); await pending;
+  assert.equal(monitor.state, 'interrupted');
+  assert.equal(monitor.node, null);
+  assert.equal(monitor.isLive(), false);
+});
+
+test('interrupted audio contexts resume; closed contexts never report listening', async () => {
+  const { ctx, tracks } = startupFixture();
+  const monitor = new PitchMonitor();
+  await monitor.start(ctx);
+  let resumes = 0;
+  ctx.state = 'interrupted'; ctx.resume = async () => { resumes++; ctx.state = 'running'; };
+  await monitor.start(ctx);
+  assert.equal(resumes, 1);
+  assert.equal(monitor.state, 'listening');
+  ctx.state = 'closed';
+  await monitor.start(ctx);
+  assert.equal(monitor.state, 'unsupported');
+  assert.equal(tracks[0].readyState, 'ended');
+  assert.equal(monitor.isLive(), false);
 });

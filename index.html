@@ -26,12 +26,13 @@
 </head>
 <body>
   <p id="offline-status" class="offline-status" role="status" hidden></p>
-  <a class="skip-link" href="#main">Skip to main content</a>
+  <a class="skip-link" href="#login-title">Skip to main content</a>
 
-  <section id="login-screen" class="login-screen" aria-labelledby="login-title" hidden>
+  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
     <main class="login-card account-panel">
       <img class="login-record" src="./icons/icon-512.png?v=dj-record-6" alt="DuoJazz" width="98" height="98">
       <h1 id="login-title" tabindex="-1">Sign in</h1>
+      <p id="account-status" class="help account-status" role="status" aria-live="polite">Checking your account…</p>
       <form id="account-guest" class="auth-form" data-auth-view="signin">
         <button type="button" id="account-google" hidden disabled>Continue with Google</button>
         <label for="account-email">Email</label>
@@ -72,7 +73,6 @@
         <p id="new-password-help" class="help field-help">At least 8 characters.</p>
         <button type="submit" id="password-submit" class="login-primary" disabled>Save password</button>
       </form>
-      <p id="account-status" class="help account-status" role="status" aria-live="polite">Checking your account…</p>
     </main>
   </section>
 
