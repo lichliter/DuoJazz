@@ -10,6 +10,7 @@ import { instrumentOrDefault } from "./instruments.js";
 import { rapidMicStep, shouldRecordMastery } from "./rapid.js";
 import { parseTabState } from "./tabs.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
+import { CHART_LIBRARY } from "./registry.js";
 
 const source = await readFile(new URL("./app.js", import.meta.url), "utf8");
 const noop = () => {};
@@ -56,6 +57,46 @@ function appContext(names, overrides = {}) {
 }
 
 const progressFunctions = ["shownMastery", "clearMasteryPreview", "applyDeepLink", "recordRapidPass", "renderStorageNotice"];
+
+test('saving a chart switch cannot render the previous chart or carry its key into Four', () => {
+  const rendered = [], saved = [];
+  const context = appContext(['selectTab', 'currentChart', 'chartConcertKey'], {
+    CHART_LIBRARY,
+    nav: { tab: 'charts', tune: 'blue-bossa' }, lastChartTune: 'blue-bossa',
+    chartKeySelection: { chartId: 'blue-bossa', keyId: 'C' },
+    saveTabScroll: noop, restoreTabScroll: noop,
+    cloudSettings: { userId: 'account-a', set(value) { saved.push(value.selectedChartId); context.render(); } },
+    render() { rendered.push([context.currentChart().id, context.chartConcertKey()]); },
+  });
+  context.selectTab('charts', { tune: 'four' });
+  assert.deepEqual(rendered, [['four', 'Eb'], ['four', 'Eb']]);
+  assert.deepEqual(saved, ['four']);
+
+  for (const chart of CHART_LIBRARY.filter(chart => chart.id !== 'four')) {
+    rendered.length = 0;
+    context.chartKeySelection = { chartId: context.currentChart().id, keyId: 'C' };
+    context.selectTab('charts', { tune: chart.id });
+    assert.deepEqual(rendered, [[chart.id, chart.key], [chart.id, chart.key]]);
+  }
+});
+
+test('a chosen key survives rerendering its chart but never applies to another chart', () => {
+  const context = appContext(['selectTab', 'currentChart', 'chartConcertKey'], {
+    CHART_LIBRARY,
+    nav: { tab: 'charts', tune: 'four' }, lastChartTune: 'four',
+    chartKeySelection: { chartId: 'four', keyId: 'D' },
+    saveTabScroll: noop, restoreTabScroll: noop,
+    cloudSettings: { userId: 'account-a', set() { context.render(); } },
+  });
+  context.selectTab('charts', { tune: 'four' });
+  assert.equal(context.chartConcertKey(), 'D');
+  assert.equal(context.chartConcertKey(CHART_LIBRARY.find(chart => chart.id === 'blue-bossa')), 'C');
+  // A saved chart selection can also change while the Licks page is open.
+  context.nav = { tab: 'licks', tune: null };
+  context.lastChartTune = 'autumn-leaves';
+  context.selectTab('charts');
+  assert.equal(context.chartConcertKey(), 'G');
+});
 
 for (const demo of ["path", "grades", "medal"]) {
   test(`${demo} demo previews cannot overwrite real progress or preferences`, () => {

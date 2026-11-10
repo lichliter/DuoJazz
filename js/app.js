@@ -204,7 +204,7 @@ const SELECTED_MODULE_KEY = "duojazz.selectedModule.v1";
 let selectedModuleId = loadSelectedModule();
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
-let chartConcertKeyId = null;
+let chartKeySelection = null;
 let favoriteLicks = [];
 let timedRunActive = false;
 function isTimedChart() {
@@ -967,11 +967,12 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
   }
   saveTabScroll();
   if (tab === "charts") {
-    if (tune !== undefined && tune !== lastChartTune) chartConcertKeyId = null;
+    if (tune !== undefined && tune !== lastChartTune) chartKeySelection = null;
     if (tune !== undefined) lastChartTune = tune;
     if (!CHART_LIBRARY.some(chart => chart.id === lastChartTune)) lastChartTune = CHART_LIBRARY[0].id;
-    if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
     nav = { tab: "charts", tune: lastChartTune };
+    // Saving can synchronously render via account progress sync. Publish the new chart first.
+    if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
   } else {
     nav = { tab, tune: null };
   }
@@ -2196,9 +2197,13 @@ function currentChart() {
   return CHART_LIBRARY.find(chart => chart.id === nav.tune) ?? CHART_LIBRARY.find(chart => chart.id === lastChartTune) ?? CHART_LIBRARY[0];
 }
 
+function chartConcertKey(chart = currentChart()) {
+  return chartKeySelection?.chartId === chart.id ? chartKeySelection.keyId : chart.key;
+}
+
 function startChartTones(kind) {
   const chart = currentChart();
-  const delta = getKey(chartConcertKeyId ?? chart.key).pc - getKey(chart.key).pc;
+  const delta = getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc;
   const parent = CHART_MODULES.find(module => module.id === `chart-${chart.id}`);
   if (kind === 'master') {
     const lesson = parent.lessons.find(lesson => lesson.chartTimed);
@@ -2233,7 +2238,7 @@ function openChartApplications(moduleId) {
     button.onclick = () => {
       closeSheet(dialog);
       const lesson = lessonById(choice.lessonId);
-      const delta = getKey(chartConcertKeyId ?? chart.key).pc - getKey(chart.key).pc;
+      const delta = getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc;
       startLesson(lesson.id, { keyId: transposeToneKey(lesson.defaultKeyId, delta) });
     };
     return button;
@@ -2247,7 +2252,7 @@ function openChartApplications(moduleId) {
 
 function renderChartDetail() {
   const tune = currentChart();
-  if (!chartConcertKeyId) chartConcertKeyId = tune.key;
+  const chartConcertKeyId = chartConcertKey(tune);
   const parent = CHART_MODULES.find(module => module.id === `chart-${tune.id}`);
   const first = [parent.lessons.find(lesson => lesson.kind === 'learn'), parent.lessons.find(lesson => lesson.chartPractice), parent.lessons.find(lesson => lesson.chartTimed)];
   const progress = keysByLesson();
@@ -2630,7 +2635,10 @@ document.getElementById('view-chart').addEventListener('click', () => {
   els.chartSheet.showModal();
   els.chartSheet.querySelector('.chart-sheet-body').scrollTop = 0;
 });
-els.chartKeys.addEventListener('change', () => { chartConcertKeyId = els.chartKeys.value; renderChartDetail(); });
+els.chartKeys.addEventListener('change', () => {
+  chartKeySelection = { chartId: currentChart().id, keyId: els.chartKeys.value };
+  renderChartDetail();
+});
 els.chartSheet.querySelector('[data-close]').addEventListener('click', () => closeSheet(els.chartSheet));
 els.chartSheet.addEventListener('click', event => {
   if (event.target !== els.chartSheet) return;
@@ -2642,7 +2650,7 @@ els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
 window.addEventListener("popstate", () => {
   const previousChart = nav.tune;
   nav = parseTabState(location.search);
-  if (nav.tune !== previousChart) chartConcertKeyId = null;
+  if (nav.tune !== previousChart) chartKeySelection = null;
   if (nav.tab === "charts") lastChartTune = nav.tune;
   render();
 });
