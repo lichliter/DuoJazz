@@ -2263,7 +2263,7 @@ function renderChartDetail() {
       onSelect: () => startChartTones(kind) };
   });
   const block = document.createElement('section'); block.className = 'module-block is-current';
-  block.append(moduleBanner({ ...parent, chart: true }), ...nodes.map(sleeveButton));
+  block.append(moduleBanner({ ...parent, chart: true }), document.getElementById('view-chart'), ...nodes.map(sleeveButton));
   const favoritesHeader = document.createElement('div'); favoritesHeader.className = 'chart-favorites-header';
   const heading = document.createElement('h2'); heading.className = 'chart-favorites-heading'; heading.textContent = 'Favorite Licks';
   const manage = document.createElement('button'); manage.type = 'button'; manage.className = 'collection-action chart-favorites-manage'; manage.textContent = 'Manage';
