@@ -1682,6 +1682,8 @@ function renderSessionChrome() {
   if (els.sessionOctave) els.sessionOctave.hidden = isTimedChart();
   if (els.continueBtn) els.continueBtn.hidden = !cycling && !session.sequence;
   renderKeyCycle();
+  const footer = els.session?.querySelector('.session-footer');
+  if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden) && Boolean(els.continueBtn?.hidden);
 }
 
 function chordTimingsFor(target) {
@@ -1805,7 +1807,10 @@ function layoutClickWheel() {
   const stageStyle = getComputedStyle(stage);
   const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
   const widthFit = Math.max(0, Math.floor(stage.clientWidth - padX));
-  const space = footer.getBoundingClientRect().top - card.getBoundingClientRect().top;
+  const footerTop = () => footer.hidden
+    ? screen.getBoundingClientRect().bottom
+    : footer.getBoundingClientRect().top;
+  const space = footerTop() - card.getBoundingClientRect().top;
   const cardStyle = getComputedStyle(card);
   const wrapStyle = getComputedStyle(wrap);
   const wrapPadY = (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
@@ -1861,8 +1866,8 @@ function layoutClickWheel() {
   wrap.dataset.systems = String(metrics.count);
   wrap.dataset.cardMin = String(Math.round(fit.cardHeight));
   const bar = footer.querySelector(".key-cycle");
-  const barVisible = Boolean(bar && !bar.hidden);
-  const barTop = (barVisible ? bar : footer).getBoundingClientRect().top;
+  const barVisible = Boolean(!footer.hidden && bar && !bar.hidden);
+  const barTop = barVisible ? bar.getBoundingClientRect().top : footerTop();
   let overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
   if (overflow > 1 && diameter > floor) {
     diameter = Math.max(floor, Math.floor(diameter - overflow));
