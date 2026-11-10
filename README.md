@@ -77,7 +77,7 @@ The following thirty modules come from Essential Jazz Vocabulary. Each module ha
 
 Practice sleeves represent harmonic applications, such as **Minor home** or **Altered dominant**. Selecting one opens matching **Favorite charts**, with other matching charts listed under **Suggested charts**. The favorites section offers **Choose charts** in its header, including when empty. Use **Version** for different starting degrees or forms of the cell. Choose a chart to practice that version at a matching passage. **Practice workbook example** is also available, including when no chart fits. Notation and demo playback use only the selected application and version.
 
-**Charts** opens a matching record-sleeve tree with three modes, followed by your favorite licks:
+**Charts** follows the same sections: **Practice** contains the three chord-tone modes, and **Integrate** contains your favorite licks with a **Manage** action:
 
 - **Learn** shows the notes and works through each chord at your pace.
 - **Practice** shows chord symbols with the notes hidden, advancing as you play each chord correctly. Show notes is available when needed.

@@ -2279,24 +2279,33 @@ function renderChartDetail() {
       onSelect: () => startChartTones(kind) };
   });
   const block = document.createElement('section'); block.className = 'module-block is-current';
-  block.append(moduleBanner({ ...parent, chart: true }), document.getElementById('view-chart'), ...nodes.map(sleeveButton));
+  block.append(moduleBanner({ ...parent, chart: true }), document.getElementById('view-chart'));
+  const practice = document.createElement('section'); practice.className = 'lesson-section';
+  const practiceHeading = document.createElement('h3'); practiceHeading.className = 'lesson-section-title';
+  practiceHeading.id = `section-${parent.id}-practice`; practiceHeading.textContent = 'Practice';
+  practice.setAttribute('aria-labelledby', practiceHeading.id);
+  practice.append(practiceHeading, ...nodes.map(sleeveButton));
+  const integrate = document.createElement('section'); integrate.className = 'lesson-section';
   const favoritesHeader = document.createElement('div'); favoritesHeader.className = 'chart-favorites-header';
-  const heading = document.createElement('h2'); heading.className = 'chart-favorites-heading'; heading.textContent = 'Favorite Licks';
+  const heading = document.createElement('h3'); heading.className = 'lesson-section-title'; heading.textContent = 'Integrate';
+  heading.id = `section-${parent.id}-integrate`;
+  integrate.setAttribute('aria-labelledby', heading.id);
   const manage = document.createElement('button'); manage.type = 'button'; manage.className = 'collection-action chart-favorites-manage'; manage.textContent = 'Manage';
   manage.setAttribute('aria-label', 'Manage favorite licks'); manage.setAttribute('aria-haspopup', 'dialog'); manage.setAttribute('aria-controls', 'quick-view');
   manage.onclick = () => libraryPicker.open('licks');
-  favoritesHeader.append(heading, manage); block.append(favoritesHeader);
+  favoritesHeader.append(heading, manage); integrate.append(favoritesHeader);
   const favorites = MODULES.filter(module => favoriteLicks.includes(module.id) && module.id !== 'chord-tones');
   for (const [index, module] of favorites.entries()) {
     const matches = chartApplications(tune.id, module.id);
     const node = { id: `chart-favorite-${module.id}`, title: module.name, coverTitle: module.name, number: 'Lick', practice: true,
       caption: `${matches.length} matching applications`, sleeve: ['oxblood', 'amber', 'teal'][index % 3], align: index % 2 ? 'right' : 'left',
       vinylTier: 'black', onSelect: () => openChartApplications(module.id) };
-    block.append(sleeveButton(node));
+    integrate.append(sleeveButton(node));
   }
   if (!favorites.length) {
-    const empty = document.createElement('p'); empty.className = 'help library-empty'; empty.textContent = 'Favorite licks in the picker to practice them on this chart.'; block.append(empty);
+    const empty = document.createElement('p'); empty.className = 'help library-empty'; empty.textContent = 'Favorite licks in the picker to practice them on this chart.'; integrate.append(empty);
   }
+  block.append(practice, integrate);
   document.getElementById('chart-tree').replaceChildren(block);
   requestAnimationFrame(paintPathTrail);
   const grid = chartGrid(tune, { instrumentId: prefs.instrumentId, concertKeyId: chartConcertKeyId });
