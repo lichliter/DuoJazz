@@ -1416,6 +1416,19 @@ export const PRACTICE_CATALOG = buildPracticeCatalog({
 Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);
 LESSONS.push(...PRACTICE_CATALOG.lessons);
+const EXCERPT_COMPOSERS = {
+  'cry-me-a-river': 'Arthur Hamilton',
+  'fly-me-to-the-moon': 'Bart Howard',
+  'have-you-met-miss-jones': 'Richard Rodgers',
+  'honeysuckle-rose': 'Fats Waller',
+  'i-got-rhythm': 'George Gershwin',
+  misty: 'Erroll Garner',
+  oleo: 'Sonny Rollins',
+  'satin-doll': 'Duke Ellington / Billy Strayhorn',
+  'softly-as-in-a-morning-sunrise': 'Sigmund Romberg',
+  summertime: 'George Gershwin',
+  'take-the-a-train': 'Billy Strayhorn',
+};
 // Include saved excerpt charts as well as complete tunes in the shared picker.
 export const CHART_LIBRARY = PRACTICE_CATALOG.charts.map(chart => {
   const full = TUNES.find(tune => tune.id === chart.id);
@@ -1423,7 +1436,7 @@ export const CHART_LIBRARY = PRACTICE_CATALOG.charts.map(chart => {
   const choice = PRACTICE_CATALOG.groups.flatMap(group => group.choices).find(item => item.chartId === chart.id);
   const lesson = PRACTICE_CATALOG.lessons.find(item => item.id === choice?.lessonId);
   const form = lesson && formById(applicationById(lesson.applicationId).formId);
-  return form ? { ...chart, key: lesson.defaultKeyId, keyQuality: form.keyQuality, excerpt: true, sections: [{ label: 'Excerpt', bars: form.bars.map(bar => bar.chords ?? bar) }] } : null;
+  return form ? { ...chart, composer: EXCERPT_COMPOSERS[chart.id] ?? chart.composer, key: lesson.defaultKeyId, keyQuality: form.keyQuality, excerpt: true, sections: [{ label: 'Excerpt', bars: form.bars.map(bar => bar.chords ?? bar) }] } : null;
 }).filter(Boolean);
 const chartTones = buildChordToneExercises(CHART_LIBRARY);
 export const CHART_MODULES = chartTones.chartModules;

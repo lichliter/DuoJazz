@@ -13,7 +13,7 @@ export function setupLibraryPicker({ modules, charts, getFavorites, getProgress,
     search.placeholder = type === 'licks' ? 'Search licks' : 'Search charts';
     filter.setAttribute('aria-pressed', String(favoritesOnly));
     const favorites = new Set(getFavorites(type));
-    const progress = type === 'licks' ? getProgress() : {};
+    const progress = getProgress(type);
     const query = search.value.trim().toLocaleLowerCase();
     const source = type === 'licks' ? modules : charts;
     const matches = source.filter(item => (!favoritesOnly || favorites.has(item.id)) && (item.name ?? item.title).toLocaleLowerCase().includes(query));
@@ -27,9 +27,16 @@ export function setupLibraryPicker({ modules, charts, getFavorites, getProgress,
       pick.setAttribute('aria-current', item.id === currentId(type) ? 'page' : 'false');
       const text = document.createElement('span'); text.className = 'module-sheet-copy';
       const name = document.createElement('span'); name.className = 'module-sheet-name'; name.textContent = title;
-      const meta = document.createElement('span'); meta.className = 'module-sheet-meta';
-      meta.textContent = type === 'licks' ? `Module ${item.number} · ${progress[item.id]?.masteredKeys.length ?? 0}/12 keys mastered` : item.excerpt ? 'Chart excerpt' : item.composer ?? 'Chart';
-      text.append(name, meta); pick.append(text);
+      text.append(name);
+      if (type === 'charts' && item.composer) {
+        const meta = document.createElement('span'); meta.className = 'module-sheet-meta';
+        meta.textContent = item.composer; text.append(meta);
+      }
+      pick.append(text);
+      if (progress[item.id] > 0) {
+        const mastery = document.createElement('span'); mastery.className = 'library-mastery';
+        mastery.textContent = `${progress[item.id]}% mastered`; pick.append(mastery);
+      }
       pick.onclick = () => { dialog.close(); onPick(type, item.id); };
       const star = document.createElement('button'); star.type = 'button'; star.className = 'favorite-toggle'; star.dataset.favorite = item.id;
       star.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9Z"/></svg>';

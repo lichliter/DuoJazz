@@ -111,6 +111,7 @@ import {
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartGrid, chartKeyChoices } from "./charts.js";
 import { applicationById, lickById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from "./registry.js";
+import { gradedMasteryPercent } from "./library-progress.js";
 import { setupLibraryPicker } from "./library-ui.js";
 import { CHORD_QUALITIES, transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js?v=150";
@@ -1387,19 +1388,24 @@ function sleeveBoxFromStage(stage, svgRect) {
 }
 
 function paintPathTrail() {
-  const svg = document.querySelector(".path-trail");
+  for (const container of document.querySelectorAll('.lesson-path')) paintLessonTrail(container);
+}
+
+function paintLessonTrail(container) {
+  const svg = container.querySelector(".path-trail");
+  const lessonList = container.querySelector('.lesson-list');
   const path = svg?.querySelector("[data-trail]");
   const cap = svg?.querySelector("[data-trail-cap]");
-  if (!svg || !path || !els.lessonList) return;
+  if (!svg || !path || !lessonList) return;
   const svgRect = svg.getBoundingClientRect();
   if (svgRect.width < 8 || svgRect.height < 8) {
     path.setAttribute("d", "");
     return;
   }
   svg.setAttribute("viewBox", `0 0 ${svgRect.width} ${svgRect.height}`);
-  const sleeves = [...els.lessonList.querySelectorAll(".sleeve-node .sleeve-stage")]
+  const sleeves = [...lessonList.querySelectorAll(".sleeve-node .sleeve-stage")]
     .map((stage) => sleeveBoxFromStage(stage, svgRect));
-  const endEl = els.lessonList.querySelector(".path-end-sleeve");
+  const endEl = lessonList.querySelector(".path-end-sleeve");
   let end = null;
   if (endEl) {
     const rect = endEl.getBoundingClientRect();
@@ -1408,7 +1414,7 @@ function paintPathTrail() {
       cy: rect.top + rect.height / 2 - svgRect.top,
     };
   }
-  const sections = [...els.lessonList.querySelectorAll('.lesson-section')];
+  const sections = [...lessonList.querySelectorAll('.lesson-section')];
   const trails = sections.map((section, index) => {
     const group = [...section.querySelectorAll('.sleeve-stage')].map(stage => sleeveBoxFromStage(stage, svgRect));
     return sleeveTrailPath(group, index === sections.length - 1 ? end : null);
@@ -2287,6 +2293,7 @@ function renderChartDetail() {
     const empty = document.createElement('p'); empty.className = 'help library-empty'; empty.textContent = 'Favorite licks in the picker to practice them on this chart.'; block.append(empty);
   }
   document.getElementById('chart-tree').replaceChildren(block);
+  requestAnimationFrame(paintPathTrail);
   const grid = chartGrid(tune, { instrumentId: prefs.instrumentId, concertKeyId: chartConcertKeyId });
   document.getElementById('chart-heading-title').textContent = tune.title;
   els.chartKeys.replaceChildren(...chartKeyChoices(tune.keyQuality, prefs.instrumentId).map(choice => {
@@ -2581,7 +2588,17 @@ transport.onEnded = handleTransportEnded;
 
 const libraryPicker = setupLibraryPicker({
   modules: MODULES, charts: CHART_LIBRARY,
-  getProgress: () => normalizeMastery(shownMastery()).modules,
+  getProgress: type => {
+    const progress = normalizeMastery(shownMastery());
+    const items = type === 'licks' ? MODULES : CHART_MODULES;
+    return Object.fromEntries(items.map(item => {
+      const lessons = item.lessons.filter(lesson => lesson.kind === 'learn' || lesson.kind === 'master');
+      const chart = type === 'charts' ? CHART_LIBRARY.find(chart => item.id === `chart-${chart.id}`) : null;
+      const delta = chart ? getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc : 0;
+      return [chart?.id ?? item.id, gradedMasteryPercent(lessons, progress, lesson => chart
+        ? [transposeToneKey(lesson.defaultKeyId, delta)] : TWELVE_KEY_IDS)];
+    }));
+  },
   getFavorites: type => type === 'licks' ? favoriteLicks : practiceUI.getSelected(),
   currentId: type => type === 'licks' ? selectedModuleId : currentChart().id,
   onFavorite(type, id, selected) {
@@ -2827,9 +2844,9 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") releaseMic("hide");
 });
 
-const lessonPath = document.querySelector(".lesson-path");
-if (lessonPath && typeof ResizeObserver === "function") {
-  new ResizeObserver(() => paintPathTrail()).observe(lessonPath);
+if (typeof ResizeObserver === "function") {
+  const observer = new ResizeObserver(() => paintPathTrail());
+  document.querySelectorAll(".lesson-path").forEach(path => observer.observe(path));
 }
 if (document.fonts?.ready) {
   document.fonts.ready.then(() => paintPathTrail());
