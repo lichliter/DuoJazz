@@ -28,7 +28,9 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart, onManageCh
       return option;
     }));
     variantSelect.value = currentVariantId;
-    document.getElementById("application-workbook-source").textContent = `Workbook · page ${variant.page}`;
+    document.getElementById("application-workbook-source").textContent = currentGroup.source ?? `Workbook · page ${variant.page}`;
+    document.getElementById("application-workbook-example").textContent = currentGroup.exampleTitle
+      ? `Practice ${currentGroup.exampleTitle.toLowerCase()}` : "Practice workbook example";
     const { yours, suggested } = chartChoices(currentGroup, selected, currentVariantId);
     document.getElementById("application-favorites-empty").hidden = yours.length > 0;
     const note = document.getElementById("application-charts-note");
