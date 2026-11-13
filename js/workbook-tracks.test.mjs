@@ -64,7 +64,7 @@ test("Recordame is 16 bars, concert A minor, with half-bar walking ii–Vs", () 
 });
 
 test("every workbook module has 1–3 tune lessons on the road", () => {
-  for (const module of MODULES.slice(6)) {
+  for (const module of MODULES.slice(6, 31)) {
     const extras = module.lessons.filter((lesson) => lesson.kind === "integrate");
     assert.ok(extras.length >= 1 && extras.length <= 3, `${module.id} ${extras.length}`);
     assert.deepEqual(extras.map((lesson) => lesson.id), trackLessonsFor(module.id).map((lesson) => lesson.id));

@@ -19,7 +19,7 @@ import {
   persistNotationScale,
   resolveNotationScale,
 } from "./lesson.js";
-import { MODULES } from "./registry.js";
+import { MODULES, lickById } from "./registry.js";
 import { TUNES, tuneById } from "./tunes.js";
 import { engraveMei, measureEngraving, whenVerovioReady } from "./engrave.js";
 
@@ -43,7 +43,7 @@ export function coreModules() {
 }
 
 export function workbookModules() {
-  return MODULES.filter((module) => module.lickId && module.id !== "chord-tones" && !coreModules().includes(module));
+  return MODULES.filter((module) => module.lickId && lickById(module.lickId).workbookN >= 6);
 }
 
 export function learnLessons() {

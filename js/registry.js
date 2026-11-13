@@ -63,6 +63,13 @@ function ireal(tune) {
 }
 
 export const FORMS = {
+  "minor-rise-return-learn": {
+    id: "minor-rise-return-learn",
+    title: "Minor Rise and Return",
+    shortTitle: "The lick",
+    keyQuality: "minor",
+    bars: [bar([chord(0, "minor7")])],
+  },
   "autumn-leaves-8": {
     id: "autumn-leaves-8",
     title: "Autumn Leaves · opening 8 bars",
@@ -677,6 +684,18 @@ export const LICKS = [
     ],
   },
   ...WORKBOOK_LICKS,
+  {
+    id: "minor-rise-return",
+    name: "Minor Rise and Return",
+    shortName: "Minor rise and return",
+    source: "Brian’s lick",
+    octave: -2,
+    pickupBeats: 0,
+    learnBeats: 4,
+    keyQuality: "minor",
+    defaultKeyId: "Bb",
+    elements: [N(0, 0.5), N(2, 0.5), N(3, 0.5), N(5, 0.5), N(2, 0.5), N(0, 0.5)],
+  },
 ];
 
 export const FRAGMENTS = {
@@ -1038,6 +1057,17 @@ export const ALL_APPLICATIONS = [
   ...deriveTuneApplications(TUNES),
   ...WORKBOOK_APPLICATIONS,
   ...WORKBOOK_TRACK_APPLICATIONS,
+  {
+    id: "minor-rise-return-learn",
+    lickId: "minor-rise-return",
+    formId: "minor-rise-return-learn",
+    label: "Learn the lick",
+    cellTonicInterval: 0,
+    phraseStartBar: 1,
+    leadIn: [],
+    resolve: [],
+    copyKind: "learn",
+  },
 ];
 
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
@@ -1349,6 +1379,22 @@ export const MODULES = [
 
 const CORE_SLEEVE_START = MODULES.reduce((sum, module) => sum + module.lessons.length, 0) % 3;
 MODULES.push(...buildWorkbookModules(CORE_SLEEVE_START));
+MODULES.push({
+  id: "minor-rise-return",
+  number: 31,
+  lickId: "minor-rise-return",
+  name: "Minor Rise and Return",
+  lessons: [{
+    id: "minor-rise-return-learn",
+    kind: "learn",
+    applicationId: "minor-rise-return-learn",
+    title: "Learn the lick",
+    coverTitle: "Learn the lick",
+    summary: "Rise from B♭ through C, D♭ and E♭, then return through C to B♭, all eighth notes.",
+    context: "The lick in this key",
+    defaultKeyId: "Bb",
+  }],
+});
 
 const toneFoundations = buildChordToneExercises();
 for (const module of MODULES) module.number += 1;

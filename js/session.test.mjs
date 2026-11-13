@@ -475,7 +475,7 @@ test("the single card does not use the old Listen or Quiz feedback stages", () =
 });
 
 test("lessons stay unlocked and the module has 25 records", () => {
-  assert.equal(MODULES.length, 31);
+  assert.equal(MODULES.length, 32);
   assert.deepEqual(MODULES.find(module => module.id === "cmar").lessons.map((lesson) => lesson.id), [
     "learn-lick",
     "master-lick",
@@ -493,7 +493,7 @@ test("lessons stay unlocked and the module has 25 records", () => {
     MODULES.slice(1, 6).map((module) => module.lessons.length),
     [11, 9, 9, 11, 14],
   );
-  assert.ok(MODULES.slice(6).every((module) => module.lessons.length >= 3 && module.lessons.length <= 5));
+  assert.ok(MODULES.slice(6, 31).every((module) => module.lessons.length >= 3 && module.lessons.length <= 5));
   const road = LESSONS.filter((lesson) => lesson.group !== "your-tunes" && lesson.group !== "my-tunes");
   assert.ok(road.length > 50);
   assert.equal(LESSONS.length, road.length + LESSONS.filter((lesson) => lesson.group === "your-tunes" || lesson.group === "my-tunes").length);
@@ -710,9 +710,9 @@ test("module road hides Your tunes and re-numbers the remaining sleeves", () => 
   assert.equal(modulePathNodes(MODULES.find(module => module.id === "cmar"), defaultPrefs(), {}).length, 11);
 });
 
-test("modules sheet lists 1–31 and omits Your tunes", () => {
+test("modules sheet lists 1–32 and omits Your tunes", () => {
   const data = modulesSheetData({}, { cmar: ["G"] });
-  assert.equal(data.length, 31);
+  assert.equal(data.length, 32);
   assert.equal(data.some((module) => module.id === "tunes"), false);
   assert.equal(data[1].number, 2);
   assert.equal(data[1].lickName, "Cry Me a River");
@@ -725,7 +725,7 @@ test("quick view lists every module and record", () => {
     "learn-lick": ["G", "C"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   }, { cmar: ["G"], emr: [] });
-  assert.equal(data.length, 32);
+  assert.equal(data.length, 33);
   assert.deepEqual(data.map((module) => module.id), [...MODULES.map((module) => module.id), "tunes"]);
   assert.equal(data.flatMap((module) => module.records).length,
     LESSONS.filter((lesson) => lesson.group !== "application-practice" && lesson.group !== "chart-tones").length);
