@@ -8,7 +8,7 @@ import { phraseEvents } from "./music.js";
 
 test("all thirty licks have application groups with real playable placements", () => {
   const prefs = defaultPrefs();
-  for (const module of MODULES.filter(module => module.id !== 'chord-tones')) {
+  for (const module of MODULES.slice(1, 31)) {
     const groups = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
     assert.ok(groups.length, module.id);
     for (const group of groups) {

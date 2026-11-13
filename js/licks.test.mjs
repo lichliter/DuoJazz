@@ -65,14 +65,14 @@ test("registry keeps thirty workbook modules after the chord-tone foundation", (
     "se", "mp", "ssr", "sat", "ctdc", "tpr", "ntp", "dct", "ae", "fe",
     "bb", "lg", "bcf", "dss", "nnr",
   ]);
-  assert.equal(LICKS.length, 30);
-  assert.equal(MODULES.length, 31);
+  assert.equal(LICKS.length, 31);
+  assert.equal(MODULES.length, 32);
   assert.deepEqual(
     MODULES.slice(1, 6).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
     [8, 6, 5, 5, 6],
   );
   assert.deepEqual(MODULES.slice(1, 6).map((module) => module.lessons.length), [11, 9, 9, 11, 14]);
-  assert.ok(MODULES.slice(6).every((module) => {
+  assert.ok(MODULES.slice(6, 31).every((module) => {
     const n = module.lessons.length;
     return n >= 3 && n <= 5 && module.lessons[0].kind === "learn"
       && module.lessons[1].kind === "master"
@@ -80,10 +80,10 @@ test("registry keeps thirty workbook modules after the chord-tone foundation", (
   }));
   assert.equal(
     LESSONS.filter((lesson) => !["your-tunes", "my-tunes", "application-practice", "chart-tones"].includes(lesson.group)).length,
-    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length - 1 + 8,
+    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length - 1 + 8 + 1,
   );
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "master" || lesson.kind === "integrate"));
-  for (const lick of LICKS) {
+  for (const lick of LICKS.slice(0, 30)) {
     assert.match(lick.source, /Essential Jazz Vocabulary Workbook, Lick /);
   }
   assert.equal(LESSONS[8].id, "learn-lick");
@@ -348,7 +348,7 @@ test("Start bubble walks the module path in book order", () => {
   assert.equal(recommendedLessonId(all), null);
   const nodes = lessonPathNodes(defaultPrefs(), cmarDone);
   assert.equal(nodes.filter((node) => node.recommended).map((node) => node.id).join(), "emr-learn");
-  assert.equal(nodes.filter((node) => node.number === "01").length, 31);
+  assert.equal(nodes.filter((node) => node.number === "01").length, 32);
 });
 
 test("sleeve colors rotate so neighboring modules do not share an edge color", () => {
@@ -621,4 +621,24 @@ test("a multi-spot lesson passes only when every spot passes", () => {
   const onlyFirst = gradeSession(session, synthTrack(firstSpot));
   assert.equal(onlyFirst.passed, false);
   assert.equal(onlyFirst.spots.filter((spot) => spot.passed).length, 1);
+});
+
+
+test("Brian’s lick preserves the dictated pitches and rhythm through practice and playback", () => {
+  const id = "minor-rise-return";
+  const app = `${id}-learn`;
+  const notes = phraseNotes(getKey("Bb"), "concert", app);
+  assert.deepEqual(notes.map(note => note.concertName), ["B♭3", "C4", "D♭4", "E♭4", "C4", "B♭3"]);
+  assert.deepEqual(notes.map(note => note.startBeat), [0, 0.5, 1, 1.5, 2, 2.5]);
+  assert.ok(notes.every(note => note.beats === 0.5));
+  assert.equal(defaultPrefs().lessons[app].startKeyId, "Bb");
+  for (const kind of ["learn", "master"]) {
+    const session = jumpToCard(createSession({ lessonId: `${id}-${kind}`, startKeyId: "Bb" }), "play");
+    const expected = expectedNotesFor(session);
+    assert.equal(expected.length, 6);
+    assert.equal(gradeSession(session, synthTrack(expected)).passed, true);
+  }
+  const melody = scheduleChorus({ concertKey: getKey("Bb"), displayMode: "concert", includeModel: true, stage: "learn", applicationId: app }).filter(event => event.type === "melody");
+  assert.equal(melody.length, 6);
+  assert.ok(melody.every(event => event.durationBeats === 0.5));
 });
