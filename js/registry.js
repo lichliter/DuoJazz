@@ -1458,6 +1458,21 @@ export const LESSONS = [...MODULE_LESSONS, ...TUNE_LESSONS];
 
 export const PRACTICE_CATALOG = buildPracticeCatalog({
   modules: MODULES, tunes: TUNES, licks: LICKS, fragments: FRAGMENTS, applicationById, formById,
+  additionalDefinitions: [{
+    lickId: "minor-rise-return",
+    id: "minor-home",
+    label: "Minor home",
+    description: "Play the shape from the minor chord’s root, rising to the fourth and returning home.",
+    source: "Brian’s lick · minor chord practice",
+    exampleTitle: "Minor vamp",
+    variants: [{
+      id: "original",
+      label: "Original",
+      pattern: [{ root: 0, family: "minor", beats: 4 }],
+      elements: lickById("minor-rise-return").elements,
+      pickupBeats: 0,
+    }],
+  }],
 });
 Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);

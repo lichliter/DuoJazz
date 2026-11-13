@@ -17,8 +17,8 @@ test("all thirty teaching pages have an explicit, sourced application inventory"
     assert.equal(definitions.length, counts[index], module.id);
     assert.ok(definitions.every((item) => [index * 2 + 1, index * 2 + 2].includes(item.page)), module.id);
   }
-  assert.equal(PRACTICE_CATALOG.groups.length, 117);
-  assert.equal(PRACTICE_CATALOG.groups.reduce((n, g) => n + g.variants.length, 0), 204);
+  assert.equal(PRACTICE_CATALOG.groups.filter(g => g.page != null).length, 117);
+  assert.equal(PRACTICE_CATALOG.groups.filter(g => g.page != null).reduce((n, g) => n + g.variants.length, 0), 204);
   assert.equal(new Set(PRACTICE_CATALOG.lessons.map((item) => item.id)).size, PRACTICE_CATALOG.lessons.length);
 });
 
@@ -133,5 +133,5 @@ test("source discrepancies remain explicit and empty chart matches have real exa
     assert.equal(lessonById(item.exampleLessonId).id, item.exampleLessonId);
     assert.equal(lessonById(item.exampleLessonId).tuneId, null);
   }
-  assert.ok(LICKS.slice(0, 30).every((lick) => PRACTICE_CATALOG.groups.some((g) => g.moduleId === lick.id)));
+  assert.ok(LICKS.every((lick) => PRACTICE_CATALOG.groups.some((g) => g.moduleId === lick.id)));
 });

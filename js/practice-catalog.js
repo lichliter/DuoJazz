@@ -105,11 +105,12 @@ function exampleForm(id, definition, variant, keyQuality) {
       remaining -= duration;
     }
   }
-  return { id, title: "Workbook example", shortTitle: "Workbook example", source: `Essential Jazz Vocabulary Workbook, p. ${variant.page ?? definition.page}. ${definition.note}`.trim(), keyQuality, bars };
+  const title = definition.exampleTitle ?? "Workbook example";
+  return { id, title, shortTitle: title, source: definition.source ?? `Essential Jazz Vocabulary Workbook, p. ${variant.page ?? definition.page}. ${definition.note}`.trim(), keyQuality, bars };
 }
 
-export function buildPracticeCatalog({ modules, tunes, licks, fragments, applicationById, formById }) {
-  const definitions = workbookApplicationDefinitions(licks, fragments);
+export function buildPracticeCatalog({ modules, tunes, licks, fragments, applicationById, formById, additionalDefinitions = [] }) {
+  const definitions = [...workbookApplicationDefinitions(licks, fragments), ...additionalDefinitions];
   const charts = tunes.map((tune) => ({ id: tune.id, title: tune.title }));
   const sources = [];
   for (const module of modules) {
@@ -149,8 +150,8 @@ export function buildPracticeCatalog({ modules, tunes, licks, fragments, applica
       });
       const offset = form.excerptStartBar ?? 1;
       const locations = spots.map((spot) => `${spot.bar + offset - 1}${spot.beatOffset ? ` beat ${spot.beatOffset + 1}` : ""}`);
-      const title = chart?.title ?? "Workbook example";
-      const context = chart ? `${title} · ${locations.length === 1 ? "bar" : "bars"} ${locations.join(", ")}` : `Workbook · page ${variant.page ?? definition.page}`;
+      const title = chart?.title ?? definition.exampleTitle ?? "Workbook example";
+      const context = chart ? `${title} · ${locations.length === 1 ? "bar" : "bars"} ${locations.join(", ")}` : definition.source ?? `Workbook · page ${variant.page ?? definition.page}`;
       lessons.push({
         id, kind: "integrate", applicationId: id, group: "application-practice",
         title: `${definition.label} · ${title}`, coverTitle: definition.label,

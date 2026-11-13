@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { MODULES, PRACTICE_CATALOG, lessonById, applicationById, spotsFor, formById } from "./registry.js";
-import { chartChoices, loadMyCharts, normalizeMyCharts } from "./practice-catalog.js";
+import { chartChoices, loadMyCharts, normalizeMyCharts, matchApplication } from "./practice-catalog.js";
 import { createSession, recordBackingConfig, demoAudioConfig, lessonSessionPlan, defaultPrefs } from "./session.js";
 import { livePlaybackEvents } from "./sound-band.js";
 import { phraseEvents } from "./music.js";
 
-test("all thirty licks have application groups with real playable placements", () => {
+test("all licks have application groups with real playable placements", () => {
   const prefs = defaultPrefs();
-  for (const module of MODULES.slice(1, 31)) {
+  for (const module of MODULES.slice(1)) {
     const groups = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
     assert.ok(groups.length, module.id);
     for (const group of groups) {
@@ -77,4 +77,23 @@ test("chart selection survives reload and safely handles malformed or blocked st
   assert.deepEqual(loadMyCharts(charts, { getItem: () => '["autumn-leaves"]' }), ["autumn-leaves"]);
   assert.deepEqual(loadMyCharts(charts, { getItem: () => '{' }), []);
   assert.deepEqual(loadMyCharts(charts, { getItem: () => { throw Error("blocked"); } }), []);
+});
+
+test("Minor Rise and Return has playable chart integration and a correctly attributed vamp", () => {
+  const group = PRACTICE_CATALOG.groups.find(item => item.moduleId === 'minor-rise-return');
+  assert.equal(group.label, 'Minor home');
+  assert.ok(group.choices.some(choice => choice.chartId === 'blue-bossa'));
+  const example = lessonById(group.exampleLessonId);
+  const form = formById(applicationById(example.applicationId).formId);
+  assert.equal(form.bars.length, 8);
+  assert.equal(form.title, 'Minor vamp');
+  assert.doesNotMatch(example.context + form.source, /Workbook|undefined/);
+  const events = phraseEvents(example.applicationId);
+  assert.deepEqual(events.map(note => note.interval), [0, 2, 3, 5, 2, 0]);
+  assert.ok(events.every(note => note.beats === 0.5));
+  const definition = PRACTICE_CATALOG.definitions.find(item => item.lickId === 'minor-rise-return');
+  assert.deepEqual(matchApplication({ bars: [{ chords: [
+    { intervalFromTonic: 0, quality: 'minor7', durationBeats: 2 },
+    { intervalFromTonic: 7, quality: 'dominant7', durationBeats: 2 },
+  ] }] }, definition.variants[0]), []);
 });

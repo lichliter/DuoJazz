@@ -69,7 +69,7 @@ Open the banner picker and use its **Licks / Charts** toggle to browse either li
 
 **Licks Module 1: Chord Tones** has four sections: Major 7, Dominant 7, Minor 7, and Half-diminished. Each section has Learn with notation and Master from memory across the selected keys. The staff chord symbol and accompaniment use that section's chord quality. Answer by playing the root, third, fifth, and seventh on your horn. A key is mastered after passing all four qualities without revealing notes. Other lick modules group Learn and Master under **Practice**, with applications under **Integrate**.
 
-The following thirty modules come from Essential Jazz Vocabulary. **Minor Rise and Return**, Brian’s six-eighth-note phrase (B♭–C–D♭–E♭–C–B♭), follows them with Learn and Master lessons. Each module has a winding path of record-sleeve lesson nodes. Tapping a sleeve starts its lesson using the current settings:
+The following thirty modules come from Essential Jazz Vocabulary. **Minor Rise and Return**, Brian’s six-eighth-note phrase (B♭–C–D♭–E♭–C–B♭), follows them with Learn, Master, and a Minor home integration application. Minor home offers matching chart passages and an eight-bar minor vamp. Each module has a winding path of record-sleeve lesson nodes. Tapping a sleeve starts its lesson using the current settings:
 
 1. **Learn the lick** — play the isolated phrase with notation visible.
 2. **Master the lick** — play the phrase from memory across the selected keys; Show notes is available when needed.
