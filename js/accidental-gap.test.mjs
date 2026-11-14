@@ -13,6 +13,7 @@ const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
   "/usr/bin/google-chrome-stable",
   "/usr/bin/google-chrome",
+  "/usr/bin/chromium",
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].filter(Boolean);
 
@@ -204,14 +205,14 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
       {
         name: "cry-me-lesson-4",
         path: "/?screen=session&lesson=cmar-integrate-blue-bossa&card=learn&key=C",
-        ready: `document.querySelector("#session-title")?.textContent === "Autumn Leaves" && document.querySelectorAll(".harm").length > 0`,
+        ready: `document.querySelector("#session-title")?.textContent === "Blue Bossa" && document.querySelectorAll(".harm").length > 0`,
         shot: true,
         expectHarms: chorusChords(getKey("C"), "concert", "cmar-blue-bossa").map((chord) => chord.name),
       },
       {
         name: "cry-me-a-river",
         path: "/?screen=session&lesson=cmar-integrate-cry-me&card=learn&key=Eb",
-        ready: `document.querySelector("#session-title")?.textContent === "Autumn Leaves" && document.querySelectorAll(".harm").length > 0`,
+        ready: `document.querySelector("#session-title")?.textContent === "Cry Me a River" && document.querySelectorAll(".harm").length > 0`,
         expectHarms: chorusChords(getKey("Eb"), "concert", "cmar-cry-me").map((chord) => chord.name),
       },
     ];
