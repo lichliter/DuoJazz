@@ -1,0 +1,107 @@
+{
+  "id": "lotus-inspired",
+  "title": "Lotus-inspired",
+  "status": "implemented",
+  "source": {
+    "title": "Lotus",
+    "artist": "Shaun Martin",
+    "url": "https://shaunmartin.bandcamp.com/track/lotus",
+    "approximateTimestamp": "1:28",
+    "attribution": "Brian’s simplified adaptation; not a verified transcription",
+    "referenceNote": "Brian supplied a 10-second screen recording near 1:28; original media is retained in the working environment, not distributed with the app."
+  },
+  "startBeatOffset": 0.5,
+  "notes": [
+    {
+      "pitch": "E",
+      "durationBeats": 0.5
+    },
+    {
+      "pitch": "F",
+      "durationBeats": 0.5
+    },
+    {
+      "pitch": "G",
+      "durationBeats": 0.5
+    },
+    {
+      "pitch": "Ab",
+      "durationBeats": 1
+    },
+    {
+      "pitch": "G",
+      "durationBeats": 0.5
+    },
+    {
+      "pitch": "F",
+      "durationBeats": 0.5
+    },
+    {
+      "pitch": "E",
+      "durationBeats": 0.5
+    },
+    {
+      "pitch": "G",
+      "durationBeats": 1
+    },
+    {
+      "pitch": "F",
+      "durationBeats": 1
+    },
+    {
+      "pitch": "C",
+      "durationBeats": 1
+    }
+  ],
+  "rhythmStatus": "Brian confirmed the 120 BPM demo rhythm and & of 1 entrance, correcting only the last pitch from E to C. This is his simplified adaptation. The original recording’s meter remains unverified.",
+  "preview": {
+    "bpm": 120,
+    "countInBeats": 4,
+    "meter": "4/4",
+    "bars": 2,
+    "endRestBeats": 0.5,
+    "note": "Literal rendering of the dictated adaptation, not a claim about the recording’s meter, tempo, or octave."
+  },
+  "tonalCenter": "F",
+  "scaleContext": {
+    "name": "F harmonic minor",
+    "pitches": [
+      "F",
+      "G",
+      "Ab",
+      "Bb",
+      "C",
+      "Db",
+      "E"
+    ],
+    "basis": "Brian identified this as the scale he hears; the lick does not itself contain every scale degree."
+  },
+  "intervalsFromTonic": [
+    -1,
+    0,
+    2,
+    3,
+    2,
+    0,
+    -1,
+    2,
+    0,
+    -5
+  ],
+  "applications": [
+    {
+      "id": "minor-home",
+      "pattern": "Two bars of tonic minor; example uses Fm(maj7).",
+      "matching": "minor, minor6, minorb6, or minormaj7 throughout the sounding phrase."
+    },
+    {
+      "id": "minor-cadence",
+      "pattern": "One bar V7, one bar tonic minor; example uses C7b9 then Fm(maj7).",
+      "matching": "dominant7, dominant7b9, or dominant7b13 for bar 1; compatible tonic minor for the rest of the phrase."
+    }
+  ],
+  "theoryReferences": [
+    "https://pulse.berklee.edu/scales/f-harmonic-minor-scale.html",
+    "https://www.jazzguitar.be/blog/harmonic-minor-scale-jazz/"
+  ]
+}

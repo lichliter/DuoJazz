@@ -108,7 +108,7 @@ test("licks-for-tune index lists road tune lessons with module name and bars", (
 
   const unknown = licksForTune("missing-tune");
   assert.deepEqual(unknown, []);
-  assert.equal(MODULES.length, 32);
+  assert.equal(MODULES.length, 33);
   assert.equal(tuneBarCount(tuneById("nutville")), 24);
 
   const blueBossa = licksForTune("blue-bossa");

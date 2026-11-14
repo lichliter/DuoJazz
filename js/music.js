@@ -582,6 +582,20 @@ export function spellShownMidi(midi, shownKey, usesFlats = null) {
   return { name, letter, acc, octave: spelledOctave(midi, acc), pc };
 }
 
+/** Explicit scale steps preserve a phrase's letters, e.g. F♯ → G in G minor. */
+export function spellMelodyMidi(midi, shownKey, event, usesFlats = null) {
+  if (!Number.isInteger(event?.diatonicStep) || !Number.isFinite(shownKey?.pc)) {
+    return spellShownMidi(midi, shownKey, usesFlats);
+  }
+  const tonic = spellPitchInKey(shownKey.pc + (event.cellTonicInterval ?? 0), shownKey);
+  const index = LETTERS.indexOf(tonic.letter) + event.diatonicStep;
+  const letter = LETTERS[((index % 7) + 7) % 7];
+  const pc = wrapPc(midi);
+  const acc = ((pc - NATURAL_PC[letter] + 18) % 12) - 6;
+  if (Math.abs(acc) > 2) return spellShownMidi(midi, shownKey, usesFlats);
+  return { name: `${letter}${ACCIDENTAL_GLYPH[acc]}`, letter, acc, octave: spelledOctave(midi, acc), pc };
+}
+
 export function rhythmLabel(beats) {
   if (Math.abs(beats - 0.25) < 1e-6) return "sixteenth";
   if (Math.abs(beats - 1 / 3) < 1e-6) return "triplet eighth";
@@ -688,8 +702,8 @@ export function phraseNotes(
     const concertMidi = eventMelodyMidi(concertKey, event, melodyRegister, octaveBase);
     const shownMidi = concertMidiToWritten(concertMidi, displayMode);
     const chord = chordAtEventBeat(chords, event.beat);
-    const spelled = spellShownMidi(shownMidi, shownKey, usesFlatsForChord(shownKey, chord));
-    const concertSpelled = spellShownMidi(concertMidi, concertSpell, usesFlatsForChord(concertSpell, chord));
+    const spelled = spellMelodyMidi(shownMidi, shownKey, event, usesFlatsForChord(shownKey, chord));
+    const concertSpelled = spellMelodyMidi(concertMidi, concertSpell, event, usesFlatsForChord(concertSpell, chord));
     return {
       index,
       startBeat: event.beat,
@@ -998,8 +1012,7 @@ function abcSpellingContext(shownKey, usesFlats) {
   return shownKey;
 }
 
-function abcNote(midi, shownKey, barState) {
-  const spelled = spellShownMidi(midi, shownKey);
+function abcNote(midi, shownKey, barState, spelled = spellShownMidi(midi, shownKey)) {
   const { letter, acc, octave } = spelled;
   if (!barState) {
     const prefix = acc === 0 ? "" : abcAccidentalPrefix(acc);
@@ -1145,6 +1158,7 @@ function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase
     shownMidi,
     abcSpellingContext(shownKey, usesFlatsOverride),
     barState,
+    spellMelodyMidi(shownMidi, shownKey, item, usesFlatsOverride),
   );
   const dur = item.tuplet === 3 ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);
   return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
