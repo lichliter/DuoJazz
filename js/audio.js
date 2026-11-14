@@ -63,11 +63,14 @@ export class Transport {
 
   async ensure() {
     if (this.ctx && this.ctx.state !== "closed") {
-      if (this.ctx.state === "suspended") await this.ctx.resume();
+      if (this.ctx.state === "suspended" || this.ctx.state === "interrupted") await this.ctx.resume();
       this.ensureBuses();
       return;
     }
     const Ctx = window.AudioContext || window.webkitAudioContext;
+    this.stopAllNodes();
+    // AudioNodes belong to their creating context, even after it closes.
+    this.pianoBus = this.bassBus = this.drumBus = this.melodyBus = null;
     this.ctx = new Ctx();
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.85;

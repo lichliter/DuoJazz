@@ -8,6 +8,7 @@ export function setupLibraryPicker({ modules, charts, getFavorites, getProgress,
   let type = 'licks', favoritesOnly = false;
   function render() {
     const focused = document.activeElement?.dataset.favorite;
+    const focusedIndex = [...list.querySelectorAll('[data-favorite]')].findIndex(button => button.dataset.favorite === focused);
     document.getElementById('quick-view-title').textContent = type === 'licks' ? 'Licks' : 'Charts';
     for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.libraryTab === type));
     search.placeholder = type === 'licks' ? 'Search licks' : 'Search charts';
@@ -50,7 +51,12 @@ export function setupLibraryPicker({ modules, charts, getFavorites, getProgress,
       empty.textContent = query ? 'No matches. Try another name.' : 'No favorites yet. Turn off Favorites only and tap a star to add one.';
       list.append(empty);
     }
-    if (focused) [...list.querySelectorAll('[data-favorite]')].find(button => button.dataset.favorite === focused)?.focus({ preventScroll: true });
+    if (focused) {
+      const buttons = [...list.querySelectorAll('[data-favorite]')];
+      const target = buttons.find(button => button.dataset.favorite === focused)
+        ?? buttons[Math.min(focusedIndex, buttons.length - 1)] ?? filter;
+      target.focus({ preventScroll: true });
+    }
   }
   search.addEventListener('input', render);
   filter.onclick = () => { favoritesOnly = !favoritesOnly; render(); };

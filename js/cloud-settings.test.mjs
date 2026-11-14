@@ -236,3 +236,19 @@ test('lick and chart favorites sync independently and removals survive a fresh d
   const fresh = createCloudSettings({ storage: storage() }); fresh.activate('a'); await fresh.sync(api);
   assert.deepEqual(fresh.values().myLicks, ['hsr']); assert.deepEqual(fresh.values().myCharts, ['four']);
 });
+
+test('an idle sync reads preferences once and a write refreshes the server result', async () => {
+  const settings = createCloudSettings({ storage: storage() }), api = server();
+  let reads = 0;
+  const from = api.from;
+  api.from = (...args) => { reads++; return from(...args); };
+  settings.activate('a');
+  await settings.sync(api);
+  assert.equal(reads, 1);
+  reads = 0;
+  settings.set({ tempo: 120 });
+  await settings.sync(api);
+  assert.equal(reads, 2);
+  assert.equal(settings.hasPending(), false);
+  assert.equal(settings.values().tempo, 120);
+});

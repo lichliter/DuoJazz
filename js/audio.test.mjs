@@ -460,3 +460,27 @@ test("recorded notes preserve their attack, written note-off, and instrument rel
   transport.stop();
   assert.equal(transport.nodes.length, 0);
 });
+
+for (const TransportClass of [Transport, BandTransport]) {
+  test(`${TransportClass.name} rebuilds every bus after its audio context closes`, async () => {
+    const { transport, context } = await setup(TransportClass);
+    context.state = 'closed';
+    await transport.ensure();
+    assert.notEqual(transport.ctx, context);
+    for (const name of ['master', 'pianoBus', 'bassBus', 'drumBus', 'melodyBus']) {
+      assert.equal(transport[name].context, transport.ctx, name);
+    }
+    if (transport.tap) assert.equal(transport.tap.context, transport.ctx);
+    await transport.start({ tempo: 96, swing: false, looping: false, events: [], lengthBeats: 4 });
+    assert.equal(transport.playing, true);
+    transport.stop();
+  });
+
+  test(`${TransportClass.name} resumes Safari's interrupted context`, async () => {
+    const { transport, context } = await setup(TransportClass);
+    context.state = 'interrupted';
+    context.resume = async () => { context.state = 'running'; };
+    await transport.ensure();
+    assert.equal(context.state, 'running');
+  });
+}

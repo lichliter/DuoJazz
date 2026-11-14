@@ -179,7 +179,8 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
       if (result.error) throw result.error;
       if (!active()) return false;
     }
-    const latest = await read();
+    // Without a write, the first read is already the latest server snapshot.
+    const latest = batch.size ? await read() : remote;
     if (!active()) return false;
     reload(); merge(latest);
     for (const op of pending) {

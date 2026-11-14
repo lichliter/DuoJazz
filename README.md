@@ -109,6 +109,8 @@ Earned progress also has an append-only local journal, so simultaneous tabs cann
 
 The persistence regression checks are `js/cloud-settings.test.mjs` and `js/cloud-progress.test.mjs`. For browser coverage, serve the app and run `tools/verify-account-saving.mjs` and `tools/verify-offline-signout.mjs` with `APP_URL` and `PLAYWRIGHT_MODULE` pointing to the local app and an installed Playwright module. These use isolated browser profiles and mocked account transport or synthetic sessions; they never sign in to real accounts.
 
+`tools/verify-review.mjs` also checks audio-context recovery, playback with damaged sample metadata, notation reuse during background sync, octave changes, and keyboard focus after removing favorites. It uses an isolated account fixture and saves screenshots and a video in `artifacts/`.
+
 `js/supabase-config.js` contains only the public URL and publishable key. Never add service-role keys, OAuth secrets, or database credentials to browser files. `supabase/migrations/` records the deployed schema. `practice_progress` uses insert-only records, row-level security, and owner-only SELECT/INSERT grants. `user_preferences` uses owner-only SELECT/INSERT/UPDATE policies and a `(user_id, name)` primary key. Anonymous database access is denied. Sync runs automatically after changes, on reconnect and focus, and retries failures with a capped backoff. Successful sync is silent; persistent failures appear in Profile.
 
 ### Finish production authentication

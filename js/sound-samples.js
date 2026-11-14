@@ -2,6 +2,8 @@
  * Lazy-load + Cache Storage for sampled backing and the selected instrument's demo line.
  */
 
+import { fetchWithTimeout } from './network.js';
+
 export const SAMPLE_VERSION = "duojazz-sound-v3";
 export const MANIFEST_URL = new URL("../sound/manifest.json", import.meta.url);
 
@@ -202,13 +204,15 @@ async function openCache() {
 
 async function fetchArrayBuffer(url, cache) {
   if (cache) {
-    const hit = await cache.match(url);
-    if (hit) {
-      const arrayBuffer = await hit.arrayBuffer();
-      return { arrayBuffer, fromCache: true, bytes: arrayBuffer.byteLength };
-    }
+    try {
+      const hit = await cache.match(url);
+      if (hit) {
+        const arrayBuffer = await hit.arrayBuffer();
+        return { arrayBuffer, fromCache: true, bytes: arrayBuffer.byteLength };
+      }
+    } catch { /* A cache read failure must not disable online playback. */ }
   }
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error(`Sample failed: ${url}`);
   if (cache) {
     try {
@@ -222,10 +226,15 @@ async function fetchArrayBuffer(url, cache) {
 }
 
 export async function loadManifest() {
-  const response = await fetch(MANIFEST_URL);
-  if (!response.ok) return { totalBytes: 0, files: [] };
-  return response.json();
+  try {
+    const response = await fetchWithTimeout(MANIFEST_URL);
+    if (response.ok) return await response.json() ?? {};
+  } catch { /* Download-size metadata is optional; sample playback is not. */ }
+  return { totalBytes: 0, files: [] };
 }
+
+// Readiness is checked for every scheduled note; URLs and entry objects are static.
+const BACKING_SAMPLE_KEYS = backingSampleEntries().map(entry => entry.key);
 
 export class SampleLibrary {
   constructor() {
@@ -256,7 +265,7 @@ export class SampleLibrary {
   }
 
   get backingReady() {
-    return backingSampleEntries().every((entry) => this.buffers.has(entry.key));
+    return BACKING_SAMPLE_KEYS.every(key => this.buffers.has(key));
   }
 
   hasMelody(sampleSet) {
@@ -283,13 +292,29 @@ export class SampleLibrary {
           this.fromCache = false;
           this.networkBytes += bytes;
         }
-        const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+        let buffer;
+        try {
+          buffer = await ctx.decodeAudioData(arrayBuffer);
+        } catch (error) {
+          // Never trap future attempts on the same corrupt cached response.
+          try { await cache?.delete(entry.url); } catch { /* Cache may be unavailable. */ }
+          throw error;
+        }
         this.buffers.set(entry.key, { ...entry, buffer });
         loaded += 1;
         onProgress?.({ loaded, total, bytes: this.networkBytes });
       }
     };
-    if (entries.length) await Promise.all([worker(), worker(), worker(), worker()]);
+    if (entries.length) {
+      const run = () => worker().catch(error => {
+        queue.length = 0;
+        throw error;
+      });
+      // Do not let a retry overlap workers left behind by Promise.all's early rejection.
+      const results = await Promise.allSettled([run(), run(), run(), run()]);
+      const failure = results.find(result => result.status === 'rejected');
+      if (failure) throw failure.reason;
+    }
     this.ready = this.backingReady;
     this.coldMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - started;
     return this;

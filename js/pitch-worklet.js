@@ -12,11 +12,10 @@ function rms(buf) {
   return Math.sqrt(sum / buf.length);
 }
 
-function yinPitch(buf, sampleRate) {
+function yinPitch(buf, sampleRate, d) {
   const n = buf.length;
   const half = n >> 1;
   if (half < 4 || !(sampleRate > 0)) return { hz: 0, confidence: 0 };
-  const d = new Float32Array(half);
   for (let tau = 1; tau < half; tau += 1) {
     let sum = 0;
     for (let i = 0; i < half; i += 1) {
@@ -61,11 +60,17 @@ class PitchProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.buffer = new Float32Array(2048);
+    this.difference = new Float32Array(this.buffer.length >> 1);
     this.offset = 0;
     this.hop = 1024;
+    this.stopped = false;
+    this.port.onmessage = event => {
+      if (event.data === 'stop') this.stopped = true;
+    };
   }
 
   process(inputs) {
+    if (this.stopped) return false;
     const channel = inputs[0] && inputs[0][0];
     if (!channel || !channel.length) return true;
     let i = 0;
@@ -80,7 +85,7 @@ class PitchProcessor extends AudioWorkletProcessor {
         let hz = 0;
         let confidence = 0;
         if (amp > YIN_RMS_FLOOR) {
-          const pitch = yinPitch(this.buffer, sampleRate);
+          const pitch = yinPitch(this.buffer, sampleRate, this.difference);
           hz = pitch.hz;
           confidence = pitch.confidence;
         }

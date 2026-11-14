@@ -25,7 +25,7 @@ export class BandTransport extends Transport {
 
   async ensure() {
     await super.ensure();
-    if (!this.tap) {
+    if (!this.tap || this.tap.context !== this.ctx) {
       this.tap = this.ctx.createMediaStreamDestination();
       this.master.connect(this.tap);
     }

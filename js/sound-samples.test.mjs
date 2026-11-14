@@ -47,3 +47,80 @@ test("lazy load pulls backing plus only the selected instrument", () => {
   assert.ok(trumpet.length > piano.length);
   assert.ok(allSampleEntries().length > trumpet.length);
 });
+
+const { SampleLibrary } = await import('./sound-samples.js');
+const context = { decodeAudioData: async () => ({ decoded: true }) };
+const sampleResponse = () => new Response(new Uint8Array([1, 2, 3]));
+
+for (const failure of ['network', 'invalid-json']) {
+  test(`sample playback works when optional manifest metadata fails: ${failure}`, async t => {
+    t.mock.method(globalThis, 'fetch', async url => {
+      if (String(url).endsWith('manifest.json')) {
+        if (failure === 'network') throw Error('offline metadata');
+        return new Response('not json');
+      }
+      return sampleResponse();
+    });
+    const library = await new SampleLibrary().load(context);
+    assert.equal(library.backingReady, true);
+    assert.equal(library.packBytes, 0);
+  });
+}
+
+test('unreadable sample cache falls back to bounded network requests', async t => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'caches');
+  t.after(() => { if (original) Object.defineProperty(globalThis, 'caches', original); else delete globalThis.caches; });
+  globalThis.caches = { open: async () => ({
+    match: async () => { throw Error('cache unavailable'); }, put: async () => {},
+  }) };
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    assert.ok(init?.signal instanceof AbortSignal, 'downloads must have a deadline');
+    return String(url).endsWith('manifest.json') ? Response.json({}) : sampleResponse();
+  });
+  assert.equal((await new SampleLibrary().load(context)).backingReady, true);
+});
+
+test('a failed load settles all active workers before allowing a retry', async t => {
+  let release, downloads = 0;
+  const gate = new Promise(resolve => { release = resolve; });
+  t.mock.method(globalThis, 'fetch', async url => {
+    if (String(url).endsWith('manifest.json')) return Response.json({});
+    downloads++;
+    if (downloads === 1) throw Error('sample failed');
+    await gate;
+    return sampleResponse();
+  });
+  const library = new SampleLibrary();
+  let settled = false;
+  const loading = library.load(context).finally(() => { settled = true; });
+  const rejected = assert.rejects(loading, /sample failed/);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false);
+  release();
+  await rejected;
+  assert.equal(downloads, 4, 'failed workers must not drain the rest of the queue');
+  await library.load(context);
+  assert.equal(library.backingReady, true);
+});
+
+test('a corrupt cached sample is evicted so the next attempt can recover', async t => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'caches');
+  t.after(() => { if (original) Object.defineProperty(globalThis, 'caches', original); else delete globalThis.caches; });
+  const badUrl = loadEntriesFor()[0].url;
+  const cache = new Map([[badUrl, new Response(new Uint8Array([0]))]]);
+  globalThis.caches = { open: async () => ({
+    match: async url => cache.get(url)?.clone(),
+    put: async (url, response) => cache.set(url, response),
+    delete: async url => cache.delete(url),
+  }) };
+  t.mock.method(globalThis, 'fetch', async url => String(url).endsWith('manifest.json') ? Response.json({}) : sampleResponse());
+  const decoder = { decodeAudioData: async bytes => {
+    if (new Uint8Array(bytes)[0] === 0) throw Error('corrupt audio');
+    return {};
+  } };
+  const library = new SampleLibrary();
+  await assert.rejects(library.load(decoder), /corrupt audio/);
+  assert.equal(cache.has(badUrl), false);
+  await library.load(decoder);
+  assert.equal(library.backingReady, true);
+});

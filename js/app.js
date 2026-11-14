@@ -181,6 +181,7 @@ let audioNotice = "";
 let samplesLoading = false;
 let startGen = 0;
 let notationGen = 0;
+let notationRenderKey = null;
 let lastEngraveMs = 0;
 let wrapupBanner = null;
 let liveGrade = null;
@@ -1923,10 +1924,11 @@ function renderNotation() {
   els.notation.classList.toggle("notation-memory", Boolean(spec.memory && !notesRevealed));
   const hideNotes = lesson.kind === "master" && !lesson.chartTimed && !notesRevealed;
   els.notation.closest(".paper-wrap")?.classList.toggle("notes-hidden", hideNotes);
-  lastTimemap = [];
-  lastChordTimings = lesson.chartTimed ? [] : chordTimingsFor(session);
   if (hideStaff) {
     notationGen += 1;
+    notationRenderKey = null;
+    lastTimemap = [];
+    lastChordTimings = [];
     els.notation.replaceChildren();
     lastPlayheadSystem = null;
     layoutClickWheel();
@@ -1944,11 +1946,6 @@ function renderNotation() {
     notationScale: resolveNotationScale(),
   });
   const concertKey = getKey(currentKeyId(session));
-  lastNotationLayout = {
-    ...layout,
-    phraseStartBar: view.application?.phraseStartBar ?? 7,
-    phraseBars: phraseSpanBars(lesson.applicationId),
-  };
   const mei = spec.mei === "phrase"
     ? phraseMEI(
       concertKey,
@@ -1968,9 +1965,26 @@ function renderNotation() {
       showCues: spec.showEntranceCues,
       barsPerLine: layout.barsPerLine,
     });
+  const renderKey = JSON.stringify([session.lessonId, mei, layout, width, spec.memory && !notesRevealed]);
+  if (notationRenderKey === renderKey) {
+    updatePlayhead();
+    return;
+  }
+  notationRenderKey = renderKey;
+  lastTimemap = [];
+  lastChordTimings = chordTimingsFor(session);
+  lastNotationLayout = {
+    ...layout,
+    phraseStartBar: view.application?.phraseStartBar ?? 7,
+    phraseBars: phraseSpanBars(lesson.applicationId),
+  };
   const gen = notationGen += 1;
   whenVerovioReady().then(() => {
-    if (gen !== notationGen || !session || session.screen !== "session") return;
+    if (gen !== notationGen) return;
+    if (!session || session.screen !== "session") {
+      notationRenderKey = null;
+      return;
+    }
     return engraveMei(els.notation, mei, {
       layout,
       width,
@@ -1989,6 +2003,7 @@ function renderNotation() {
     updatePlayhead();
   }).catch(() => {
     if (gen !== notationGen) return;
+    notationRenderKey = null;
     els.notation.replaceChildren();
   });
 }
