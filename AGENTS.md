@@ -2,6 +2,8 @@
 
 The app is the web client at the repository root. `README.md` is the operating guide. The retired native app is available only in Git history.
 
+For new licks, dictated musical ideas, and lick corrections or integrations, read [Lick Builder](.agents/skills/lick-builder/SKILL.md). Keep the user's confirmed adaptation distinct from any original recording.
+
 ## Development
 
 - Plain HTML, CSS, and JavaScript ES modules; no framework, bundler, or npm dependencies.

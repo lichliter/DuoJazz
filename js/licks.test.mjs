@@ -65,8 +65,8 @@ test("registry keeps thirty workbook modules after the chord-tone foundation", (
     "se", "mp", "ssr", "sat", "ctdc", "tpr", "ntp", "dct", "ae", "fe",
     "bb", "lg", "bcf", "dss", "nnr",
   ]);
-  assert.equal(LICKS.length, 31);
-  assert.equal(MODULES.length, 32);
+  assert.equal(LICKS.length, 32);
+  assert.equal(MODULES.length, 33);
   assert.deepEqual(
     MODULES.slice(1, 6).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
     [8, 6, 5, 5, 6],
@@ -80,7 +80,7 @@ test("registry keeps thirty workbook modules after the chord-tone foundation", (
   }));
   assert.equal(
     LESSONS.filter((lesson) => !["your-tunes", "my-tunes", "application-practice", "chart-tones"].includes(lesson.group)).length,
-    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length - 1 + 8 + 1,
+    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length - 1 + 8 + 2,
   );
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "master" || lesson.kind === "integrate"));
   for (const lick of LICKS.slice(0, 30)) {
@@ -348,7 +348,7 @@ test("Start bubble walks the module path in book order", () => {
   assert.equal(recommendedLessonId(all), null);
   const nodes = lessonPathNodes(defaultPrefs(), cmarDone);
   assert.equal(nodes.filter((node) => node.recommended).map((node) => node.id).join(), "emr-learn");
-  assert.equal(nodes.filter((node) => node.number === "01").length, 32);
+  assert.equal(nodes.filter((node) => node.number === "01").length, 33);
 });
 
 test("sleeve colors rotate so neighboring modules do not share an edge color", () => {

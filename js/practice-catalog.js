@@ -41,6 +41,7 @@ export function matchesAt(timeline, variant, start, anchor) {
     for (let cursor = position; cursor < end - 1e-6;) {
       const actual = timeline.find((event) => event.beat <= start + cursor + 1e-6 && event.end > start + cursor + 1e-6);
       if (!actual || chordFamily(actual.quality) !== expected.family
+        || (expected.qualities && !expected.qualities.includes(actual.quality))
         || pc(actual.intervalFromTonic) !== pc(anchor + expected.root)) return false;
       cursor = Math.min(end, actual.end - start);
     }
@@ -76,6 +77,7 @@ export function matchApplication(form, variant) {
 const QUALITY = { major: "major7", minor: "minor7", dominant: "dominant7", halfdim: "minor7b5", dim: "diminished7" };
 
 function exampleQuality(definition, variant, event) {
+  if (event.quality) return event.quality;
   if (event.family === "major" && definition.id.includes("lydian")) return "major7b5";
   if (event.family !== "dominant") return QUALITY[event.family];
   if (["jcdp", "tdp", "dss"].includes(definition.lickId)) return "dominant7s9";

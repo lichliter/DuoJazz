@@ -26,7 +26,7 @@ import {
   phraseMeasureCount,
   phraseTimeline,
   restBeatsForSpan,
-  spellShownMidi,
+  spellMelodyMidi,
   usesFlatsForChord,
   withSpotOctaves,
 } from "./music.js";
@@ -130,7 +130,7 @@ function notePitchAttrs(item, ctx) {
   const shownMidi = concertMidiToWritten(concertMidi, ctx.displayMode);
   const chord = chordAtEventBeat(ctx.chords, item.beat);
   const flats = usesFlatsForChord(ctx.shownKey, chord);
-  const spelled = spellShownMidi(shownMidi, ctx.shownKey, flats);
+  const spelled = spellMelodyMidi(shownMidi, ctx.shownKey, item, flats);
   const letter = spelled.letter;
   const acc = spelled.acc;
   const oct = spelled.octave;

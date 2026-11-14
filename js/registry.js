@@ -63,6 +63,13 @@ function ireal(tune) {
 }
 
 export const FORMS = {
+  "lotus-inspired-learn": {
+    id: "lotus-inspired-learn",
+    title: "Lotus-inspired",
+    shortTitle: "The lick",
+    keyQuality: "minor",
+    bars: [bar([chord(0, "minormaj7")]), bar([chord(0, "minormaj7")])],
+  },
   "minor-rise-return-learn": {
     id: "minor-rise-return-learn",
     title: "Minor Rise and Return",
@@ -696,6 +703,26 @@ export const LICKS = [
     defaultKeyId: "Bb",
     elements: [N(0, 0.5), N(2, 0.5), N(3, 0.5), N(5, 0.5), N(2, 0.5), N(0, 0.5)],
   },
+  {
+    id: "lotus-inspired",
+    name: "Lotus-inspired",
+    shortName: "Lotus-inspired",
+    source: "Brian’s simplified adaptation of Lotus by Shaun Martin (around 1:28); not an exact transcription.",
+    octave: -1,
+    pickupBeats: 0,
+    learnBeats: 8,
+    keyQuality: "minor",
+    defaultKeyId: "F",
+    // Relative to F: E F G Ab G F E G F C. The final C is below the opening E.
+    // An eighth rest places the entrance on & of 1, not before the first bar.
+    elements: [
+      R(0.5), N(-1, 0.5, { diatonicStep: -1 }), N(0, 0.5, { diatonicStep: 0 }),
+      N(2, 0.5, { diatonicStep: 1 }), N(3, 1, { diatonicStep: 2 }),
+      N(2, 0.5, { diatonicStep: 1 }), N(0, 0.5, { diatonicStep: 0 }),
+      N(-1, 0.5, { diatonicStep: -1 }), N(2, 1, { diatonicStep: 1 }),
+      N(0, 1, { diatonicStep: 0 }), N(-5, 1, { diatonicStep: -3 }), R(0.5),
+    ],
+  },
 ];
 
 export const FRAGMENTS = {
@@ -1058,6 +1085,17 @@ export const ALL_APPLICATIONS = [
   ...WORKBOOK_APPLICATIONS,
   ...WORKBOOK_TRACK_APPLICATIONS,
   {
+    id: "lotus-inspired-learn",
+    lickId: "lotus-inspired",
+    formId: "lotus-inspired-learn",
+    label: "Learn the lick",
+    cellTonicInterval: 0,
+    phraseStartBar: 1,
+    leadIn: [],
+    resolve: [],
+    copyKind: "learn",
+  },
+  {
     id: "minor-rise-return-learn",
     lickId: "minor-rise-return",
     formId: "minor-rise-return-learn",
@@ -1396,6 +1434,22 @@ MODULES.push({
   }],
 });
 
+MODULES.push({
+  id: "lotus-inspired",
+  number: 32,
+  lickId: "lotus-inspired",
+  name: "Lotus-inspired",
+  lessons: [{
+    id: "lotus-inspired-learn",
+    kind: "learn",
+    applicationId: "lotus-inspired-learn",
+    title: "Learn the lick",
+    coverTitle: "Learn the lick",
+    summary: "Enter on the & of 1, rise from the leading tone to the minor third, then descend to the fifth below home.",
+    context: "Harmonic minor · simplified from Shaun Martin’s Lotus",
+    defaultKeyId: "F",
+  }],
+});
 const toneFoundations = buildChordToneExercises();
 for (const module of MODULES) module.number += 1;
 MODULES.unshift(toneFoundations.module);
@@ -1456,6 +1510,38 @@ export const TUNE_LESSONS = TUNE_SECTION.lessons.map((lesson, index) => ({
 
 export const LESSONS = [...MODULE_LESSONS, ...TUNE_LESSONS];
 
+function lotusApplications() {
+  // Keep the leading tone away from an explicit minor seventh in the backing.
+  const tonic = { root: 0, family: "minor", beats: 8,
+    qualities: ["minor", "minor6", "minorb6", "minormaj7"], quality: "minormaj7" };
+  const source = "Brian’s simplified adaptation of Shaun Martin’s Lotus · harmonic-minor practice";
+  const variant = (pattern) => ({
+    id: "original", label: "Original", pattern,
+    elements: lickById("lotus-inspired").elements, pickupBeats: 0,
+  });
+  return [{
+    lickId: "lotus-inspired",
+    id: "minor-home",
+    label: "Minor home",
+    description: "Enter on the & of 1. Use the raised seventh as a leading tone and finish on the fifth below the minor root.",
+    source,
+    exampleTitle: "Minor tonic vamp",
+    variants: [variant([tonic])],
+  }, {
+    lickId: "lotus-inspired",
+    id: "minor-cadence",
+    label: "V → minor",
+    description: "Play the first bar over V7, then carry the second bar into minor. Keep the syncopation and finish on the tonic chord’s fifth.",
+    source,
+    exampleTitle: "Minor cadence",
+    variants: [variant([
+      { root: 7, family: "dominant", beats: 4,
+        qualities: ["dominant7", "dominant7b9", "dominant7b13"], quality: "dominant7b9" },
+      { ...tonic, beats: 4 },
+    ])],
+  }];
+}
+
 export const PRACTICE_CATALOG = buildPracticeCatalog({
   modules: MODULES, tunes: TUNES, licks: LICKS, fragments: FRAGMENTS, applicationById, formById,
   additionalDefinitions: [{
@@ -1472,7 +1558,7 @@ export const PRACTICE_CATALOG = buildPracticeCatalog({
       elements: lickById("minor-rise-return").elements,
       pickupBeats: 0,
     }],
-  }],
+  }, ...lotusApplications()],
 });
 Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);
