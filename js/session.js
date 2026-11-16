@@ -1359,7 +1359,7 @@ export function sessionPresentation(session) {
 export function sessionAudioConfig(session) {
   return {
     ...audioConfigFor(practiceStateFor(session)),
-    // The selected instrument follows the lesson staff, including during demos.
+    // The model melody follows the lesson staff, including during demos.
     // Contextual lead-ins and resolutions are not part of that phrase.
     modelScope: "phrase",
   };

@@ -44,7 +44,7 @@ See [AGENTS.md](AGENTS.md) for contributor and coding-agent guidance.
 - `/?screen=home&demo=medal`
 - `/?screen=session&lesson=learn-lick&card=play&mic=denied`
 
-Lessons use New-simple sampled piano, bass, and ride kit for backing, plus the selected instrument for the demo line, with synth fallback. Horn and guitar demos use recorded acoustic samples; piano and guitar retain short natural release tails. Source credits and conversion details are in `sound/CREDITS.md`. Demo progress links show temporary previews only; they never replace saved progress.
+Lessons use New-simple sampled piano, bass, and ride kit for backing. Every lick demo uses sampled piano, regardless of the selected instrument, with a short natural release tail and synth fallback. Source credits and conversion details are in `sound/CREDITS.md`. Demo progress links show temporary previews only; they never replace saved progress.
 
 ## Music
 
@@ -93,7 +93,7 @@ Both pages of all thirty workbook licks are mapped in `js/workbook-applications.
 
 Open Profile from the avatar to see your account details and practice settings. Settings are global and apply to the next lesson started: instrument, tempo, key selection and cycle, swing, and metronome. “Cycle through selected keys” defaults off (all keys); turn it on to choose a subset. Learn uses one key, Master cycles through the selected keys, and integration uses the tune's key. Each key has a single Play card, rather than a Learn → Play → Listen → Quiz sequence. Hear it plays a model demonstration; Record starts a graded attempt or the integration backing loop. Auto advances graded practice after a pass and retries after a miss.
 
-Melody octave (−1 / Original / +1) moves only the model line and displayed phrase. The **Instrument** setting (default Piano) sets clef, written transposition, register, and demo samples. Skipping a key is not a pass. Pitch observations reset at the start of every card and every take.
+Melody octave (−1 / Original / +1) moves only the model line and displayed phrase. The **Instrument** setting (default Piano) sets clef, written transposition, and register; demo playback always uses piano. Skipping a key is not a pass. Pitch observations reset at the start of every card and every take.
 
 Lick Learn/Master and chart Learn/Practice use an ordered microphone note follower (YIN in an AudioWorklet): each target pitch must stay within ±50 cents for about 80 ms. Timing is not graded in these modes. A stable wrong pitch held for 120 ms fails the attempt; short transients are ignored. Learn, and Master or Practice after Show notes, require the displayed octave. Hidden-note exercises accept one consistent octave shift throughout the phrase. The initial eight-second no-sound timeout starts only when microphone capture is ready. Timed chart Master uses the same microphone pitch capture with a separate end-of-run pitch-and-timing grade; silence scores zero.
 

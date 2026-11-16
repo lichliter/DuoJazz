@@ -681,8 +681,7 @@ async function beginPracticeLoop() {
   try {
     await transport.ensure();
     if (generation !== startGen || !session) return;
-    const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
-    const prepared = await transport.prepareBacking({ sampleSet });
+    const prepared = await transport.prepareBacking({ sampleSet: "piano" });
     if (generation !== startGen || !session || rapidPhase !== "listening") return;
     audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
     const config = recordBackingConfig(session);
@@ -715,7 +714,7 @@ async function beginTimedChart() {
   try {
     await transport.ensure();
     if (generation !== startGen || !timedRunActive) return;
-    await transport.prepareBacking({ sampleSet: instrumentOrDefault(session.instrumentId).sampleSet });
+    await transport.prepareBacking({ sampleSet: "piano" });
     if (generation !== startGen || !timedRunActive) return;
     await monitor.start(transport.ctx, { processing: false });
     if (generation !== startGen || !timedRunActive) return;
@@ -775,8 +774,7 @@ async function beginListening() {
   try {
     await transport.ensure();
     if (generation !== startGen || !session) return;
-    const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
-    const prepared = await transport.prepareBacking({ sampleSet });
+    const prepared = await transport.prepareBacking({ sampleSet: "piano" });
     if (generation !== startGen || !session || rapidPhase !== "listening") return;
     audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
     const config = recordBackingConfig(session);
@@ -1155,11 +1153,10 @@ async function playHearDemo() {
   audioError = "";
   renderHearIt();
   renderPrimary();
-  const sampleSet = instrumentOrDefault(session.instrumentId).sampleSet;
   try {
     await transport.ensure();
     if (generation !== startGen || !hearDemo) return;
-    const prepared = await transport.prepareBacking({ sampleSet });
+    const prepared = await transport.prepareBacking({ sampleSet: "piano" });
     if (generation !== startGen || !hearDemo || !session) return;
     audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
     const config = demoAudioConfig({ ...session, keyIndex: held });
