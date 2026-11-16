@@ -10,7 +10,9 @@
     "attribution": "Brian’s simplified adaptation; not a verified transcription",
     "referenceNote": "Brian supplied a 10-second screen recording near 1:28; original media is retained in the working environment, not distributed with the app."
   },
-  "startBeatOffset": 0.5,
+  "startBeatOffset": -1.5,
+  "pickupBeats": 1.5,
+  "entrance": "& of 3 before the first full bar: E on &3, F on 4, G on &4, A♭ on beat 1.",
   "notes": [
     {
       "pitch": "E",
@@ -53,14 +55,15 @@
       "durationBeats": 1
     }
   ],
-  "rhythmStatus": "Brian confirmed the 120 BPM demo rhythm and & of 1 entrance, correcting only the last pitch from E to C. This is his simplified adaptation. The original recording’s meter remains unverified.",
+  "rhythmStatus": "Brian confirmed the note durations and corrected the final pitch to C, then moved the entrance to & of 3 with three eighth-note pickups before the first full bar. This is his simplified adaptation. The original recording’s meter remains unverified.",
   "preview": {
     "bpm": 120,
     "countInBeats": 4,
     "meter": "4/4",
     "bars": 2,
-    "endRestBeats": 0.5,
-    "note": "Literal rendering of the dictated adaptation, not a claim about the recording’s meter, tempo, or octave."
+    "pickupBeats": 1.5,
+    "endRestBeats": 2.5,
+    "note": "Two full bars plus a three-eighth-note pickup during the count-in. Literal rendering of the dictated adaptation, not a claim about the recording’s meter, tempo, or octave."
   },
   "tonalCenter": "F",
   "scaleContext": {
@@ -91,12 +94,12 @@
   "applications": [
     {
       "id": "minor-home",
-      "pattern": "Two bars of tonic minor; example uses Fm(maj7).",
-      "matching": "minor, minor6, minorb6, or minormaj7 throughout the sounding phrase."
+      "pattern": "Three eighth-note pickups into two bars of tonic minor; example uses Fm(maj7).",
+      "matching": "minor, minor6, minorb6, or minormaj7 from the first full bar through the final sounding note; three pickup notes lead in from the preceding bar."
     },
     {
       "id": "minor-cadence",
-      "pattern": "One bar V7, one bar tonic minor; example uses C7b9 then Fm(maj7).",
+      "pattern": "Three eighth-note pickups into one bar V7 and one bar tonic minor; example uses C7b9 then Fm(maj7).",
       "matching": "dominant7, dominant7b9, or dominant7b13 for bar 1; compatible tonic minor for the rest of the phrase."
     }
   ],

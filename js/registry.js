@@ -709,18 +709,18 @@ export const LICKS = [
     shortName: "Lotus-inspired",
     source: "Brian’s simplified adaptation of Lotus by Shaun Martin (around 1:28); not an exact transcription.",
     octave: -1,
-    pickupBeats: 0,
+    pickupBeats: 1.5,
     learnBeats: 8,
     keyQuality: "minor",
     defaultKeyId: "F",
     // Relative to F: E F G Ab G F E G F C. The final C is below the opening E.
-    // An eighth rest places the entrance on & of 1, not before the first bar.
+    // Three eighth-note pickups begin on & of 3; Ab lands on the first downbeat.
     elements: [
-      R(0.5), N(-1, 0.5, { diatonicStep: -1 }), N(0, 0.5, { diatonicStep: 0 }),
-      N(2, 0.5, { diatonicStep: 1 }), N(3, 1, { diatonicStep: 2 }),
+      N(-1, 0.5, { diatonicStep: -1, pickup: true }), N(0, 0.5, { diatonicStep: 0, pickup: true }),
+      N(2, 0.5, { diatonicStep: 1, pickup: true }), N(3, 1, { diatonicStep: 2 }),
       N(2, 0.5, { diatonicStep: 1 }), N(0, 0.5, { diatonicStep: 0 }),
       N(-1, 0.5, { diatonicStep: -1 }), N(2, 1, { diatonicStep: 1 }),
-      N(0, 1, { diatonicStep: 0 }), N(-5, 1, { diatonicStep: -3 }), R(0.5),
+      N(0, 1, { diatonicStep: 0 }), N(-5, 1, { diatonicStep: -3 }), R(2.5),
     ],
   },
 ];
@@ -1091,6 +1091,7 @@ export const ALL_APPLICATIONS = [
     label: "Learn the lick",
     cellTonicInterval: 0,
     phraseStartBar: 1,
+    includePickup: true,
     leadIn: [],
     resolve: [],
     copyKind: "learn",
@@ -1445,7 +1446,7 @@ MODULES.push({
     applicationId: "lotus-inspired-learn",
     title: "Learn the lick",
     coverTitle: "Learn the lick",
-    summary: "Enter on the & of 1, rise from the leading tone to the minor third, then descend to the fifth below home.",
+    summary: "Enter on the & of 3 with three pickup notes, land on the minor third on beat 1, then descend to the fifth below home.",
     context: "Harmonic minor · simplified from Shaun Martin’s Lotus",
     defaultKeyId: "F",
   }],
@@ -1517,13 +1518,13 @@ function lotusApplications() {
   const source = "Brian’s simplified adaptation of Shaun Martin’s Lotus · harmonic-minor practice";
   const variant = (pattern) => ({
     id: "original", label: "Original", pattern,
-    elements: lickById("lotus-inspired").elements, pickupBeats: 0,
+    elements: lickById("lotus-inspired").elements, pickupBeats: lickById("lotus-inspired").pickupBeats,
   });
   return [{
     lickId: "lotus-inspired",
     id: "minor-home",
     label: "Minor home",
-    description: "Enter on the & of 1. Use the raised seventh as a leading tone and finish on the fifth below the minor root.",
+    description: "Enter on the & of 3 with three pickup notes into minor. Use the raised seventh as a leading tone and finish on the fifth below the minor root.",
     source,
     exampleTitle: "Minor tonic vamp",
     variants: [variant([tonic])],
@@ -1531,7 +1532,7 @@ function lotusApplications() {
     lickId: "lotus-inspired",
     id: "minor-cadence",
     label: "V → minor",
-    description: "Play the first bar over V7, then carry the second bar into minor. Keep the syncopation and finish on the tonic chord’s fifth.",
+    description: "Lead into V7 with three eighth-note pickups from the & of 3, then carry the phrase into minor and finish on the tonic chord’s fifth.",
     source,
     exampleTitle: "Minor cadence",
     variants: [variant([

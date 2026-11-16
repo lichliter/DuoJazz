@@ -212,7 +212,12 @@ test("an obsolete failed sample load cannot replace a cached selection or its re
   assert.equal(transport.sampleNotice, "");
 });
 
-for (const lessonId of ["dss-learn", "dss-master"]) {
+for (const [lessonId, pickupStarts] of [
+  ["dss-learn", [-1, -0.5, 0]],
+  ["dss-master", [-1, -0.5, 0]],
+  ["lotus-inspired-learn", [-1.5, -1, -0.5, 0]],
+  ["lotus-inspired-master", [-1.5, -1, -0.5, 0]],
+]) {
   for (const sampled of [false, true]) {
     test(`${lessonId} Hear it schedules the full pickup with ${sampled ? "samples" : "synth"}`, async () => {
       const { transport } = await setup();
@@ -225,7 +230,7 @@ for (const lessonId of ["dss-learn", "dss-master"]) {
         scheduleEvent(event, origin);
       };
       await transport.start(demoAudioConfig(session));
-      assert.deepEqual(melody.slice(0, 3).map((note) => note.beat), [-1, -0.5, 0]);
+      assert.deepEqual(melody.slice(0, pickupStarts.length).map((note) => note.beat), pickupStarts);
       assert.deepEqual(melody, expectedNotesFor(session).map((note) => ({ beat: note.startBeat, midi: note.midi })));
       assert.equal(transport.snapshot().inCountIn, true);
       transport.stop();
