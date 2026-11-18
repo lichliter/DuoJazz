@@ -20,6 +20,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   const login = $("login-screen"), shell = $("app-shell"), chip = $("account-chip");
   const returnUrl = authReturnUrl(location.href);
   let user = null, initialized = false, restoring = true, recovery = false, busy = false;
+  let viewingGuest = false;
   let generation = 0, pending = false, running = false, applying = false;
   let retryTimer, retryDelay = 5000, resendTimer, resendAt = 0;
   let confirmation = null;
@@ -44,11 +45,19 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     if (focus && !login.hidden) $("login-title").focus({ preventScroll: true });
   }
   function showApp() {
+    const canViewApp = (Boolean(user) || viewingGuest) && !recovery;
     $("account-loading").hidden = !restoring;
-    login.hidden = restoring || (Boolean(user) && !recovery);
-    shell.hidden = restoring || !user || recovery;
+    login.hidden = restoring || canViewApp;
+    shell.hidden = restoring || !canViewApp;
     shell.inert = shell.hidden;
-    $("account-member").hidden = !user;
+    $("account-member").hidden = !user && !viewingGuest;
+    $("account-login").hidden = Boolean(user);
+    $("account-signout").hidden = !user;
+    const name = user ? user.email?.split("@")[0] || "Your account" : "Guest";
+    $("account-avatar").textContent = accountInitials(name);
+    $("account-name").textContent = name;
+    chip.setAttribute("aria-label", `Profile: ${name}${user?.email ? `, ${user.email}` : ""}`);
+    $("account-identity").textContent = user ? user.email ?? "" : "Progress is saved on this device. Log in to sync your practice.";
     document.querySelector('.skip-link').href = restoring ? '#account-loading-title' : shell.hidden ? '#login-title' : '#main';
   }
   function clearPasswords() {
@@ -59,6 +68,26 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   }
   document.querySelectorAll("dialog[open]").forEach(node => node.close());
   chip.onclick = onOpenProfile;
+  // Guest navigation stays available even when sign-in cannot load or is offline.
+  $("account-view-guest").onclick = () => {
+    if (busy || restoring || recovery || user) return;
+    void changeAccount(null);
+    viewingGuest = true;
+    clearPasswords();
+    showView("signin", { focus: false });
+    showApp();
+    $("main").focus({ preventScroll: true });
+  };
+  $("account-login").onclick = () => {
+    if (user) return;
+    viewingGuest = false;
+    // Stop any guest practice before hiding the app behind the login screen.
+    onProgress(getProgress(), true);
+    showApp();
+    document.querySelectorAll("dialog[open]").forEach(node => node.close());
+    clearPasswords();
+    showView("signin");
+  };
   for (const button of document.querySelectorAll("[data-auth-nav]")) button.onclick = () => {
     if (busy) return;
     if (button.dataset.authNav === "reset") $("reset-email").value = $("account-email").value;
@@ -185,16 +214,12 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     if (initialized && (next?.id ?? null) === (user?.id ?? null)) { showApp(); return; }
     const switchingAccount = initialized;
     initialized = true; generation++; user = next; pending = false;
+    viewingGuest = false;
     clearTimeout(retryTimer); syncError("");
     const version = generation;
     onSettingsAccount(user?.id ?? null);
     setMasteryAccount(user?.id);
     onProgress(loadMastery(), switchingAccount);
-    const name = user?.email?.split("@")[0] || "Your account";
-    $("account-avatar").textContent = accountInitials(name);
-    $("account-name").textContent = name;
-    chip.setAttribute("aria-label", `Profile: ${name}${user?.email ? `, ${user.email}` : ""}`);
-    $("account-identity").textContent = user?.email ?? "";
     clearPasswords(); say(""); showApp();
     if (!user) {
       document.querySelectorAll("dialog[open]").forEach(node => node.close());

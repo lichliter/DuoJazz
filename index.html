@@ -49,6 +49,7 @@
         <div class="password-field"><input id="account-password" type="password" autocomplete="current-password" required><button type="button" data-show-password="account-password" aria-label="Show password" aria-pressed="false">Show</button></div>
         <button type="button" class="auth-link" data-auth-nav="reset">Forgot password?</button>
         <button type="submit" id="account-signin" class="login-primary" disabled>Sign in</button>
+        <button type="button" id="account-view-guest">View as guest</button>
         <p class="login-create"><button type="button" id="account-signup" data-auth-nav="signup">Create account</button></p>
       </form>
       <form id="signup-form" class="auth-form" data-auth-view="signup" hidden>
@@ -173,7 +174,8 @@
             <label class="group-row"><span>Click during the music</span><input type="checkbox" id="metronome"></label>
           </section>
           <div class="profile-actions">
-            <button type="button" id="account-signout">Sign out</button>
+            <button type="button" id="account-login" hidden>Log in</button>
+            <button type="button" id="account-signout" hidden>Sign out</button>
           </div>
         </form>
       </dialog>
