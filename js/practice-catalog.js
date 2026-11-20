@@ -193,6 +193,7 @@ export function chartChoices(group, selectedIds, variantId = group.variants?.[0]
 }
 
 export const MY_CHARTS_KEY = "duojazz.myCharts.v1";
+export const MY_LICKS_KEY = "duojazz.myLicks.v1";
 
 export function normalizeMyCharts(value, charts) {
   const available = new Set(charts.map((chart) => chart.id));
@@ -201,5 +202,15 @@ export function normalizeMyCharts(value, charts) {
 
 export function loadMyCharts(charts, storage) {
   try { return normalizeMyCharts(JSON.parse((storage ?? globalThis.localStorage).getItem(MY_CHARTS_KEY)), charts); }
+  catch { return []; }
+}
+
+export function normalizeMyLicks(value, modules) {
+  const available = new Set(modules.map((module) => module.id));
+  return Array.isArray(value) ? [...new Set(value.filter((id) => available.has(id)))] : [];
+}
+
+export function loadMyLicks(modules, storage) {
+  try { return normalizeMyLicks(JSON.parse((storage ?? globalThis.localStorage).getItem(MY_LICKS_KEY)), modules); }
   catch { return []; }
 }

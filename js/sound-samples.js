@@ -195,7 +195,17 @@ export function nearestNote(notes, midi) {
 
 async function openCache() {
   if (typeof caches === "undefined") return null;
+  // When the service worker already controls this tab, its versioned precache
+  // serves every sample offline without duplicating ~2.4 MB in a second cache.
+  if (globalThis.navigator?.serviceWorker?.controller) return null;
   try {
+    if (typeof caches.keys === "function") {
+      for (const key of await caches.keys()) {
+        if (key.startsWith("duojazz-sound-") && key !== SAMPLE_VERSION) {
+          await caches.delete?.(key);
+        }
+      }
+    }
     return await caches.open(SAMPLE_VERSION);
   } catch {
     return null;
@@ -269,7 +279,6 @@ export class SampleLibrary {
   }
 
   hasMelody(sampleSet) {
-    if (BACKING_KINDS.has(sampleSet)) return this.hasKind(sampleSet);
     return this.hasKind(sampleSet);
   }
 

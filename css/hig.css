@@ -1995,9 +1995,9 @@ button.module-banner {
 #login-title { text-transform: none; }
 #login-title:focus { outline: none; }
 
-/* Touch input behavior. */
+/* Touch input behavior. Keep visible focus rings on text controls. */
 #main:focus { outline: none; }
-:root[data-input-mode="pointer"] :focus-visible { outline: none; }
+:root[data-input-mode="pointer"] :is(button, a, dialog, [tabindex]):focus-visible { outline: none; }
 button, a, input, select, textarea { touch-action: manipulation; }
 button, a { -webkit-tap-highlight-color: transparent; }
 @media (hover: none) and (pointer: coarse) {

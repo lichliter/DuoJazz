@@ -9,7 +9,14 @@ async function pwaHarness({ online = true, failure = false, active = false } = {
   const events = {};
   const workerEvents = {};
   const worker = { state: 'installing', addEventListener(name, handler) { workerEvents[name] = handler; } };
-  const registration = { active: active ? {} : null, installing: worker, addEventListener() {} };
+  let updateListeners = 0;
+  let updates = 0;
+  const registration = {
+    active: active ? {} : null,
+    installing: worker,
+    addEventListener(name) { if (name === 'updatefound') updateListeners += 1; },
+    async update() { updates += 1; },
+  };
   const navigator = { onLine: online, serviceWorker: {
     controller: active ? {} : null,
     async register() {
@@ -25,6 +32,8 @@ async function pwaHarness({ online = true, failure = false, active = false } = {
   });
   await new Promise(resolve => setImmediate(resolve));
   return { status, navigator, events, registration,
+    updateListeners: () => updateListeners,
+    updates: () => updates,
     recover() { failure = false; },
     state(value) { worker.state = value; workerEvents.statechange(); },
   };
@@ -62,6 +71,10 @@ test('registration failures persist until a successful reconnect', async () => {
   app.registration.installing = null;
   await app.events.online();
   assert.equal(app.status.hidden, true);
+  await app.events.online();
+  await app.events.online();
+  assert.equal(app.updateListeners(), 1);
+  assert.equal(app.updates(), 2);
 });
 
 test('offline release includes the current application assets', async () => {

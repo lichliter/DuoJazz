@@ -24,7 +24,17 @@ import {
 
 export const PASS_THRESHOLD = 0.8;
 export const PITCH_CENTS = 50;
+export const GRADE_AMP_FLOOR = 0.0015;
+export const GRADE_CONFIDENCE_MIN = 0.8;
 export const GRADED_CARDS = new Set(["play", "listen", "quiz"]);
+
+function isUsableObservation(row) {
+  if (!row || !(row.amp > GRADE_AMP_FLOOR) || !(row.hz > 0)) return false;
+  if (typeof row.confidence === "number" && Number.isFinite(row.confidence) && row.confidence < GRADE_CONFIDENCE_MIN) {
+    return false;
+  }
+  return true;
+}
 
 export function hzFromMidi(midi) {
   return 440 * 2 ** ((midi - 69) / 12);
@@ -92,7 +102,7 @@ function pickOnset(pool, note, windowBeats, strictTiming = false) {
   let bestScore = Infinity;
   for (let i = 0; i < pool.length; i += 1) {
     const row = pool[i];
-    if (row.used || !(row.amp > 0.01) || !(row.hz > 0)) continue;
+    if (row.used || !isUsableObservation(row)) continue;
     if (row.beat < start || row.beat > lateEnd) continue;
     const heard = midiFromHz(row.hz);
     const pitchClass = heard != null && wrapMidi(heard) === wrapMidi(note.midi);
@@ -246,7 +256,7 @@ export function gradeSession(session, observations) {
 }
 
 export function hasPitchTake(observations = []) {
-  return observations.some((row) => row.amp > 0.01 && row.hz > 0);
+  return observations.some(isUsableObservation);
 }
 
 /** Grade a take, or Skipped when a graded card has no take. Never a pass without a take. */

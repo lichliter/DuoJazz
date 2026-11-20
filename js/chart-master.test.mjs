@@ -72,3 +72,13 @@ test('half-bar chord tones follow swing timing and old per-chord passes never co
   const practiced = recordQuizPass(emptyMastery(), parent.lessons.find(lesson => lesson.chartPractice).id, 'C');
   assert.deepEqual(practiced.lessons[lesson.id].passedKeys, []);
 });
+
+test('timed Master grades quiet confident horns and ignores low-confidence noise', () => {
+  const lesson = CHART_MODULES[0].lessons.find(lesson => lesson.chartTimed);
+  const session = createSession({ lessonId: lesson.id, swing: false });
+  const notes = expectedNotesFor(session);
+  const quiet = synthTrack(notes, { amp: 0.004 }).map(frame => ({ ...frame, confidence: 0.95 }));
+  assert.equal(gradeSession(session, quiet).passed, true);
+  const noise = synthTrack(notes, { amp: 0.004 }).map(frame => ({ ...frame, confidence: 0.3 }));
+  assert.equal(gradeSession(session, noise).percent, 0);
+});

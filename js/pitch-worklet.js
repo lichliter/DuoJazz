@@ -16,31 +16,35 @@ function yinPitch(buf, sampleRate, d) {
   const n = buf.length;
   const half = n >> 1;
   if (half < 4 || !(sampleRate > 0)) return { hz: 0, confidence: 0 };
-  for (let tau = 1; tau < half; tau += 1) {
-    let sum = 0;
-    for (let i = 0; i < half; i += 1) {
-      const delta = buf[i] - buf[i + tau];
-      sum += delta * delta;
-    }
-    d[tau] = sum;
-  }
+  const minTau = Math.max(2, Math.floor(sampleRate / 2200));
+  const maxTau = Math.min(half, Math.ceil(sampleRate / 38) + 2);
   d[0] = 1;
   let running = 0;
-  for (let tau = 1; tau < half; tau += 1) {
-    running += d[tau];
-    d[tau] = running > 0 ? (d[tau] * tau) / running : 1;
-  }
   let tau = -1;
-  for (let i = 2; i < half; i += 1) {
-    if (d[i] < YIN_THRESHOLD) {
-      tau = i;
-      while (tau + 1 < half && d[tau + 1] < d[tau]) tau += 1;
-      break;
+  let best = minTau;
+  // Fuse difference + cumulative mean normalization and exit on the first valley
+  // below YIN_THRESHOLD so common horn pitches skip 60–85% of the lag scan.
+  for (let lag = 1; lag < maxTau; lag += 1) {
+    let sum = 0;
+    for (let i = 0; i < half; i += 1) {
+      const delta = buf[i] - buf[i + lag];
+      sum += delta * delta;
+    }
+    running += sum;
+    const cmndf = running > 0 ? (sum * lag) / running : 1;
+    d[lag] = cmndf;
+    if (lag >= minTau && cmndf < d[best]) best = lag;
+    if (tau >= 0) {
+      if (cmndf < d[tau]) {
+        tau = lag;
+      } else {
+        break;
+      }
+    } else if (lag >= minTau && cmndf < YIN_THRESHOLD) {
+      tau = lag;
     }
   }
-  if (tau < 0 || tau >= half - 1) {
-    let best = 2;
-    for (let i = 3; i < half; i += 1) if (d[i] < d[best]) best = i;
+  if (tau < 0 || tau >= maxTau - 1) {
     const confidence = Math.max(0, Math.min(1, 1 - d[best]));
     return { hz: 0, confidence };
   }

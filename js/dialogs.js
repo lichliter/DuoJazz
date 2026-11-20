@@ -37,7 +37,18 @@ export function initDialogInteractions() {
     document.documentElement.dataset.inputMode = "pointer";
   }, true);
   document.addEventListener("keydown", event => {
-    if (event.key === "Tab" || event.key.startsWith("Arrow")) {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (
+      event.key === "Tab"
+      || event.key.startsWith("Arrow")
+      || event.key === "Enter"
+      || event.key === " "
+      || event.key === "Home"
+      || event.key === "End"
+      || event.key === "PageUp"
+      || event.key === "PageDown"
+      || event.key === "Escape"
+    ) {
       document.documentElement.dataset.inputMode = "keyboard";
     }
   }, true);
@@ -46,6 +57,13 @@ export function initDialogInteractions() {
     dialog.addEventListener("cancel", event => {
       event.preventDefault();
       closeSheet(dialog);
+    });
+    dialog.addEventListener("click", event => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const inside = event.clientX >= rect.left && event.clientX <= rect.right
+        && event.clientY >= rect.top && event.clientY <= rect.bottom;
+      if (!inside) closeSheet(dialog);
     });
     dialog.addEventListener("submit", event => {
       const method = event.submitter?.getAttribute("formmethod") ?? event.target.method;

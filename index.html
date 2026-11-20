@@ -18,26 +18,26 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=150">
   <link rel="stylesheet" href="./css/styles.css?v=151">
-  <link rel="stylesheet" href="./css/hig.css?v=154">
+  <link rel="stylesheet" href="./css/hig.css?v=155">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=158"></script>
-  <script type="module" src="./js/pwa.js"></script>
+  <script type="module" src="./js/app.js?v=159"></script>
+  <script type="module" src="./js/pwa.js?v=159"></script>
 </head>
 <body>
   <p id="offline-status" class="offline-status" role="status" hidden></p>
   <a class="skip-link" href="#account-loading-title">Skip to main content</a>
 
   <section id="account-loading" class="login-screen" aria-labelledby="account-loading-title">
-    <main class="account-loading-card">
+    <div class="account-loading-card">
       <img class="login-record" src="./icons/icon-512.png?v=dj-record-6" alt="" width="98" height="98">
       <h1 id="account-loading-title" tabindex="-1">DuoJazz</h1>
       <p class="help" role="status">Loading…</p>
-    </main>
+    </div>
   </section>
 
   <section id="login-screen" class="login-screen" aria-labelledby="login-title" hidden>
-    <main class="login-card account-panel">
+    <div class="login-card account-panel">
       <img class="login-record" src="./icons/icon-512.png?v=dj-record-6" alt="DuoJazz" width="98" height="98">
       <h1 id="login-title" tabindex="-1">Sign in</h1>
       <p id="account-status" class="help account-status" role="status" aria-live="polite"></p>
@@ -82,7 +82,7 @@
         <p id="new-password-help" class="help field-help">At least 8 characters.</p>
         <button type="submit" id="password-submit" class="login-primary" disabled>Save password</button>
       </form>
-    </main>
+    </div>
   </section>
 
   <div hidden inert class="app-shell" id="app-shell" data-screen="home" data-tab="licks">

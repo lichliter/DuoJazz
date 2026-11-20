@@ -8,7 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
-import { Transport } from "./audio.js?v=155";
+import { Transport } from "./audio.js";
 import {
   notationLayout,
   resolveNotationScale,
@@ -17,7 +17,7 @@ import {
   withSystemGap,
   sessionWheelLayout,
   minWheelDiameter,
-} from "./lesson.js?v=152";
+} from "./lesson.js";
 import { chorusStaffMEI, phraseMEI } from "./mei.js";
 import {
   applySoundingHighlight,
@@ -31,7 +31,7 @@ import {
   measureEngraving,
   soundingIdsAt,
   whenVerovioReady,
-} from "./engrave.js?v=150";
+} from "./engrave.js";
 import {
   PREFS_KEY,
   MODULE,
@@ -42,6 +42,7 @@ import {
   lessonById,
   normalizePrefs,
   normalizeAccountPrefs,
+  compactPrefs,
   defaultPrefs,
   recommendedLessonId,
   createSession,
@@ -100,23 +101,17 @@ import {
   setAllKeys,
   setStartKey,
   toggleSelectedKey,
-} from "./session.js?v=150";
-import {
-  tuneById,
-  licksInTune,
-  tunesForLick,
-  learnLessonIdForLick,
-  tunePlayLessonId,
-} from "./tunes.js";
+} from "./session.js";
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartGrid, chartKeyChoices } from "./charts.js";
-import { applicationById, lickById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from "./registry.js";
+import { applicationById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from "./registry.js";
+import { MY_CHARTS_KEY, MY_LICKS_KEY, loadMyCharts, loadMyLicks } from "./practice-catalog.js";
 import { gradedMasteryPercent } from "./library-progress.js";
 import { setupLibraryPicker } from "./library-ui.js";
 import { CHORD_QUALITIES, transposeToneKey } from "./chord-tones.js";
-import { setupPracticeUI } from "./practice-ui.js?v=150";
+import { setupPracticeUI } from "./practice-ui.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js?v=150";
+import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -130,7 +125,7 @@ import {
   rapidMicStep,
   shouldRecordMastery,
   skipAhead,
-} from "./rapid.js?v=150";
+} from "./rapid.js";
 import {
   emptyMastery,
   displayMedal,
@@ -142,7 +137,7 @@ import {
   normalizeMastery,
   moduleMastery,
 } from "./medals.js";
-import { PitchMonitor, micCopy } from "./pitch.js?v=150";
+import { PitchMonitor, micCopy } from "./pitch.js";
 import {
   blobToBase64,
   buildTakeRecord,
@@ -151,7 +146,7 @@ import {
   deliverTake,
   openTakeRecorder,
   pushTakeFrame,
-} from "./take-dump.js?v=150";
+} from "./take-dump.js";
 import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { initAccount } from "./account.js";
@@ -165,12 +160,11 @@ const monitor = new PitchMonitor();
 const playback = { playing: false, paused: false, ended: false };
 let recordBacking = false;
 let prefs = loadPrefs();
-let savedPrefs = structuredClone(prefs);
+let savedPrefs = compactPrefs(prefs);
 const cloudSettings = createCloudSettings({ onChange: () => window.dispatchEvent(new Event("duojazz-settings-changed")) });
 let mastery = loadMastery();
 let masteryPreview = null;
 let setupLessonId = recommendedLessonId(keysByLesson(mastery)) ?? LESSONS[0].id;
-let setupDraft = { ...prefs.lessons[setupLessonId] };
 let session = null;
 let lastNotationLayout = null;
 let lastPlayheadSystem = null;
@@ -204,10 +198,11 @@ let liveAt = 0;
 const debugOn = new URLSearchParams(location.search).get("debug") === "1";
 const SELECTED_MODULE_KEY = "duojazz.selectedModule.v1";
 let selectedModuleId = loadSelectedModule();
+const deepLinkOverrides = { module: null, auto: null };
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
 let chartKeySelection = null;
-let favoriteLicks = [];
+let favoriteLicks = loadMyLicks(MODULES);
 let timedRunActive = false;
 function isTimedChart() {
   return Boolean(session && lessonById(session.lessonId).chartTimed);
@@ -229,13 +224,8 @@ const els = {
   chartGrid: document.getElementById("chart-grid"),
   lessonList: document.getElementById("lesson-list"),
   instrumentList: document.getElementById("instrument-list"),
-  settings: document.getElementById("settings-modal"),
-  setup: document.getElementById("setup"),
-  setupTitle: document.getElementById("setup-title"),
-  setupSummary: document.getElementById("setup-summary"),
   settingsForm: document.getElementById("settings-form"),
   nextModule: document.getElementById("next-module"),
-  quickViewBtn: document.getElementById("quick-view-btn"),
   quickViewTitle: document.getElementById("quick-view-title"),
   sessionTitle: document.getElementById("session-title"),
   sessionModule: document.getElementById("session-module"),
@@ -247,38 +237,25 @@ const els = {
   allKeysToggle: document.getElementById("all-keys-toggle"),
   allKeysLabel: document.getElementById("all-keys-label"),
   sessionOctave: document.getElementById("session-octave"),
-  headphonesTip: document.getElementById("headphones-tip"),
-  headphonesDismiss: document.getElementById("headphones-dismiss"),
-  primaryLabel: document.getElementById("primary-label"),
   tempoReadout: document.getElementById("tempo-readout"),
   tempoDown: document.getElementById("tempo-down"),
   tempoUp: document.getElementById("tempo-up"),
-  setupLinks: document.getElementById("setup-links"),
-  startLesson: document.getElementById("start-lesson"),
   sessionExit: document.getElementById("session-exit"),
-  sessionBack: document.getElementById("session-back"),
-  sessionNext: document.getElementById("session-next"),
-  sessionQuickView: document.getElementById("session-quick-view"),
   quickView: document.getElementById("quick-view"),
   quickViewList: document.getElementById("quick-view-list"),
   leaveConfirm: document.getElementById("leave-confirm"),
   sessionKey: document.getElementById("session-key"),
   keyCycle: document.getElementById("key-cycle"),
-  sessionProgressFill: document.getElementById("session-progress-fill"),
   cardBadge: document.getElementById("card-badge"),
-  sessionMode: document.getElementById("session-mode"),
   hearIt: document.getElementById("hear-it"),
   notation: document.getElementById("notation"),
   hiddenAnswer: document.getElementById("hidden-answer"),
   listenState: document.getElementById("listen-state"),
   listenKicker: document.getElementById("listen-kicker"),
   listenDetail: document.getElementById("listen-detail"),
-  chartTitle: document.getElementById("chart-title"),
-  chartMeta: document.getElementById("chart-meta"),
   primary: document.getElementById("primary"),
   continueBtn: document.getElementById("continue-btn"),
   showNotes: document.getElementById("show-notes"),
-  instruction: document.getElementById("instruction"),
   meter: document.getElementById("meter"),
   gradeLine: document.getElementById("grade-line"),
   debugStrip: document.getElementById("debug-strip"),
@@ -289,8 +266,6 @@ const els = {
   celebrate: document.getElementById("celebrate"),
   celebrateKey: document.getElementById("celebrate-key"),
   sessionMic: document.getElementById("session-mic"),
-  medalMark: document.getElementById("medal-mark"),
-  medalNote: document.getElementById("medal-note"),
   wrapupKicker: document.getElementById("wrapup-kicker"),
   wrapupHeading: document.getElementById("wrapup-heading"),
   wrapupDetail: document.getElementById("wrapup-detail"),
@@ -300,7 +275,6 @@ const els = {
   wrapupSleeveNum: document.getElementById("wrapup-sleeve-num"),
   wrapupSleeveTitle: document.getElementById("wrapup-sleeve-title"),
   resultList: document.getElementById("result-list"),
-  micStatus: document.getElementById("mic-status"),
   nextKey: document.getElementById("next-key"),
   againKey: document.getElementById("again-key"),
   doneSession: document.getElementById("done-session"),
@@ -320,6 +294,7 @@ function loadSelectedModule() {
 
 function rememberModule(id) {
   selectedModuleId = MODULES.some((module) => module.id === id) ? id : MODULES[0]?.id;
+  if (typeof deepLinkOverrides !== "undefined") deepLinkOverrides.module = null;
   if (cloudSettings.userId) cloudSettings.set({ selectedModuleId });
   else writeStoredJson(SELECTED_MODULE_KEY, selectedModuleId);
   renderStorageNotice();
@@ -335,11 +310,17 @@ function loadPrefs() {
 }
 
 function persist() {
+  const nextCompact = compactPrefs(prefs);
   if (cloudSettings.userId) {
-    const changed = Object.fromEntries(PREFERENCE_NAMES.filter(name => JSON.stringify(prefs[name]) !== JSON.stringify(savedPrefs[name])).map(name => [name, prefs[name]]));
+    const prevCompact = compactPrefs(savedPrefs);
+    const changed = Object.fromEntries(
+      PREFERENCE_NAMES
+        .filter(name => JSON.stringify(nextCompact[name]) !== JSON.stringify(prevCompact[name]))
+        .map(name => [name, nextCompact[name]]),
+    );
     if (Object.keys(changed).length) cloudSettings.set(changed);
-  } else writeStoredJson(PREFS_KEY, prefs);
-  savedPrefs = structuredClone(prefs);
+  } else writeStoredJson(PREFS_KEY, nextCompact);
+  savedPrefs = structuredClone(nextCompact);
   renderStorageNotice();
 }
 
@@ -777,23 +758,12 @@ async function beginListening() {
     const prepared = await transport.prepareBacking({ sampleSet: "piano" });
     if (generation !== startGen || !session || rapidPhase !== "listening") return;
     audioNotice = prepared.status === "fallback" ? (prepared.notice ?? "") : "";
-    const config = recordBackingConfig(session);
-    recordBacking = true;
-    await transport.start(config, { resume: false });
-    if (generation !== startGen || rapidPhase !== "listening") {
-      if (generation === startGen) {
-        recordBacking = false;
-        transport.stop();
-      }
-      return;
-    }
+    // Arm the microphone before starting the backing so permission prompts do not play over silence.
     const step = rapidMicStep(monitor.isLive() && monitor.processing === false, "attempt");
     if (step === "reset") monitor.reset();
     else await monitor.start(transport.ctx, { processing: false });
     if (generation !== startGen) return;
-    if (debugOn) await armDebugTake();
-    if (generation !== startGen) return;
-    if (monitor.state === "denied" || monitor.state === "unsupported") {
+    if (monitor.state === "denied" || monitor.state === "unsupported" || monitor.state === "no-mic" || monitor.state === "mic-busy") {
       rapidPhase = "idle";
       attempt = null;
       monitor.holdSignal = false;
@@ -804,6 +774,18 @@ async function beginListening() {
       renderMic();
       return;
     }
+    const config = recordBackingConfig(session);
+    recordBacking = true;
+    await transport.start(config, { resume: false });
+    if (generation !== startGen || rapidPhase !== "listening") {
+      if (generation === startGen) {
+        recordBacking = false;
+        transport.stop();
+      }
+      return;
+    }
+    if (debugOn) await armDebugTake();
+    if (generation !== startGen) return;
     attempt = followerForSession(session, performance.now());
     renderDebug();
     attemptTimer = window.setInterval(() => {
@@ -920,7 +902,6 @@ function renderMic() {
     els.sessionMic.hidden = !copy;
     els.sessionMic.textContent = copy;
   }
-  if (els.micStatus) els.micStatus.textContent = copy;
   fillListenState();
 }
 
@@ -1008,10 +989,6 @@ function startLesson(lessonId, options = {}) {
   applySession(next);
 }
 
-function defaultLessonStartKey(lesson) {
-  return lesson?.defaultKeyId ?? prefs.startKeyId;
-}
-
 function openSetup(lessonId) {
   startLesson(lessonId);
 }
@@ -1059,10 +1036,6 @@ function jumpFromQuickView(id) {
   if (!target) return;
   const moduleId = target.type === "module" ? target.id : target.moduleId;
   selectModule(moduleId);
-}
-
-function closeSetup() {
-  if (els.setup?.open) els.setup.close();
 }
 
 function startFromSetup() {
@@ -1300,7 +1273,12 @@ function moduleBanner(module) {
   section.setAttribute("aria-label", `Choose a ${module.chart ? "chart" : "lick"}. ${module.name}`);
   const copy = document.createElement("div");
   copy.className = "banner-copy";
-  copy.innerHTML = `<p class="banner-kicker">${module.chart ? "Chart" : `Module ${module.number}`}</p><h2>${module.name}</h2>`;
+  const kicker = document.createElement("p");
+  kicker.className = "banner-kicker";
+  kicker.textContent = module.chart ? "Chart" : `Module ${module.number}`;
+  const title = document.createElement("h2");
+  title.textContent = module.name;
+  copy.append(kicker, title);
   const chevron = document.createElement("span");
   chevron.className = "banner-chevron";
   chevron.setAttribute("aria-hidden", "true");
@@ -1450,7 +1428,26 @@ function sleeveButton(node) {
 
   const stage = document.createElement("span");
   stage.className = "sleeve-stage";
-  stage.innerHTML = `<span class="vinyl" data-tier="${node.vinylTier}" aria-hidden="true"><span class="vinyl-label"></span></span><span class="sleeve"><span class="sleeve-deco" aria-hidden="true"></span><span class="sleeve-num">${node.number}</span><span class="sleeve-title">${node.coverTitle}</span></span>`;
+  const vinyl = document.createElement("span");
+  vinyl.className = "vinyl";
+  vinyl.dataset.tier = node.vinylTier;
+  vinyl.setAttribute("aria-hidden", "true");
+  const vinylLabel = document.createElement("span");
+  vinylLabel.className = "vinyl-label";
+  vinyl.append(vinylLabel);
+  const sleeve = document.createElement("span");
+  sleeve.className = "sleeve";
+  const deco = document.createElement("span");
+  deco.className = "sleeve-deco";
+  deco.setAttribute("aria-hidden", "true");
+  const num = document.createElement("span");
+  num.className = "sleeve-num";
+  num.textContent = node.number;
+  const cover = document.createElement("span");
+  cover.className = "sleeve-title";
+  cover.textContent = node.coverTitle;
+  sleeve.append(deco, num, cover);
+  stage.append(vinyl, sleeve);
   btn.append(stage);
 
   const applicationId = node.onSelect ? null : lessonById(node.id).practiceApplicationId;
@@ -1552,58 +1549,6 @@ function renderSettings() {
   }
   renderKeyBubbles();
   if (els.tempoReadout) els.tempoReadout.textContent = String(prefs.tempo);
-}
-
-function renderSetupLinks(lesson) {
-  const host = els.setupLinks;
-  if (!host) return;
-  host.replaceChildren();
-  if (lesson.kind === "learn") {
-    const tunes = tunesForLick(lesson.moduleId === "cmar" ? "cmar" : lesson.moduleId);
-    if (!tunes.length) {
-      host.hidden = true;
-      return;
-    }
-    host.hidden = false;
-    const heading = document.createElement("p");
-    heading.className = "setup-links-heading";
-    heading.textContent = "In your tunes";
-    host.append(heading);
-    for (const tune of tunes) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "setup-link";
-      btn.dataset.testid = `setup-link-tune-${tune.id}`;
-      btn.textContent = tune.title;
-      btn.addEventListener("click", () => openSetup(tunePlayLessonId(tune.id)));
-      host.append(btn);
-    }
-    return;
-  }
-  if (lesson.tuneId) {
-    const tune = tuneById(lesson.tuneId);
-    const lickIds = licksInTune(tune);
-    if (!lickIds.length) {
-      host.hidden = true;
-      return;
-    }
-    host.hidden = false;
-    const heading = document.createElement("p");
-    heading.className = "setup-links-heading";
-    heading.textContent = "Licks in this tune";
-    host.append(heading);
-    for (const lickId of lickIds) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "setup-link";
-      btn.dataset.testid = `setup-link-lick-${lickId}`;
-      btn.textContent = lickById(lickId).name;
-      btn.addEventListener("click", () => openSetup(learnLessonIdForLick(lickId)));
-      host.append(btn);
-    }
-    return;
-  }
-  host.hidden = true;
 }
 
 function renderSessionOctave() {
@@ -2019,7 +1964,11 @@ function renderInstruments() {
       label.className = "group-row instrument-row";
       const copy = document.createElement("span");
       copy.className = "instrument-copy";
-      copy.innerHTML = `<strong>${instrument.label}</strong><small>${instrument.note}</small>`;
+      const strong = document.createElement("strong");
+      strong.textContent = instrument.label;
+      const note = document.createElement("small");
+      note.textContent = instrument.note;
+      copy.append(strong, note);
       const input = document.createElement("input");
       input.type = "radio";
       input.name = "instrument";
@@ -2084,7 +2033,6 @@ function renderPrimary(snap = transport.snapshot()) {
     }
     if (icon) icon.hidden = false;
     els.primary.setAttribute("aria-label", action.label);
-    if (els.primaryLabel) els.primaryLabel.textContent = action.label;
     return;
   }
   const action = sessionPrimaryAction(session, playback);
@@ -2111,7 +2059,6 @@ function renderPrimary(snap = transport.snapshot()) {
     if (els.primaryCount) els.primaryCount.hidden = true;
     if (icon) icon.hidden = true;
     els.primary.setAttribute("aria-label", "Loading backing");
-    if (els.primaryLabel) els.primaryLabel.textContent = "Loading";
     return;
   }
   if (inCountIn) {
@@ -2122,7 +2069,6 @@ function renderPrimary(snap = transport.snapshot()) {
     }
     if (icon) icon.hidden = true;
     els.primary.setAttribute("aria-label", `Count-in ${n}`);
-    if (els.primaryLabel) els.primaryLabel.textContent = "Count-in";
     return;
   }
   if (els.primaryCount) {
@@ -2134,7 +2080,6 @@ function renderPrimary(snap = transport.snapshot()) {
     ? (result.passed ? "Pass" : "Not yet")
     : (playing ? "Stop" : action.label);
   els.primary.setAttribute("aria-label", label);
-  if (els.primaryLabel) els.primaryLabel.textContent = playing ? "Stop" : (result ? label : action.label);
 }
 
 function renderMeter(snap = transport.snapshot()) {
@@ -2188,7 +2133,12 @@ function renderWrapup() {
   els.resultList.replaceChildren(
     ...copy.results.map((row) => {
       const item = document.createElement("li");
-      item.innerHTML = `<span>${row.label}</span><span class="outcome">${resultLabel(row)}</span>`;
+      const label = document.createElement("span");
+      label.textContent = row.label;
+      const outcome = document.createElement("span");
+      outcome.className = "outcome";
+      outcome.textContent = resultLabel(row);
+      item.append(label, outcome);
       return item;
     }),
   );
@@ -2424,6 +2374,7 @@ function applyDeepLink() {
   const moduleParam = params.get("module");
   if (moduleParam) {
     selectedModuleId = moduleParam;
+    if (typeof deepLinkOverrides !== "undefined") deepLinkOverrides.module = moduleParam;
   }
   if (!screen) {
     writeTabUrl(true);
@@ -2511,8 +2462,14 @@ function applyDeepLink() {
     resetPitchTake();
     const shot = params.get("shot");
     sessionShot = shot === "idle" || shot === "listening" || shot === "check" || shot === "retry" ? shot : null;
-    if (params.get("auto") === "0") prefs.auto = false;
-    if (params.get("auto") === "1") prefs.auto = true;
+    if (params.get("auto") === "0") {
+      prefs.auto = false;
+      if (typeof deepLinkOverrides !== "undefined") deepLinkOverrides.auto = false;
+    }
+    if (params.get("auto") === "1") {
+      prefs.auto = true;
+      if (typeof deepLinkOverrides !== "undefined") deepLinkOverrides.auto = true;
+    }
   }
 }
 
@@ -2630,11 +2587,14 @@ const libraryPicker = setupLibraryPicker({
   onFavorite(type, id, selected) {
     if (type === 'licks') {
       favoriteLicks = selected ? [...new Set([...favoriteLicks, id])] : favoriteLicks.filter(value => value !== id);
-      cloudSettings.setLick(id, selected);
+      if (cloudSettings.userId) cloudSettings.setLick(id, selected);
+      else writeStoredJson(MY_LICKS_KEY, favoriteLicks);
     } else {
       const charts = practiceUI.getSelected();
-      practiceUI.setSelected(selected ? [...charts, id] : charts.filter(value => value !== id));
-      cloudSettings.setChart(id, selected);
+      const nextCharts = selected ? [...charts, id] : charts.filter(value => value !== id);
+      practiceUI.setSelected(nextCharts);
+      if (cloudSettings.userId) cloudSettings.setChart(id, selected);
+      else writeStoredJson(MY_CHARTS_KEY, practiceUI.getSelected());
     }
     render();
   },
@@ -2645,15 +2605,51 @@ const libraryPicker = setupLibraryPicker({
 });
 const practiceUI = setupPracticeUI({
   onPractice: startLesson, onChanged: renderStorageNotice,
-  onSaveChart: (id, selected) => cloudSettings.setChart(id, selected),
+  onSaveChart: (id, selected) => {
+    if (cloudSettings.userId) cloudSettings.setChart(id, selected);
+    else writeStoredJson(MY_CHARTS_KEY, practiceUI.getSelected());
+  },
   onManageCharts: () => libraryPicker.open("charts"),
 });
-const legacySettings = { ...prefs, selectedModuleId, myCharts: practiceUI.getSelected() };
+function guestLegacySettings() {
+  return {
+    ...loadPrefs(),
+    selectedModuleId: loadSelectedModule(),
+    myCharts: loadMyCharts(PRACTICE_CATALOG.charts),
+    myLicks: loadMyLicks(MODULES),
+  };
+}
+function applyDeepLinkOverrides() {
+  if (deepLinkOverrides.module && MODULES.some(module => module.id === deepLinkOverrides.module)) {
+    selectedModuleId = deepLinkOverrides.module;
+  }
+  if (typeof deepLinkOverrides.auto === "boolean") {
+    prefs.auto = deepLinkOverrides.auto;
+  }
+}
+function applyGuestSettings() {
+  prefs = loadPrefs();
+  applyDeepLinkOverrides();
+  savedPrefs = compactPrefs(prefs);
+  selectedModuleId = loadSelectedModule();
+  if (deepLinkOverrides.module && MODULES.some(module => module.id === deepLinkOverrides.module)) {
+    selectedModuleId = deepLinkOverrides.module;
+  }
+  practiceUI.setSelected(loadMyCharts(PRACTICE_CATALOG.charts));
+  favoriteLicks = loadMyLicks(MODULES);
+  if (!nav.tune) lastChartTune = CHART_LIBRARY[0].id;
+  if (els.quickView?.open) libraryPicker.render();
+  render();
+}
 function applyAccountSettings() {
   const values = cloudSettings.values();
   prefs = normalizeAccountPrefs(values);
-  savedPrefs = structuredClone(prefs);
+  applyDeepLinkOverrides();
+  savedPrefs = compactPrefs(prefs);
   selectedModuleId = MODULES.some(module => module.id === values.selectedModuleId) ? values.selectedModuleId : MODULES[0].id;
+  if (deepLinkOverrides.module && MODULES.some(module => module.id === deepLinkOverrides.module)) {
+    selectedModuleId = deepLinkOverrides.module;
+  }
   practiceUI.setSelected(values.myCharts ?? []);
   favoriteLicks = (values.myLicks ?? []).filter(id => MODULES.some(module => module.id === id));
   if (!nav.tune) lastChartTune = values.selectedChartId ?? CHART_LIBRARY[0].id;
@@ -2697,7 +2693,6 @@ window.addEventListener("popstate", () => {
   if (nav.tab === "charts") lastChartTune = nav.tune;
   render();
 });
-els.quickViewBtn?.addEventListener("click", requestQuickView);
 els.sessionExit.addEventListener("click", exitSession);
 els.leaveConfirm?.addEventListener("close", () => {
   if (els.leaveConfirm.returnValue === "leave") abandonToQuickView();
@@ -2726,6 +2721,7 @@ els.saveTake?.addEventListener("click", () => {
   });
 });
 els.autoToggle?.addEventListener("click", () => {
+  deepLinkOverrides.auto = null;
   prefs.auto = prefs.auto === false;
   persist();
   renderAuto();
@@ -2776,18 +2772,20 @@ els.againKey.addEventListener("click", () => {
 });
 els.doneSession.addEventListener("click", exitSession);
 
-els.tempoDown?.addEventListener("click", () => {
-  prefs.tempo = Math.max(60, prefs.tempo - 4);
-  prefs = persistLessonTempo(prefs, setupLessonId, prefs.tempo);
+function applyTempoDelta(delta) {
+  prefs.tempo = Math.min(160, Math.max(60, prefs.tempo + delta));
+  prefs = persistLessonTempo(prefs, session?.lessonId ?? setupLessonId, prefs.tempo);
   persist();
+  if (session) {
+    session = { ...session, tempo: prefs.tempo };
+    halt();
+    render();
+    return;
+  }
   renderSettings();
-});
-els.tempoUp?.addEventListener("click", () => {
-  prefs.tempo = Math.min(160, prefs.tempo + 4);
-  prefs = persistLessonTempo(prefs, setupLessonId, prefs.tempo);
-  persist();
-  renderSettings();
-});
+}
+els.tempoDown?.addEventListener("click", () => applyTempoDelta(-4));
+els.tempoUp?.addEventListener("click", () => applyTempoDelta(4));
 els.startKey?.addEventListener("change", () => {
   prefs = setStartKey(prefs, els.startKey.value);
   persist();
@@ -2861,9 +2859,14 @@ els.session?.addEventListener("touchend", (event) => {
   navigateCard(dx < 0 ? 1 : -1);
 }, { passive: true });
 
+let resizeTimer = null;
 window.addEventListener("resize", () => {
-  if (session?.screen === "session") renderNotation();
-  else render();
+  if (resizeTimer) window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(() => {
+    resizeTimer = null;
+    if (session?.screen === "session") renderNotation();
+    else render();
+  }, 120);
 });
 window.addEventListener("pagehide", () => releaseMic("hide"));
 document.addEventListener("visibilitychange", () => {
@@ -2977,8 +2980,9 @@ void initAccount({
   settings: cloudSettings,
   onSettings: applyAccountSettings,
   onSettingsAccount(id) {
-    cloudSettings.activate(id, legacySettings);
-    applyAccountSettings();
+    cloudSettings.activate(id, id ? guestLegacySettings() : {});
+    if (id) applyAccountSettings();
+    else applyGuestSettings();
   },
   onOpenProfile: openSettings,
   getProgress: () => mastery,

@@ -1,6 +1,6 @@
 import { SETTINGS_KEY } from "./cloud-settings.js";
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, GOOGLE_SIGN_IN_ENABLED } from "./supabase-config.js";
-import { loadMastery, saveMastery, setMasteryAccount, MASTERY_KEY } from "./medals.js";
+import { loadMastery, saveMastery, setMasteryAccount, pruneMasteryJournal, MASTERY_KEY } from "./medals.js";
 import { mergeProgress, progressRows, claimGuestProgress } from "./cloud-progress.js";
 import { fetchWithTimeout, withTimeout } from "./network.js";
 
@@ -21,8 +21,10 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   const returnUrl = authReturnUrl(location.href);
   let user = null, initialized = false, restoring = true, recovery = false, busy = false;
   let viewingGuest = false;
-  let generation = 0, pending = false, running = false, applying = false;
+  let generation = 0, pending = false, pendingPull = false, running = false, applying = false;
   let retryTimer, retryDelay = 5000, resendTimer, resendAt = 0;
+  let syncedProgressKeys = new Set();
+  const progressKey = row => `${row.lesson_id}\0${row.key_id}\0${row.kind}`;
   let confirmation = null;
   let view = new URL(location.href).searchParams.get("auth") === "signup" ? "signup" : "signin";
   const titles = { signin: "Sign in", signup: "Create account", confirmation: "Check your email", reset: "Reset password", password: "Choose a new password" };
@@ -139,12 +141,13 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     location.reload();
   });
 
-  async function sync() {
+  async function sync({ pull = true } = {}) {
     if (!navigator.onLine) {
       if (user) syncError("Offline — account sync will resume when you reconnect.");
       return;
     }
     pending = true;
+    if (pull) pendingPull = true;
     if (running || !user) return;
     clearTimeout(retryTimer);
     running = true;
@@ -152,6 +155,8 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     try {
       while (pending && user) {
         pending = false;
+        const shouldPull = pendingPull;
+        pendingPull = false;
         const current = user, version = generation;
         requestGeneration = version;
         const results = await Promise.allSettled([
@@ -165,29 +170,38 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
             // before this tab received its storage event.
             const local = mergeProgress(getProgress(), progressRows(loadMastery(), current.id));
             onProgress(local, false);
-            const rows = progressRows(local, current.id);
-            for (let offset = 0; offset < rows.length; offset += 500) {
+            const allRows = progressRows(local, current.id);
+            const delta = allRows.filter(row => !syncedProgressKeys.has(progressKey(row)));
+            for (let offset = 0; offset < delta.length; offset += 500) {
               if (version !== generation) break;
-              const { error } = await client.from("practice_progress").upsert(rows.slice(offset, offset + 500), {
+              const chunk = delta.slice(offset, offset + 500);
+              const { error } = await client.from("practice_progress").upsert(chunk, {
                 onConflict: "user_id,lesson_id,key_id,kind", ignoreDuplicates: true,
               });
               if (error) throw error;
+              for (const row of chunk) syncedProgressKeys.add(progressKey(row));
             }
             if (version !== generation) return false;
             const remote = [];
-            for (let offset = 0; ; offset += 500) {
-              const { data, error } = await client.from("practice_progress").select("lesson_id,key_id,kind")
-                .eq("user_id", current.id).order("lesson_id").order("key_id").order("kind").range(offset, offset + 499);
-              if (error) throw error;
-              remote.push(...data);
-              if (data.length < 500 || version !== generation) break;
+            if (shouldPull) {
+              for (let offset = 0; ; offset += 500) {
+                const { data, error } = await client.from("practice_progress").select("lesson_id,key_id,kind")
+                  .eq("user_id", current.id).order("lesson_id").order("key_id").order("kind").range(offset, offset + 499);
+                if (error) throw error;
+                remote.push(...data);
+                if (data.length < 500 || version !== generation) break;
+              }
+              if (version !== generation) return false;
+              for (const row of remote) syncedProgressKeys.add(progressKey(row));
             }
-            if (version !== generation) return false;
-            const merged = mergeProgress(getProgress(), remote);
+            const merged = shouldPull ? mergeProgress(getProgress(), remote) : local;
             applying = true;
             onProgress(merged, false);
             const saved = saveMastery(merged);
             applying = false;
+            if (saved && (delta.length || remote.length)) {
+              pruneMasteryJournal(delta.length ? delta : remote);
+            }
             return saved;
           })(),
         ]);
@@ -200,12 +214,12 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
       if (user && requestGeneration === generation) {
         syncError("Your changes haven’t reached your account yet. We’ll retry automatically.");
         pending = false;
-        retryTimer = setTimeout(() => void sync(), retryDelay);
+        retryTimer = setTimeout(() => void sync({ pull: true }), retryDelay);
         retryDelay = Math.min(retryDelay * 2, 60000);
       }
     } finally {
       applying = false; running = false;
-      if (pending && user) void sync();
+      if (pending && user) void sync({ pull: pendingPull });
     }
   }
 
@@ -213,11 +227,12 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     restoring = false;
     if (initialized && (next?.id ?? null) === (user?.id ?? null)) { showApp(); return; }
     const switchingAccount = initialized;
-    initialized = true; generation++; user = next; pending = false;
+    initialized = true; generation++; user = next; pending = false; pendingPull = false;
+    syncedProgressKeys = new Set();
     viewingGuest = false;
     clearTimeout(retryTimer); syncError("");
     const version = generation;
-    onSettingsAccount(user?.id ?? null);
+    onSettingsAccount(user?.id ?? null, switchingAccount);
     setMasteryAccount(user?.id);
     onProgress(loadMastery(), switchingAccount);
     clearPasswords(); say(""); showApp();
@@ -335,12 +350,14 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   });
   $("confirmation-resend").onclick = async () => {
     if (!confirmation || Date.now() < resendAt || busy) return;
+    let sentOk = false;
     await act($("confirmation-resend"), async () => {
       if (confirmation.kind === "signup") ensure(await client.auth.resend({ type: "signup", email: confirmation.email, options: { emailRedirectTo: returnUrl } }));
       else ensure(await client.auth.resetPasswordForEmail(confirmation.email, { redirectTo: returnUrl }));
+      sentOk = true;
       say("Email sent. Check your inbox.");
     });
-    cooldown();
+    if (sentOk) cooldown();
   };
   $("account-google").onclick = event => act(event.currentTarget, async () => ensure(await client.auth.signInWithOAuth(googleOptions(returnUrl))));
   $("account-signout").onclick = event => act(event.currentTarget, async () => {
@@ -353,10 +370,10 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     }
     ensure(await client.auth.signOut({ scope: "local" }));
   }, true);
-  addEventListener("duojazz-settings-changed", () => { if (user) void sync(); });
-  addEventListener("duojazz-progress-saved", () => { if (!applying && user) void sync(); });
-  addEventListener("online", () => { if (user) void sync(); });
-  addEventListener("focus", () => { if (user) void sync(); });
+  addEventListener("duojazz-settings-changed", () => { if (user) void sync({ pull: false }); });
+  addEventListener("duojazz-progress-saved", () => { if (!applying && user) void sync({ pull: false }); });
+  addEventListener("online", () => { if (user) void sync({ pull: true }); });
+  addEventListener("focus", () => { if (user) void sync({ pull: true }); });
   addEventListener("storage", event => {
     if (user && (event.key === `${SETTINGS_KEY}:${user.id}` || event.key?.startsWith(`${SETTINGS_KEY}:${user.id}:edit:`))) {
       settings.reload();

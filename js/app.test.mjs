@@ -271,14 +271,38 @@ test("consecutive attempts reuse live capture instead of stopping the mic", asyn
   assert.equal(harness.ended(), null);
 });
 
-test("unsupported mic startup releases capture and backing", async () => {
-  const harness = listeningContext();
-  harness.context.monitor.start = async () => { harness.context.monitor.state = "unsupported"; };
+test("unsupported mic startup releases capture and backing without starting playback first", async () => {
+  const order = [];
+  const harness = listeningContext({
+    transport: {
+      ensure: async () => {},
+      prepareBacking: async () => ({ status: "ready" }),
+      start: async () => { order.push("transport"); },
+      stop: noop,
+    },
+  });
+  harness.context.monitor.start = async () => {
+    order.push("mic");
+    harness.context.monitor.state = "unsupported";
+  };
   await harness.context.beginListening();
+  assert.deepEqual(order, ["mic"]);
   assert.equal(harness.context.attempt, null);
   assert.equal(harness.context.rapidPhase, "idle");
   assert.equal(harness.context.recordBacking, false);
   assert.equal(harness.stops(), 1);
+});
+
+test("persist writes compact guest prefs without 3,500+ default lesson records", () => {
+  const written = new Map();
+  const context = appContext(["persist", "renderStorageNotice"], {
+    writeStoredJson(key, value) { written.set(key, JSON.stringify(value)); return true; },
+  });
+  context.prefs.tempo = 112;
+  context.persist();
+  const payload = written.get(sessions.PREFS_KEY);
+  assert.ok(payload.length < 2048, `compact prefs should be tiny, got ${payload.length} bytes`);
+  assert.equal(sessions.normalizePrefs(JSON.parse(payload)).tempo, 112);
 });
 
 function keyboardContext(screen = "session") {

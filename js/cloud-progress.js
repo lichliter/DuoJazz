@@ -1,4 +1,4 @@
-import { normalizeMastery, canonicalMastery, MASTERY_KEY } from "./medals.js";
+import { normalizeMastery, canonicalMastery, readMasteryFromStorage, MASTERY_KEY } from "./medals.js";
 
 export const GUEST_OWNER_KEY = "duojazz.guestProgressOwner.v1";
 
@@ -9,7 +9,7 @@ export function claimGuestProgress(userId, storage = undefined) {
     storage ??= globalThis.localStorage;
     const owner = storage.getItem(GUEST_OWNER_KEY);
     if (owner && owner !== userId) return [];
-    const rows = progressRows(JSON.parse(storage.getItem(MASTERY_KEY) ?? "null"), userId);
+    const rows = progressRows(readMasteryFromStorage(MASTERY_KEY, storage), userId);
     if (rows.length && !owner) storage.setItem(GUEST_OWNER_KEY, userId);
     return rows;
   } catch {

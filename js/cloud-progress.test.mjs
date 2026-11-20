@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { progressRows, mergeProgress, claimGuestProgress, GUEST_OWNER_KEY } from "./cloud-progress.js";
-import { emptyMastery, recordQuizPass, recordLearnPass, setMasteryAccount, saveMastery, loadMastery } from "./medals.js";
+import { emptyMastery, compactMastery, normalizeMastery, recordQuizPass, recordLearnPass, setMasteryAccount, saveMastery, loadMastery, pruneMasteryJournal } from "./medals.js";
 import { googleOptions, authReturnUrl, accountInitials } from "./account.js";
 
 test("guest migration is repeatable for its owner and never shared with another account", () => {
@@ -128,4 +128,41 @@ test('a damaged journal record does not hide later passes and saving repairs its
     values.delete('duojazz-mastery-v1:damaged-test');
     assert.deepEqual(loadMastery().lessons['master-lick'].passedKeys, ['C', 'G']);
   } finally { globalThis.localStorage = original; setMasteryAccount(null); }
+});
+
+test('compact mastery stays sparse on disk, preserves schema, and prunes synced journal entries', () => {
+  const original = globalThis.localStorage, values = new Map();
+  globalThis.localStorage = {
+    get length() { return values.size; }, key: i => [...values.keys()][i],
+    getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  try {
+    setMasteryAccount('compact-test');
+    const learned = recordLearnPass(emptyMastery(), 'learn-lick', 'G');
+    saveMastery(learned);
+    const snapshot = values.get('duojazz-mastery-v1:compact-test');
+    assert.ok(snapshot.length < 2048, `compact snapshot should be tiny, got ${snapshot.length} bytes`);
+    const reloaded = normalizeMastery(JSON.parse(snapshot));
+    assert.deepEqual(reloaded.lessons['learn-lick'].learnedKeys, ['G']);
+    assert.deepEqual(reloaded.lessons['master-lick'].passedKeys, []);
+    const earnedKeysBefore = [...values.keys()].filter(k => k.includes(':earned:'));
+    assert.equal(earnedKeysBefore.length, 1);
+    pruneMasteryJournal(progressRows(reloaded, 'compact-test'));
+    const earnedKeysAfter = [...values.keys()].filter(k => k.includes(':earned:'));
+    assert.equal(earnedKeysAfter.length, 0);
+    assert.deepEqual(loadMastery().lessons['learn-lick'].learnedKeys, ['G']);
+  } finally { globalThis.localStorage = original; setMasteryAccount(null); }
+});
+
+test('guest progress migration includes earned-key journal entries even when snapshot is absent', () => {
+  const values = new Map();
+  const row = ['master-lick', 'passedKeys', 'F'];
+  values.set('duojazz-mastery-v1:earned:' + encodeURIComponent(JSON.stringify(row)), JSON.stringify(row));
+  const storage = {
+    get length() { return values.size; }, key: i => [...values.keys()][i],
+    getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value),
+  };
+  const claimed = claimGuestProgress('user-j', storage);
+  assert.deepEqual(claimed, [{ user_id: 'user-j', lesson_id: 'master-lick', key_id: 'F', kind: 'passedKeys' }]);
 });

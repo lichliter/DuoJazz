@@ -14,31 +14,85 @@ export function setMasteryAccount(userId) {
   activeMasteryKey = userId ? `${MASTERY_KEY}:${userId}` : MASTERY_KEY;
 }
 
+const VALID_KEY_SET = new Set(TWELVE_KEY_IDS);
+const MODULE_MASTER_IDS = new Map(
+  MODULES.map((module) => [
+    module.id,
+    module.lessons.filter((lesson) => lesson.kind === "master").map((lesson) => lesson.id),
+  ]),
+);
+
 function emptyModuleMastery() {
-  return Object.fromEntries(MODULES.map((module) => [module.id, { masteredKeys: [], medal: "none" }]));
+  const modules = {};
+  for (const module of MODULES) modules[module.id] = { masteredKeys: [], medal: "none" };
+  return modules;
 }
 
 export function emptyMastery() {
+  const lessons = {};
+  for (const lesson of LESSONS) lessons[lesson.id] = { passedKeys: [], learnedKeys: [] };
   return {
-    lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, { passedKeys: [], learnedKeys: [] }])),
+    lessons,
     masteredKeys: [],
     medal: "none",
     modules: emptyModuleMastery(),
   };
 }
 
+function reconcileModulesInPlace(target, rawModules = null) {
+  const order = { none: 0, bronze: 1, silver: 2, gold: 3 };
+  const modules = {};
+  for (const module of MODULES) {
+    const saved = rawModules?.[module.id];
+    const masteredKeys = Array.isArray(saved?.masteredKeys) ? [...saved.masteredKeys] : [];
+    const masteredSet = new Set(masteredKeys);
+    const masters = MODULE_MASTER_IDS.get(module.id) ?? [];
+    if (masters.length) {
+      for (const keyId of TWELVE_KEY_IDS) {
+        if (masteredSet.has(keyId)) continue;
+        let allPassed = true;
+        for (const masterId of masters) {
+          if (!target.lessons[masterId]?.passedKeys.includes(keyId)) {
+            allPassed = false;
+            break;
+          }
+        }
+        if (allPassed) {
+          masteredKeys.push(keyId);
+          masteredSet.add(keyId);
+        }
+      }
+    }
+    const earned = medalForCount(masteredKeys.length);
+    const savedMedal = saved?.medal ?? "none";
+    const medal = order[earned] > (order[savedMedal] ?? 0) ? earned : savedMedal;
+    modules[module.id] = { masteredKeys, medal };
+  }
+  target.modules = modules;
+  target.masteredKeys = [...modules.cmar.masteredKeys];
+  target.medal = modules.cmar.medal;
+  return target;
+}
+
 export function normalizeMastery(raw) {
   const base = emptyMastery();
   if (!raw || typeof raw !== "object") return base;
-  for (const lesson of LESSONS) {
-    const passed = validKeys(raw.lessons?.[lesson.id]?.passedKeys);
-    const learned = validKeys(raw.lessons?.[lesson.id]?.learnedKeys);
-    base.lessons[lesson.id].passedKeys = [...new Set(passed)];
-    base.lessons[lesson.id].learnedKeys = [...new Set(learned)];
+  const rawLessons = raw.lessons;
+  if (rawLessons && typeof rawLessons === "object") {
+    for (const lesson of LESSONS) {
+      const entry = rawLessons[lesson.id];
+      if (!entry) continue;
+      if (Array.isArray(entry.passedKeys) && entry.passedKeys.length) {
+        base.lessons[lesson.id].passedKeys = [...new Set(validKeys(entry.passedKeys))];
+      }
+      if (Array.isArray(entry.learnedKeys) && entry.learnedKeys.length) {
+        base.lessons[lesson.id].learnedKeys = [...new Set(validKeys(entry.learnedKeys))];
+      }
+    }
   }
   // Old Practice passes lived on the learn lesson. Move them onto Master the lick
-  // once. A later save includes master-lick, so Learn passes stay on Learn.
-  const legacy = !Object.prototype.hasOwnProperty.call(raw.lessons ?? {}, "master-lick");
+  // once. Later saves include master-lick or schema: 2, so Learn passes stay on Learn.
+  const legacy = raw.schema !== 2 && !Object.prototype.hasOwnProperty.call(rawLessons ?? {}, "master-lick");
   if (legacy) {
     for (const module of MODULES) {
       const learn = module.lessons.find((lesson) => lesson.kind === "learn");
@@ -55,13 +109,11 @@ export function normalizeMastery(raw) {
       base.lessons[learn.id].passedKeys = [...new Set(learned)];
     }
   }
-  base.masteredKeys = [...new Set(validKeys(raw.masteredKeys))];
-  base.medal = medalForCount(base.masteredKeys.length);
-  return reconcileMastery(base);
+  return reconcileModulesInPlace(base);
 }
 
 function validKeys(value) {
-  return Array.isArray(value) ? value.filter(id => TWELVE_KEY_IDS.includes(id)) : [];
+  return Array.isArray(value) ? value.filter(id => VALID_KEY_SET.has(id)) : [];
 }
 
 export function medalForCount(count) {
@@ -85,45 +137,51 @@ export function homeMedalMark(count, medal) {
 
 export function isKeyMastered(mastery, keyId, moduleId = "cmar") {
   const id = normalizeKeyId(keyId);
-  const module = MODULES.find((module) => module.id === moduleId);
-  const masters = module?.lessons.filter((lesson) => lesson.kind === "master") ?? [];
-  return masters.length > 0 && masters.every(master => mastery.lessons[master.id]?.passedKeys.includes(id));
+  const masters = MODULE_MASTER_IDS.get(moduleId) ?? [];
+  return masters.length > 0 && masters.every(masterId => mastery.lessons[masterId]?.passedKeys.includes(id));
 }
 
 export function reconcileMastery(mastery) {
+  const lessons = {};
+  for (const lesson of LESSONS) {
+    const entry = mastery.lessons?.[lesson.id];
+    lessons[lesson.id] = {
+      passedKeys: entry?.passedKeys?.length ? [...entry.passedKeys] : [],
+      learnedKeys: entry?.learnedKeys?.length ? [...entry.learnedKeys] : [],
+    };
+  }
   const next = {
-    lessons: Object.fromEntries(
-      LESSONS.map((lesson) => [
-        lesson.id,
-        {
-          passedKeys: [...(mastery.lessons[lesson.id]?.passedKeys ?? [])],
-          learnedKeys: [...(mastery.lessons[lesson.id]?.learnedKeys ?? [])],
-        },
-      ]),
-    ),
+    lessons,
     masteredKeys: [...(mastery.masteredKeys ?? [])],
     medal: mastery.medal ?? "none",
-    modules: emptyModuleMastery(),
+    modules: {},
   };
-  for (const module of MODULES) {
-    const saved = mastery.modules?.[module.id] ?? {};
-    const moduleState = {
-      masteredKeys: [...(saved.masteredKeys ?? [])],
-      medal: saved.medal ?? "none",
-    };
-    for (const keyId of TWELVE_KEY_IDS) {
-      if (isKeyMastered(next, keyId, module.id) && !moduleState.masteredKeys.includes(keyId)) {
-        moduleState.masteredKeys.push(keyId);
-      }
+  return reconcileModulesInPlace(next, mastery.modules);
+}
+
+/** Sparse serializable snapshot for localStorage; keeps schema marker so legacy migration never reruns. */
+export function compactMastery(mastery) {
+  const lessons = {};
+  for (const [id, lesson] of Object.entries(mastery?.lessons ?? {})) {
+    const passed = Array.isArray(lesson?.passedKeys) ? lesson.passedKeys : [];
+    const learned = Array.isArray(lesson?.learnedKeys) ? lesson.learnedKeys : [];
+    if (passed.length || learned.length) {
+      lessons[id] = { passedKeys: passed, learnedKeys: learned };
     }
-    const earned = medalForCount(moduleState.masteredKeys.length);
-    const order = { none: 0, bronze: 1, silver: 2, gold: 3 };
-    moduleState.medal = order[earned] > (order[moduleState.medal] ?? 0) ? earned : moduleState.medal;
-    next.modules[module.id] = moduleState;
   }
-  next.masteredKeys = [...next.modules.cmar.masteredKeys];
-  next.medal = next.modules.cmar.medal;
-  return next;
+  const modules = {};
+  for (const [id, mod] of Object.entries(mastery?.modules ?? {})) {
+    if (mod?.masteredKeys?.length || (mod?.medal && mod.medal !== "none")) {
+      modules[id] = { masteredKeys: mod.masteredKeys ?? [], medal: mod.medal ?? "none" };
+    }
+  }
+  return {
+    schema: 2,
+    lessons,
+    masteredKeys: mastery?.masteredKeys ?? [],
+    medal: mastery?.medal ?? "none",
+    modules,
+  };
 }
 
 /** Learn-mode pass. Outlined on the record; does not count toward 12-key mastery. */
@@ -213,8 +271,8 @@ export function lessonPassedCount(mastery, lessonId) {
 export function canonicalMastery(mastery) {
   const next = normalizeMastery(mastery);
   for (const lesson of Object.values(next.lessons)) {
-    lesson.passedKeys.sort();
-    lesson.learnedKeys.sort();
+    if (lesson.passedKeys.length > 1) lesson.passedKeys.sort();
+    if (lesson.learnedKeys.length > 1) lesson.learnedKeys.sort();
   }
   return next;
 }
@@ -222,47 +280,87 @@ export function canonicalMastery(mastery) {
 export function mergeMastery(left, right) {
   const next = normalizeMastery(left), incoming = normalizeMastery(right);
   for (const [id, lesson] of Object.entries(incoming.lessons)) {
-    for (const kind of ["passedKeys", "learnedKeys"]) {
-      next.lessons[id][kind] = [...new Set([...next.lessons[id][kind], ...lesson[kind]])];
+    if (lesson.passedKeys.length) {
+      next.lessons[id].passedKeys = [...new Set([...next.lessons[id].passedKeys, ...lesson.passedKeys])];
+    }
+    if (lesson.learnedKeys.length) {
+      next.lessons[id].learnedKeys = [...new Set([...next.lessons[id].learnedKeys, ...lesson.learnedKeys])];
     }
   }
-  return canonicalMastery(next);
+  reconcileModulesInPlace(next, next.modules);
+  for (const lesson of Object.values(next.lessons)) {
+    if (lesson.passedKeys.length > 1) lesson.passedKeys.sort();
+    if (lesson.learnedKeys.length > 1) lesson.learnedKeys.sort();
+  }
+  return next;
 }
 
-export function loadMastery(key = activeMasteryKey) {
+export function readMasteryFromStorage(key = activeMasteryKey, storage = undefined) {
   let next = emptyMastery();
-  try { next = normalizeMastery(JSON.parse(localStorage.getItem(key) ?? "null")); } catch {}
+  let target;
+  try { target = storage ?? globalThis.localStorage; } catch { return next; }
+  if (!target) return next;
+  try { next = normalizeMastery(JSON.parse(target.getItem(key) ?? "null")); } catch {}
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const entry = localStorage.key(i);
-      if (!entry?.startsWith(`${key}:earned:`)) continue;
+    const prefix = `${key}:earned:`;
+    const count = typeof target.length === "number" ? target.length : 0;
+    for (let i = 0; i < count; i++) {
+      const entry = target.key?.(i);
+      if (!entry?.startsWith(prefix)) continue;
       try {
-        const row = JSON.parse(localStorage.getItem(entry));
+        const row = JSON.parse(target.getItem(entry));
         if (!Array.isArray(row) || row.length !== 3) continue;
         const [id, kind, pitch] = row;
-        if (["passedKeys", "learnedKeys"].includes(kind) && Object.hasOwn(next.lessons, id) && TWELVE_KEY_IDS.includes(pitch)) {
+        if ((kind === "passedKeys" || kind === "learnedKeys") && Object.hasOwn(next.lessons, id) && VALID_KEY_SET.has(pitch)) {
           if (!next.lessons[id][kind].includes(pitch)) next.lessons[id][kind].push(pitch);
         }
       } catch { /* Keep reading other earned keys when one record is damaged. */ }
     }
   } catch { /* Retain the snapshot if the append-only journal cannot be read. */ }
-  return canonicalMastery(next);
+  reconcileModulesInPlace(next, next.modules);
+  for (const lesson of Object.values(next.lessons)) {
+    if (lesson.passedKeys.length > 1) lesson.passedKeys.sort();
+    if (lesson.learnedKeys.length > 1) lesson.learnedKeys.sort();
+  }
+  return next;
+}
+
+export function loadMastery(key = activeMasteryKey) {
+  return readMasteryFromStorage(key);
+}
+
+/** Remove earned-key journal records already confirmed on the server and folded into the snapshot. */
+export function pruneMasteryJournal(rows, key = activeMasteryKey, storage = undefined) {
+  try {
+    const target = storage ?? globalThis.localStorage;
+    if (!target || typeof target.removeItem !== "function") return;
+    const prefix = `${key}:earned:`;
+    for (const row of rows ?? []) {
+      const tuple = [row.lesson_id, row.kind, row.key_id];
+      const journalKey = prefix + encodeURIComponent(JSON.stringify(tuple));
+      target.removeItem(journalKey);
+    }
+  } catch { /* Safe to leave redundant journal entries if storage is unavailable. */ }
 }
 
 export function saveMastery(mastery) {
   const next = mergeMastery(loadMastery(), mastery);
   let journalSaved = true;
   for (const [id, lesson] of Object.entries(next.lessons)) {
-    for (const kind of ["passedKeys", "learnedKeys"]) for (const pitch of lesson[kind]) {
-      const row = [id, kind, pitch];
-      const key = `${activeMasteryKey}:earned:${encodeURIComponent(JSON.stringify(row))}`;
-      try { if (localStorage.getItem(key) === JSON.stringify(row)) continue; } catch {}
-      journalSaved = writeStoredJson(key, row) && journalSaved;
+    if (!lesson.passedKeys.length && !lesson.learnedKeys.length) continue;
+    for (const kind of ["passedKeys", "learnedKeys"]) {
+      for (const pitch of lesson[kind]) {
+        const row = [id, kind, pitch];
+        const serialized = JSON.stringify(row);
+        const key = `${activeMasteryKey}:earned:${encodeURIComponent(serialized)}`;
+        try { if (localStorage.getItem(key) === serialized) continue; } catch {}
+        journalSaved = writeStoredJson(key, row) && journalSaved;
+      }
     }
   }
   // Separate immutable earned-key records survive two tabs replacing the
-  // snapshot simultaneously. The old snapshot schema remains a readable cache.
-  const saved = writeStoredJson(activeMasteryKey, next);
+  // snapshot simultaneously. The compact snapshot omits empty lessons.
+  const saved = writeStoredJson(activeMasteryKey, compactMastery(next));
   globalThis.dispatchEvent?.(new Event("duojazz-progress-saved"));
   return saved && journalSaved;
 }

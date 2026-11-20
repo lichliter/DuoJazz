@@ -565,8 +565,7 @@ export function nextLapQueue(mode, previousQueue, rng = Math.random) {
   return next;
 }
 
-export function defaultLessonPref(lessonId) {
-  const lesson = lessonId ? lessonById(lessonId) : null;
+function defaultLessonPrefForLesson(lesson) {
   return {
     keyMode: "one",
     startKeyId: lesson?.defaultKeyId ?? DEFAULT_KEY_ID,
@@ -576,8 +575,15 @@ export function defaultLessonPref(lessonId) {
   };
 }
 
+export function defaultLessonPref(lessonId) {
+  const lesson = lessonId ? lessonById(lessonId) : null;
+  return defaultLessonPrefForLesson(lesson);
+}
+
 export function defaultPrefs() {
   const instrument = instrumentOrDefault(DEFAULT_INSTRUMENT_ID);
+  const lessons = {};
+  for (const lesson of LESSONS) lessons[lesson.id] = defaultLessonPrefForLesson(lesson);
   return {
     instrumentId: instrument.id,
     displayMode: instrument.id,
@@ -594,7 +600,7 @@ export function defaultPrefs() {
     tempo: 96,
     auto: true,
     headphonesTipSeen: false,
-    lessons: Object.fromEntries(LESSONS.map((lesson) => [lesson.id, defaultLessonPref(lesson.id)])),
+    lessons,
     progress: {},
   };
 }
@@ -606,35 +612,23 @@ export function normalizeAccountPrefs(values) {
 }
 
 export function normalizePrefs(raw) {
-  const base = defaultPrefs();
-  const merged = { ...base, ...(raw ?? {}) };
   const instrument = instrumentOrDefault(migrateInstrumentId(raw ?? {}));
-  merged.instrumentId = instrument.id;
-  merged.displayMode = instrument.id;
-  merged.clef = instrument.clef;
-  merged.swing = Boolean(merged.swing);
-  merged.metronome = Boolean(merged.metronome);
-  merged.guideTones = merged.guideTones !== false;
   const seed = raw?.lessons?.["learn-lick"] ?? {};
-  merged.keyMode = cycleModeId(raw?.keyMode ?? seed.keyMode);
-  merged.keyBasis = "major";
-  merged.startKeyId = migrateMajorKeyId(raw);
-  merged.allKeys = raw?.allKeys !== false;
-  merged.selectedKeyIds = normalizeSelectedKeyIds(raw?.selectedKeyIds, merged.startKeyId);
-  merged.cardSet = "all";
-  merged.tempo = Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96));
-  merged.auto = raw?.auto !== false;
-  merged.headphonesTipSeen = Boolean(raw?.headphonesTipSeen)
-    || raw?.headphonesTipSeen === "1"
-    || raw?.headphonesTipSeen === "true";
-  merged.lessons = { ...base.lessons };
+  const startKeyId = migrateMajorKeyId(raw);
+  const rawLessons = raw?.lessons;
+  const lessons = {};
   for (const lesson of LESSONS) {
-    const incoming = raw?.lessons?.[lesson.id] ?? {};
-    merged.lessons[lesson.id] = {
-      ...defaultLessonPref(lesson.id),
+    const incoming = rawLessons?.[lesson.id];
+    const fallback = defaultLessonPrefForLesson(lesson);
+    if (!incoming) {
+      lessons[lesson.id] = fallback;
+      continue;
+    }
+    lessons[lesson.id] = {
+      ...fallback,
       ...incoming,
       keyMode: KEY_MODES.some((mode) => mode.id === incoming.keyMode) ? incoming.keyMode : "one",
-      startKeyId: normalizeKeyId(incoming.startKeyId ?? defaultLessonPref(lesson.id).startKeyId),
+      startKeyId: normalizeKeyId(incoming.startKeyId ?? fallback.startKeyId),
       cardSet: "all",
       tempo: Math.min(160, Math.max(60, Number(incoming.tempo) || 96)),
       melodyRegister: incoming.melodyRegister === -1 || incoming.melodyRegister === 1
@@ -642,15 +636,56 @@ export function normalizePrefs(raw) {
         : 0,
     };
   }
-  merged.progress = raw?.progress && typeof raw.progress === "object" ? raw.progress : {};
-  merged.modules = {};
+  const modules = {};
+  const rawModules = raw?.modules;
   for (const module of MODULES) {
-    const incoming = raw?.modules?.[module.id] ?? {};
-    merged.modules[module.id] = {
-      studyMode: normalizeStudyMode(incoming.studyMode),
+    modules[module.id] = {
+      studyMode: normalizeStudyMode(rawModules?.[module.id]?.studyMode),
     };
   }
-  return merged;
+  return {
+    ...(raw ?? {}),
+    instrumentId: instrument.id,
+    displayMode: instrument.id,
+    clef: instrument.clef,
+    swing: raw?.swing === undefined ? true : Boolean(raw.swing),
+    metronome: Boolean(raw?.metronome),
+    guideTones: raw?.guideTones !== false,
+    keyMode: cycleModeId(raw?.keyMode ?? seed.keyMode),
+    keyBasis: "major",
+    startKeyId,
+    allKeys: raw?.allKeys !== false,
+    selectedKeyIds: normalizeSelectedKeyIds(raw?.selectedKeyIds, startKeyId),
+    cardSet: "all",
+    tempo: Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96)),
+    auto: raw?.auto !== false,
+    headphonesTipSeen: Boolean(raw?.headphonesTipSeen)
+      || raw?.headphonesTipSeen === "1"
+      || raw?.headphonesTipSeen === "true",
+    lessons,
+    progress: raw?.progress && typeof raw.progress === "object" ? raw.progress : {},
+    modules,
+  };
+}
+
+/** Sparse serializable prefs for localStorage and diffs; omits default per-lesson/module entries. */
+export function compactPrefs(prefs) {
+  const lessons = {};
+  const rawLessons = prefs?.lessons ?? {};
+  for (const [id, entry] of Object.entries(rawLessons)) {
+    if (!entry || typeof entry !== "object") continue;
+    const tempo = Math.min(160, Math.max(60, Number(entry.tempo) || 96));
+    const melodyRegister = entry.melodyRegister === -1 || entry.melodyRegister === 1 ? entry.melodyRegister : 0;
+    const keyMode = entry.keyMode ?? "one";
+    if (tempo !== 96 || melodyRegister !== 0 || keyMode !== "one") {
+      lessons[id] = { ...entry, tempo, melodyRegister, keyMode };
+    }
+  }
+  const modules = {};
+  for (const [id, entry] of Object.entries(prefs?.modules ?? {})) {
+    if (entry?.studyMode && entry.studyMode !== "learn") modules[id] = { studyMode: entry.studyMode };
+  }
+  return { ...prefs, lessons, modules };
 }
 
 export function setAllKeys(prefs, allKeys) {

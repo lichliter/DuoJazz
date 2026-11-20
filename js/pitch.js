@@ -3,7 +3,10 @@
  * iPad Safari: start only after a user gesture, same-origin worklet, silent tap to keep the graph alive.
  */
 
-const WORKLET_URL = new URL("./pitch-worklet.js?v=147", import.meta.url);
+const WORKLET_URL = new URL("./pitch-worklet.js?v=159", import.meta.url);
+const loadedWorklets = new WeakSet();
+const OBSERVATION_AMP_FLOOR = 0.0015;
+const OBSERVATION_CONFIDENCE_MIN = 0.8;
 
 /** Sound lab and demo playback. Voice processing stays on for those callers. */
 export const VOICE_MIC_CONSTRAINTS = Object.freeze({
@@ -156,7 +159,10 @@ export class PitchMonitor {
         graph.onEnded();
         return;
       }
-      await graph.ctx.audioWorklet.addModule(WORKLET_URL);
+      if (!loadedWorklets.has(graph.ctx)) {
+        await graph.ctx.audioWorklet.addModule(WORKLET_URL);
+        loadedWorklets.add(graph.ctx);
+      }
       if (token !== this.startToken) return;
       this.source = graph.source = graph.ctx.createMediaStreamSource(graph.stream);
       this.node = graph.node = new AudioWorkletNode(graph.ctx, "duojazz-pitch");
@@ -170,7 +176,12 @@ export class PitchMonitor {
     } catch (error) {
       if (token === this.startToken) {
         this.stop();
-        this.setState(error?.name === "NotAllowedError" ? "denied" : "unsupported");
+        const name = error?.name;
+        const state = name === "NotAllowedError" || name === "PermissionDeniedError" ? "denied"
+          : name === "NotFoundError" ? "no-mic"
+          : name === "NotReadableError" || name === "AbortError" ? "mic-busy"
+          : "unsupported";
+        this.setState(state);
       }
     } finally {
       if (token !== this.startToken) this.releaseGraph(graph);
@@ -190,7 +201,8 @@ export class PitchMonitor {
     if (typeof data?.confidence === "number" && Number.isFinite(data.confidence)) {
       frame.confidence = data.confidence;
     }
-    if (amp < 0.01 || !(hz > 40 && hz < 2000)) {
+    const confident = frame.confidence == null || frame.confidence >= OBSERVATION_CONFIDENCE_MIN;
+    if (amp < OBSERVATION_AMP_FLOOR || !(hz > 40 && hz < 2000) || !confident) {
       this.silentFrames += 1;
       if (!this.holdSignal && this.silentFrames > 12 && this.state === "listening") {
         this.setState("no-signal");
@@ -222,7 +234,9 @@ export class PitchMonitor {
 
 export function micCopy(state) {
   if (state === "interrupted") return "Microphone disconnected. Reconnect it, then record again.";
-  if (state === "denied") return "Microphone blocked. Enable it in Safari settings to grade.";
+  if (state === "denied") return "Microphone blocked. Allow microphone access in your browser settings to grade.";
+  if (state === "no-mic") return "No microphone found. Connect a microphone, then try again.";
+  if (state === "mic-busy") return "Microphone is in use by another app. Close it, then try again.";
   if (state === "unsupported") return "This browser cannot run pitch detection. Try iPad Safari.";
   if (state === "no-signal") return "No signal. Play closer to the mic, or use headphones for the backing.";
   if (state === "requesting") return "Asking for the microphone…";

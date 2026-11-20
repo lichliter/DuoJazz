@@ -1,0 +1,18 @@
+# Exclude development, test, design, and reference files from static deployment.
+.agents/
+.github/
+.gitignore
+.vercelignore
+AGENTS.md
+CLAUDE.md
+DuoJazz.pen
+README.md
+artifacts/
+docs/
+js/*.test.mjs
+node_modules/
+package.json
+references/
+sound/CREDITS.md
+supabase/
+tools/

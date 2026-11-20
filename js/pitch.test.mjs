@@ -1,7 +1,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { PitchMonitor, RAPID_MIC_CONSTRAINTS, VOICE_MIC_CONSTRAINTS } from "./pitch.js";
+import { PitchMonitor, RAPID_MIC_CONSTRAINTS, VOICE_MIC_CONSTRAINTS, micCopy } from "./pitch.js";
 import { rapidMicStep } from "./rapid.js";
 
 const originalWindow = globalThis.window;
@@ -372,4 +372,37 @@ test('interrupted audio contexts resume; closed contexts never report listening'
   assert.equal(monitor.state, 'unsupported');
   assert.equal(tracks[0].readyState, 'ended');
   assert.equal(monitor.isLive(), false);
+});
+
+test('missing or busy microphones report specific states and addModule runs once per context', async () => {
+  const { ctx } = startupFixture();
+  let addCalls = 0;
+  ctx.audioWorklet.addModule = async () => { addCalls += 1; };
+  const monitor = new PitchMonitor();
+  await monitor.start(ctx);
+  monitor.stop();
+  await monitor.start(ctx);
+  assert.equal(addCalls, 1);
+  monitor.stop();
+
+  for (const [errName, expectedState, pattern] of [
+    ['NotFoundError', 'no-mic', /no microphone/i],
+    ['NotReadableError', 'mic-busy', /in use/i],
+  ]) {
+    globalThis.navigator.mediaDevices.getUserMedia = async () => {
+      throw Object.assign(new Error(errName), { name: errName });
+    };
+    await monitor.start(ctx);
+    assert.equal(monitor.state, expectedState);
+    assert.match(micCopy(expectedState), pattern);
+  }
+});
+
+test('quiet confident horn frames are captured while low-confidence noise is ignored', () => {
+  const monitor = new PitchMonitor();
+  monitor.state = 'listening';
+  monitor.handleFrame({ hz: 440, amp: 0.004, confidence: 0.3 });
+  assert.equal(monitor.observations.length, 0);
+  monitor.handleFrame({ hz: 440, amp: 0.004, confidence: 0.95 });
+  assert.equal(monitor.observations.length, 1);
 });
