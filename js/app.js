@@ -8,6 +8,7 @@ import {
   formBeatsFor,
 } from "./music.js";
 import { INSTRUMENTS, instrumentOrDefault } from "./instruments.js";
+import { APP_VERSION } from "./version.js";
 import { Transport } from "./audio.js";
 import {
   notationLayout,
@@ -225,6 +226,7 @@ const els = {
   lessonList: document.getElementById("lesson-list"),
   instrumentList: document.getElementById("instrument-list"),
   settingsForm: document.getElementById("settings-form"),
+  appVersion: document.getElementById("app-version"),
   nextModule: document.getElementById("next-module"),
   quickViewTitle: document.getElementById("quick-view-title"),
   sessionTitle: document.getElementById("session-title"),
@@ -2882,6 +2884,7 @@ if (document.fonts?.ready) {
 }
 
 window.__DUOJAZZ__ = {
+  version: APP_VERSION,
   selectTab,
   getNav: () => nav,
   getPrefs: () => prefs,
@@ -2966,6 +2969,7 @@ window.__DUOJAZZ__ = {
   },
 };
 
+if (els.appVersion) els.appVersion.textContent = APP_VERSION;
 resolveNotationScale();
 applyDeepLink();
 renderSetup();
