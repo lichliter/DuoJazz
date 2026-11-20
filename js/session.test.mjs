@@ -214,7 +214,7 @@ test("every lesson is one play-along card", () => {
 });
 
 test("finishing the card of a one-key session opens wrap-up", () => {
-  let session = createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "G" });
+  let session = createSession({ lessonId: "integrate-minor-home", keyMode: "one", startKeyId: "G" });
   assert.equal(session.screen, "session");
   assert.equal(currentCard(session), "play");
   assert.equal(currentKeyId(session), "G");
@@ -236,11 +236,15 @@ test("playback of a one-key card wraps up; a demo stays on the key", () => {
 });
 
 test("skipping the only card wraps up and records a skip", () => {
-  let session = createSession({ lessonId: "learn-lick", keyMode: "one" });
-  session = skipCard(session);
-  assert.equal(session.screen, "wrapup");
-  assert.equal(session.cardResults.find((row) => row.cardId === "play")?.outcome, "skipped");
-  assert.equal(session.cardResults.find((row) => row.cardId === "play")?.passed, false);
+  for (const initial of [
+    createSession({ lessonId: "integrate-minor-home", keyMode: "one" }),
+    createSession({ lessonId: "learn-lick", keyMode: "fourths", majorKeyId: "Bb", keyIds: ["Bb"] }),
+  ]) {
+    const session = skipCard(initial);
+    assert.equal(session.screen, "wrapup");
+    assert.equal(session.cardResults.find((row) => row.cardId === "play")?.outcome, "skipped");
+    assert.equal(session.cardResults.find((row) => row.cardId === "play")?.passed, false);
+  }
 });
 
 test("skipping a cycle key opens the next key with no wrap-up", () => {
@@ -286,7 +290,7 @@ test("wrap-up Next key walks the cycle; Again repeats the same key; one-key has 
   assert.equal(currentCard(again), "play");
   assert.equal(again.cardResults.length, 0);
 
-  const one = createSession({ keyMode: "one", startKeyId: "D" });
+  const one = createSession({ lessonId: "integrate-minor-home", keyMode: "one", startKeyId: "D" });
   assert.equal(hasNextKey(one), false);
   assert.equal(currentKeyId(advanceKey(one)), "D");
 });
@@ -343,17 +347,18 @@ test("recommended start is the first unfinished lesson", () => {
     "integrate-minor-home": [],
     "integrate-altered-dominant": [],
   }), "learn-lick");
-  assert.equal(recommend({ "learn-lick": ["G"] }), "master-lick");
+  assert.equal(recommend({ "learn-lick": ["G"] }), "learn-lick");
+  assert.equal(recommend({ "learn-lick": TWELVE_KEY_IDS }), "master-lick");
 
   const firstComplete = {
-    "learn-lick": ["G"],
+    "learn-lick": TWELVE_KEY_IDS,
     "master-lick": TWELVE_KEY_IDS.slice(0, 7),
     "integrate-minor-home": ["G"],
   };
   assert.equal(recommend(firstComplete), "master-lick");
 
   const autumnComplete = {
-    "learn-lick": ["G"],
+    "learn-lick": TWELVE_KEY_IDS,
     "master-lick": TWELVE_KEY_IDS,
     "integrate-minor-home": ["G"],
     "integrate-altered-dominant": ["G"],
@@ -464,7 +469,7 @@ test("wrap-up lists per-card completion and names the next key", () => {
   assert.equal(copy.detail, "Learn the lick");
   assert.equal(copy.nextKeyName, "C minor");
   assert.equal(copy.nextKeyLabel, "Next key · C minor");
-  const one = wrapupCopy(jumpToWrapup(createSession({ keyMode: "one" })));
+  const one = wrapupCopy(jumpToWrapup(createSession({ lessonId: "integrate-minor-home", keyMode: "one" })));
   assert.equal(one.nextKeyName, null);
   assert.equal(one.nextKeyLabel, null);
 });
@@ -529,9 +534,9 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
     MODULES.reduce((sum, module) => sum + module.lessons.length, 0),
   );
   assert.equal(nodes[0].recommended, false);
-  assert.equal(nodes[0].complete, true);
+  assert.equal(nodes[0].complete, false);
   assert.equal(nodes[0].passedCount, 3);
-  assert.equal(nodes[0].vinylTier, "gold");
+  assert.equal(nodes[0].vinylTier, "bronze");
   assert.equal(nodes[1].id, "master-lick");
   assert.equal(nodes[1].complete, false);
   assert.equal(nodes[1].passedCount, 0);
@@ -545,7 +550,7 @@ test("module home path zig-zags record sleeves and never locks a lesson", () => 
   assert.equal(nodes.every((node) => LESSONS.some((lesson) => lesson.id === node.id)), true);
 
   const firstDone = modulePathNodes(MODULES.find(module => module.id === "cmar"), defaultPrefs(), {
-    "learn-lick": ["G"],
+    "learn-lick": TWELVE_KEY_IDS,
     "master-lick": TWELVE_KEY_IDS.slice(0, 7),
     "integrate-minor-home": ["G"],
     "integrate-altered-dominant": TWELVE_KEY_IDS.slice(0, 3),
@@ -595,10 +600,16 @@ test("a single path node keeps cover copy and a 12-key passed list", () => {
   assert.equal(node.recommended, true);
   assert.deepEqual(node.passedKeys, ["G", "C"]);
   assert.equal(node.passedCount, 2);
-  assert.equal(node.keyTarget, 1);
-  assert.equal(node.complete, true);
-  assert.equal(node.vinylTier, "gold");
-  assert.equal(node.caption, "The cell in this key · passed");
+  assert.equal(node.keyTarget, 12);
+  assert.equal(node.complete, false);
+  assert.equal(node.vinylTier, "bronze");
+  assert.equal(node.caption, "The cell in this key · 2/12 keys");
+  const learnGold = lessonPathNode(LESSONS.find(lesson => lesson.id === "learn-lick"), 0, {
+    passedKeys: TWELVE_KEY_IDS,
+  });
+  assert.equal(learnGold.complete, true);
+  assert.equal(learnGold.vinylTier, "gold");
+  assert.equal(learnGold.caption, "The cell in this key · 12/12 keys");
   const empty = lessonPathNode(LESSONS.find(lesson => lesson.id === "master-lick"), 1, { passedKeys: [] });
   assert.equal(empty.coverTitle, "Master the lick");
   assert.equal(empty.vinylTier, "black");
@@ -659,7 +670,8 @@ test("Back and Next stay put on the single card", () => {
   const first = createSession({ lessonId: "learn-lick" });
   assert.equal(canGoBack(first), false);
   assert.equal(canGoNext(first), false);
-  assert.deepEqual(cardCounter(first), { index: 1, total: 1 });
+  assert.deepEqual(cardCounter(first), { index: 1, total: 12 });
+  assert.deepEqual(cardCounter(createSession({ lessonId: "integrate-minor-home" })), { index: 1, total: 1 });
   const backNoop = goBack(first);
   assert.equal(backNoop.moved, false);
   assert.equal(backNoop.stopAudio, false);
@@ -876,11 +888,8 @@ test("all-keys stays the full cycle and a custom set follows the starting key", 
   assert.equal(prefs.allKeys, true);
   assert.equal(normalizePrefs({ startKeyId: "Eb", keyBasis: "major" }).allKeys, true);
   assert.equal(lessonSessionPlan("master-lick", prefs).keyIds, null);
-  assert.equal(lessonSessionPlan("learn-lick", {
-    ...prefs,
-    allKeys: false,
-    selectedKeyIds: ["Bb", "F"],
-  }).keyMode, "one");
+  assert.equal(lessonSessionPlan("learn-lick", prefs).keyIds, null);
+  assert.equal(lessonSessionPlan("learn-lick", prefs).keyMode, "fourths");
 
   const custom = {
     ...prefs,
@@ -890,11 +899,14 @@ test("all-keys stays the full cycle and a custom set follows the starting key", 
     selectedKeyIds: ["F", "Eb"],
   };
   assert.deepEqual(practiceMajorKeyIds(normalizePrefs(custom)), ["Bb", "F", "Eb"]);
-  const plan = lessonSessionPlan("master-lick", custom);
+  for (const lessonId of ["learn-lick", "master-lick"]) {
+    const plan = lessonSessionPlan(lessonId, custom);
+    const session = createSession(sessionCreateArgs(lessonId, custom));
+    assert.equal(plan.keyMode, "fourths", lessonId);
+    assert.deepEqual(session.keyQueue, ["G", "C", "D"], lessonId);
+    assert.equal(sessionShowsCycle(session), true, lessonId);
+  }
   const session = createSession(sessionCreateArgs("master-lick", custom));
-  assert.equal(plan.keyMode, "fourths");
-  assert.deepEqual(session.keyQueue, ["G", "C", "D"]);
-  assert.equal(sessionShowsCycle(session), true);
   assert.equal(
     keyOrderPreview("fourths", "Bb", "concert", practiceMajorKeyIds(normalizePrefs(custom))),
     "B♭ · E♭ · F",
@@ -904,22 +916,26 @@ test("all-keys stays the full cycle and a custom set follows the starting key", 
     "Piano · 96 bpm · B♭ · E♭ · F · Cycle: 4ths",
   );
 
-  const major = createSession({
-    lessonId: "gts-master",
-    keyMode: "fourths",
-    majorKeyId: "Bb",
-    keyIds: ["Bb", "Eb", "F"],
-  });
-  assert.deepEqual(major.keyQueue, ["Bb", "Eb", "F"]);
+  for (const lessonId of ["gts-learn", "gts-master"]) {
+    const major = createSession({
+      lessonId,
+      keyMode: "fourths",
+      majorKeyId: "Bb",
+      keyIds: ["Bb", "Eb", "F"],
+    });
+    assert.deepEqual(major.keyQueue, ["Bb", "Eb", "F"], lessonId);
+  }
 
-  const only = createSession({
-    lessonId: "master-lick",
-    keyMode: "fourths",
-    majorKeyId: "Bb",
-    keyIds: ["Bb"],
-  });
-  assert.deepEqual(only.keyQueue, ["G"]);
-  assert.equal(sessionShowsCycle(only), false);
+  for (const lessonId of ["learn-lick", "master-lick"]) {
+    const only = createSession({
+      lessonId,
+      keyMode: "fourths",
+      majorKeyId: "Bb",
+      keyIds: ["Bb"],
+    });
+    assert.deepEqual(only.keyQueue, ["G"], lessonId);
+    assert.equal(sessionShowsCycle(only), false, lessonId);
+  }
 
   let walking = session;
   const seen = [];

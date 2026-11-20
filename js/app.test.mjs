@@ -405,3 +405,31 @@ test('delayed playback completion cannot reopen a session after leaving or switc
     assert.equal(applied, stale ? 0 : 1);
   }
 });
+
+test("Learn lessons honor cycle preferences, selected keys, and deep-link cycle overrides", () => {
+  const custom = { ...sessions.defaultPrefs(), keyMode: "chromatic", startKeyId: "C", allKeys: false, selectedKeyIds: ["C", "F", "Bb"] };
+  const context = appContext(["persist", "rememberModule", "renderStorageNotice", "clearMasteryPreview", "startLesson", "applyDeepLink"], {
+    prefs: custom,
+    selectedModuleId: "cmar",
+    screenName: () => "home",
+    saveTabScroll: noop,
+    resetPitchTake: noop,
+    writeStoredJson: () => true,
+    applySession(next) { context.session = next; },
+    location: { search: "?screen=session&lesson=learn-lick&keys=fourths" },
+  });
+  context.startLesson("learn-lick");
+  assert.equal(context.session.keyMode, "chromatic");
+  assert.deepEqual(context.session.keyQueue, ["A", "G", "D"]);
+  assert.equal(sessions.sessionShowsCycle(context.session), true);
+
+  context.startLesson("tones-major7-learn");
+  assert.equal(context.session.keyMode, "chromatic");
+  assert.deepEqual(context.session.keyQueue, ["C", "Bb", "F"]);
+  assert.equal(sessions.sessionShowsCycle(context.session), true);
+
+  context.applyDeepLink();
+  assert.equal(context.session.lessonId, "learn-lick");
+  assert.equal(context.session.keyMode, "fourths");
+  assert.deepEqual(context.session.keyQueue, ["A", "D", "G"]);
+});

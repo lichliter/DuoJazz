@@ -22,8 +22,10 @@ test('module one teaches all four qualities with independent learn/master lesson
     const plan = lessonSessionPlan(lessonId, prefs);
     assert.equal(plan.startKeyId, 'D'); // A minor chord uses the requested root, not its relative minor.
     const session = createSession({ lessonId, ...plan });
-    assert.equal(session.keyQueue.length, kind === 'master' ? 12 : 1);
+    assert.equal(session.keyQueue.length, 12);
     assert.deepEqual(expectedNotesFor(session).map(note => (note.midi - getKey('D').pc + 120) % 12), quality.intervals);
+    const subsetPlan = lessonSessionPlan(lessonId, { ...prefs, allKeys: false, selectedKeyIds: ['D', 'G', 'C'] });
+    assert.deepEqual(createSession({ lessonId, ...subsetPlan }).keyQueue, ['D', 'G', 'C']);
   }
 });
 
@@ -33,17 +35,24 @@ test('chart exercises cover every chord in order, preserving sixth, diminished, 
     const module = CHART_MODULES.find(module => module.id === `chart-${chart.id}`);
     assert.equal(module.lessons.length, chords.length * 2 + 1);
     for (const [index, chord] of chords.entries()) {
-      const lesson = module.lessons[index * 2 + 1];
-      const plan = lessonSessionPlan(lesson.id, defaultPrefs());
-      const harmony = learnChords(getKey(plan.startKeyId), 'concert', lesson.applicationId);
-      assert.equal(harmony.length, 1);
-      assert.equal(harmony[0].quality, chord.quality);
-      assert.equal(harmony[0].durationBeats, 4);
-      for (const instrument of INSTRUMENTS) {
-        const session = createSession({ lessonId: lesson.id, ...plan, instrumentId: instrument.id });
-        assert.equal(session.keyQueue.length, 1);
-        const root = getKey(chart.key).pc + chord.intervalFromTonic;
-        assert.deepEqual(expectedNotesFor(session).map(note => (note.midi - root + 120) % 12), chordToneIntervals(chord.quality).map(n => n % 12));
+      for (const offset of [0, 1]) {
+        const lesson = module.lessons[index * 2 + offset];
+        const plan = lessonSessionPlan(lesson.id, defaultPrefs());
+        assert.equal(plan.keyMode, 'one');
+        if (offset === 0) {
+          assert.equal(createSession({ lessonId: lesson.id, ...plan }).keyQueue.length, 1);
+          continue;
+        }
+        const harmony = learnChords(getKey(plan.startKeyId), 'concert', lesson.applicationId);
+        assert.equal(harmony.length, 1);
+        assert.equal(harmony[0].quality, chord.quality);
+        assert.equal(harmony[0].durationBeats, 4);
+        for (const instrument of INSTRUMENTS) {
+          const session = createSession({ lessonId: lesson.id, ...plan, instrumentId: instrument.id });
+          assert.equal(session.keyQueue.length, 1);
+          const root = getKey(chart.key).pc + chord.intervalFromTonic;
+          assert.deepEqual(expectedNotesFor(session).map(note => (note.midi - root + 120) % 12), chordToneIntervals(chord.quality).map(n => n % 12));
+        }
       }
     }
   }

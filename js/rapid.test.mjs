@@ -89,11 +89,17 @@ test("the last key wraps up once, and a one-key pass does too", () => {
   assert.equal(currentKeyId(done.session), "D");
   assert.equal(done.session.lap, 1);
 
-  const one = createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "F" });
+  const one = createSession({ lessonId: "integrate-minor-home", keyMode: "one", startKeyId: "F" });
   const wrapped = afterPass(one, { auto: true });
   assert.equal(wrapped.session.screen, "wrapup");
   assert.equal(wrapped.autoStart, false);
   assert.equal(currentKeyId(wrapped.session), "F");
+
+  const oneSelectedLearn = createSession({ lessonId: "learn-lick", keyMode: "fourths", majorKeyId: "Ab", keyIds: ["Ab"] });
+  const wrappedLearn = afterPass(oneSelectedLearn, { auto: true });
+  assert.equal(wrappedLearn.session.screen, "wrapup");
+  assert.equal(wrappedLearn.autoStart, false);
+  assert.equal(currentKeyId(wrappedLearn.session), "F");
 });
 
 test("Record toggles to Pause only while listening", () => {

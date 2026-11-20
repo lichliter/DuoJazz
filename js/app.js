@@ -86,6 +86,7 @@ import {
   homeNextModule,
   lessonSessionPlan,
   sessionCreateArgs,
+  isCyclingLesson,
   isPracticeLesson,
   sessionShowsCycle,
   lessonVinylTier,
@@ -2407,17 +2408,18 @@ function applyDeepLink() {
   if (screen === "session" || screen === "wrapup") {
     const lesson = lessonById(lessonId);
     const plan = lessonSessionPlan(lesson.id, prefs);
-    if (lesson.kind === "master" && params.get("keys")) plan.keyMode = cycleModeId(params.get("keys"));
+    if (isCyclingLesson(lesson) && params.get("keys")) plan.keyMode = cycleModeId(params.get("keys"));
     if (lesson.kind !== "integrate" && params.get("key")) {
       plan.startKeyId = params.get("key");
       plan.majorKeyId = null;
+      plan.keyIds = null;
     }
     session = createSession({
       lessonId,
       keyMode: plan.keyMode,
       startKeyId: plan.startKeyId,
       majorKeyId: plan.majorKeyId,
-      keyIds: plan.majorKeyId ? plan.keyIds : null,
+      keyIds: plan.keyIds,
       tempo: prefs.tempo,
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       instrumentId: prefs.instrumentId,

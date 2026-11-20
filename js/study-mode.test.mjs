@@ -30,12 +30,12 @@ import {
 } from "./medals.js";
 import { MODULES } from "./registry.js";
 
-test("lesson key counts are 1, 12, and 1", () => {
+test("lesson key counts are 12, 12, and 1", () => {
   const prefs = defaultPrefs();
   const learn = lessonSessionPlan("learn-lick", prefs);
   const master = lessonSessionPlan("master-lick", prefs);
   const tune = lessonSessionPlan("cmar-integrate-blue-bossa", prefs);
-  assert.equal(buildKeyQueue(learn.keyMode, learn.startKeyId).length, 1);
+  assert.equal(buildKeyQueue(learn.keyMode, learn.startKeyId).length, 12);
   assert.equal(buildKeyQueue(master.keyMode, master.startKeyId).length, 12);
   assert.equal(buildKeyQueue(tune.keyMode, tune.startKeyId).length, 1);
   assert.equal(lessonById("learn-lick").kind, "learn");
@@ -45,26 +45,31 @@ test("lesson key counts are 1, 12, and 1", () => {
   assert.equal(MODULES.find(module => module.id === "cmar").lessons[1].number ?? MODULES.find(module => module.id === "cmar").lessons[1].title, "Master the lick");
 });
 
-test("Master starts at the default key and follows the cycle type", () => {
-  const fourths = lessonSessionPlan("master-lick", defaultPrefs());
-  const fourthsQueue = buildKeyQueue(fourths.keyMode, fourths.startKeyId);
-  assert.equal(fourths.keyMode, "fourths");
-  assert.equal(fourthsQueue[0], "G");
-  assert.equal(fourthsQueue[1], "C");
+test("Learn and Master start at the default key and follow the cycle type", () => {
+  for (const lessonId of ["learn-lick", "master-lick"]) {
+    const fourths = lessonSessionPlan(lessonId, defaultPrefs());
+    const fourthsQueue = buildKeyQueue(fourths.keyMode, fourths.startKeyId);
+    assert.equal(fourths.keyMode, "fourths", lessonId);
+    assert.equal(fourthsQueue[0], "G", lessonId);
+    assert.equal(fourthsQueue[1], "C", lessonId);
 
-  const chromatic = lessonSessionPlan("master-lick", { ...defaultPrefs(), keyMode: "chromatic", startKeyId: "C" });
-  const chromaticQueue = lickKeyQueue(chromatic.keyMode, chromatic.majorKeyId, "minor");
-  assert.equal(chromatic.keyMode, "chromatic");
-  assert.equal(chromatic.majorKeyId, "C");
-  assert.equal(chromatic.startKeyId, "A");
-  assert.deepEqual(chromaticQueue.slice(0, 4), ["A", "Ab", "G", "Gb"]);
+    const chromatic = lessonSessionPlan(lessonId, { ...defaultPrefs(), keyMode: "chromatic", startKeyId: "C" });
+    const chromaticQueue = lickKeyQueue(chromatic.keyMode, chromatic.majorKeyId, "minor");
+    assert.equal(chromatic.keyMode, "chromatic", lessonId);
+    assert.equal(chromatic.majorKeyId, "C", lessonId);
+    assert.equal(chromatic.startKeyId, "A", lessonId);
+    assert.deepEqual(chromaticQueue.slice(0, 4), ["A", "Ab", "G", "Gb"], lessonId);
+    assert.equal(sessionShowsCycle(createSession({ lessonId, ...fourths })), true, lessonId);
+  }
 
-  const fromF = lessonSessionPlan("emr-master", { ...defaultPrefs(), keyMode: "fourths", startKeyId: "F" });
-  assert.equal(fromF.majorKeyId, "F");
-  assert.equal(fromF.startKeyId, "D");
-  assert.equal(lickKeyQueue(fromF.keyMode, fromF.majorKeyId, "minor")[0], "D");
-  assert.equal(sessionShowsCycle(createSession({ lessonId: "master-lick", ...fourths })), true);
-  assert.equal(sessionShowsCycle(createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "G" })), false);
+  for (const lessonId of ["emr-learn", "emr-master"]) {
+    const fromF = lessonSessionPlan(lessonId, { ...defaultPrefs(), keyMode: "fourths", startKeyId: "F" });
+    assert.equal(fromF.majorKeyId, "F", lessonId);
+    assert.equal(fromF.startKeyId, "D", lessonId);
+    assert.equal(lickKeyQueue(fromF.keyMode, fromF.majorKeyId, "minor")[0], "D", lessonId);
+  }
+  assert.equal(sessionShowsCycle(createSession({ lessonId: "integrate-minor-home", keyMode: "one", startKeyId: "G" })), false);
+  assert.equal(sessionShowsCycle(createSession({ lessonId: "learn-lick", keyMode: "fourths", majorKeyId: "Bb", keyIds: ["Bb"] })), false);
 });
 
 test("tune lessons use their own key, not the settings default", () => {
@@ -79,7 +84,7 @@ test("tune lessons use their own key, not the settings default", () => {
   assert.equal(cry.startKeyId, "Eb");
   assert.equal(learn.majorKeyId, "G");
   assert.equal(learn.startKeyId, "E");
-  assert.equal(learn.keyMode, "one");
+  assert.equal(learn.keyMode, "chromatic");
 });
 
 test("the settings pill names instrument, tempo, default key, and cycle", () => {
@@ -161,45 +166,51 @@ test("saved Practice mastery moves onto Master the lick once", () => {
   assert.equal(isKeyMastered(again, "G"), true);
 });
 
-test("one card on Master auto-advances across all 12 keys, then wraps up", () => {
-  let session = createSession({
-    lessonId: "master-lick",
-    keyMode: "fourths",
-    startKeyId: "G",
-  });
-  assert.deepEqual(session.cards, ["play"]);
-  const seen = [];
-  for (let step = 0; step < 12; step += 1) {
-    assert.equal(session.screen, "session");
-    seen.push(currentKeyId(session));
-    const next = handlePlaybackEnded(session, { graded: true, passed: true, outcome: "passed" });
-    session = next.session;
-    if (step < 11) {
-      assert.equal(next.autoStart, true);
+test("one card on Learn and Master auto-advances across all 12 keys, then wraps up", () => {
+  for (const lessonId of ["learn-lick", "master-lick"]) {
+    let session = createSession({
+      lessonId,
+      keyMode: "fourths",
+      startKeyId: "G",
+    });
+    assert.deepEqual(session.cards, ["play"]);
+    const seen = [];
+    for (let step = 0; step < 12; step += 1) {
       assert.equal(session.screen, "session");
-      assert.equal(session.keyIndex, step + 1);
+      seen.push(currentKeyId(session));
+      const next = handlePlaybackEnded(session, { graded: true, passed: true, outcome: "passed" });
+      session = next.session;
+      if (step < 11) {
+        assert.equal(next.autoStart, true);
+        assert.equal(session.screen, "session");
+        assert.equal(session.keyIndex, step + 1);
+      }
     }
+    assert.equal(session.screen, "wrapup", lessonId);
+    assert.equal(new Set(seen).size, 12, lessonId);
+    assert.deepEqual(seen.slice().sort(), TWELVE_KEY_IDS.slice().sort(), lessonId);
   }
-  assert.equal(session.screen, "wrapup");
-  assert.equal(new Set(seen).size, 12);
-  assert.deepEqual(seen.slice().sort(), TWELVE_KEY_IDS.slice().sort());
   let mastery = emptyMastery();
+  mastery = recordQuizPass(mastery, "learn-lick", "G");
+  assert.equal(isKeyMastered(mastery, "G", "cmar"), false);
   mastery = recordQuizPass(mastery, "master-lick", "G");
   assert.equal(isKeyMastered(mastery, "G", "cmar"), true);
 });
 
-test("createAndShow and a bare Master session both run 12 keys from the default key", () => {
-  const bare = createSession({ lessonId: "master-lick", instrumentId: "trombone" });
-  assert.equal(bare.keyQueue.length, 12);
-  assert.equal(bare.keyMode, "fourths");
-  assert.equal(bare.keyQueue[0], "G");
-  const prefs = { ...defaultPrefs(), keyMode: "chromatic", startKeyId: "F" };
-  const planned = sessionCreateArgs("master-lick", prefs, { instrumentId: "trombone" });
-  const launched = createSession({ instrumentId: "trombone", ...planned });
-  assert.equal(launched.keyQueue.length, 12);
-  assert.equal(launched.keyMode, "chromatic");
-  assert.equal(launched.keyQueue[0], "D");
-  assert.deepEqual(launched.keyQueue.slice(0, 4), ["D", "Db", "C", "B"]);
+test("createAndShow and bare Learn/Master sessions run 12 keys from the default key", () => {
+  for (const lessonId of ["learn-lick", "master-lick"]) {
+    const bare = createSession({ lessonId, instrumentId: "trombone" });
+    assert.equal(bare.keyQueue.length, 12, lessonId);
+    assert.equal(bare.keyMode, "fourths", lessonId);
+    assert.equal(bare.keyQueue[0], "G", lessonId);
+    const prefs = { ...defaultPrefs(), keyMode: "chromatic", startKeyId: "F" };
+    const planned = sessionCreateArgs(lessonId, prefs, { instrumentId: "trombone" });
+    const launched = createSession({ instrumentId: "trombone", ...planned });
+    assert.equal(launched.keyQueue.length, 12, lessonId);
+    assert.equal(launched.keyMode, "chromatic", lessonId);
+    assert.equal(launched.keyQueue[0], "D", lessonId);
+    assert.deepEqual(launched.keyQueue.slice(0, 4), ["D", "Db", "C", "B"], lessonId);
+  }
 });
 
 test("tune lessons are ungraded practice after Learn and Master", () => {
@@ -212,6 +223,10 @@ test("tune lessons are ungraded practice after Learn and Master", () => {
   assert.ok(nodes.slice(2).every((node) => node.number === "Practice" && node.practice));
   assert.equal(moduleLessonsComplete(MODULES.find(module => module.id === "cmar"), {
     "learn-lick": ["G"],
+    "master-lick": TWELVE_KEY_IDS,
+  }), false);
+  assert.equal(moduleLessonsComplete(MODULES.find(module => module.id === "cmar"), {
+    "learn-lick": TWELVE_KEY_IDS,
     "master-lick": TWELVE_KEY_IDS,
   }), true);
   assert.equal(lessonById("cmar-integrate-blue-bossa").kind, "integrate");

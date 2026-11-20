@@ -61,7 +61,7 @@ export const KEY_MODES = [
   { id: "random", label: "Random" },
 ];
 
-/** Cycle types for Master the lick. One-key lessons do not use this. */
+/** Cycle types for Learn and Master. One-key lessons do not use this. */
 export const CYCLE_MODES = [
   { id: "fourths", label: "4ths" },
   { id: "chromatic", label: "Descending chromatic" },
@@ -83,6 +83,11 @@ export function isIsolatedLesson(lesson) {
   return !lesson?.chartTimed && (lesson?.kind === "learn" || lesson?.kind === "master");
 }
 
+/** Non-chart Learn and Master lessons walk the chosen key cycle. */
+export function isCyclingLesson(lesson) {
+  return Boolean(lesson && !lesson.chartId && (lesson.kind === "learn" || lesson.kind === "master"));
+}
+
 /** Tune and integration lessons are ungraded play-along. */
 export function isPracticeLesson(lessonOrId) {
   const lesson = typeof lessonOrId === "string" ? lessonById(lessonOrId) : lessonOrId;
@@ -90,12 +95,12 @@ export function isPracticeLesson(lessonOrId) {
 }
 
 export function lessonKeyTarget(lesson) {
-  return lesson?.kind === "master" && !lesson.chartId ? 12 : 1;
+  return isCyclingLesson(lesson) ? 12 : 1;
 }
 
 export function sessionShowsCycle(session) {
   if (!session) return false;
-  if (lessonById(session.lessonId).kind !== "master") return false;
+  if (!isCyclingLesson(lessonById(session.lessonId))) return false;
   return (session.keyQueue?.length ?? 0) > 1;
 }
 
@@ -104,27 +109,27 @@ export function lessonKeyQuality(lesson) {
 }
 
 /**
- * Learn uses the resolved lick key, once.
- * Master walks the chosen keys from the starting key, in cycle order.
+ * Learn and Master walk the chosen keys from the starting key, in cycle order.
  * All keys uses the full cycle. A custom set keeps that order and drops the rest.
  * The stored preference is a major key; each lick takes its relative tonic.
- * Tune and integration lessons use the lesson's own key, once.
+ * Chart chord-tone, tune, and integration lessons use the lesson's own key, once.
  */
 export function lessonSessionPlan(lessonId, prefs) {
   const lesson = lessonById(lessonId);
   const stored = normalizePrefs(prefs);
+  const cycling = isCyclingLesson(lesson);
   if (lesson.chordTones) return {
-    keyMode: lesson.kind === 'master' && !lesson.chartId ? cycleModeId(stored.keyMode) : 'one',
+    keyMode: cycling ? cycleModeId(stored.keyMode) : 'one',
     startKeyId: lesson.chartId ? lesson.defaultKeyId : stored.startKeyId,
     majorKeyId: null,
-    keyIds: lesson.kind === 'master' && !lesson.chartId && !stored.allKeys ? practiceMajorKeyIds(stored) : null,
+    keyIds: cycling && stored.allKeys === false ? practiceMajorKeyIds(stored) : null,
   };
-  if (lesson.kind === "master" || lesson.kind === "learn") {
+  if (cycling) {
     return {
-      keyMode: lesson.kind === "master" ? cycleModeId(stored.keyMode) : "one",
+      keyMode: cycleModeId(stored.keyMode),
       majorKeyId: stored.startKeyId,
       startKeyId: resolveLickKeyId(stored.startKeyId, lessonKeyQuality(lesson)),
-      keyIds: lesson.kind === "master" && stored.allKeys === false
+      keyIds: stored.allKeys === false
         ? practiceMajorKeyIds(stored)
         : null,
     };
@@ -138,7 +143,7 @@ export function lessonSessionPlan(lessonId, prefs) {
 }
 
 /**
- * Home and createAndShow share this. Master always uses the selected cycle
+ * Home and createAndShow share this. Learn and Master use the selected cycle
  * and the default key, even when the caller omits a key mode.
  * An explicit startKeyId is a lick tonic and skips major-key mapping.
  */
@@ -496,7 +501,7 @@ export function normalizeSelectedKeyIds(ids, fallbackId) {
   return [normalizeKeyId(fallbackId)];
 }
 
-/** Major keys Master will visit. All twelve while the all-keys toggle is on. */
+/** Major keys Learn and Master will visit. All twelve while the all-keys toggle is on. */
 export function practiceMajorKeyIds(prefs) {
   const start = normalizeKeyId(prefs?.startKeyId);
   if (prefs?.allKeys !== false) return [...TWELVE_KEY_IDS];
@@ -736,7 +741,7 @@ export function dismissHeadphonesTip(prefs) {
 }
 
 /**
- * First lesson that is not finished. Master needs 12 keys; every other lesson needs one.
+ * First lesson that is not finished. Learn and Master need 12 keys; every other lesson needs one.
  * Null when every lesson is complete.
  */
 export function recommendedLessonId(lessonKeys = {}) {
@@ -812,9 +817,10 @@ export function createSession({
 } = {}) {
   const lesson = lessonById(lessonId);
   const cards = cardsFor();
-  const resolvedMode = lesson.kind === "master" && !lesson.chartId ? cycleModeId(keyMode) : keyModeById(keyMode).id;
+  const cycling = isCyclingLesson(lesson);
+  const resolvedMode = cycling ? cycleModeId(keyMode) : keyModeById(keyMode).id;
   const useMajor = Boolean(majorKeyId) && (lesson.kind === "learn" || lesson.kind === "master");
-  const subset = lesson.kind === "master" && Array.isArray(keyIds) ? keyIds : null;
+  const subset = cycling && Array.isArray(keyIds) ? keyIds : null;
   const keyQueue = useMajor
     ? lickKeyQueue(resolvedMode, majorKeyId, applicationKeyQuality(lesson.applicationId), rng, subset)
     : subset ? selectedMajorQueue(resolvedMode, startKeyId, subset, rng) : buildKeyQueue(resolvedMode, startKeyId, rng);
