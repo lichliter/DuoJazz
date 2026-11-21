@@ -435,3 +435,57 @@ test("Learn lessons honor cycle preferences, selected keys, and deep-link cycle 
   assert.equal(context.session.keyMode, "fourths");
   assert.deepEqual(context.session.keyQueue, ["A", "D", "G"]);
 });
+
+test("practice screen tempo controls save per-lick overrides without altering the global default and reset on tap", () => {
+  const context = appContext([
+    "persist",
+    "rememberModule",
+    "renderStorageNotice",
+    "clearMasteryPreview",
+    "startLesson",
+    "applySessionTempo",
+    "resetSessionTempo",
+    "applyTempoDelta",
+  ], {
+    selectedModuleId: "cmar",
+    hearDemo: false,
+    playback: { playing: false, paused: false },
+    rapidPhase: "idle",
+    screenName: () => context.session?.screen ?? "home",
+    saveTabScroll: noop,
+    resetPitchTake: noop,
+    renderSettings: noop,
+    writeStoredJson: () => true,
+    applySession(next) { context.session = next; },
+  });
+
+  context.startLesson("learn-lick");
+  assert.equal(context.session.tempo, 96);
+  assert.equal(sessions.hasLessonTempoOverride(context.prefs, "learn-lick"), false);
+
+  context.applySessionTempo(80);
+  assert.equal(context.session.tempo, 80);
+  assert.equal(context.prefs.tempo, 96);
+  assert.equal(sessions.hasLessonTempoOverride(context.prefs, "learn-lick"), true);
+
+  // Starting another lesson in the same lick shares the 80 bpm override.
+  context.startLesson("master-lick");
+  assert.equal(context.session.tempo, 80);
+
+  // Starting a different lick still uses the 96 bpm global default.
+  context.startLesson("emr-learn");
+  assert.equal(context.session.tempo, 96);
+
+  // Changing global tempo in Profile updates un-overridden licks but preserves cmar's override.
+  context.applyTempoDelta(8);
+  assert.equal(context.prefs.tempo, 104);
+  assert.equal(context.session.tempo, 104);
+
+  context.startLesson("integrate-minor-home");
+  assert.equal(context.session.tempo, 80);
+
+  // Tapping the custom BPM readout resets the lick to the global default.
+  context.resetSessionTempo();
+  assert.equal(context.session.tempo, 104);
+  assert.equal(sessions.hasLessonTempoOverride(context.prefs, "integrate-minor-home"), false);
+});

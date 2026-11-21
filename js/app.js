@@ -81,6 +81,11 @@ import {
   leaveCardOutcome,
   skipRemainingCards,
   resolveQuickViewJump,
+  clampTempo,
+  hasLessonTempoOverride,
+  lessonTempo,
+  setModuleTempo,
+  resetModuleTempo,
   persistLessonTempo,
   isLastVisibleLesson,
   lessonSessionPlan,
@@ -933,7 +938,7 @@ function startLesson(lessonId, options = {}) {
     startKeyId: plan.startKeyId,
     majorKeyId: plan.majorKeyId,
     keyIds: plan.keyIds,
-    tempo: prefs.tempo,
+    tempo: lessonTempo(prefs, lesson.id),
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
     instrumentId: prefs.instrumentId,
     swing: prefs.swing,
@@ -1371,6 +1376,89 @@ function applyMelodyOctave(register) {
   else if (restart) start(false);
 }
 
+function renderSessionTempo() {
+  if (!els.sessionTempo || !session) return;
+  const current = clampTempo(session.tempo, prefs.tempo);
+  const defaultTempo = clampTempo(prefs.tempo, 96);
+  const overridden = hasLessonTempoOverride(prefs, session.lessonId) || current !== defaultTempo;
+
+  const down = document.createElement("button");
+  down.type = "button";
+  down.className = "tempo-btn tempo-step";
+  down.textContent = "−";
+  down.setAttribute("aria-label", "Slower");
+  down.disabled = current <= 60;
+  down.dataset.testid = "session-tempo-down";
+  down.addEventListener("click", () => applySessionTempo(current - 4));
+
+  const readout = document.createElement("button");
+  readout.type = "button";
+  readout.className = "tempo-readout-btn";
+  readout.dataset.testid = "session-tempo-readout";
+  readout.dataset.overridden = String(overridden);
+  readout.disabled = !overridden;
+  readout.setAttribute(
+    "aria-label",
+    overridden
+      ? `Tempo ${current} bpm, custom for this lick. Reset to ${defaultTempo} bpm default`
+      : `Tempo ${current} bpm (default)`,
+  );
+  if (overridden) {
+    readout.title = `Reset to ${defaultTempo} bpm default`;
+    readout.addEventListener("click", () => resetSessionTempo());
+  }
+  const value = document.createElement("span");
+  value.className = "tempo-bpm-value";
+  value.textContent = String(current);
+  const unit = document.createElement("span");
+  unit.className = "tempo-bpm-unit";
+  unit.textContent = "bpm";
+  readout.append(value, unit);
+
+  const up = document.createElement("button");
+  up.type = "button";
+  up.className = "tempo-btn tempo-step";
+  up.textContent = "+";
+  up.setAttribute("aria-label", "Faster");
+  up.disabled = current >= 160;
+  up.dataset.testid = "session-tempo-up";
+  up.addEventListener("click", () => applySessionTempo(current + 4));
+
+  els.sessionTempo.replaceChildren(down, readout, up);
+}
+
+function applySessionTempo(nextTempo) {
+  if (!session || session.screen !== "session") return;
+  const tempo = clampTempo(nextTempo, session.tempo);
+  const wasOverridden = hasLessonTempoOverride(prefs, session.lessonId);
+  if (tempo === session.tempo && (tempo !== prefs.tempo || !wasOverridden)) return;
+  const again = hearDemo;
+  const restart = !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
+  halt();
+  resetPitchTake();
+  prefs = setModuleTempo(prefs, session.lessonId, tempo);
+  session = { ...session, tempo: lessonTempo(prefs, session.lessonId) };
+  persist();
+  render();
+  if (again) playHearDemo();
+  else if (restart) start(false);
+}
+
+function resetSessionTempo() {
+  if (!session || session.screen !== "session") return;
+  if (!hasLessonTempoOverride(prefs, session.lessonId) && session.tempo === prefs.tempo) return;
+  const again = hearDemo;
+  const restart = !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
+  halt();
+  resetPitchTake();
+  prefs = resetModuleTempo(prefs, session.lessonId);
+  session = { ...session, tempo: lessonTempo(prefs, session.lessonId) };
+  persist();
+  render();
+  if (again) playHearDemo();
+  else if (restart) start(false);
+}
+
 function renderSessionChrome() {
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
   if (els.cardBadge) els.cardBadge.textContent = sessionModeHeading(session);
@@ -1672,6 +1760,7 @@ function renderNotation() {
     });
   const renderKey = JSON.stringify([session.lessonId, mei, layout, width, spec.memory && !notesRevealed]);
   if (notationRenderKey === renderKey) {
+    fitNotationInView();
     updatePlayhead();
     return;
   }
@@ -1946,6 +2035,7 @@ function render(snap = transport.snapshot()) {
   if (onHome || els.settingsModal?.open) renderSettings();
   if (screen === "session") {
     renderSessionChrome();
+    renderSessionTempo();
     renderSessionOctave();
     renderNotation();
     renderPrimary();
@@ -2018,7 +2108,7 @@ function applyDeepLink() {
       startKeyId: plan.startKeyId,
       majorKeyId: plan.majorKeyId,
       keyIds: plan.keyIds,
-      tempo: prefs.tempo,
+      tempo: lessonTempo(prefs, lesson.id),
       melodyRegister: prefs.lessons[lessonById(lessonId).id].melodyRegister,
       instrumentId: prefs.instrumentId,
       swing: prefs.swing,
@@ -2285,6 +2375,9 @@ function applyGuestSettings() {
   if (deepLinkOverrides.module && MODULES.some(module => module.id === deepLinkOverrides.module)) {
     selectedModuleId = deepLinkOverrides.module;
   }
+  if (session && !playback.playing && !playback.paused && rapidPhase === "idle") {
+    session = { ...session, tempo: lessonTempo(prefs, session.lessonId) };
+  }
   practiceUI.setSelected(loadMyCharts(PRACTICE_CATALOG.charts));
   lickRotation = loadMyLicks(MODULES);
   if (!nav.tune) lastChartTune = CHART_LIBRARY[0].id;
@@ -2300,6 +2393,9 @@ function applyAccountSettings() {
   selectedModuleId = MODULES.some(module => module.id === values.selectedModuleId) ? values.selectedModuleId : MODULES[0].id;
   if (deepLinkOverrides.module && MODULES.some(module => module.id === deepLinkOverrides.module)) {
     selectedModuleId = deepLinkOverrides.module;
+  }
+  if (session && !playback.playing && !playback.paused && rapidPhase === "idle") {
+    session = { ...session, tempo: lessonTempo(prefs, session.lessonId) };
   }
   practiceUI.setSelected(values.myCharts ?? []);
   lickRotation = (values.myLicks ?? []).filter(id => MODULES.some(module => module.id === id));
@@ -2427,12 +2523,15 @@ els.againKey.addEventListener("click", () => {
 els.doneSession.addEventListener("click", exitSession);
 
 function applyTempoDelta(delta) {
-  prefs.tempo = Math.min(160, Math.max(60, prefs.tempo + delta));
-  prefs = persistLessonTempo(prefs, session?.lessonId ?? setupLessonId, prefs.tempo);
+  prefs.tempo = clampTempo(prefs.tempo + delta, prefs.tempo);
+  prefs = normalizePrefs(prefs);
   persist();
   if (session) {
-    session = { ...session, tempo: prefs.tempo };
-    halt();
+    const nextTempo = lessonTempo(prefs, session.lessonId);
+    if (session.tempo !== nextTempo) {
+      session = { ...session, tempo: nextTempo };
+      halt();
+    }
     render();
     return;
   }
@@ -2556,7 +2655,7 @@ window.__DUOJAZZ__ = {
       swing: prefs.swing,
       metronome: prefs.metronome,
       guideTones: prefs.guideTones,
-      tempo: prefs.tempo,
+      tempo: lessonTempo(prefs, lessonId),
       ...options,
       ...planned,
     }));

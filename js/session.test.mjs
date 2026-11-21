@@ -991,3 +991,41 @@ test("session headings emphasize the current key or tune without lesson numbers"
   assert.equal(sessionScreenTitle(advanceKey(master)), "C minor");
   assert.equal(sessionScreenTitle(createSession({ lessonId: "tune-st-thomas-emr" })), "St. Thomas");
 });
+
+test("per-module tempo overrides apply across a lick's Learn, Master, and Integrate lessons and reset to global default", async () => {
+  const {
+    compactPrefs,
+    hasLessonTempoOverride,
+    lessonTempo,
+    moduleTempoOverride,
+    resetModuleTempo,
+    setModuleTempo,
+  } = await import("./session.js");
+  let prefs = defaultPrefs();
+  assert.equal(lessonTempo(prefs, "learn-lick"), 96);
+  assert.equal(hasLessonTempoOverride(prefs, "learn-lick"), false);
+
+  prefs = setModuleTempo(prefs, "learn-lick", 76);
+  assert.equal(moduleTempoOverride(prefs, "cmar"), 76);
+  assert.equal(hasLessonTempoOverride(prefs, "learn-lick"), true);
+  assert.equal(lessonTempo(prefs, "learn-lick"), 76);
+  assert.equal(lessonTempo(prefs, "master-lick"), 76);
+  assert.equal(lessonTempo(prefs, "integrate-minor-home"), 76);
+  assert.equal(lessonTempo(prefs, "emr-learn"), 96);
+  assert.deepEqual(compactPrefs(prefs).modules, { cmar: { tempo: 76 } });
+
+  prefs = normalizePrefs({ ...prefs, tempo: 108 });
+  assert.equal(lessonTempo(prefs, "learn-lick"), 76);
+  assert.equal(lessonTempo(prefs, "emr-learn"), 108);
+
+  // Stepping onto the global default or explicitly resetting clears the override.
+  const steppedToDefault = setModuleTempo(prefs, "master-lick", 108);
+  assert.equal(hasLessonTempoOverride(steppedToDefault, "learn-lick"), false);
+  assert.equal(lessonTempo(steppedToDefault, "learn-lick"), 108);
+  assert.deepEqual(compactPrefs(steppedToDefault).modules, {});
+
+  prefs = resetModuleTempo(prefs, "integrate-minor-home");
+  assert.equal(hasLessonTempoOverride(prefs, "learn-lick"), false);
+  assert.equal(lessonTempo(prefs, "learn-lick"), 108);
+  assert.deepEqual(compactPrefs(prefs).modules, {});
+});

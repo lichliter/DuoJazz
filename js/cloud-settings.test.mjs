@@ -269,3 +269,22 @@ test('rotation defaults enroll saved progress without overriding an explicit rem
   assert.equal(second.seedRotation(['cmar', 'gts'], ['four']), false);
   assert.equal(api.rows.get('a:lick:cmar').value, false);
 });
+
+test('per-module tempo overrides sync across devices and resetting clears the remote override', async () => {
+  const api = server();
+  const first = createCloudSettings({ storage: storage() });
+  first.activate('a');
+  first.set({ tempo: 96, modules: { 'south-of-the-river': { tempo: 72 } } });
+  await first.sync(api);
+
+  const second = createCloudSettings({ storage: storage() });
+  second.activate('a');
+  await second.sync(api);
+  assert.deepEqual(second.values().modules, { 'south-of-the-river': { tempo: 72 } });
+
+  first.set({ modules: {} });
+  await first.sync(api);
+  assert.equal(api.rows.get('a:module:south-of-the-river:tempo').value, null);
+  await second.sync(api);
+  assert.deepEqual(second.values().modules, {});
+});

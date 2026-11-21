@@ -7,15 +7,16 @@ const scalarNames = [...PREFERENCE_NAMES.filter(n => !['lessons', 'modules'].inc
 const zeroId = '00000000-0000-0000-0000-000000000000';
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const fieldDefault = name => name.startsWith('lesson:') ? (name.endsWith(':tempo') ? 96 : 0)
-  : name.startsWith('module:') ? 'learn' : undefined;
+  : name.startsWith('module:') ? (name.endsWith(':tempo') ? null : 'learn') : undefined;
 const newer = (a, b) => !b || a.edit_clock > b.edit_clock || (a.edit_clock === b.edit_clock && a.edit_id > b.edit_id);
 const validName = name => scalarNames.includes(name) || /^(chart|lick):[a-z0-9-]+$/.test(name)
-  || /^lesson:[a-z0-9:-]+:(tempo|melodyRegister)$/.test(name) || /^module:[a-z0-9-]+:studyMode$/.test(name);
+  || /^lesson:[a-z0-9:-]+:(tempo|melodyRegister)$/.test(name) || /^module:[a-z0-9-]+:(studyMode|tempo)$/.test(name);
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keyIds = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 function validValue(name, value) {
   if (typeof name !== 'string' || name.length > 256 || !validName(name)) return false;
   if (/^(chart|lick):/.test(name) || ['allKeys', 'swing', 'guideTones', 'metronome', 'auto', 'headphonesTipSeen'].includes(name)) return typeof value === 'boolean';
+  if (name.startsWith('module:') && name.endsWith(':tempo')) return value === null || (Number.isFinite(value) && value >= 60 && value <= 160);
   if (name === 'tempo' || name.endsWith(':tempo')) return Number.isFinite(value) && value >= 60 && value <= 160;
   if (name.endsWith(':melodyRegister')) return [-1, 0, 1].includes(value);
   if (name.endsWith(':studyMode')) return ['learn', 'practice'].includes(value);
@@ -36,13 +37,16 @@ function flatten(values) {
     if (!record(lesson)) continue;
     for (const field of ['tempo', 'melodyRegister']) if (Object.hasOwn(lesson, field)) result[`lesson:${id}:${field}`] = lesson[field];
   }
-  for (const [id, module] of Object.entries(values.modules ?? {})) if (record(module)) result[`module:${id}:studyMode`] = module.studyMode;
+  for (const [id, module] of Object.entries(values.modules ?? {})) {
+    if (!record(module)) continue;
+    for (const field of ['studyMode', 'tempo']) if (Object.hasOwn(module, field)) result[`module:${id}:${field}`] = module[field];
+  }
   return Object.fromEntries(Object.entries(result).filter(([name, value]) => validValue(name, value)));
 }
 function initialSettings(values) {
   return Object.fromEntries(Object.entries(flatten(values)).filter(([name, value]) =>
     !(name.startsWith('lesson:') && ((name.endsWith(':tempo') && value === 96) || (name.endsWith(':melodyRegister') && value === 0)))
-    && !(name.startsWith('module:') && value === 'learn')));
+    && !(name.startsWith('module:') && ((name.endsWith(':studyMode') && value === 'learn') || (name.endsWith(':tempo') && value === null)))));
 }
 function expand(entries) {
   const result = { myCharts: [], myLicks: [], lessons: {}, modules: {} };
@@ -50,6 +54,7 @@ function expand(entries) {
     if (name.startsWith('chart:')) { if (value === true) result.myCharts.push(name.slice(6)); }
     else if (name.startsWith('lick:')) { if (value === true) result.myLicks.push(name.slice(5)); }
     else if (name.startsWith('lesson:') || name.startsWith('module:')) {
+      if (name.startsWith('module:') && name.endsWith(':tempo') && value === null) continue;
       const group = name.startsWith('lesson:') ? 'lessons' : 'modules';
       const end = name.lastIndexOf(':'), id = name.slice(7, end), field = name.slice(end + 1);
       if (!Object.hasOwn(result[group], id)) result[group][id] = {};
@@ -136,6 +141,13 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
       if (!Array.isArray(changes[field])) continue;
       for (const id of previous[field]) if (!changes[field].includes(id)) flat[`${prefix}:${id}`] = false;
       for (const id of changes[field]) if (previous[field].includes(id)) delete flat[`${prefix}:${id}`];
+    }
+    if (record(changes.modules)) {
+      for (const [id, mod] of Object.entries(previous.modules ?? {})) {
+        if (mod?.tempo !== undefined && changes.modules[id]?.tempo === undefined) {
+          flat[`module:${id}:tempo`] = null;
+        }
+      }
     }
     const changed = Object.entries(flat).filter(([name, value]) => !same(entries[name]?.value ?? fieldDefault(name), value));
     reload();

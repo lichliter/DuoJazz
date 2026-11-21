@@ -28,6 +28,7 @@ export function collectElements(doc = document) {
     startKey: doc.getElementById("start-key"),
     allKeysToggle: doc.getElementById("all-keys-toggle"),
     allKeysLabel: doc.getElementById("all-keys-label"),
+    sessionTempo: doc.getElementById("session-tempo"),
     sessionOctave: doc.getElementById("session-octave"),
     tempoReadout: doc.getElementById("tempo-readout"),
     tempoDown: doc.getElementById("tempo-down"),

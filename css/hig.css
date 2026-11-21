@@ -1071,6 +1071,105 @@ button.module-banner {
   line-height: 1;
 }
 
+.session-tempo {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+  margin-inline: auto;
+  border: 1px solid var(--separator);
+  background: var(--fill);
+  color: var(--label);
+  border-radius: 12px;
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-tempo .tempo-step {
+  width: 40px;
+  height: var(--tap);
+  min-width: 38px;
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--label);
+  font: 600 19px/1 var(--font);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.session-tempo .tempo-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.session-tempo .tempo-step:active:not(:disabled),
+.session-tempo .tempo-readout-btn:active:not(:disabled) {
+  transform: scale(0.96);
+  filter: brightness(0.94);
+}
+
+.session-tempo .tempo-readout-btn {
+  position: relative;
+  height: var(--tap);
+  min-height: var(--tap);
+  min-width: 58px;
+  padding: 0 8px;
+  border: 0;
+  border-inline: 1px solid var(--separator);
+  border-radius: 0;
+  background: transparent;
+  color: var(--label);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-tempo .tempo-readout-btn:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.session-tempo .tempo-readout-btn[data-overridden="true"] {
+  cursor: pointer;
+  background: color-mix(in srgb, var(--tint-solid) 26%, var(--fill));
+}
+
+.session-tempo .tempo-readout-btn[data-overridden="true"]::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tint);
+}
+
+.session-tempo .tempo-bpm-value {
+  font: 700 15px/1.05 var(--font);
+  color: var(--label);
+}
+
+.session-tempo .tempo-bpm-unit {
+  font: 500 10px/1 var(--font);
+  color: var(--label-secondary);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.session-tempo .tempo-readout-btn[data-overridden="true"] .tempo-bpm-value,
+.session-tempo .tempo-readout-btn[data-overridden="true"] .tempo-bpm-unit {
+  color: var(--tint);
+}
+
 .session-transport .play-round {
   flex: 0 0 auto;
   --play-size: 54cqmin;
@@ -1882,6 +1981,37 @@ button.module-banner {
     font-size: 28px;
   }
 
+  .session-screen .session-tempo .tempo-step {
+    width: var(--session-control);
+    height: var(--session-control);
+    min-width: var(--session-control);
+    min-height: var(--session-control);
+    font-size: 28px;
+  }
+
+  .session-screen .session-tempo .tempo-readout-btn {
+    height: var(--session-control);
+    min-height: var(--session-control);
+    min-width: 92px;
+    padding: 0 12px;
+    gap: 2px;
+  }
+
+  .session-screen .session-tempo .tempo-readout-btn[data-overridden="true"]::after {
+    top: 8px;
+    right: 8px;
+    width: 7px;
+    height: 7px;
+  }
+
+  .session-screen .session-tempo .tempo-bpm-value {
+    font-size: 23px;
+  }
+
+  .session-screen .session-tempo .tempo-bpm-unit {
+    font-size: 13px;
+  }
+
   .session-screen .notes-toggle {
     min-height: var(--tap);
     font-size: 22px;
@@ -1943,7 +2073,9 @@ button.module-banner {
 @media (prefers-reduced-motion: reduce) {
   .play-round:active,
   .transport-icon:active,
-  .session-octave .octave-btn:active:not(:disabled) {
+  .session-octave .octave-btn:active:not(:disabled),
+  .session-tempo .tempo-step:active:not(:disabled),
+  .session-tempo .tempo-readout-btn:active:not(:disabled) {
     transform: none;
   }
 

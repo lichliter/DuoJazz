@@ -23,6 +23,7 @@ import {
 import {
   LESSONS,
   MODULES,
+  CHART_MODULES,
   TUNE_SECTION,
   TUNE_LESSONS,
   lessonById as registryLesson,
@@ -610,6 +611,19 @@ export function defaultPrefs() {
   };
 }
 
+export function clampTempo(value, fallback = 96) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.min(160, Math.max(60, Math.round(num)));
+}
+
+export function normalizeTempoOverride(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return null;
+  return Math.min(160, Math.max(60, Math.round(num)));
+}
+
 // Account settings always store concert major keys; legacy conversion belongs
 // only to the old browser-preferences import path.
 export function normalizeAccountPrefs(values) {
@@ -635,7 +649,7 @@ export function normalizePrefs(raw) {
       keyMode: KEY_MODES.some((mode) => mode.id === incoming.keyMode) ? incoming.keyMode : "one",
       startKeyId: normalizeKeyId(incoming.startKeyId ?? fallback.startKeyId),
       cardSet: "all",
-      tempo: Math.min(160, Math.max(60, Number(incoming.tempo) || 96)),
+      tempo: clampTempo(incoming.tempo, 96),
       melodyRegister: incoming.melodyRegister === -1 || incoming.melodyRegister === 1
         ? incoming.melodyRegister
         : 0,
@@ -643,9 +657,12 @@ export function normalizePrefs(raw) {
   }
   const modules = {};
   const rawModules = raw?.modules;
-  for (const module of MODULES) {
+  for (const module of [...MODULES, ...CHART_MODULES]) {
+    const entry = rawModules?.[module.id];
+    const tempo = normalizeTempoOverride(entry?.tempo);
     modules[module.id] = {
-      studyMode: normalizeStudyMode(rawModules?.[module.id]?.studyMode),
+      studyMode: normalizeStudyMode(entry?.studyMode),
+      ...(tempo !== null ? { tempo } : {}),
     };
   }
   return {
@@ -662,7 +679,7 @@ export function normalizePrefs(raw) {
     allKeys: raw?.allKeys !== false,
     selectedKeyIds: normalizeSelectedKeyIds(raw?.selectedKeyIds, startKeyId),
     cardSet: "all",
-    tempo: Math.min(160, Math.max(60, Number(raw?.tempo ?? seed.tempo) || 96)),
+    tempo: clampTempo(raw?.tempo ?? seed.tempo, 96),
     auto: raw?.auto !== false,
     headphonesTipSeen: Boolean(raw?.headphonesTipSeen)
       || raw?.headphonesTipSeen === "1"
@@ -679,7 +696,7 @@ export function compactPrefs(prefs) {
   const rawLessons = prefs?.lessons ?? {};
   for (const [id, entry] of Object.entries(rawLessons)) {
     if (!entry || typeof entry !== "object") continue;
-    const tempo = Math.min(160, Math.max(60, Number(entry.tempo) || 96));
+    const tempo = clampTempo(entry.tempo, 96);
     const melodyRegister = entry.melodyRegister === -1 || entry.melodyRegister === 1 ? entry.melodyRegister : 0;
     const keyMode = entry.keyMode ?? "one";
     if (tempo !== 96 || melodyRegister !== 0 || keyMode !== "one") {
@@ -688,7 +705,15 @@ export function compactPrefs(prefs) {
   }
   const modules = {};
   for (const [id, entry] of Object.entries(prefs?.modules ?? {})) {
-    if (entry?.studyMode && entry.studyMode !== "learn") modules[id] = { studyMode: entry.studyMode };
+    if (!entry || typeof entry !== "object") continue;
+    const studyMode = entry.studyMode && entry.studyMode !== "learn" ? entry.studyMode : undefined;
+    const tempo = normalizeTempoOverride(entry.tempo);
+    if (studyMode || tempo !== null) {
+      modules[id] = {
+        ...(studyMode ? { studyMode } : {}),
+        ...(tempo !== null ? { tempo } : {}),
+      };
+    }
   }
   return { ...prefs, lessons, modules };
 }
@@ -915,6 +940,47 @@ export function persistLessonMelodyRegister(prefs, lessonId, register) {
     melodyRegister: register === -1 || register === 1 ? register : 0,
   };
   return next;
+}
+
+export function resolveModuleId(moduleOrLessonId) {
+  if (!moduleOrLessonId) return MODULES[0].id;
+  const direct = [...MODULES, ...CHART_MODULES].find((item) => item.id === moduleOrLessonId);
+  if (direct) return direct.id;
+  return moduleForLesson(moduleOrLessonId).id;
+}
+
+export function moduleTempoOverride(prefs, moduleOrLessonId) {
+  const id = resolveModuleId(moduleOrLessonId);
+  const override = normalizeTempoOverride(prefs?.modules?.[id]?.tempo);
+  const globalTempo = clampTempo(prefs?.tempo, 96);
+  return override !== null && override !== globalTempo ? override : null;
+}
+
+export function hasLessonTempoOverride(prefs, lessonOrModuleId) {
+  return moduleTempoOverride(prefs, lessonOrModuleId) !== null;
+}
+
+export function lessonTempo(prefs, lessonOrModuleId) {
+  const globalTempo = clampTempo(prefs?.tempo, 96);
+  return moduleTempoOverride(prefs, lessonOrModuleId) ?? globalTempo;
+}
+
+export function setModuleTempo(prefs, moduleOrLessonId, tempo) {
+  const next = normalizePrefs(prefs);
+  const id = resolveModuleId(moduleOrLessonId);
+  const prev = { ...(next.modules[id] ?? { studyMode: "learn" }) };
+  const override = normalizeTempoOverride(tempo);
+  if (override === null || override === next.tempo) {
+    delete prev.tempo;
+  } else {
+    prev.tempo = override;
+  }
+  next.modules[id] = prev;
+  return next;
+}
+
+export function resetModuleTempo(prefs, moduleOrLessonId) {
+  return setModuleTempo(prefs, moduleOrLessonId, null);
 }
 
 export function lessonsSharingTempo(lessonId) {
