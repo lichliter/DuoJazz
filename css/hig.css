@@ -1371,6 +1371,7 @@ button.module-banner {
   color: var(--label);
 }
 
+#library-browse,
 .lick-tools .transport-icon,
 .session-octave .octave-btn,
 .session-footer .transport-icon {
@@ -2283,7 +2284,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .library-action:hover { background: var(--fill); }
 .library-action-primary { background: var(--tint); color: var(--tint-contrast, #221711); border-color: transparent; font-weight: 700; }
 .library-action-primary:hover { background: color-mix(in srgb, var(--tint), white 12%); }
-#library-browse { align-self: center; width: 44px; padding: 0; font-size: 24px; line-height: 1; }
+#library-browse { align-self: stretch; width: 54px; padding: 0; font-size: 24px; font-weight: 700; line-height: 1; }
 .library-menu { position: relative; margin-inline: auto; }
 .library-menu summary { list-style: none; min-width: 44px; padding: 0; font-size: 1.3rem; }
 .library-menu summary::-webkit-details-marker { display: none; }
