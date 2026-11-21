@@ -103,37 +103,31 @@ export function createHomeView({
     return btn;
   }
 
-  function relatedLickButton(id, className) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = className;
-    button.addEventListener("click", () => {
-      selectModule(id, { preview: true });
-      els.lessonList.querySelector(".module-banner")?.focus({ preventScroll: true });
-    });
-    return button;
-  }
-
-  function buildingBlocks(ids) {
+  function relatedLicksSection(id, label, rows) {
     const section = document.createElement("section");
-    section.className = "building-blocks";
+    section.className = "related-licks";
     const title = document.createElement("h3");
     title.className = "lesson-section-title";
-    title.id = "building-blocks-title";
-    title.textContent = "Building blocks";
+    title.id = `${id}-title`;
+    title.textContent = label;
     section.setAttribute("aria-labelledby", title.id);
 
     const list = document.createElement("ul");
-    list.className = "building-block-list";
-    for (const id of ids) {
-      const block = moduleById(id);
+    list.className = "related-licks-list";
+    for (const { lick, detail } of rows) {
       const item = document.createElement("li");
-      const button = relatedLickButton(id, "building-block-row");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "related-licks-row";
+      button.addEventListener("click", () => {
+        selectModule(lick.id, { preview: true });
+        els.lessonList.querySelector(".module-banner")?.focus({ preventScroll: true });
+      });
       const name = document.createElement("strong");
-      name.textContent = block.name;
-      const beats = document.createElement("span");
-      beats.textContent = block.blockBeats;
-      button.append(name, beats);
+      name.textContent = lick.name;
+      const subtitle = document.createElement("span");
+      subtitle.textContent = detail;
+      button.append(name, subtitle);
       item.append(button);
       list.append(item);
     }
@@ -147,12 +141,9 @@ export function createHomeView({
     wrap.dataset.module = module.id;
     wrap.append(moduleBanner(module));
     if (module.buildingBlockIds?.length) {
-      wrap.append(buildingBlocks(module.buildingBlockIds));
-    } else if (module.compositeId) {
-      const composite = moduleById(module.compositeId);
-      const link = relatedLickButton(composite.id, "text-link full-phrase-link");
-      link.textContent = `Full phrase · ${composite.name}`;
-      wrap.append(link);
+      const blocks = module.buildingBlockIds.map(moduleById);
+      wrap.append(relatedLicksSection("building-blocks", "Building blocks",
+        blocks.map((lick) => ({ lick, detail: lick.blockBeats }))));
     }
     const groups = module.id === "chord-tones"
       ? CHORD_QUALITIES.map((quality) => ({ id: quality.id, title: quality.title, nodes: nodes.filter((node) => lessonById(node.id).chordQuality === quality.id) }))
@@ -176,6 +167,11 @@ export function createHomeView({
         number: node.practice ? "Integrate" : node.number,
       })));
       wrap.append(section);
+    }
+    if (module.compositeId) {
+      wrap.append(relatedLicksSection("lick-uses", "Uses", [
+        { lick: moduleById(module.compositeId), detail: "Full phrase" },
+      ]));
     }
     return wrap;
   }
