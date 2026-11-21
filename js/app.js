@@ -518,21 +518,7 @@ function renderAuto() {
 }
 
 function recordRapidPass() {
-  if (!session || isPracticeLesson(session.lessonId)) return;
-  clearMasteryPreview();
-  const keyId = currentKeyId(session);
-  if (shouldRecordMastery(session, true, { notesShown: notesPeeked })) {
-    wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
-    mastery = wrapupBanner;
-  } else if (lessonById(session.lessonId).kind === "master") {
-    mastery = recordLearnPass(mastery, session.lessonId, keyId);
-    wrapupBanner = mastery;
-  } else {
-    wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
-    mastery = wrapupBanner;
-  }
-  saveMastery(mastery);
-  renderStorageNotice();
+  recordPassIfNeeded({ passed: true });
 }
 
 function finishRapid(generation, result) {
@@ -1168,8 +1154,10 @@ function recordPassIfNeeded(result) {
   } else {
     wrapupBanner = recordQuizPass(mastery, session.lessonId, keyId);
   }
+  const previous = mastery;
   mastery = wrapupBanner;
   saveMastery(mastery);
+  enrollFromProgress(mastery, previous);
   renderStorageNotice();
 }
 
@@ -2367,7 +2355,7 @@ const libraryPicker = setupLibraryPicker({
       els.charts.querySelector('.module-banner')?.focus({ preventScroll: true });
     } else {
       selectTab('licks');
-      selectModule(id);
+      selectModule(id, { preview: true });
       els.lessonList.querySelector('.module-banner')?.focus({ preventScroll: true });
     }
   },
@@ -2390,25 +2378,29 @@ function guestLegacySettings() {
 }
 document.getElementById("browse-charts").onclick = () => libraryPicker.open("charts", { browse: true });
 
-function enrollFromProgress(progress) {
-  const hasProgress = lesson => {
-    const saved = progress.lessons?.[lesson.id];
-    return Boolean(saved?.passedKeys?.length || saved?.learnedKeys?.length);
-  };
-  const licks = MODULES.filter(module => module.id !== "chord-tones" && module.lessons.some(hasProgress)).map(module => module.id);
-  const charts = [...new Set(LESSONS.filter(lesson => lesson.chartId && hasProgress(lesson)).map(lesson => lesson.chartId))];
+function enrollFromProgress(progress, previous = progress) {
+  const account = Boolean(cloudSettings.userId);
+  if (!account && !guestRotationImported) {
+    try { guestRotationImported = Boolean(localStorage.getItem(ROTATION_IMPORTED_KEY)); }
+    catch { /* Merge into the in-memory rotation when storage is unavailable. */ }
+  }
+  const importGuest = !account && !guestRotationImported;
+  const hasMedalProgress = (module, snapshot) => module.lessons.some(
+    lesson => snapshot.lessons?.[lesson.id]?.passedKeys?.length,
+  );
+  const licks = MODULES.filter(module => module.id !== "chord-tones"
+    && hasMedalProgress(module, progress)
+    && (account || importGuest || !hasMedalProgress(module, previous))).map(module => module.id);
 
-  if (cloudSettings.userId) {
+  const charts = account || importGuest ? [...new Set(LESSONS.filter(lesson => {
+    const saved = progress.lessons?.[lesson.id];
+    return lesson.chartId && (saved?.passedKeys?.length || saved?.learnedKeys?.length);
+  }).map(lesson => lesson.chartId))] : [];
+  if (account) {
     if (cloudSettings.seedRotation(licks, charts)) applyAccountSettings();
     return;
   }
-  if (guestRotationImported) return;
-  try {
-    if (localStorage.getItem(ROTATION_IMPORTED_KEY)) {
-      guestRotationImported = true;
-      return;
-    }
-  } catch { /* Merge into the in-memory rotation when storage is unavailable. */ }
+  if (!importGuest && !licks.length) return;
 
   const currentCharts = practiceUI.getSelected();
   const nextLicks = [...new Set([...lickRotation, ...licks])];
@@ -2417,8 +2409,10 @@ function enrollFromProgress(progress) {
   const savedCharts = nextCharts.length === currentCharts.length || writeStoredJson(MY_CHARTS_KEY, nextCharts);
   lickRotation = nextLicks;
   practiceUI.setSelected(nextCharts);
-  guestRotationImported = true;
-  if (savedLicks && savedCharts) writeStoredJson(ROTATION_IMPORTED_KEY, true);
+  if (importGuest) {
+    guestRotationImported = true;
+    if (savedLicks && savedCharts) writeStoredJson(ROTATION_IMPORTED_KEY, true);
+  }
   if (els.quickView?.open) libraryPicker.render();
 }
 
@@ -2810,8 +2804,10 @@ window.__DUOJAZZ__ = {
   },
   getMastery: () => mastery,
   setMastery(next) {
+    const previous = mastery;
     mastery = normalizeMastery(next);
     saveMastery(mastery);
+    enrollFromProgress(mastery, previous);
     render();
     return mastery;
   },
@@ -2845,8 +2841,9 @@ void initAccount({
       masteryPreview = null;
       wrapupBanner = null;
     }
+    const previous = accountChanged ? next : mastery;
     mastery = next;
-    enrollFromProgress(next);
+    enrollFromProgress(next, previous);
     render();
   },
 });

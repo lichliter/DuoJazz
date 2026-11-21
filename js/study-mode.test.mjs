@@ -138,7 +138,9 @@ test("Master blurs the staff until Show notes, and a reveal does not count", asy
   assert.match(app, /kind === "master" && !lesson.chartTimed && !notesRevealed/);
   assert.doesNotMatch(app, /Hide notes/);
   assert.match(app, /notesShown: notesPeeked/);
-  const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  const rapidPass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  assert.match(rapidPass, /recordPassIfNeeded\(\{ passed: true \}\)/);
+  const pass = app.slice(app.indexOf("function recordPassIfNeeded"), app.indexOf("function gradeCurrentCard"));
   assert.match(pass, /recordLearnPass/);
   assert.match(pass, /shouldRecordMastery/);
 });
@@ -259,7 +261,9 @@ test("the lick banner opens My Rotation and the hamburger is gone", async () => 
   assert.match(practice, /looping|recordBacking = true/);
   assert.doesNotMatch(practice, /monitor\.start|createFollower|finishRapid/);
   assert.match(app, /isPracticeLesson\(session\.lessonId\)\) return beginPracticeLoop/);
-  const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  const rapidPass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  assert.match(rapidPass, /recordPassIfNeeded\(\{ passed: true \}\)/);
+  const pass = app.slice(app.indexOf("function recordPassIfNeeded"), app.indexOf("function gradeCurrentCard"));
   assert.match(pass, /isPracticeLesson\(session\.lessonId\)\) return/);
 });
 

@@ -68,7 +68,7 @@ export function setupLibraryPicker({
   previewAudio.onEnded = stop;
 
   function openItem(item) {
-    if (!getRotation(type).includes(item.id)) return;
+    if (type === 'charts' && !getRotation(type).includes(item.id)) return;
     stop();
     dialog.close();
     onPick(type, item.id);
@@ -79,7 +79,7 @@ export function setupLibraryPicker({
     status.textContent = `${item.name ?? item.title} ${enrolled ? 'added to' : 'removed from'} My Rotation.`;
   }
 
-  function actionsFor(item, enrolled, progress, moveToAdded) {
+  function actionsFor(item, enrolled, progress, moveItem) {
     const actions = element('div', 'library-actions');
     if (type === 'licks') {
       const play = button('Play', async () => {
@@ -101,6 +101,22 @@ export function setupLibraryPicker({
       play.setAttribute('aria-label', play.dataset.playLabel);
       actions.append(play);
       if (progress > 0) actions.append(masteryBadge(progress));
+      const toggle = button('', () => {
+        enrolled = !enrolled;
+        updateMembership(item, enrolled);
+        renderToggle();
+        moveItem(enrolled);
+        toggle.focus();
+      }, 'library-action library-item-action');
+      function renderToggle() {
+        const label = enrolled ? 'Remove' : 'Add';
+        toggle.textContent = label;
+        toggle.setAttribute('aria-label', `${label} ${item.name}`);
+        toggle.classList.toggle('library-action-primary', !enrolled);
+      }
+      renderToggle();
+      actions.append(toggle);
+      return actions;
     }
     const open = button('Open', () => openItem(item), 'library-action library-item-action');
     open.setAttribute('aria-label', `Open ${item.name ?? item.title}`);
@@ -109,7 +125,7 @@ export function setupLibraryPicker({
       const add = button('Add', () => {
         updateMembership(item, true);
         add.replaceWith(open);
-        moveToAdded();
+        moveItem(true);
         open.focus();
       }, 'library-action library-item-action library-action-primary');
       add.setAttribute('aria-label', `Add ${item.name ?? item.title}`);
@@ -241,14 +257,20 @@ export function setupLibraryPicker({
       const staff = element('div', 'library-staff');
       staff.dataset.lick = item.id;
       staff.setAttribute('aria-label', `Sheet music for ${item.name}`);
-      row.append(element('h3', '', item.name), staff);
+      const heading = element('h3');
+      heading.setAttribute('aria-label', item.name);
+      const pick = button(item.name, () => openItem(item), 'library-card-open');
+      pick.setAttribute('aria-label', `Open ${item.name}`);
+      heading.append(pick);
+      row.append(heading, staff);
       observer.observe(staff);
     } else {
       row.append(itemCopy(item));
     }
-    row.append(actionsFor(item, enrolled, progress, () => {
-      addedSection.append(row);
-      addedSection.hidden = false;
+    row.append(actionsFor(item, enrolled, progress, selected => {
+      if (selected) addedSection.append(row);
+      else addedSection.before(row);
+      addedSection.hidden = addedSection.childElementCount === 1;
     }));
     return row;
   }

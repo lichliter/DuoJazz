@@ -2341,6 +2341,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .library-tile:hover { filter: brightness(1.14); }
 .library-tile-count { font: var(--text-caption); }
 .library-lick-card {
+  position: relative;
   display: grid;
   align-content: start;
   gap: 12px;
@@ -2351,6 +2352,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: var(--bg-secondary);
 }
 .library-lick-card h3 { margin: 0; font: var(--text-headline); }
+.library-card-open { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.library-card-open::after { content: ""; position: absolute; inset: 0; border-radius: 14px; }
+.library-card-open:focus-visible { outline: none; }
+.library-card-open:focus-visible::after { outline: 2px solid var(--tint); outline-offset: 2px; }
+.library-lick-card .library-action { position: relative; z-index: 1; }
 .library-staff {
   min-height: 90px;
   padding: 8px 6px;

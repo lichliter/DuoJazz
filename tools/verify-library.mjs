@@ -52,7 +52,7 @@ await withAppUrl(async (appUrl) => {
     await a.page.getByRole('button', { name: /^Classics/ }).click();
     const card = a.page.locator('.library-lick-card').filter({ has: a.page.getByRole('heading', { name: 'Cry Me a River', exact: true }) });
     await card.locator('.note').first().waitFor();
-    assert.equal(await card.getByRole('button', { name: 'Open Cry Me a River', exact: true }).count(), 0);
+    assert.equal(await card.getByRole('button', { name: 'Open Cry Me a River', exact: true }).isVisible(), true);
     await a.page.evaluate(async () => {
       const { Transport } = await import('/js/audio.js');
       const start = Transport.prototype.start;
@@ -73,12 +73,16 @@ await withAppUrl(async (appUrl) => {
     await a.page.getByRole('button', { name: 'Add Cry Me a River', exact: true }).click();
     await poll(() => cloud.rows.get('test-account-a:lick:cmar')?.value === true);
     const added = a.page.getByRole('region', { name: 'Added', exact: true });
-    const open = added.getByRole('button', { name: 'Open Cry Me a River', exact: true });
-    assert.equal(await open.evaluate(button => button === document.activeElement), true);
-    assert.equal(await open.evaluate(button => button.classList.contains('library-action-primary')), false);
+    const remove = added.getByRole('button', { name: 'Remove Cry Me a River', exact: true });
+    assert.equal(await remove.evaluate(button => button === document.activeElement), true);
+    assert.equal(await remove.evaluate(button => button.classList.contains('library-action-primary')), false);
     assert.equal(await a.page.locator('#quick-view-list > :last-child').getAttribute('aria-labelledby'), 'library-added-title');
     await a.page.screenshot({ animations: 'disabled', path: 'artifacts/rotation-tablet-cards.png' });
-    await open.click();
+    await remove.click();
+    await poll(() => cloud.rows.get('test-account-a:lick:cmar')?.value === false);
+    assert.equal(await card.getByRole('button', { name: 'Add Cry Me a River', exact: true }).isVisible(), true);
+    await card.getByRole('button', { name: 'Add Cry Me a River', exact: true }).click();
+    await card.getByRole('button', { name: 'Open Cry Me a River', exact: true }).click();
     await a.page.locator('#lesson-list .module-banner').click();
     await a.page.locator('[data-library-tab="charts"]').click();
     assert.equal(await a.page.locator('#quick-view').isVisible(), true);

@@ -467,7 +467,9 @@ test("practice can reveal notes, and the celebration check is a large SVG", asyn
   assert.match(app, /notesShown: notesPeeked/);
   assert.match(app, /notesRevealed = false/);
   assert.match(app, /kind !== "master"/);
-  const pass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  const rapidPass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
+  assert.match(rapidPass, /recordPassIfNeeded\(\{ passed: true \}\)/);
+  const pass = app.slice(app.indexOf("function recordPassIfNeeded"), app.indexOf("function gradeCurrentCard"));
   assert.match(pass, /recordLearnPass/);
   assert.match(pass, /recordQuizPass/);
 });

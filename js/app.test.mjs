@@ -28,6 +28,7 @@ function appContext(names, overrides = {}) {
     storageWarning,
     writeStoredJson,
     cloudSettings: { userId: null },
+    enrollFromProgress: noop,
     structuredClone,
     savedPrefs: sessions.defaultPrefs(),
     SELECTED_MODULE_KEY: "duojazz.selectedModule.v1",
@@ -57,7 +58,7 @@ function appContext(names, overrides = {}) {
   return context;
 }
 
-const progressFunctions = ["shownMastery", "clearMasteryPreview", "applyDeepLink", "recordRapidPass", "renderStorageNotice"];
+const progressFunctions = ["shownMastery", "clearMasteryPreview", "applyDeepLink", "recordRapidPass", "recordPassIfNeeded", "renderStorageNotice"];
 
 test('saving a chart switch cannot render the previous chart or carry its key into Four', () => {
   const rendered = [], saved = [];
@@ -125,6 +126,37 @@ for (const demo of ["path", "grades", "medal"]) {
     assert.ok(medals.lessonPassedKeys(saved[0], "learn-lick").includes("G"));
   });
 }
+
+test("the first graded lick pass enrolls a guest after migration, and removal survives later passes", () => {
+  const savedRotations = [];
+  const context = appContext(["clearMasteryPreview", "recordPassIfNeeded", "enrollFromProgress"], {
+    MODULES: sessions.MODULES,
+    LESSONS: sessions.LESSONS,
+    lickRotation: [],
+    guestRotationImported: true,
+    MY_LICKS_KEY: "licks",
+    practiceUI: { getSelected: () => [], setSelected: noop },
+    saveMastery: noop,
+    renderStorageNotice: noop,
+    writeStoredJson(key, value) { savedRotations.push([key, [...value]]); return true; },
+  });
+
+  context.session = sessions.createSession({ lessonId: "master-lick", startKeyId: "C" });
+  context.notesPeeked = true;
+  context.recordPassIfNeeded({ passed: true });
+  assert.deepEqual([...context.lickRotation], []);
+
+  context.notesPeeked = false;
+  context.recordPassIfNeeded({ passed: true });
+  assert.deepEqual([...context.lickRotation], ["cmar"]);
+  assert.deepEqual(savedRotations, [["licks", ["cmar"]]]);
+
+  context.lickRotation = [];
+  context.session = sessions.createSession({ lessonId: "master-lick", startKeyId: "G" });
+  context.recordPassIfNeeded({ passed: true });
+  assert.deepEqual([...context.lickRotation], []);
+  assert.equal(savedRotations.length, 1);
+});
 
 test("failed preference writes do not prevent starting lessons", () => {
   const context = appContext(["persist", "rememberModule", "renderStorageNotice", "clearMasteryPreview", "startLesson"], {
