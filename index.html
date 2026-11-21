@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=150">
   <link rel="stylesheet" href="./css/styles.css?v=162">
-  <link rel="stylesheet" href="./css/hig.css?v=173">
+  <link rel="stylesheet" href="./css/hig.css?v=175">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=173"></script>
+  <script type="module" src="./js/app.js?v=175"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -213,7 +213,7 @@
             </div>
             <div class="tempo-modal-actions">
               <button type="button" class="tempo-tap-btn" id="session-tempo-tap" data-testid="session-tempo-tap">Tap</button>
-              <button type="button" class="text-link tempo-reset-btn" id="session-tempo-reset" data-testid="session-tempo-reset" hidden>Reset</button>
+              <button type="button" class="text-link tempo-reset-btn" id="session-tempo-reset" data-testid="session-tempo-reset" disabled>Reset</button>
             </div>
           </div>
         </form>
@@ -357,12 +357,14 @@
     <form method="dialog" class="sheet-form">
       <div class="library-picker-header">
         <header class="sheet-toolbar">
+          <button type="button" class="dismiss-button" id="library-rotation-back" aria-label="Back to My Rotation" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+          </button>
           <h2 id="quick-view-title" tabindex="-1">My Rotation</h2>
           <button type="submit" class="dismiss-button" aria-label="Close library" value="close">×</button>
         </header>
         <div class="library-picker-tools">
           <div class="library-navigation">
-            <button type="button" class="library-action" id="library-back" hidden></button>
             <div id="library-tabs" class="library-tabs" role="group" aria-label="Practice library">
               <button type="button" data-library-tab="licks" aria-pressed="true">Licks</button>
               <button type="button" data-library-tab="charts" aria-pressed="false">Charts</button>
@@ -374,7 +376,12 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
             <input type="search" id="library-search" placeholder="Search licks" autocomplete="off">
           </label>
-          <h3 id="library-category" tabindex="-1" hidden></h3>
+          <div class="library-category-toolbar" hidden>
+            <button type="button" class="dismiss-button" id="library-back" aria-label="Back to categories">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+            </button>
+            <h3 id="library-category" tabindex="-1" hidden></h3>
+          </div>
         </div>
         <p class="sr-only" id="library-status" role="status"></p>
       </div>

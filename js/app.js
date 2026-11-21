@@ -1423,7 +1423,8 @@ function renderTempoModal({ keepInput = false } = {}) {
     els.sessionTempoTap.textContent = "Tap";
   }
   if (els.sessionTempoReset) {
-    els.sessionTempoReset.hidden = !overridden;
+    els.sessionTempoReset.hidden = false;
+    els.sessionTempoReset.disabled = !overridden;
     els.sessionTempoReset.textContent = "Reset";
   }
 }

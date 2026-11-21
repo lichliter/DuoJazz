@@ -464,7 +464,7 @@ test("practice screen tempo controls save per-lick overrides without altering th
   });
   context.els.sessionTempoInput = { value: "" };
   context.els.sessionTempoTap = { textContent: "" };
-  context.els.sessionTempoReset = { hidden: true, textContent: "" };
+  context.els.sessionTempoReset = { hidden: false, disabled: true, textContent: "" };
 
   context.startLesson("learn-lick");
   assert.equal(context.session.tempo, 96);
@@ -476,6 +476,7 @@ test("practice screen tempo controls save per-lick overrides without altering th
   assert.equal(sessions.hasLessonTempoOverride(context.prefs, "learn-lick"), true);
   assert.equal(context.els.sessionTempoTap.textContent, "Tap");
   assert.equal(context.els.sessionTempoReset.hidden, false);
+  assert.equal(context.els.sessionTempoReset.disabled, false);
   assert.equal(context.els.sessionTempoReset.textContent, "Reset");
 
   // Typing a tempo directly in the modal input updates the lick's override.
@@ -505,9 +506,10 @@ test("practice screen tempo controls save per-lick overrides without altering th
   context.startLesson("integrate-minor-home");
   assert.equal(context.session.tempo, 120);
 
-  // Resetting in the tempo modal returns the lick to the global default.
+  // Resetting in the tempo modal returns the lick to the global default and disables Reset without hiding it.
   context.resetSessionTempo();
   assert.equal(context.session.tempo, 104);
   assert.equal(sessions.hasLessonTempoOverride(context.prefs, "integrate-minor-home"), false);
-  assert.equal(context.els.sessionTempoReset.hidden, true);
+  assert.equal(context.els.sessionTempoReset.hidden, false);
+  assert.equal(context.els.sessionTempoReset.disabled, true);
 });
