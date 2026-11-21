@@ -1151,9 +1151,8 @@ function restAbc(startBeat, durationBeats) {
     .join("");
 }
 
-function tupletWrittenBeats(item) {
-  if (almost(item.beats, 0.5 / 3) || almost(item.beats, 1 / 6)) return 0.25;
-  return 0.5;
+export function tupletWrittenBeats(item) {
+  return item.beats * 3 / 2;
 }
 
 function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase, durationBeats, tieOut = false, keyQuality = "minor", barState = null, usesFlatsOverride = null) {
@@ -1279,7 +1278,7 @@ function renderSlice(items, start, end, ctx) {
     if (item.tuplet === 6) {
       const group = [];
       let total = 0;
-      while (i < covering.length && covering[i].tuplet === 6 && total < 1 - 1e-6) {
+      while (i < covering.length && covering[i].tuplet === 6 && total < (item.tupletSpanBeats ?? 1) - 1e-6) {
         group.push(covering[i]);
         total += covering[i].beats;
         i += 1;

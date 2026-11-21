@@ -73,16 +73,23 @@
       "name": "Sextuplet Run",
       "sourceBeats": "Bar 1 beats 1–2, including the sextuplet entrance rest",
       "learnHarmony": "Gm7 for one bar",
-      "endRestBeats": 2
+      "endRestBeats": 0
     },
     {
       "id": "south-of-the-river-climb-and-landing",
       "name": "Chromatic Landing",
       "sourceBeats": "Bar 1 beats 3–4 plus the quarter-note B♭ on bar 2 beat 1",
-      "learnHarmony": "Two beats of Gm7 then two beats of Cm7, with the landing on beat 3",
-      "endRestBeats": 1
+      "learnHarmony": "One bar of Gm7 then one bar of Cm7, with the landing on bar 2 beat 1",
+      "endRestBeats": 2
     }
   ],
+  "halfTimePractice": {
+    "appliesTo": "Learn and Master for the full phrase and both building blocks. Integrate uses the original rhythm and chart placements.",
+    "durationMultiplier": 2,
+    "entrance": "The opening rest and E–F–A–C form an eighth-note sextuplet across beats 1–2. The straight eighths begin on beat 3.",
+    "learnHarmony": "Two bars of Gm7 then one of Cm7. Half-note B♭ lands on bar 3 beat 1.",
+    "endRestBeats": 2
+  },
   "meter": "4/4",
   "endRestBeats": 3
 }

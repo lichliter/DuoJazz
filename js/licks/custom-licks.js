@@ -46,37 +46,52 @@ const southLanding = [
   N(27, 1, { diatonicStep: 16 }),
 ];
 
+function halfTime(elements) {
+  return elements.map((element) => ({
+    ...element,
+    beats: element.beats * 2,
+    ...(element.tuplet === 6 && { tupletSpanBeats: 2 }),
+  }));
+}
+
+const halfTimeOpening = halfTime(southOpening);
+const halfTimeLanding = [...halfTime(southLanding), R(2)];
+const southTonicBar = bar([chord(0, "minor7")]);
+const southLandingBar = bar([chord(5, "minor7")]);
+
 const southBlocks = [
   {
     id: `${southId}-opening`,
     name: "Sextuplet Run",
-    blockBeats: "Beats 1–2",
-    elements: [...southOpening, R(2)],
-    chords: [chord(0, "minor7")],
-    summary: "Play the sextuplet into beat 2, then finish the opening figure in straight sixteenths.",
+    blockBeats: "Bar 1",
+    originalElements: [...southOpening, R(2)],
+    elements: halfTimeOpening,
+    bars: [southTonicBar],
+    summary: "Play the eighth-note sextuplet across beats 1 and 2, then finish the figure in straight eighths.",
     minorHomeDescription: "Use the natural sixth in the sextuplet, then climb from the ninth to the seventh in straight sixteenths.",
   },
   {
     id: `${southId}-climb-and-landing`,
     name: "Chromatic Landing",
-    blockBeats: "Beats 3–4 plus resolution",
-    elements: [...southLanding, R(1)],
-    chords: [chord(0, "minor7", 2), chord(5, "minor7", 2)],
-    summary: "Start on beat 1, climb to the high note, then descend chromatically to the landing on beat 3.",
+    blockBeats: "Bar 2 plus resolution",
+    originalElements: [...southLanding, R(1)],
+    elements: halfTimeLanding,
+    bars: [southTonicBar, southLandingBar],
+    summary: "Climb in straight eighths, then descend chromatically to the half-note landing on the next downbeat.",
     minorHomeDescription: "Climb from the fifth, then descend chromatically to the minor third over the same chord.",
   },
 ];
 
-function southBlockEntry({ id, name, blockBeats, elements, chords, summary, minorHomeDescription }) {
+function southBlockEntry({ id, name, blockBeats, originalElements, elements, bars, summary, minorHomeDescription }) {
   const learnId = `${id}-learn`;
   return {
     lick: {
       id, name, shortName: name, elements,
-      source: southSource, octave: -2, pickupBeats: 0, learnBeats: 4, keyQuality: "minor", defaultKeyId: "G",
+      source: southSource, octave: -2, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality: "minor", defaultKeyId: "G",
     },
     learnForm: {
       id: learnId, title: name, shortTitle: name, keyQuality: "minor",
-      bars: [bar(chords)],
+      bars,
     },
     learnApplication: {
       id: learnId, lickId: id, formId: learnId, label: "Learn the lick",
@@ -86,7 +101,7 @@ function southBlockEntry({ id, name, blockBeats, elements, chords, summary, mino
       id, lickId: id, name, blockBeats, compositeId: southId,
       lessons: [{
         id: learnId, kind: "learn", applicationId: learnId, title: "Learn the lick", coverTitle: "Learn the lick",
-        summary, context: "Minor · One bar", defaultKeyId: "G",
+        summary, context: "Minor · Half-time practice", defaultKeyId: "G",
       }],
     },
     practiceDefinitions() {
@@ -98,7 +113,7 @@ function southBlockEntry({ id, name, blockBeats, elements, chords, summary, mino
         source: `${southSource} · ${name} practice`,
         exampleTitle: "Minor tonic vamp",
         variants: [{
-          id: "original", label: "Original", elements, pickupBeats: 0,
+          id: "original", label: "Original", elements: originalElements, pickupBeats: 0,
           pattern: [{ root: 0, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
         }],
       }];
@@ -279,17 +294,17 @@ export const CUSTOM_LICKS = [
       source: `${southSource}; not an exact transcription.`,
       octave: -2,
       pickupBeats: 0,
-      learnBeats: 8,
+      learnBeats: 12,
       keyQuality: "minor",
       defaultKeyId: "G",
-      elements: [...southOpening, ...southLanding, R(3)],
+      elements: [...halfTimeOpening, ...halfTimeLanding],
     },
     learnForm: {
       id: "south-of-the-river-learn",
       title: "South of the River",
       shortTitle: "The lick",
       keyQuality: "minor",
-      bars: [bar([chord(0, "minor7")]), bar([chord(5, "minor7")])],
+      bars: [southTonicBar, southTonicBar, southLandingBar],
     },
     learnApplication: {
       id: "south-of-the-river-learn",
@@ -313,18 +328,19 @@ export const CUSTOM_LICKS = [
         applicationId: "south-of-the-river-learn",
         title: "Learn the lick",
         coverTitle: "Learn the lick",
-        summary: "Play the sextuplet into beat 2 and climb in sixteenths to high D on beat 4. Walk down chromatically to B♭ on the next downbeat.",
-        context: "Minor i → iv · adapted from Tom Misch’s South of the River",
+        summary: "Play the eighth-note sextuplet across beats 1 and 2, then climb in straight eighths across two bars. Walk down chromatically to B♭ on the downbeat of bar 3.",
+        context: "Minor i → iv · Half-time practice",
         defaultKeyId: "G",
       }],
     },
-    practiceDefinitions(lick) {
+    practiceDefinitions() {
       const source = southSource;
+      const elements = [...southOpening, ...southLanding, R(3)];
       const variant = (pattern) => ({
         id: "original",
         label: "Original",
         pattern,
-        elements: lick.elements,
+        elements,
         pickupBeats: 0,
       });
       const minorQualities = ["minor7", "minor11", "minor"];

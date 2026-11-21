@@ -27,6 +27,7 @@ import {
   phraseTimeline,
   restBeatsForSpan,
   spellMelodyMidi,
+  tupletWrittenBeats,
   usesFlatsForChord,
   withSpotOctaves,
 } from "./music.js";
@@ -240,7 +241,7 @@ function sliceTokens(items, start, end, ctx, slashRests) {
       tokens.push({
         type: "tuplet",
         beats: group.reduce((sum, note) => sum + note.beats, 0),
-        notes: group.map((note) => noteXml(note, ctx, almost(note.beats, 0.5 / 3) || almost(note.beats, 1 / 6) ? 0.25 : 0.5)),
+        notes: group.map((note) => noteXml(note, ctx, tupletWrittenBeats(note))),
       });
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       continue;
@@ -248,7 +249,7 @@ function sliceTokens(items, start, end, ctx, slashRests) {
     if (item.tuplet === 6) {
       const group = [];
       let total = 0;
-      while (i < covering.length && covering[i].tuplet === 6 && total < 1 - 1e-6) {
+      while (i < covering.length && covering[i].tuplet === 6 && total < (item.tupletSpanBeats ?? 1) - 1e-6) {
         group.push(covering[i]);
         total += covering[i].beats;
         i += 1;
@@ -260,7 +261,7 @@ function sliceTokens(items, start, end, ctx, slashRests) {
         bracket: true,
         beats: total,
         items: group.map((el) => {
-          const written = almost(el.beats, 1 / 3) ? 0.5 : 0.25;
+          const written = tupletWrittenBeats(el);
           return el.type === "rest" ? { rest: true, ...restXml(written) } : noteXml(el, ctx, written);
         }),
       });
