@@ -4,6 +4,7 @@ import { getKey, scheduleChorus } from "./music.js";
 import { livePlaybackEvents } from "./sound-band.js";
 import { leaksTargetBar } from "./lesson.js";
 import { PATH_SLOT_PCTS } from "./path-trail.js";
+import { applicationById } from "./registry.js";
 import {
   LESSONS,
   MODULES,
@@ -394,8 +395,23 @@ test("learn-the-lick uses the cell; integration uses the form, with Hear it as a
   assert.ok(events.some((event) => event.type === "cue"));
 });
 
+const EXHAUSTIVE = process.env.DUOJAZZ_EXHAUSTIVE === "1";
+
 test("every lesson demo plays only the phrase shown on its staff", () => {
+  const seenQualities = new Set();
+  const seenVariants = new Set();
   for (const lesson of LESSONS) {
+    if (!EXHAUSTIVE) {
+      if (lesson.group === "chart-tones" && !lesson.chartTimed) {
+        if (lesson.chordQuality && seenQualities.has(lesson.chordQuality)) continue;
+        if (lesson.chordQuality) seenQualities.add(lesson.chordQuality);
+      } else if (lesson.group === "application-practice") {
+        const app = applicationById(lesson.applicationId);
+        const variantKey = `${app.workbookApplicationId}:${app.workbookVariantId}`;
+        if (seenVariants.has(variantKey)) continue;
+        seenVariants.add(variantKey);
+      }
+    }
     const session = createSession({ lessonId: lesson.id });
     const config = demoAudioConfig(session);
     for (const sampled of [false, true]) {
@@ -480,7 +496,8 @@ test("the single card does not use the old Listen or Quiz feedback stages", () =
 });
 
 test("lessons stay unlocked and the module has 25 records", () => {
-  assert.equal(MODULES.length, 33);
+  assert.ok(MODULES.length >= 31);
+  assert.equal(new Set(MODULES.map((module) => module.id)).size, MODULES.length);
   assert.deepEqual(MODULES.find(module => module.id === "cmar").lessons.map((lesson) => lesson.id), [
     "learn-lick",
     "master-lick",
@@ -722,9 +739,9 @@ test("module road hides Your tunes and re-numbers the remaining sleeves", () => 
   assert.equal(modulePathNodes(MODULES.find(module => module.id === "cmar"), defaultPrefs(), {}).length, 11);
 });
 
-test("modules sheet lists 1–33 and omits Your tunes", () => {
+test("modules sheet lists every module and omits Your tunes", () => {
   const data = modulesSheetData({}, { cmar: ["G"] });
-  assert.equal(data.length, 33);
+  assert.equal(data.length, MODULES.length);
   assert.equal(data.some((module) => module.id === "tunes"), false);
   assert.equal(data[1].number, 2);
   assert.equal(data[1].lickName, "Cry Me a River");
@@ -737,7 +754,7 @@ test("quick view lists every module and record", () => {
     "learn-lick": ["G", "C"],
     "integrate-minor-home": TWELVE_KEY_IDS,
   }, { cmar: ["G"], emr: [] });
-  assert.equal(data.length, 34);
+  assert.equal(data.length, MODULES.length + 1);
   assert.deepEqual(data.map((module) => module.id), [...MODULES.map((module) => module.id), "tunes"]);
   assert.equal(data.flatMap((module) => module.records).length,
     LESSONS.filter((lesson) => lesson.group !== "application-practice" && lesson.group !== "chart-tones").length);

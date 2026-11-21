@@ -779,8 +779,13 @@ test("Cry Me a River Lesson 1 in A-flat minor spells C-flat 4 on trombone and pi
 
 test("every lesson and key keeps the label, signature, and tonic chord on one spelling", () => {
   const instruments = ["piano", "trumpet", "alto-sax"];
+  const qualities = new Set();
   for (const lesson of LESSONS) {
     const quality = applicationKeyQuality(lesson.applicationId);
+    assert.ok(quality === "major" || quality === "minor", `${lesson.id} unexpected quality ${quality}`);
+    qualities.add(quality);
+  }
+  for (const quality of qualities) {
     for (const keyId of ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]) {
       for (const instrumentId of instruments) {
         const shown = displayKey(getKey(keyId), instrumentId, quality);
@@ -790,9 +795,9 @@ test("every lesson and key keeps the label, signature, and tonic chord on one sp
         assert.equal(
           keySignatureByLetter(shown)[letter],
           acc,
-          `${lesson.id} ${keyId} ${instrumentId} ${shown.name}`,
+          `${quality} ${keyId} ${instrumentId} ${shown.name}`,
         );
-        assert.equal(spellPitchInKey(shown.pc, shown).name, token, `${lesson.id} ${keyId} ${instrumentId}`);
+        assert.equal(spellPitchInKey(shown.pc, shown).name, token, `${quality} ${keyId} ${instrumentId}`);
         const home = chordSymbolName(
           getKey(keyId),
           0,
@@ -800,7 +805,7 @@ test("every lesson and key keeps the label, signature, and tonic chord on one sp
           instrumentId,
           quality,
         );
-        assert.ok(home.startsWith(token), `${lesson.id} ${keyId} ${instrumentId} ${home} vs ${token}`);
+        assert.ok(home.startsWith(token), `${quality} ${keyId} ${instrumentId} ${home} vs ${token}`);
         assert.doesNotMatch(home, /\s/);
       }
     }

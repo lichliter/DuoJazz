@@ -169,12 +169,14 @@ test("home uses the record road and a shared library sheet; session keeps the ro
 
 test("home road-end CTA is a 44pt next-module button with no More licks soon", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   assert.doesNotMatch(app, /More licks soon/);
+  assert.doesNotMatch(appHome, /More licks soon/);
   assert.doesNotMatch(styles, /More licks soon/);
   assert.doesNotMatch(hig, /More licks soon/);
-  assert.match(app, /homeNextModuleButton\(homeNextModule\(/);
+  assert.match(appHome, /homeNextModuleButton\(homeNextModule\(/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?background:\s*var\(--tint-solid\)/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?white-space:\s*normal/);
@@ -299,6 +301,8 @@ test("accidentals stay in the same font run as the letters", async () => {
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
   const tokens = await readFile(new URL("../css/tokens.css", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
+  const appCharts = await readFile(new URL("./app-charts.js", import.meta.url), "utf8");
   const src = await readFile(new URL("./engrave.js", import.meta.url), "utf8");
   assert.match(hig, /\.music-label[\s\S]*var\(--music-font\)/);
   assert.match(tokens, /font-family:\s*"DuoJazz Music"/);
@@ -320,10 +324,10 @@ test("accidentals stay in the same font run as the letters", async () => {
   assert.match(hig, /\.transport-icon\s*\{[^}]*min-width:\s*44px/);
   assert.match(hig, /\.transport-icon\s*\{[^}]*min-height:\s*44px/);
   assert.match(hig, /\.auto-toggle\[aria-checked="true"\] \.switch-track\s*\{[^}]*background:\s*var\(--tint-solid\)/);
-  assert.match(app, /fillMusicLabel\(symbol,/);
+  assert.match(appCharts, /fillMusicLabel\(symbol,/);
   assert.match(app, /fillMusicLabel\(\s*els\.sessionKey/);
-  assert.doesNotMatch(app, /fillMusicLabel\(els\.chartMeta/);
-  assert.match(app, /fillMusicLabel\(btn, option\.label\)/);
+  assert.doesNotMatch(`${app}\n${appHome}\n${appCharts}`, /fillMusicLabel\(els\.chartMeta/);
+  assert.match(appHome, /fillMusicLabel\(btn, option\.label\)/);
   assert.doesNotMatch(app, /textContent = "Octave"/);
   assert.match(app, /setAttribute\("aria-label", "Octave down \(8vb\)"\)/);
   assert.match(app, /setAttribute\("aria-label", "Octave up \(8va\)"\)/);

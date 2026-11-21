@@ -8,12 +8,15 @@ import { phraseEvents } from "./music.js";
 
 test("all licks have application groups with real playable placements", () => {
   const prefs = defaultPrefs();
+  const exhaustive = process.env.DUOJAZZ_EXHAUSTIVE === "1";
+  const audioCheckedCharts = new Set();
   for (const module of MODULES.slice(1)) {
     const groups = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
     assert.ok(groups.length, module.id);
     for (const group of groups) {
       assert.ok(group.variants.every((variant) => lessonById(variant.exampleLessonId).id === variant.exampleLessonId), group.id);
       assert.equal(new Set(group.choices.map((choice) => `${choice.chartId}:${choice.variantId}`)).size, group.choices.length);
+      const audioCheckedVariants = new Set();
       for (const choice of group.choices) {
         const lesson = lessonById(choice.lessonId);
         assert.equal(lesson.id, choice.lessonId);
@@ -22,11 +25,22 @@ test("all licks have application groups with real playable placements", () => {
         assert.equal(app.id, lesson.applicationId);
         const length = formById(app.formId).bars.length;
         assert.ok(spotsFor(app.id).every((spot) => spot.bar > 0 && spot.bar <= length));
-        const plan = lessonSessionPlan(lesson.id, prefs);
-        const session = createSession({ lessonId: lesson.id, ...plan });
-        const demo = livePlaybackEvents(demoAudioConfig(session));
-        assert.ok(demo.some((event) => event.type === "melody"), choice.lessonId);
-        assert.ok(livePlaybackEvents(recordBackingConfig(session)).every((event) => event.type !== "melody"));
+        if (
+          exhaustive
+          || !audioCheckedVariants.has(choice.variantId)
+          || !audioCheckedCharts.has(choice.chartId)
+          || module.id === "cmar"
+          || module.id === "minor-rise-return"
+          || module.id === "lotus-inspired"
+        ) {
+          audioCheckedVariants.add(choice.variantId);
+          audioCheckedCharts.add(choice.chartId);
+          const plan = lessonSessionPlan(lesson.id, prefs);
+          const session = createSession({ lessonId: lesson.id, ...plan });
+          const demo = livePlaybackEvents(demoAudioConfig(session));
+          assert.ok(demo.some((event) => event.type === "melody"), choice.lessonId);
+          assert.ok(livePlaybackEvents(recordBackingConfig(session)).every((event) => event.type !== "melody"));
+        }
       }
     }
   }

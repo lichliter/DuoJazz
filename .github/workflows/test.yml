@@ -21,5 +21,8 @@ jobs:
         with:
           node-version: 22
 
+      - name: Run static checks
+        run: npm run lint
+
       - name: Run tests
         run: npm test
