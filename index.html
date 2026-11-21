@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=150">
   <link rel="stylesheet" href="./css/styles.css?v=162">
-  <link rel="stylesheet" href="./css/hig.css?v=168">
+  <link rel="stylesheet" href="./css/hig.css?v=169">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=168"></script>
+  <script type="module" src="./js/app.js?v=169"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -183,6 +183,40 @@
             <button type="button" id="account-signout" hidden>Sign out</button>
           </div>
           <p id="app-version" class="profile-version" data-testid="app-version"></p>
+        </form>
+      </dialog>
+
+      <dialog id="tempo-modal" class="form-sheet tempo-modal" data-testid="tempo-sheet" aria-labelledby="tempo-modal-title">
+        <form method="dialog" class="sheet-form" id="tempo-modal-form">
+          <header class="sheet-toolbar">
+            <h2 id="tempo-modal-title">Tempo</h2>
+            <button type="submit" class="dismiss-button" aria-label="Close tempo" id="tempo-modal-close" data-testid="tempo-modal-close" value="close">×</button>
+          </header>
+          <div class="tempo-modal-body">
+            <p class="tempo-modal-context help" id="tempo-modal-context" data-testid="tempo-modal-context"></p>
+            <div class="tempo-modal-stepper">
+              <button type="button" class="stepper tempo-modal-step" id="session-tempo-down" data-testid="session-tempo-down" aria-label="Slower">−</button>
+              <div class="tempo-input-wrap">
+                <input
+                  type="number"
+                  id="session-tempo-input"
+                  data-testid="session-tempo-input"
+                  class="tempo-number-input"
+                  min="60"
+                  max="160"
+                  step="1"
+                  inputmode="numeric"
+                  aria-label="Tempo in beats per minute"
+                >
+                <span class="tempo-input-unit">bpm</span>
+              </div>
+              <button type="button" class="stepper tempo-modal-step" id="session-tempo-up" data-testid="session-tempo-up" aria-label="Faster">+</button>
+            </div>
+            <div class="tempo-modal-actions">
+              <button type="button" class="tempo-tap-btn" id="session-tempo-tap" data-testid="session-tempo-tap">Tap tempo</button>
+              <button type="button" class="text-link tempo-reset-btn" id="session-tempo-reset" data-testid="session-tempo-reset" hidden></button>
+            </div>
+          </div>
         </form>
       </dialog>
 

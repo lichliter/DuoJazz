@@ -983,6 +983,22 @@ export function resetModuleTempo(prefs, moduleOrLessonId) {
   return setModuleTempo(prefs, moduleOrLessonId, null);
 }
 
+export const TAP_TEMPO_RESET_MS = 2000;
+export const TAP_TEMPO_WINDOW = 5;
+
+export function stepTapTempo(taps = [], now = 0) {
+  const prev = Array.isArray(taps) ? taps : [];
+  const last = prev.at(-1);
+  if (last === undefined || now - last > TAP_TEMPO_RESET_MS || now <= last) {
+    return { taps: [now], tempo: null };
+  }
+  const next = [...prev, now].slice(-TAP_TEMPO_WINDOW);
+  const span = next.at(-1) - next[0];
+  const intervals = next.length - 1;
+  const bpm = clampTempo(Math.round((60000 * intervals) / span));
+  return { taps: next, tempo: bpm };
+}
+
 export function lessonsSharingTempo(lessonId) {
   const lesson = lessonById(lessonId);
   if (!lesson.tuneId) return [lesson.id];

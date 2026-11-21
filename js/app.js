@@ -86,6 +86,7 @@ import {
   lessonTempo,
   setModuleTempo,
   resetModuleTempo,
+  stepTapTempo,
   persistLessonTempo,
   isLastVisibleLesson,
   lessonSessionPlan,
@@ -215,6 +216,7 @@ let chartKeySelection = null;
 let lickRotation = loadMyLicks(MODULES);
 const ROTATION_IMPORTED_KEY = "duojazz.rotationImported.v1";
 let guestRotationImported = false;
+let tempoTaps = [];
 
 function rotationLickIds() {
   const enrolled = new Set(lickRotation);
@@ -1210,6 +1212,7 @@ function anyDialogOpen() {
     els.quickView?.open
     || els.leaveConfirm?.open
     || els.settingsModal?.open
+    || els.tempoModal?.open
     || els.chartSheet?.open
     || document.getElementById("chart-applications")?.open
     || document.getElementById("application-charts")?.open,
@@ -1382,31 +1385,25 @@ function renderSessionTempo() {
   const defaultTempo = clampTempo(prefs.tempo, 96);
   const overridden = hasLessonTempoOverride(prefs, session.lessonId) || current !== defaultTempo;
 
-  const down = document.createElement("button");
-  down.type = "button";
-  down.className = "tempo-btn tempo-step";
-  down.textContent = "−";
-  down.setAttribute("aria-label", "Slower");
-  down.disabled = current <= 60;
-  down.dataset.testid = "session-tempo-down";
-  down.addEventListener("click", () => applySessionTempo(current - 4));
-
   const readout = document.createElement("button");
   readout.type = "button";
+  readout.id = "session-tempo-btn";
   readout.className = "tempo-readout-btn";
   readout.dataset.testid = "session-tempo-readout";
   readout.dataset.overridden = String(overridden);
-  readout.disabled = !overridden;
+  readout.setAttribute("aria-haspopup", "dialog");
+  readout.setAttribute("aria-controls", "tempo-modal");
   readout.setAttribute(
     "aria-label",
     overridden
-      ? `Tempo ${current} bpm, custom for this lick. Reset to ${defaultTempo} bpm default`
-      : `Tempo ${current} bpm (default)`,
+      ? `Tempo ${current} bpm (custom)`
+      : `Tempo ${current} bpm`,
   );
-  if (overridden) {
-    readout.title = `Reset to ${defaultTempo} bpm default`;
-    readout.addEventListener("click", () => resetSessionTempo());
-  }
+  readout.title = overridden
+    ? `Tempo ${current} bpm (custom for this lick)`
+    : `Tempo ${current} bpm`;
+  readout.addEventListener("click", () => openTempoModal());
+
   const value = document.createElement("span");
   value.className = "tempo-bpm-value";
   value.textContent = String(current);
@@ -1415,46 +1412,116 @@ function renderSessionTempo() {
   unit.textContent = "bpm";
   readout.append(value, unit);
 
-  const up = document.createElement("button");
-  up.type = "button";
-  up.className = "tempo-btn tempo-step";
-  up.textContent = "+";
-  up.setAttribute("aria-label", "Faster");
-  up.disabled = current >= 160;
-  up.dataset.testid = "session-tempo-up";
-  up.addEventListener("click", () => applySessionTempo(current + 4));
-
-  els.sessionTempo.replaceChildren(down, readout, up);
+  els.sessionTempo.replaceChildren(readout);
+  if (els.tempoModal?.open) renderTempoModal();
 }
 
-function applySessionTempo(nextTempo) {
+function renderTempoModal({ keepInput = false } = {}) {
+  if (!session) return;
+  const current = clampTempo(session.tempo, prefs.tempo);
+  const defaultTempo = clampTempo(prefs.tempo, 96);
+  const overridden = hasLessonTempoOverride(prefs, session.lessonId) || current !== defaultTempo;
+  const moduleName = moduleForLesson(session.lessonId).name;
+  if (els.tempoModalContext) {
+    els.tempoModalContext.textContent = overridden
+      ? `Custom for ${moduleName} · default is ${defaultTempo} bpm`
+      : `Default tempo (${defaultTempo} bpm) · adjusting sets a custom tempo for ${moduleName}`;
+  }
+  if (els.sessionTempoInput && !keepInput) {
+    els.sessionTempoInput.value = String(current);
+  }
+  if (els.sessionTempoDown) els.sessionTempoDown.disabled = current <= 60;
+  if (els.sessionTempoUp) els.sessionTempoUp.disabled = current >= 160;
+  if (els.sessionTempoTap) {
+    els.sessionTempoTap.textContent = tempoTaps.length === 1 ? "Keep tapping…" : "Tap tempo";
+  }
+  if (els.sessionTempoReset) {
+    els.sessionTempoReset.hidden = !overridden;
+    els.sessionTempoReset.textContent = `Reset to default (${defaultTempo} bpm)`;
+  }
+}
+
+function openTempoModal() {
+  if (!session || session.screen !== "session") return;
+  tempoTaps = [];
+  halt();
+  resetPitchTake();
+  renderTempoModal();
+  if (els.tempoModal && !els.tempoModal.open) els.tempoModal.showModal();
+}
+
+function closeTempoModal() {
+  commitSessionTempoInput();
+  closeSheet(els.tempoModal);
+}
+
+function applySessionTempo(nextTempo, { keepInput = false } = {}) {
   if (!session || session.screen !== "session") return;
   const tempo = clampTempo(nextTempo, session.tempo);
   const wasOverridden = hasLessonTempoOverride(prefs, session.lessonId);
-  if (tempo === session.tempo && (tempo !== prefs.tempo || !wasOverridden)) return;
-  const again = hearDemo;
-  const restart = !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
+  if (tempo === session.tempo && (tempo !== prefs.tempo || !wasOverridden)) {
+    renderTempoModal({ keepInput });
+    return;
+  }
+  const modalOpen = Boolean(els.tempoModal?.open);
+  const again = !modalOpen && hearDemo;
+  const restart = !modalOpen && !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
   halt();
   resetPitchTake();
   prefs = setModuleTempo(prefs, session.lessonId, tempo);
   session = { ...session, tempo: lessonTempo(prefs, session.lessonId) };
   persist();
   render();
+  renderTempoModal({ keepInput });
   if (again) playHearDemo();
   else if (restart) start(false);
 }
 
+function commitSessionTempoInput() {
+  if (!els.sessionTempoInput || !session) return;
+  const raw = els.sessionTempoInput.value.trim();
+  if (!raw) {
+    els.sessionTempoInput.value = String(session.tempo);
+    return;
+  }
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num <= 0) {
+    els.sessionTempoInput.value = String(session.tempo);
+    return;
+  }
+  tempoTaps = [];
+  applySessionTempo(clampTempo(num, session.tempo));
+  els.sessionTempoInput.value = String(session.tempo);
+}
+
+function tapSessionTempo(now = performance.now()) {
+  if (!session || session.screen !== "session") return;
+  const next = stepTapTempo(tempoTaps, now);
+  tempoTaps = next.taps;
+  if (next.tempo !== null) {
+    applySessionTempo(next.tempo);
+  } else {
+    renderTempoModal();
+  }
+}
+
 function resetSessionTempo() {
   if (!session || session.screen !== "session") return;
-  if (!hasLessonTempoOverride(prefs, session.lessonId) && session.tempo === prefs.tempo) return;
-  const again = hearDemo;
-  const restart = !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
+  tempoTaps = [];
+  if (!hasLessonTempoOverride(prefs, session.lessonId) && session.tempo === prefs.tempo) {
+    renderTempoModal();
+    return;
+  }
+  const modalOpen = Boolean(els.tempoModal?.open);
+  const again = !modalOpen && hearDemo;
+  const restart = !modalOpen && !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
   halt();
   resetPitchTake();
   prefs = resetModuleTempo(prefs, session.lessonId);
   session = { ...session, tempo: lessonTempo(prefs, session.lessonId) };
   persist();
   render();
+  renderTempoModal();
   if (again) playHearDemo();
   else if (restart) start(false);
 }
@@ -2539,6 +2606,40 @@ function applyTempoDelta(delta) {
 }
 els.tempoDown?.addEventListener("click", () => applyTempoDelta(-4));
 els.tempoUp?.addEventListener("click", () => applyTempoDelta(4));
+els.sessionTempoDown?.addEventListener("click", () => {
+  if (!session) return;
+  tempoTaps = [];
+  applySessionTempo(session.tempo - 4);
+});
+els.sessionTempoUp?.addEventListener("click", () => {
+  if (!session) return;
+  tempoTaps = [];
+  applySessionTempo(session.tempo + 4);
+});
+els.sessionTempoInput?.addEventListener("input", () => {
+  if (!session || !els.sessionTempoInput) return;
+  tempoTaps = [];
+  const num = Number(els.sessionTempoInput.value);
+  if (Number.isFinite(num) && num >= 60 && num <= 160) {
+    applySessionTempo(Math.round(num), { keepInput: true });
+  }
+});
+els.sessionTempoInput?.addEventListener("change", () => commitSessionTempoInput());
+els.sessionTempoInput?.addEventListener("blur", () => commitSessionTempoInput());
+els.sessionTempoInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    closeTempoModal();
+  }
+});
+els.sessionTempoTap?.addEventListener("click", () => tapSessionTempo());
+els.sessionTempoReset?.addEventListener("click", () => resetSessionTempo());
+els.tempoModal?.addEventListener("close", () => {
+  tempoTaps = [];
+  if (!els.shell.hidden && session?.screen === "session") {
+    document.getElementById("session-tempo-btn")?.focus({ preventScroll: true });
+  }
+});
 els.startKey?.addEventListener("change", () => {
   prefs = setStartKey(prefs, els.startKey.value);
   persist();

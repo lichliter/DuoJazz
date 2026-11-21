@@ -1028,4 +1028,17 @@ test("per-module tempo overrides apply across a lick's Learn, Master, and Integr
   assert.equal(hasLessonTempoOverride(prefs, "learn-lick"), false);
   assert.equal(lessonTempo(prefs, "learn-lick"), 108);
   assert.deepEqual(compactPrefs(prefs).modules, {});
+
+  const { stepTapTempo } = await import("./session.js");
+  let tap = stepTapTempo([], 1000);
+  assert.equal(tap.tempo, null);
+  tap = stepTapTempo(tap.taps, 1500);
+  assert.equal(tap.tempo, 120);
+  tap = stepTapTempo(tap.taps, 2000);
+  assert.equal(tap.tempo, 120);
+  // A pause longer than 2 seconds starts a fresh tap sequence.
+  tap = stepTapTempo(tap.taps, 4500);
+  assert.equal(tap.tempo, null);
+  tap = stepTapTempo(tap.taps, 5250);
+  assert.equal(tap.tempo, 80);
 });

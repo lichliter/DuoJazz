@@ -443,12 +443,16 @@ test("practice screen tempo controls save per-lick overrides without altering th
     "renderStorageNotice",
     "clearMasteryPreview",
     "startLesson",
+    "renderTempoModal",
     "applySessionTempo",
+    "commitSessionTempoInput",
+    "tapSessionTempo",
     "resetSessionTempo",
     "applyTempoDelta",
   ], {
     selectedModuleId: "cmar",
     hearDemo: false,
+    tempoTaps: [],
     playback: { playing: false, paused: false },
     rapidPhase: "idle",
     screenName: () => context.session?.screen ?? "home",
@@ -458,6 +462,9 @@ test("practice screen tempo controls save per-lick overrides without altering th
     writeStoredJson: () => true,
     applySession(next) { context.session = next; },
   });
+  context.els.sessionTempoInput = { value: "" };
+  context.els.sessionTempoReset = { hidden: true, textContent: "" };
+  context.els.tempoModalContext = { textContent: "" };
 
   context.startLesson("learn-lick");
   assert.equal(context.session.tempo, 96);
@@ -467,10 +474,22 @@ test("practice screen tempo controls save per-lick overrides without altering th
   assert.equal(context.session.tempo, 80);
   assert.equal(context.prefs.tempo, 96);
   assert.equal(sessions.hasLessonTempoOverride(context.prefs, "learn-lick"), true);
+  assert.equal(context.els.sessionTempoReset.hidden, false);
 
-  // Starting another lesson in the same lick shares the 80 bpm override.
+  // Typing a tempo directly in the modal input updates the lick's override.
+  context.els.sessionTempoInput.value = "74";
+  context.commitSessionTempoInput();
+  assert.equal(context.session.tempo, 74);
+
+  // Tapping a tempo computes BPM from tap intervals.
+  context.tapSessionTempo(1000);
+  assert.equal(context.session.tempo, 74);
+  context.tapSessionTempo(1500);
+  assert.equal(context.session.tempo, 120);
+
+  // Starting another lesson in the same lick shares the 120 bpm override.
   context.startLesson("master-lick");
-  assert.equal(context.session.tempo, 80);
+  assert.equal(context.session.tempo, 120);
 
   // Starting a different lick still uses the 96 bpm global default.
   context.startLesson("emr-learn");
@@ -482,10 +501,11 @@ test("practice screen tempo controls save per-lick overrides without altering th
   assert.equal(context.session.tempo, 104);
 
   context.startLesson("integrate-minor-home");
-  assert.equal(context.session.tempo, 80);
+  assert.equal(context.session.tempo, 120);
 
-  // Tapping the custom BPM readout resets the lick to the global default.
+  // Resetting in the tempo modal returns the lick to the global default.
   context.resetSessionTempo();
   assert.equal(context.session.tempo, 104);
   assert.equal(sessions.hasLessonTempoOverride(context.prefs, "integrate-minor-home"), false);
+  assert.equal(context.els.sessionTempoReset.hidden, true);
 });
