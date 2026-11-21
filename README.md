@@ -14,7 +14,7 @@ npm start
 There are no npm dependencies to install and no build step. The Supabase browser SDK is vendored at version 2.119.0 in `js/vendor/`, with its license. Alternatively, serve the repository with `npm run start:python` (`python3 -m http.server 4173 --bind 127.0.0.1`).
 
 ```bash
-npm test              # fast single-isolate suite: node --test --test-isolation=none js/*.test.mjs
+npm test              # fast single-isolate suite: node --test --experimental-test-isolation=none js/*.test.mjs
 npm run test:watch    # re-run on edits
 npm run test:isolated # default isolated-process Node runner
 npm run test:exhaustive # full Cartesian test sweep (DUOJAZZ_EXHAUSTIVE=1)

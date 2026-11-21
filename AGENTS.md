@@ -19,7 +19,7 @@ Skills in `.agents/skills/`:
 
 - Requirements: Node.js 22+ (Python 3 optional for `npm run start:python`). No package installation or build step is needed.
 - Serve the repository root at http://127.0.0.1:4173/ with `npm start` (`tools/dev-server.mjs` with `no-store` caching and SSE live reload; pass `DEV_RELOAD=0` to disable reload) or `npm run start:python`.
-- Tests & checks: `npm test` (`--test-isolation=none`), `npm run test:watch`, `npm run test:isolated`, `npm run test:exhaustive`, and `npm run lint` (`tools/check.mjs`).
+- Tests & checks: `npm test` (`--experimental-test-isolation=none`), `npm run test:watch`, `npm run test:isolated`, `npm run test:exhaustive`, and `npm run lint` (`tools/check.mjs`).
 - Tooling & scaffolding: `npm run verify` (`tools/verify-all.mjs` using `tools/lib/browser-harness.mjs`) and `npm run new-lick` (`tools/new-lick.mjs` + `js/licks/custom-licks.js`). Optional local hook: `git config core.hooksPath .githooks`.
 - Developer inspection hooks: `window.__DUOJAZZ__`, `/?screen=...` review links (see `README.md`), and `tools/verify-*.mjs`.
 - Microphone access requires localhost or HTTPS and a user gesture.

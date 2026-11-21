@@ -9,10 +9,10 @@
   "scripts": {
     "start": "node tools/dev-server.mjs",
     "start:python": "python3 -m http.server 4173 --bind 127.0.0.1",
-    "test": "node --test --test-isolation=none js/*.test.mjs",
+    "test": "node --test --experimental-test-isolation=none js/*.test.mjs",
     "test:isolated": "node --test js/*.test.mjs",
-    "test:exhaustive": "DUOJAZZ_EXHAUSTIVE=1 node --test --test-isolation=none js/*.test.mjs",
-    "test:watch": "node --test --watch --test-isolation=none js/*.test.mjs",
+    "test:exhaustive": "DUOJAZZ_EXHAUSTIVE=1 node --test --experimental-test-isolation=none js/*.test.mjs",
+    "test:watch": "node --test --watch --experimental-test-isolation=none js/*.test.mjs",
     "precache": "node tools/generate-precache.mjs",
     "release": "node tools/bump-assets.mjs",
     "lint": "node tools/check.mjs",
