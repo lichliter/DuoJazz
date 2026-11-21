@@ -125,9 +125,12 @@ export function createHomeView({
       });
       const name = document.createElement("strong");
       name.textContent = lick.name;
-      const subtitle = document.createElement("span");
-      subtitle.textContent = detail;
-      button.append(name, subtitle);
+      button.append(name);
+      if (detail) {
+        const subtitle = document.createElement("span");
+        subtitle.textContent = detail;
+        button.append(subtitle);
+      }
       item.append(button);
       list.append(item);
     }
@@ -170,7 +173,7 @@ export function createHomeView({
     }
     if (module.compositeId) {
       wrap.append(relatedLicksSection("lick-uses", "Uses", [
-        { lick: moduleById(module.compositeId), detail: "Full phrase" },
+        { lick: moduleById(module.compositeId) },
       ]));
     }
     return wrap;

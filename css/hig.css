@@ -219,12 +219,13 @@ button.module-banner {
 }
 .related-licks-list li + li { border-top: 1px solid var(--separator); }
 .related-licks-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
+  align-content: center;
   width: 100%;
   min-height: var(--tap);
   padding: 9px 14px;
+  padding-inline-end: 36px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -233,17 +234,18 @@ button.module-banner {
   cursor: pointer;
 }
 .related-licks-row strong { font: var(--text-headline); }
-.related-licks-row span { grid-column: 1; color: var(--label-secondary); font: var(--text-footnote); }
+.related-licks-row span { color: var(--label-secondary); font: var(--text-footnote); }
 .related-licks-row::after {
   content: "";
-  grid-area: 1 / 2 / 3;
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 17px;
   width: 8px;
   height: 8px;
-  margin-inline: 8px 3px;
   border-block-start: 2px solid currentColor;
   border-inline-end: 2px solid currentColor;
   color: var(--tint);
-  transform: rotate(45deg);
+  transform: translateY(-50%) rotate(45deg);
 }
 .related-licks-row:hover { background: var(--tint-fill); }
 
