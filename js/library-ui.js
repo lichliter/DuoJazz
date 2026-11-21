@@ -195,7 +195,7 @@ export function setupLibraryPicker({
     breadcrumbs.hidden = !categoryName;
     breadcrumbs.textContent = categoryName ?? '';
     browseButton.hidden = browsing;
-    browseButton.textContent = type === 'licks' ? 'Explore licks' : 'Browse charts';
+    browseButton.setAttribute('aria-label', type === 'licks' ? 'Explore licks' : 'Browse charts');
     backButton.hidden = !browsing;
     backButton.textContent = categoryName || (type === 'licks' && query) ? 'Categories' : 'My Rotation';
     for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.libraryTab === type));

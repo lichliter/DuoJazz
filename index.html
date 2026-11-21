@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=150">
   <link rel="stylesheet" href="./css/styles.css?v=162">
-  <link rel="stylesheet" href="./css/hig.css?v=167">
+  <link rel="stylesheet" href="./css/hig.css?v=168">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=167"></script>
+  <script type="module" src="./js/app.js?v=168"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -334,6 +334,7 @@
               <button type="button" data-library-tab="licks" aria-pressed="true">Licks</button>
               <button type="button" data-library-tab="charts" aria-pressed="false">Charts</button>
             </div>
+            <button type="button" class="library-action library-action-primary" id="library-browse" aria-label="Explore licks">+</button>
           </div>
           <label class="library-search-field" for="library-search">
             <span class="sr-only">Search the library</span>
@@ -341,7 +342,6 @@
             <input type="search" id="library-search" placeholder="Search licks" autocomplete="off">
           </label>
           <h3 id="library-category" tabindex="-1" hidden></h3>
-          <button type="button" class="library-action library-action-primary" id="library-browse">Explore licks</button>
         </div>
         <p class="sr-only" id="library-status" role="status"></p>
       </div>
