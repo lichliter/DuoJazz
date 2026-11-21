@@ -70,14 +70,14 @@
   "buildingBlocks": [
     {
       "id": "south-of-the-river-opening",
-      "name": "Opening",
+      "name": "Sextuplet Run",
       "sourceBeats": "Bar 1 beats 1–2, including the sextuplet entrance rest",
       "learnHarmony": "Gm7 for one bar",
       "endRestBeats": 2
     },
     {
       "id": "south-of-the-river-climb-and-landing",
-      "name": "Climb and Landing",
+      "name": "Chromatic Landing",
       "sourceBeats": "Bar 1 beats 3–4 plus the quarter-note B♭ on bar 2 beat 1",
       "learnHarmony": "Two beats of Gm7 then two beats of Cm7, with the landing on beat 3",
       "endRestBeats": 1

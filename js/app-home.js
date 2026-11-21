@@ -103,37 +103,56 @@ export function createHomeView({
     return btn;
   }
 
+  function relatedLickButton(id, className) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = className;
+    button.addEventListener("click", () => {
+      selectModule(id, { preview: true });
+      els.lessonList.querySelector(".module-banner")?.focus({ preventScroll: true });
+    });
+    return button;
+  }
+
+  function buildingBlocks(ids) {
+    const section = document.createElement("section");
+    section.className = "building-blocks";
+    const title = document.createElement("h3");
+    title.className = "lesson-section-title";
+    title.id = "building-blocks-title";
+    title.textContent = "Building blocks";
+    section.setAttribute("aria-labelledby", title.id);
+
+    const list = document.createElement("ul");
+    list.className = "building-block-list";
+    for (const id of ids) {
+      const block = moduleById(id);
+      const item = document.createElement("li");
+      const button = relatedLickButton(id, "building-block-row");
+      const name = document.createElement("strong");
+      name.textContent = block.name;
+      const beats = document.createElement("span");
+      beats.textContent = block.blockBeats;
+      button.append(name, beats);
+      item.append(button);
+      list.append(item);
+    }
+    section.append(title, list);
+    return section;
+  }
+
   function moduleBlock(module, nodes) {
     const wrap = document.createElement("section");
     wrap.className = "module-block is-current";
     wrap.dataset.module = module.id;
     wrap.append(moduleBanner(module));
-    const related = module.compositeId
-      ? [{ id: module.compositeId, label: "Full phrase" }]
-      : (module.buildingBlockIds ?? []).map((id) => ({ id, label: moduleById(id).blockTitle }));
-    if (related.length) {
-      const section = document.createElement("section");
-      section.className = "building-blocks";
-      const heading = document.createElement("h3");
-      heading.className = "lesson-section-title";
-      heading.id = "building-blocks-title";
-      heading.textContent = "Building blocks";
-      section.setAttribute("aria-labelledby", heading.id);
-      const links = document.createElement("div");
-      links.className = "building-block-links";
-      for (const { id, label } of related) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "chip";
-        button.textContent = label;
-        button.addEventListener("click", () => {
-          selectModule(id, { preview: true });
-          els.lessonList.querySelector(".module-banner")?.focus({ preventScroll: true });
-        });
-        links.append(button);
-      }
-      section.append(heading, links);
-      wrap.append(section);
+    if (module.buildingBlockIds?.length) {
+      wrap.append(buildingBlocks(module.buildingBlockIds));
+    } else if (module.compositeId) {
+      const composite = moduleById(module.compositeId);
+      const link = relatedLickButton(composite.id, "text-link full-phrase-link");
+      link.textContent = `Full phrase · ${composite.name}`;
+      wrap.append(link);
     }
     const groups = module.id === "chord-tones"
       ? CHORD_QUALITIES.map((quality) => ({ id: quality.id, title: quality.title, nodes: nodes.filter((node) => lessonById(node.id).chordQuality === quality.id) }))

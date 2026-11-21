@@ -49,8 +49,8 @@ const southLanding = [
 const southBlocks = [
   {
     id: `${southId}-opening`,
-    title: "Opening",
-    blockTitle: "Opening · Beats 1–2",
+    name: "Sextuplet Run",
+    blockBeats: "Beats 1–2",
     elements: [...southOpening, R(2)],
     chords: [chord(0, "minor7")],
     summary: "Play the sextuplet into beat 2, then finish the opening figure in straight sixteenths.",
@@ -58,8 +58,8 @@ const southBlocks = [
   },
   {
     id: `${southId}-climb-and-landing`,
-    title: "Climb and Landing",
-    blockTitle: "Climb and landing · Beats 3–4 + resolution",
+    name: "Chromatic Landing",
+    blockBeats: "Beats 3–4 plus resolution",
     elements: [...southLanding, R(1)],
     chords: [chord(0, "minor7", 2), chord(5, "minor7", 2)],
     summary: "Start on beat 1, climb to the high note, then descend chromatically to the landing on beat 3.",
@@ -67,16 +67,15 @@ const southBlocks = [
   },
 ];
 
-function southBlockEntry({ id, title, blockTitle, elements, chords, summary, minorHomeDescription }) {
-  const name = `South of the River · ${title}`;
+function southBlockEntry({ id, name, blockBeats, elements, chords, summary, minorHomeDescription }) {
   const learnId = `${id}-learn`;
   return {
     lick: {
-      id, name, shortName: title, elements,
+      id, name, shortName: name, elements,
       source: southSource, octave: -2, pickupBeats: 0, learnBeats: 4, keyQuality: "minor", defaultKeyId: "G",
     },
     learnForm: {
-      id: learnId, title: name, shortTitle: title, keyQuality: "minor",
+      id: learnId, title: name, shortTitle: name, keyQuality: "minor",
       bars: [bar(chords)],
     },
     learnApplication: {
@@ -84,10 +83,10 @@ function southBlockEntry({ id, title, blockTitle, elements, chords, summary, min
       cellTonicInterval: 0, phraseStartBar: 1, leadIn: [], resolve: [], copyKind: "learn",
     },
     module: {
-      id, lickId: id, name, blockTitle, compositeId: southId,
+      id, lickId: id, name, blockBeats, compositeId: southId,
       lessons: [{
         id: learnId, kind: "learn", applicationId: learnId, title: "Learn the lick", coverTitle: "Learn the lick",
-        summary, context: "South of the River · Building block", defaultKeyId: "G",
+        summary, context: "Minor · One bar", defaultKeyId: "G",
       }],
     },
     practiceDefinitions() {
@@ -96,7 +95,7 @@ function southBlockEntry({ id, title, blockTitle, elements, chords, summary, min
         id: "minor-home",
         label: "Minor home",
         description: minorHomeDescription,
-        source: `${southSource} · ${title} practice`,
+        source: `${southSource} · ${name} practice`,
         exampleTitle: "Minor tonic vamp",
         variants: [{
           id: "original", label: "Original", elements, pickupBeats: 0,

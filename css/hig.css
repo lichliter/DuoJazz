@@ -208,8 +208,45 @@ button.module-banner {
 .lesson-section + .lesson-section { margin-top: 16px; }
 .lesson-section-title { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; margin: 0 0 4px; padding: 8px 0; background: var(--bg); color: var(--label); font: var(--text-title-3); text-transform: none; letter-spacing: 0; }
 .lesson-section-title::after { content: ''; height: 1px; flex: 1; background: var(--separator); }
-.building-blocks { padding-top: 16px; }
-.building-block-links { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }
+.building-blocks { position: relative; z-index: 1; padding-top: 8px; }
+.building-block-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+}
+.building-block-list li + li { border-top: 1px solid var(--separator); }
+.building-block-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 9px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--label);
+  text-align: left;
+  cursor: pointer;
+}
+.building-block-row strong { font: var(--text-headline); }
+.building-block-row span { grid-column: 1; color: var(--label-secondary); font: var(--text-footnote); }
+.building-block-row::after {
+  content: "";
+  grid-area: 1 / 2 / 3;
+  width: 8px;
+  height: 8px;
+  margin-inline: 8px 3px;
+  border-block-start: 2px solid currentColor;
+  border-inline-end: 2px solid currentColor;
+  color: var(--tint);
+  transform: rotate(45deg);
+}
+.building-block-row:hover { background: var(--tint-fill); }
+.full-phrase-link { position: relative; z-index: 1; justify-self: start; padding-inline: 0; color: var(--tint); }
 
 .app-tab-bar {
   position: fixed;
