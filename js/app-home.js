@@ -108,6 +108,33 @@ export function createHomeView({
     wrap.className = "module-block is-current";
     wrap.dataset.module = module.id;
     wrap.append(moduleBanner(module));
+    const related = module.compositeId
+      ? [{ id: module.compositeId, label: "Full phrase" }]
+      : (module.buildingBlockIds ?? []).map((id) => ({ id, label: moduleById(id).blockTitle }));
+    if (related.length) {
+      const section = document.createElement("section");
+      section.className = "building-blocks";
+      const heading = document.createElement("h3");
+      heading.className = "lesson-section-title";
+      heading.id = "building-blocks-title";
+      heading.textContent = "Building blocks";
+      section.setAttribute("aria-labelledby", heading.id);
+      const links = document.createElement("div");
+      links.className = "building-block-links";
+      for (const { id, label } of related) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chip";
+        button.textContent = label;
+        button.addEventListener("click", () => {
+          selectModule(id, { preview: true });
+          els.lessonList.querySelector(".module-banner")?.focus({ preventScroll: true });
+        });
+        links.append(button);
+      }
+      section.append(heading, links);
+      wrap.append(section);
+    }
     const groups = module.id === "chord-tones"
       ? CHORD_QUALITIES.map((quality) => ({ id: quality.id, title: quality.title, nodes: nodes.filter((node) => lessonById(node.id).chordQuality === quality.id) }))
       : [

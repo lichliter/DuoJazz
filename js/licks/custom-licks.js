@@ -17,6 +17,96 @@ function chord(intervalFromTonic, quality, durationBeats = 4, extra = {}) {
 const TRIPLET_EIGHTH = 1 / 3;
 const SEXTUPLET_SIXTEENTH = 1 / 6;
 
+const southSource = "Brian’s adaptation of Tom Misch’s South of the River";
+const southId = "south-of-the-river";
+
+// Original beats 1–2, including the sextuplet entrance rest.
+const southOpening = [
+  R(TRIPLET_EIGHTH, { tuplet: 6 }),
+  N(9, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 5 }),
+  N(10, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 6 }),
+  N(14, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 8 }),
+  N(17, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 10 }),
+  N(14, 0.25, { swing: false, diatonicStep: 8 }),
+  N(15, 0.25, { swing: false, diatonicStep: 9 }),
+  N(19, 0.25, { swing: false, diatonicStep: 11 }),
+  N(22, 0.25, { swing: false, diatonicStep: 13 }),
+];
+
+// Original beats 3–4 and the B♭ landing on the following downbeat.
+const southLanding = [
+  N(19, 0.25, { swing: false, diatonicStep: 11 }),
+  N(20, 0.25, { swing: false, diatonicStep: 12 }),
+  N(24, 0.25, { swing: false, diatonicStep: 14 }),
+  N(27, 0.25, { swing: false, diatonicStep: 16 }),
+  N(31, 0.25, { swing: false, diatonicStep: 18 }),
+  N(30, 0.25, { swing: false }),
+  N(29, 0.25, { swing: false, diatonicStep: 17 }),
+  N(28, 0.25, { swing: false }),
+  N(27, 1, { diatonicStep: 16 }),
+];
+
+const southBlocks = [
+  {
+    id: `${southId}-opening`,
+    title: "Opening",
+    blockTitle: "Opening · Beats 1–2",
+    elements: [...southOpening, R(2)],
+    chords: [chord(0, "minor7")],
+    summary: "Play the sextuplet into beat 2, then finish the opening figure in straight sixteenths.",
+    minorHomeDescription: "Use the natural sixth in the sextuplet, then climb from the ninth to the seventh in straight sixteenths.",
+  },
+  {
+    id: `${southId}-climb-and-landing`,
+    title: "Climb and Landing",
+    blockTitle: "Climb and landing · Beats 3–4 + resolution",
+    elements: [...southLanding, R(1)],
+    chords: [chord(0, "minor7", 2), chord(5, "minor7", 2)],
+    summary: "Start on beat 1, climb to the high note, then descend chromatically to the landing on beat 3.",
+    minorHomeDescription: "Climb from the fifth, then descend chromatically to the minor third over the same chord.",
+  },
+];
+
+function southBlockEntry({ id, title, blockTitle, elements, chords, summary, minorHomeDescription }) {
+  const name = `South of the River · ${title}`;
+  const learnId = `${id}-learn`;
+  return {
+    lick: {
+      id, name, shortName: title, elements,
+      source: southSource, octave: -2, pickupBeats: 0, learnBeats: 4, keyQuality: "minor", defaultKeyId: "G",
+    },
+    learnForm: {
+      id: learnId, title: name, shortTitle: title, keyQuality: "minor",
+      bars: [bar(chords)],
+    },
+    learnApplication: {
+      id: learnId, lickId: id, formId: learnId, label: "Learn the lick",
+      cellTonicInterval: 0, phraseStartBar: 1, leadIn: [], resolve: [], copyKind: "learn",
+    },
+    module: {
+      id, lickId: id, name, blockTitle, compositeId: southId,
+      lessons: [{
+        id: learnId, kind: "learn", applicationId: learnId, title: "Learn the lick", coverTitle: "Learn the lick",
+        summary, context: "South of the River · Building block", defaultKeyId: "G",
+      }],
+    },
+    practiceDefinitions() {
+      return [{
+        lickId: id,
+        id: "minor-home",
+        label: "Minor home",
+        description: minorHomeDescription,
+        source: `${southSource} · ${title} practice`,
+        exampleTitle: "Minor tonic vamp",
+        variants: [{
+          id: "original", label: "Original", elements, pickupBeats: 0,
+          pattern: [{ root: 0, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
+        }],
+      }];
+    },
+  };
+}
+
 export const CUSTOM_LICKS = [
   {
     lick: {
@@ -187,34 +277,13 @@ export const CUSTOM_LICKS = [
       id: "south-of-the-river",
       name: "South of the River",
       shortName: "South of the River",
-      source: "Brian’s adaptation of Tom Misch’s South of the River; not an exact transcription.",
+      source: `${southSource}; not an exact transcription.`,
       octave: -2,
       pickupBeats: 0,
       learnBeats: 8,
       keyQuality: "minor",
       defaultKeyId: "G",
-      // Beat 1: E F A C sextuplet. Beats 2–4: A Bb D F, D Eb G Bb, D Db C B.
-      // Bar 2 begins with a quarter-note Bb.
-      elements: [
-        R(TRIPLET_EIGHTH, { tuplet: 6 }),
-        N(9, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 5 }),
-        N(10, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 6 }),
-        N(14, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 8 }),
-        N(17, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 10 }),
-        N(14, 0.25, { swing: false, diatonicStep: 8 }),
-        N(15, 0.25, { swing: false, diatonicStep: 9 }),
-        N(19, 0.25, { swing: false, diatonicStep: 11 }),
-        N(22, 0.25, { swing: false, diatonicStep: 13 }),
-        N(19, 0.25, { swing: false, diatonicStep: 11 }),
-        N(20, 0.25, { swing: false, diatonicStep: 12 }),
-        N(24, 0.25, { swing: false, diatonicStep: 14 }),
-        N(27, 0.25, { swing: false, diatonicStep: 16 }),
-        N(31, 0.25, { swing: false, diatonicStep: 18 }),
-        N(30, 0.25, { swing: false }),
-        N(29, 0.25, { swing: false, diatonicStep: 17 }),
-        N(28, 0.25, { swing: false }),
-        N(27, 1, { diatonicStep: 16 }), R(3),
-      ],
+      elements: [...southOpening, ...southLanding, R(3)],
     },
     learnForm: {
       id: "south-of-the-river-learn",
@@ -238,6 +307,7 @@ export const CUSTOM_LICKS = [
       id: "south-of-the-river",
       lickId: "south-of-the-river",
       name: "South of the River",
+      buildingBlockIds: southBlocks.map(({ id }) => id),
       lessons: [{
         id: "south-of-the-river-learn",
         kind: "learn",
@@ -250,7 +320,7 @@ export const CUSTOM_LICKS = [
       }],
     },
     practiceDefinitions(lick) {
-      const source = "Brian’s adaptation of Tom Misch’s South of the River";
+      const source = southSource;
       const variant = (pattern) => ({
         id: "original",
         label: "Original",
@@ -299,4 +369,5 @@ export const CUSTOM_LICKS = [
       ];
     },
   },
+  ...southBlocks.map(southBlockEntry),
 ];

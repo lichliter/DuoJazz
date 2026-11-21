@@ -67,6 +67,22 @@
       "matching": "Major7 or major6 for 4 beats on I followed by 4 beats on IV."
     }
   ],
+  "buildingBlocks": [
+    {
+      "id": "south-of-the-river-opening",
+      "name": "Opening",
+      "sourceBeats": "Bar 1 beats 1–2, including the sextuplet entrance rest",
+      "learnHarmony": "Gm7 for one bar",
+      "endRestBeats": 2
+    },
+    {
+      "id": "south-of-the-river-climb-and-landing",
+      "name": "Climb and Landing",
+      "sourceBeats": "Bar 1 beats 3–4 plus the quarter-note B♭ on bar 2 beat 1",
+      "learnHarmony": "Two beats of Gm7 then two beats of Cm7, with the landing on beat 3",
+      "endRestBeats": 1
+    }
+  ],
   "meter": "4/4",
   "endRestBeats": 3
 }

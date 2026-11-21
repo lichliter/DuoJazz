@@ -928,7 +928,10 @@ function startLesson(lessonId, options = {}) {
   if (screenName() === "home") saveTabScroll();
   clearMasteryPreview();
   const lesson = lessonById(lessonId);
-  if (!lesson.chartId) rememberModule(moduleForLesson(lesson.id)?.id ?? selectedModuleId);
+  if (!lesson.chartId) {
+    const moduleId = moduleForLesson(lesson.id)?.id ?? selectedModuleId;
+    if (moduleId !== deepLinkOverrides.module) rememberModule(moduleId);
+  }
   setupLessonId = lesson.id;
   const plan = { ...lessonSessionPlan(lesson.id, prefs), ...(options.keyId ? { startKeyId: options.keyId, majorKeyId: null } : {}) };
   halt();
@@ -983,8 +986,13 @@ function currentHomeModuleId() {
   return selectedModuleId ?? MODULES[0]?.id;
 }
 
-function selectModule(id) {
-  rememberModule(id);
+function selectModule(id, { preview = false } = {}) {
+  if (preview && !rotationLickIds().includes(id)) {
+    selectedModuleId = id;
+    deepLinkOverrides.module = id;
+  } else {
+    rememberModule(id);
+  }
   renderHome();
   requestAnimationFrame(() => {
     document.getElementById("screen-home")?.scrollIntoView({ block: "start" });

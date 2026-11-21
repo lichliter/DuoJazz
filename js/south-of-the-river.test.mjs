@@ -19,6 +19,10 @@ const durations = [...Array(4).fill(1 / 6), ...Array(12).fill(0.25), 1];
 const starts = [1 / 3, 0.5, 2 / 3, 5 / 6, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4];
 const contour = [0, 1, 5, 8, 5, 6, 10, 13, 10, 11, 15, 18, 22, 21, 20, 19, 18];
 const groups = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river');
+const blocks = [
+  { id: 'south-of-the-river-opening', from: 0, to: 8, offset: 0, rest: 2, chords: [['Gm7', 4]] },
+  { id: 'south-of-the-river-climb-and-landing', from: 8, to: 17, offset: 2, rest: 1, chords: [['Gm7', 2], ['Cm7', 2]] },
+];
 
 const nearList = (actual, expected) => {
   assert.equal(actual.length, expected.length);
@@ -64,14 +68,86 @@ test('South of the River preserves Brian’s 4/4 sextuplet into beat 2 and B♭ 
   assert.equal(contract.startBeatOffset, 0);
   assert.equal(contract.endRestBeats, 3);
   assert.equal(contract.pickupBeats, 0);
-  assert.equal(MODULES.at(-1).id, 'south-of-the-river');
-  assert.equal(MODULES.at(-1).number, 34);
-  assert.deepEqual(MODULES.at(-1).lessons.map(l => l.kind), ['learn', 'master']);
+  const composite = MODULES.find(module => module.id === 'south-of-the-river');
+  assert.equal(composite.number, 34);
+  assert.deepEqual(composite.lessons.map(l => l.kind), ['learn', 'master']);
+  assert.deepEqual(composite.buildingBlockIds, blocks.map(block => block.id));
+  assert.deepEqual(contract.buildingBlocks.map(block => [block.id, block.endRestBeats]), blocks.map(block => [block.id, block.rest]));
   // Workbook Lick 26 (Bread and Butter) remains unchanged.
   assert.deepEqual(
     phraseNotes(getKey('Bb'), 'concert', 'bb-learn').map(n => n.concertName),
     ['F3', 'G3', 'A3', 'C4', 'A3', 'B♭3', 'D4', 'F4'],
   );
+});
+
+test('South of the River building blocks preserve the phrase across keys and use one-bar lessons', () => {
+  for (const block of blocks) {
+    const module = MODULES.find(item => item.id === block.id);
+    assert.equal(module.compositeId, 'south-of-the-river');
+    assert.deepEqual(module.lessons.map(l => l.kind), ['learn', 'master']);
+    const applicationId = module.lessons[0].applicationId;
+    const blockStarts = starts.slice(block.from, block.to).map(beat => beat - block.offset);
+    const blockDurations = durations.slice(block.from, block.to);
+    assert.equal(phraseMeasureCount(applicationId), 1);
+    assert.equal(phraseTimeline(applicationId).at(-1).beats, block.rest);
+    assert.deepEqual(chorusChords(getKey('G'), 'concert', applicationId).map(c => [c.name, c.durationBeats]), block.chords);
+    for (const keyId of TWELVE_KEY_IDS) for (const displayMode of ['trombone', 'trumpet']) {
+      const key = getKey(keyId);
+      const full = phraseNotes(key, displayMode, appId).slice(block.from, block.to);
+      const notes = phraseNotes(key, displayMode, applicationId);
+      const octaveDifference = notes[0].concertMidi - full[0].concertMidi;
+      assert.equal(octaveDifference % 12 || 0, 0);
+      assert.deepEqual(notes.map(n => n.concertMidi), full.map(n => n.concertMidi + octaveDifference));
+      for (const note of notes) assert.equal(note.shownMidi - note.concertMidi, displayMode === 'trumpet' ? 2 : 0);
+      assert.equal((phraseMEI(key, displayMode, applicationId).match(/<note\b/g) ?? []).length, notes.length);
+      assert.equal(beamGroupsCrossBeat3(phraseABC(key, displayMode, applicationId)), false);
+      const config = { concertKey: key, displayMode, applicationId, stage: 'learn', includeModel: true };
+      const events = scheduleChorus(config);
+      const model = events.filter(event => event.type === 'melody');
+      nearList(model.map(event => event.beat), blockStarts);
+      nearList(model.map(event => event.durationBeats), blockDurations);
+      assert.deepEqual(model.map(event => event.midi), notes.map(note => note.concertMidi));
+      const raised = scheduleChorus({ ...config, melodyRegister: 1 });
+      assert.deepEqual(raised.filter(event => event.type === 'melody').map(event => event.midi), notes.map(note => note.concertMidi + 12));
+      assert.deepEqual(raised.filter(event => event.type !== 'melody'), events.filter(event => event.type !== 'melody'));
+    }
+    for (const lesson of module.lessons) {
+      const session = jumpToCard(createSession({ lessonId: lesson.id, startKeyId: 'G' }), 'play');
+      const notes = expectedNotesFor(session);
+      nearList(notes.map(n => n.startBeat), blockStarts);
+      assert.equal(demoAudioConfig(session).lengthBeats, 4);
+      assert.equal(gradeSession(session, synthTrack(notes)).passed, true);
+      const wrong = notes.map(n => ({ ...n, midi: n.midi + 1 }));
+      assert.equal(gradeSession(session, synthTrack(wrong)).passed, false);
+    }
+  }
+});
+
+test('Both building blocks have a Minor home vamp and match charts through their last sounding note', () => {
+  for (const block of blocks) {
+    const group = PRACTICE_CATALOG.groups.find(item => item.id === `${block.id}:minor-home`);
+    const choice = group.choices.find(item => item.chartId === 'so-what');
+    assert.ok(choice);
+    assert.ok(spotsFor(choice.lessonId).some(spot => spot.bar === 1));
+    for (const lessonId of [group.exampleLessonId, choice.lessonId]) {
+      const session = createSession({ lessonId });
+      const config = demoAudioConfig(session);
+      assert.equal(livePlaybackEvents(config).filter(event => event.type === 'melody').length, block.to - block.from);
+      assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(event => event.type !== 'melody'));
+    }
+    assert.equal(chorusChords(getKey('G'), 'concert', group.exampleLessonId)[0].name, 'Gm7');
+    const [variant] = PRACTICE_CATALOG.definitions.find(definition => definition.lickId === block.id).variants;
+    const form = (quality, durationBeats) => ({ bars: [{ chords: [
+      { intervalFromTonic: 0, quality, durationBeats },
+      { intervalFromTonic: 5, quality: 'minor7', durationBeats: 4 - durationBeats },
+    ] }] });
+    const startsOnBeatOne = (quality, duration) =>
+      matchApplication(form(quality, duration), variant).some(spot => spot.beatOffset === 0);
+    assert.equal(startsOnBeatOne('minor7', 3), true);
+    assert.equal(startsOnBeatOne('minor7', 1.5), false);
+    assert.equal(startsOnBeatOne('minormaj7', 3), false);
+    assert.equal(startsOnBeatOne('minor7', 2), block.offset === 0);
+  }
 });
 
 test('South of the River notation and model agree in all keys, on both horns, with lead-only octave shifts', () => {

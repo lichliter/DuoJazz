@@ -208,6 +208,8 @@ button.module-banner {
 .lesson-section + .lesson-section { margin-top: 16px; }
 .lesson-section-title { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; margin: 0 0 4px; padding: 8px 0; background: var(--bg); color: var(--label); font: var(--text-title-3); text-transform: none; letter-spacing: 0; }
 .lesson-section-title::after { content: ''; height: 1px; flex: 1; background: var(--separator); }
+.building-blocks { padding-top: 16px; }
+.building-block-links { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }
 
 .app-tab-bar {
   position: fixed;

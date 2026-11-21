@@ -278,7 +278,8 @@ export function setupLibraryPicker({
 
     if (showTiles) {
       list.replaceChildren(...categories.flatMap(([label, ids], index) => {
-        const members = licks.filter(lick => ids.split(' ').includes(lick.id));
+        const categoryIds = ids.split(' ');
+        const members = licks.filter(lick => categoryIds.includes(lick.id) || categoryIds.includes(lick.compositeId));
         if (!members.length) return [];
         const tile = button(label, () => {
           category = [label, members];

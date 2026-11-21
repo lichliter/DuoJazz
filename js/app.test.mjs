@@ -31,6 +31,7 @@ function appContext(names, overrides = {}) {
     structuredClone,
     savedPrefs: sessions.defaultPrefs(),
     SELECTED_MODULE_KEY: "duojazz.selectedModule.v1",
+    deepLinkOverrides: { module: null, auto: null },
     URLSearchParams,
     prefs: sessions.defaultPrefs(),
     mastery: medals.emptyMastery(),
