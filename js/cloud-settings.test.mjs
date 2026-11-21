@@ -252,3 +252,20 @@ test('an idle sync reads preferences once and a write refreshes the server resul
   assert.equal(settings.hasPending(), false);
   assert.equal(settings.values().tempo, 120);
 });
+
+test('rotation defaults enroll saved progress without overriding an explicit removal', async () => {
+  const api = server();
+  const first = createCloudSettings({ storage: storage() });
+  first.activate('a');
+  first.setLick('cmar', false);
+  await first.sync(api);
+
+  const second = createCloudSettings({ storage: storage() });
+  second.activate('a');
+  assert.equal(second.seedRotation(['cmar', 'gts'], ['four']), true);
+  await second.sync(api);
+  assert.deepEqual(second.values().myLicks, ['gts']);
+  assert.deepEqual(second.values().myCharts, ['four']);
+  assert.equal(second.seedRotation(['cmar', 'gts'], ['four']), false);
+  assert.equal(api.rows.get('a:lick:cmar').value, false);
+});

@@ -94,7 +94,7 @@ window.supabase = {createClient: () => ({auth:{
       });
     }
     if (blockPwa) {
-      await context.route("**/js/pwa.js", (route) => route.fulfill({ contentType: "application/javascript", body: "" }));
+      await context.route("**/js/pwa.js*", (route) => route.fulfill({ contentType: "application/javascript", body: "" }));
     }
     await context.route("https://*.supabase.co/**", (route) => route.abort());
     await context.route("**/js/vendor/supabase-2.119.0.js", (route) =>

@@ -1,7 +1,7 @@
 import { fillMusicLabel } from "./engrave.js";
 import { displayMedal, lessonPassedKeys, moduleMastery } from "./medals.js";
 import { lessonById, moduleForLesson } from "./registry.js";
-import { lessonVinylTier, wrapupCopy, wrapupNextModule } from "./session.js";
+import { lessonVinylTier, wrapupCopy } from "./session.js";
 
 function resultLabel(row) {
   return row.summary ?? (row.outcome === "completed" ? "Completed" : row.outcome);
@@ -14,6 +14,7 @@ export function createWrapupView({
   getWrapupBanner,
   shownMastery,
   isTimedChart,
+  nextRotationAfterSession,
 }) {
   function renderWrapup() {
     const session = getSession();
@@ -73,7 +74,7 @@ export function createWrapupView({
     }
     els.nextKey.hidden = !copy.nextKeyLabel;
     if (copy.nextKeyLabel) fillMusicLabel(els.nextKey, copy.nextKeyLabel);
-    const nextModule = wrapupNextModule(session);
+    const nextModule = nextRotationAfterSession(session);
     if (els.nextModule) {
       els.nextModule.hidden = !nextModule;
       if (nextModule) els.nextModule.textContent = nextModule.label;

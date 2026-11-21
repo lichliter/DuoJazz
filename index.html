@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=150">
   <link rel="stylesheet" href="./css/styles.css?v=162">
-  <link rel="stylesheet" href="./css/hig.css?v=162">
+  <link rel="stylesheet" href="./css/hig.css?v=165">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=164"></script>
+  <script type="module" src="./js/app.js?v=165"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -111,6 +111,11 @@
       </section>
 
       <section class="screen charts-screen" id="screen-charts" data-testid="screen-charts" aria-label="Charts" hidden>
+        <div id="chart-rotation-empty" class="chart-rotation-empty" hidden>
+          <h2>My Rotation</h2>
+          <p>What tunes are you working on?</p>
+          <button type="button" id="browse-charts" class="play">Browse charts</button>
+        </div>
         <section class="lesson-path" aria-label="Chart practice path">
           <svg class="path-trail" viewBox="0 0 1000 1200" preserveAspectRatio="none" aria-hidden="true" focusable="false">
             <path data-trail d="" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 18" />
@@ -318,23 +323,24 @@
     <form method="dialog" class="sheet-form">
       <div class="library-picker-header">
         <header class="sheet-toolbar">
-          <h2 id="quick-view-title" class="sr-only">Licks</h2>
-          <div id="library-tabs" class="library-tabs" role="group" aria-label="Practice library">
-            <button type="button" data-library-tab="licks" aria-pressed="true">Licks</button>
-            <button type="button" data-library-tab="charts" aria-pressed="false">Charts</button>
-          </div>
+          <h2 id="quick-view-title" tabindex="-1">My Rotation</h2>
           <button type="submit" class="dismiss-button" aria-label="Close library" value="close">×</button>
         </header>
         <div class="library-picker-tools">
+          <div class="library-navigation">
+            <button type="button" class="library-action" id="library-back" hidden></button>
+            <div id="library-tabs" class="library-tabs" role="group" aria-label="Practice library">
+              <button type="button" data-library-tab="licks" aria-pressed="true">Licks</button>
+              <button type="button" data-library-tab="charts" aria-pressed="false">Charts</button>
+            </div>
+          </div>
           <label class="library-search-field" for="library-search">
             <span class="sr-only">Search the library</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
             <input type="search" id="library-search" placeholder="Search licks" autocomplete="off">
           </label>
-          <div class="library-filter-row">
-            <span id="library-count" class="help"></span>
-            <button type="button" id="library-favorites" aria-label="Favorites only" aria-pressed="false"><span aria-hidden="true">★</span> Favorites</button>
-          </div>
+          <h3 id="library-category" tabindex="-1" hidden></h3>
+          <button type="button" class="library-action library-action-primary" id="library-browse">Explore licks</button>
         </div>
         <p class="sr-only" id="library-status" role="status"></p>
       </div>
@@ -355,7 +361,7 @@
         <select id="application-variant"></select>
       </div>
       <div class="collection-section-heading">
-        <h3 id="application-charts-section">Favorite charts</h3>
+        <h3 id="application-charts-section">Charts in My Rotation</h3>
         <button type="button" class="collection-action" id="application-manage-charts" aria-haspopup="dialog" aria-controls="quick-view">Choose charts</button>
       </div>
       <div id="application-favorites-empty" class="favorite-charts-empty">

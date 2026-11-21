@@ -35,8 +35,8 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart, onManageCh
     document.getElementById("application-favorites-empty").hidden = yours.length > 0;
     const note = document.getElementById("application-charts-note");
     note.textContent = selected.length
-      ? "No favorite charts match this version yet. Manage your favorites or try a suggested chart below."
-      : "No favorite charts yet. Add charts you know or want to learn.";
+      ? "No charts in My Rotation match this version yet. Try a suggested chart below."
+      : "Add charts you know or want to learn to My Rotation.";
     const list = document.getElementById("application-charts-list");
     const suggestions = document.getElementById("application-suggested-list");
     list.hidden = yours.length === 0;
@@ -68,8 +68,8 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart, onManageCh
         const add = document.createElement("button");
         add.type = "button";
         add.className = "collection-action";
-        add.textContent = "+ Favorite";
-        add.setAttribute("aria-label", `Add ${choice.title} to favorite charts`);
+        add.textContent = "Add";
+        add.setAttribute("aria-label", `Add ${choice.title} to My Rotation`);
         add.addEventListener("click", () => {
           selected = [...selected, choice.chartId];
           if (onSaveChart) onSaveChart(choice.chartId, true);

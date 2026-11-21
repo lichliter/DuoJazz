@@ -464,14 +464,13 @@ export class Transport {
     this.chorusLengthBeats = config.lengthBeats ?? (config.stage === "learn" ? 8 : 32);
   }
 
-  async start(config, { resume = false } = {}) {
+  async start(config, { resume = false, countIn: withCountIn = true } = {}) {
     const generation = this.epoch;
     await this.ensure();
     if (this.epoch !== generation) return;
     this.stopAllNodes();
     this.epoch += 1;
     const epoch = this.epoch;
-    this.lastConfig = config;
     this.tempo = config.tempo;
     this.swing = config.swing;
     this.looping = config.looping;
@@ -481,12 +480,21 @@ export class Transport {
     this.paused = false;
     this.ended = false;
     const fromBeat = resume ? this.pausedBeats : 0;
-    const countIn = !resume || fromBeat < 0;
-    const countInSeconds = !resume ? beatsToSeconds(COUNT_IN_BEATS, this.tempo, false) : 0;
-    this.startedAt = this.ctx.currentTime + countInSeconds - beatsToSeconds(fromBeat, this.tempo, false);
+    const countIn = withCountIn && (!resume || fromBeat < 0);
+    // A preview still needs time for a written pickup ahead of beat one.
+    const events = !resume && !withCountIn
+      ? config.events ?? livePlaybackEvents(config, { sampled: this.samplesReady() })
+      : null;
+    const startBeat = events ? Math.min(0, ...events.map(event => event.beat)) : fromBeat;
+    const countInSeconds = countIn && !resume ? beatsToSeconds(COUNT_IN_BEATS, this.tempo, false) : 0;
+    this.startedAt = this.ctx.currentTime + countInSeconds - beatsToSeconds(startBeat, this.tempo, false);
     this.pausedBeats = 0;
     this.scheduledChorus = 0;
-    this.armChorus(config, { countIn, fromBeat: resume ? fromBeat : -COUNT_IN_BEATS });
+    this.lastConfig = events ? { ...config, events } : config;
+    this.armChorus(this.lastConfig, {
+      countIn,
+      fromBeat: countIn && !resume ? -COUNT_IN_BEATS : startBeat,
+    });
     this.onUpdate(this.snapshot());
     this.tick(epoch);
   }

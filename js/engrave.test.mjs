@@ -94,7 +94,7 @@ test("home uses the record road and a shared library sheet; session keeps the ro
   assert.doesNotMatch(index, /id="quick-view-btn"/);
   assert.doesNotMatch(index, /class="icon-btn modules-menu"/);
   assert.doesNotMatch(index, /aria-label="Modules"/);
-  assert.match(index, /id="quick-view-title"[^>]*>Licks</);
+  assert.match(index, /id="quick-view-title"[^>]*>My Rotation</);
   assert.match(index, /data-library-tab="licks"/);
   assert.match(index, /data-library-tab="charts"/);
   assert.match(index, /css\/webfonts.css/);
@@ -167,7 +167,7 @@ test("home uses the record road and a shared library sheet; session keeps the ro
   assert.doesNotMatch(index, /name="displayMode"/);
 });
 
-test("home road-end CTA is a 44pt next-module button with no More licks soon", async () => {
+test("home road-end CTA is a 44pt button leading to the next rotation item or Explore", async () => {
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
@@ -176,7 +176,7 @@ test("home road-end CTA is a 44pt next-module button with no More licks soon", a
   assert.doesNotMatch(appHome, /More licks soon/);
   assert.doesNotMatch(styles, /More licks soon/);
   assert.doesNotMatch(hig, /More licks soon/);
-  assert.match(appHome, /homeNextModuleButton\(homeNextModule\(/);
+  assert.match(appHome, /homeNextModuleButton\(nextRotationItem\(/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?min-height:\s*var\(--tap\)/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?background:\s*var\(--tint-solid\)/);
   assert.match(styles, /\.next-module-path \{[\s\S]*?white-space:\s*normal/);

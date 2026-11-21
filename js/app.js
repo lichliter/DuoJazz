@@ -82,8 +82,7 @@ import {
   skipRemainingCards,
   resolveQuickViewJump,
   persistLessonTempo,
-  wrapupNextModule,
-  homeNextModule,
+  isLastVisibleLesson,
   lessonSessionPlan,
   sessionCreateArgs,
   isCyclingLesson,
@@ -110,6 +109,7 @@ import { applicationById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from 
 import { MY_CHARTS_KEY, MY_LICKS_KEY, loadMyCharts, loadMyLicks } from "./practice-catalog.js";
 import { gradedMasteryPercent } from "./library-progress.js";
 import { setupLibraryPicker } from "./library-ui.js";
+import { setupLibraryPreview } from "./library-preview.js";
 import { transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
@@ -207,7 +207,27 @@ const deepLinkOverrides = { module: null, auto: null };
 let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
 let lastChartTune = nav.tune;
 let chartKeySelection = null;
-let favoriteLicks = loadMyLicks(MODULES);
+let lickRotation = loadMyLicks(MODULES);
+const ROTATION_IMPORTED_KEY = "duojazz.rotationImported.v1";
+let guestRotationImported = false;
+
+function rotationLickIds() {
+  const enrolled = new Set(lickRotation);
+  return MODULES.filter(module => module.id === "chord-tones" || enrolled.has(module.id)).map(module => module.id);
+}
+
+function nextRotationItem(id) {
+  const rotation = rotationLickIds();
+  const index = rotation.indexOf(id);
+  const next = index < 0 ? null : MODULES.find(module => module.id === rotation[index + 1]);
+  return next ? { id: next.id, label: `Next: ${next.name}` } : { label: "Explore licks" };
+}
+
+function nextRotationAfterSession(target) {
+  if (!target || lessonById(target.lessonId).chartId || !isLastVisibleLesson(target.lessonId)) return null;
+  return nextRotationItem(moduleForLesson(target.lessonId).id);
+}
+
 let timedRunActive = false;
 function isTimedChart() {
   return Boolean(session && lessonById(session.lessonId).chartTimed);
@@ -884,10 +904,11 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
   if (tab === "charts") {
     if (tune !== undefined && tune !== lastChartTune) chartKeySelection = null;
     if (tune !== undefined) lastChartTune = tune;
-    if (!CHART_LIBRARY.some(chart => chart.id === lastChartTune)) lastChartTune = CHART_LIBRARY[0].id;
+    const rotation = practiceUI.getSelected();
+    if (!rotation.includes(lastChartTune)) lastChartTune = rotation[0] ?? null;
     nav = { tab: "charts", tune: lastChartTune };
     // Saving can synchronously render via account progress sync. Publish the new chart first.
-    if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
+    if (cloudSettings.userId && lastChartTune) cloudSettings.set({ selectedChartId: lastChartTune });
   } else {
     nav = { tab, tune: null };
   }
@@ -1206,10 +1227,13 @@ const {
 } = createHomeView({
   els,
   getPrefs: () => prefs,
-  getSelectedModuleId: () => selectedModuleId,
+  getSelectedModuleId: () => deepLinkOverrides.module || rotationLickIds().includes(selectedModuleId)
+    ? selectedModuleId : "chord-tones",
   setSelectedModuleId: (id) => { selectedModuleId = id; },
   keysByLesson,
   requestQuickView,
+  nextRotationItem,
+  openExplore: () => libraryPicker.open("licks", { browse: true }),
   selectModule,
   openSetup,
   openApplication: (id) => practiceUI.openApplication(id),
@@ -1848,10 +1872,17 @@ const { renderWrapup } = createWrapupView({
   getWrapupBanner: () => wrapupBanner,
   shownMastery,
   isTimedChart,
+  nextRotationAfterSession,
 });
 
+function rotationChart() {
+  const rotation = practiceUI.getSelected();
+  const id = [nav.tune, lastChartTune, rotation[0]].find(id => rotation.includes(id));
+  return CHART_LIBRARY.find(chart => chart.id === id);
+}
+
 function currentChart() {
-  return CHART_LIBRARY.find(chart => chart.id === nav.tune) ?? CHART_LIBRARY.find(chart => chart.id === lastChartTune) ?? CHART_LIBRARY[0];
+  return rotationChart() ?? CHART_LIBRARY[0];
 }
 
 function chartConcertKey(chart = currentChart()) {
@@ -1876,7 +1907,7 @@ function startChartTones(kind) {
 const { renderChartDetail, renderCharts } = createChartsView({
   els,
   getPrefs: () => prefs,
-  getFavoriteLicks: () => favoriteLicks,
+  getRotationLicks: () => lickRotation,
   currentChart,
   chartConcertKey,
   keysByLesson,
@@ -1906,7 +1937,12 @@ function render(snap = transport.snapshot()) {
   document.title = screen === "home" ? "DuoJazz" : `DuoJazz · ${moduleName} session`;
   renderCopy(snap);
   if (onHome) renderHome();
-  if (onCharts) renderCharts();
+  if (onCharts) {
+    const hasChart = Boolean(rotationChart());
+    document.getElementById("chart-rotation-empty").hidden = hasChart;
+    els.charts.querySelector(".lesson-path").hidden = !hasChart;
+    if (hasChart) renderCharts();
+  }
   if (onHome || els.settingsModal?.open) renderSettings();
   if (screen === "session") {
     renderSessionChrome();
@@ -2137,6 +2173,11 @@ transport.onEnded = handleTransportEnded;
 
 const libraryPicker = setupLibraryPicker({
   modules: MODULES, charts: CHART_LIBRARY,
+  ...setupLibraryPreview(() => prefs),
+  chartKeyLabel: chart => {
+    const key = displayKey(getKey(chart.key), prefs.instrumentId, chart.keyQuality);
+    return `${key.shortName} ${chart.keyQuality === "major" ? "major" : "minor"}`;
+  },
   getProgress: type => {
     const progress = normalizeMastery(shownMastery());
     const items = type === 'licks' ? MODULES : CHART_MODULES;
@@ -2148,13 +2189,16 @@ const libraryPicker = setupLibraryPicker({
         ? [transposeToneKey(lesson.defaultKeyId, delta)] : TWELVE_KEY_IDS)];
     }));
   },
-  getFavorites: type => type === 'licks' ? favoriteLicks : practiceUI.getSelected(),
-  currentId: type => type === 'licks' ? selectedModuleId : currentChart().id,
-  onFavorite(type, id, selected) {
+  getRotation: type => type === 'licks' ? rotationLickIds() : practiceUI.getSelected(),
+  currentId: type => type === 'licks'
+    ? (rotationLickIds().includes(selectedModuleId) ? selectedModuleId : "chord-tones")
+    : rotationChart()?.id,
+  onEnrollment(type, id, selected) {
     if (type === 'licks') {
-      favoriteLicks = selected ? [...new Set([...favoriteLicks, id])] : favoriteLicks.filter(value => value !== id);
+      lickRotation = selected ? [...new Set([...lickRotation, id])] : lickRotation.filter(value => value !== id);
+      if (!selected && selectedModuleId === id) rememberModule("chord-tones");
       if (cloudSettings.userId) cloudSettings.setLick(id, selected);
-      else writeStoredJson(MY_LICKS_KEY, favoriteLicks);
+      else writeStoredJson(MY_LICKS_KEY, lickRotation);
     } else {
       const charts = practiceUI.getSelected();
       const nextCharts = selected ? [...charts, id] : charts.filter(value => value !== id);
@@ -2165,8 +2209,14 @@ const libraryPicker = setupLibraryPicker({
     render();
   },
   onPick(type, id) {
-    if (type === 'charts') selectTab('charts', { tune: id });
-    else { selectTab('licks'); selectModule(id); }
+    if (type === 'charts') {
+      selectTab('charts', { tune: id });
+      els.charts.querySelector('.module-banner')?.focus({ preventScroll: true });
+    } else {
+      selectTab('licks');
+      selectModule(id);
+      els.lessonList.querySelector('.module-banner')?.focus({ preventScroll: true });
+    }
   },
 });
 const practiceUI = setupPracticeUI({
@@ -2185,6 +2235,40 @@ function guestLegacySettings() {
     myLicks: loadMyLicks(MODULES),
   };
 }
+document.getElementById("browse-charts").onclick = () => libraryPicker.open("charts", { browse: true });
+
+function enrollFromProgress(progress) {
+  const hasProgress = lesson => {
+    const saved = progress.lessons?.[lesson.id];
+    return Boolean(saved?.passedKeys?.length || saved?.learnedKeys?.length);
+  };
+  const licks = MODULES.filter(module => module.id !== "chord-tones" && module.lessons.some(hasProgress)).map(module => module.id);
+  const charts = [...new Set(LESSONS.filter(lesson => lesson.chartId && hasProgress(lesson)).map(lesson => lesson.chartId))];
+
+  if (cloudSettings.userId) {
+    if (cloudSettings.seedRotation(licks, charts)) applyAccountSettings();
+    return;
+  }
+  if (guestRotationImported) return;
+  try {
+    if (localStorage.getItem(ROTATION_IMPORTED_KEY)) {
+      guestRotationImported = true;
+      return;
+    }
+  } catch { /* Merge into the in-memory rotation when storage is unavailable. */ }
+
+  const currentCharts = practiceUI.getSelected();
+  const nextLicks = [...new Set([...lickRotation, ...licks])];
+  const nextCharts = [...new Set([...currentCharts, ...charts])];
+  const savedLicks = nextLicks.length === lickRotation.length || writeStoredJson(MY_LICKS_KEY, nextLicks);
+  const savedCharts = nextCharts.length === currentCharts.length || writeStoredJson(MY_CHARTS_KEY, nextCharts);
+  lickRotation = nextLicks;
+  practiceUI.setSelected(nextCharts);
+  guestRotationImported = true;
+  if (savedLicks && savedCharts) writeStoredJson(ROTATION_IMPORTED_KEY, true);
+  if (els.quickView?.open) libraryPicker.render();
+}
+
 function applyDeepLinkOverrides() {
   if (deepLinkOverrides.module && MODULES.some(module => module.id === deepLinkOverrides.module)) {
     selectedModuleId = deepLinkOverrides.module;
@@ -2202,13 +2286,14 @@ function applyGuestSettings() {
     selectedModuleId = deepLinkOverrides.module;
   }
   practiceUI.setSelected(loadMyCharts(PRACTICE_CATALOG.charts));
-  favoriteLicks = loadMyLicks(MODULES);
+  lickRotation = loadMyLicks(MODULES);
   if (!nav.tune) lastChartTune = CHART_LIBRARY[0].id;
   if (els.quickView?.open) libraryPicker.render();
   render();
 }
 function applyAccountSettings() {
   const values = cloudSettings.values();
+  const previousPickerState = JSON.stringify([[...lickRotation].sort(), practiceUI.getSelected().sort(), prefs.instrumentId]);
   prefs = normalizeAccountPrefs(values);
   applyDeepLinkOverrides();
   savedPrefs = compactPrefs(prefs);
@@ -2217,9 +2302,10 @@ function applyAccountSettings() {
     selectedModuleId = deepLinkOverrides.module;
   }
   practiceUI.setSelected(values.myCharts ?? []);
-  favoriteLicks = (values.myLicks ?? []).filter(id => MODULES.some(module => module.id === id));
+  lickRotation = (values.myLicks ?? []).filter(id => MODULES.some(module => module.id === id));
   if (!nav.tune) lastChartTune = values.selectedChartId ?? CHART_LIBRARY[0].id;
-  if (els.quickView?.open) libraryPicker.render();
+  const pickerState = JSON.stringify([[...lickRotation].sort(), practiceUI.getSelected().sort(), prefs.instrumentId]);
+  if (els.quickView?.open && pickerState !== previousPickerState) libraryPicker.render();
   render();
 }
 
@@ -2321,10 +2407,12 @@ els.hearIt?.addEventListener("click", () => {
 els.continueBtn.addEventListener("click", goContinue);
 els.nextModule?.addEventListener("click", () => {
   if (!session) return;
-  const link = wrapupNextModule(session);
+  const link = nextRotationAfterSession(session);
+  if (!link) return;
   halt();
-  if (link?.id) rememberModule(link.id);
+  if (link.id) rememberModule(link.id);
   exitSession();
+  if (!link.id) libraryPicker.open("licks", { browse: true });
 });
 els.nextKey.addEventListener("click", () => {
   if (!session) return;
@@ -2562,6 +2650,7 @@ void initAccount({
       wrapupBanner = null;
     }
     mastery = next;
+    enrollFromProgress(next);
     render();
   },
 });

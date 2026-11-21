@@ -244,7 +244,7 @@ test("home shares one side gutter and an even stack", async () => {
   assert.doesNotMatch(session, /export const STUDY_MODES/);
 });
 
-test("the lick banner opens the module list and the hamburger is gone", async () => {
+test("the lick banner opens My Rotation and the hamburger is gone", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
   const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
@@ -252,7 +252,7 @@ test("the lick banner opens the module list and the hamburger is gone", async ()
   assert.doesNotMatch(index, /id="quick-view-btn"/);
   assert.doesNotMatch(index, /id="settings-btn"/);
   assert.match(index, /id="account-chip"[^>]*aria-controls="settings-modal"/);
-  assert.ok(appHome.includes('Choose a ${module.chart ? "chart" : "lick"}. ${module.name}'));
+  assert.ok(appHome.includes('My Rotation. ${module.name}'));
   assert.match(app, /requestQuickView\(\)/);
   const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginTimedChart"));
   assert.match(practice, /recordBackingConfig\(session\)/);

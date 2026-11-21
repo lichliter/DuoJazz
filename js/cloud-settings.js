@@ -98,8 +98,7 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     if (!userId) return true;
     return writeStoredJson(key(), { format: 2, entries, seed, unsaved: [...memory.values()] }, storage);
   }
-  function edit(name, value) {
-    const clock = Math.max(now(), ...Object.values(entries).map(e => e.edit_clock + 1));
+  function edit(name, value, clock = Math.max(now(), ...Object.values(entries).map(e => e.edit_clock + 1))) {
     const op = { name, value: structuredClone(value), edit_clock: clock, edit_id: uuid() };
     memory.set(op.edit_id, op);
     if (writeStoredJson(prefix() + op.edit_id, op, storage)) memory.delete(op.edit_id);
@@ -151,6 +150,18 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     if (!userId || !validValue(`lick:${id}`, selected)) return;
     reload(); edit(`lick:${id}`, selected); persist(); onChange();
   }
+  function seedRotation(licks, charts) {
+    if (!userId) return false;
+    reload();
+    const names = [...licks.map(id => `lick:${id}`), ...charts.map(id => `chart:${id}`)];
+    const additions = names.filter(name => validName(name) && !Object.hasOwn(entries, name));
+    if (!additions.length) return false;
+    // An automatic enrollment can fill an empty row. Every explicit edit wins.
+    for (const name of additions) edit(name, true, 0);
+    persist();
+    onChange();
+    return true;
+  }
   async function sync(client) {
     if (!userId) return true;
     const id = userId, version = generation, editPrefix = prefix();
@@ -191,5 +202,5 @@ export function createCloudSettings({ storage, onChange = () => {}, now = Date.n
     seed = {};
     return persist();
   }
-  return { activate, set, setChart, setLick, values, sync, reload, hasPending: () => operations().length > 0, get userId() { return userId; } };
+  return { activate, set, setChart, setLick, seedRotation, values, sync, reload, hasPending: () => operations().length > 0, get userId() { return userId; } };
 }

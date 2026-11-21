@@ -10,7 +10,7 @@ import { moduleRoadNodes } from "./session.js";
 export function createChartsView({
   els,
   getPrefs,
-  getFavoriteLicks,
+  getRotationLicks,
   currentChart,
   chartConcertKey,
   keysByLesson,
@@ -57,7 +57,7 @@ export function createChartsView({
     if (!matches.length) {
       const empty = document.createElement("p");
       empty.className = "help";
-      empty.textContent = "No supported applications of this lick match this chart. Try another favorite lick or chart.";
+      empty.textContent = "No supported applications of this lick match this chart. Try another lick or chart from My Rotation.";
       list.append(empty);
     }
     dialog.showModal();
@@ -66,7 +66,7 @@ export function createChartsView({
   function renderChartDetail() {
     const tune = currentChart();
     const prefs = getPrefs();
-    const favoriteLicks = getFavoriteLicks();
+    const lickRotation = getRotationLicks();
     const chartConcertKeyId = chartConcertKey(tune);
     const parent = CHART_MODULES.find((module) => module.id === `chart-${tune.id}`);
     const first = [
@@ -119,13 +119,13 @@ export function createChartsView({
     manage.type = "button";
     manage.className = "collection-action chart-favorites-manage";
     manage.textContent = "Manage";
-    manage.setAttribute("aria-label", "Manage favorite licks");
+    manage.setAttribute("aria-label", "Manage licks in My Rotation");
     manage.setAttribute("aria-haspopup", "dialog");
     manage.setAttribute("aria-controls", "quick-view");
     manage.onclick = () => openLickPicker();
     favoritesHeader.append(heading, manage);
     integrate.append(favoritesHeader);
-    const favorites = MODULES.filter((module) => favoriteLicks.includes(module.id) && module.id !== "chord-tones");
+    const favorites = MODULES.filter((module) => lickRotation.includes(module.id) && module.id !== "chord-tones");
     for (const [index, module] of favorites.entries()) {
       const matches = chartApplications(tune.id, module.id);
       const node = {
@@ -145,7 +145,7 @@ export function createChartsView({
     if (!favorites.length) {
       const empty = document.createElement("p");
       empty.className = "help library-empty";
-      empty.textContent = "Favorite licks in the picker to practice them on this chart.";
+      empty.textContent = "Add licks to My Rotation to practice them on this chart.";
       integrate.append(empty);
     }
     block.append(practice, integrate);

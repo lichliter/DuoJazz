@@ -2,7 +2,7 @@ import { CHORD_QUALITIES } from "./chord-tones.js";
 import { fillMusicLabel } from "./engrave.js";
 import { sleeveTrailPath } from "./path-trail.js";
 import { MODULES, PRACTICE_CATALOG, lessonById, moduleById } from "./registry.js";
-import { homeNextModule, isPracticeLesson, moduleRoadNodes } from "./session.js";
+import { isPracticeLesson, moduleRoadNodes } from "./session.js";
 
 /** Create the home road view, sleeve builder, trail painter, and chip helper. */
 export function createHomeView({
@@ -12,6 +12,8 @@ export function createHomeView({
   setSelectedModuleId,
   keysByLesson,
   requestQuickView,
+  nextRotationItem,
+  openExplore,
   selectModule,
   openSetup,
   openApplication,
@@ -23,12 +25,12 @@ export function createHomeView({
     section.dataset.testid = `module-banner-${module.id}`;
     section.setAttribute("aria-haspopup", "dialog");
     section.setAttribute("aria-controls", "quick-view");
-    section.setAttribute("aria-label", `Choose a ${module.chart ? "chart" : "lick"}. ${module.name}`);
+    section.setAttribute("aria-label", `My Rotation. ${module.name}`);
     const copy = document.createElement("div");
     copy.className = "banner-copy";
     const kicker = document.createElement("p");
     kicker.className = "banner-kicker";
-    kicker.textContent = module.chart ? "Chart" : `Module ${module.number}`;
+    kicker.textContent = "My Rotation";
     const title = document.createElement("h2");
     title.textContent = module.name;
     copy.append(kicker, title);
@@ -142,6 +144,7 @@ export function createHomeView({
     btn.textContent = link.label;
     btn.addEventListener("click", () => {
       if (link.id) selectModule(link.id);
+      else openExplore();
     });
     wrap.append(btn);
     return wrap;
@@ -219,7 +222,7 @@ export function createHomeView({
     const nodes = moduleRoadNodes({ ...module, lessons }, getPrefs(), keys);
     els.lessonList.replaceChildren(
       moduleBlock(module, nodes),
-      homeNextModuleButton(homeNextModule(module, keys)),
+      homeNextModuleButton(nextRotationItem(module.id)),
     );
     requestAnimationFrame(paintPathTrail);
   }

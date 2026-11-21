@@ -1,71 +1,285 @@
-/** One searchable, favorite-aware picker for both practice libraries. */
-export function setupLibraryPicker({ modules, charts, getFavorites, getProgress, onFavorite, onPick, currentId }) {
+const categories = [
+  ['Classics', 'cmar bo hsr dlr tm cbc ssr jcdp bcf'],
+  ['Minor', 'cmar emr mp ntp minor-rise-return lotus-inspired south-of-the-river'],
+  ['Major', '1235 br ssr bb lg dct et ctdc'],
+  ['ii–V–I & Turnarounds', 'gts acvl tm se sat tpr bcf nnr'],
+  ['Enclosures & Chromatic', 'se ae fe ntp emr bcf acvl'],
+  ['Arpeggios & Triads', 'tisc et sat tpr dct 1235 lg acvl'],
+  ['Diminished & Altered', 'jcdp tdp ctdc dss ae'],
+  ['Lines & Runs', 'bo gts jcdp dlr bcf mp nnr south-of-the-river'],
+  ['Modern & Groove', 'lotus-inspired south-of-the-river minor-rise-return'],
+];
+
+function element(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+function button(label, action, className = 'library-action') {
+  const node = element('button', className, label);
+  node.type = 'button';
+  node.onclick = action;
+  return node;
+}
+
+export function setupLibraryPicker({
+  modules, charts, getRotation, getProgress, onEnrollment, onPick, currentId,
+  engravePreview, previewAudio, chartKeyLabel,
+}) {
   const dialog = document.getElementById('quick-view');
   const list = document.getElementById('quick-view-list');
+  const title = document.getElementById('quick-view-title');
+  const status = document.getElementById('library-status');
   const search = document.getElementById('library-search');
-  const filter = document.getElementById('library-favorites');
+  const browseButton = document.getElementById('library-browse');
+  const backButton = document.getElementById('library-back');
+  const breadcrumbs = document.getElementById('library-category');
   const tabs = [...dialog.querySelectorAll('[data-library-tab]')];
-  let type = 'licks', favoritesOnly = false;
-  function render() {
-    const focused = document.activeElement?.dataset.favorite;
-    const focusedIndex = [...list.querySelectorAll('[data-favorite]')].findIndex(button => button.dataset.favorite === focused);
-    document.getElementById('quick-view-title').textContent = type === 'licks' ? 'Licks' : 'Charts';
-    for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.libraryTab === type));
-    search.placeholder = type === 'licks' ? 'Search licks' : 'Search charts';
-    filter.setAttribute('aria-pressed', String(favoritesOnly));
-    const favorites = new Set(getFavorites(type));
-    const progress = getProgress(type);
-    const query = search.value.trim().toLocaleLowerCase();
-    const source = type === 'licks' ? modules : charts;
-    const matches = source.filter(item => (!favoritesOnly || favorites.has(item.id)) && (item.name ?? item.title).toLocaleLowerCase().includes(query));
-    document.getElementById('library-count').textContent = `${matches.length} ${favoritesOnly ? 'favorite ' : ''}${matches.length === 1 ? type.slice(0, -1) : type}`;
-    list.replaceChildren(...matches.map(item => {
-      const title = item.name ?? item.title, favorite = favorites.has(item.id);
-      const row = document.createElement('div'); row.className = 'library-picker-row';
-      row.dataset.current = String(item.id === currentId(type));
-      const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'module-sheet-row';
-      pick.dataset.testid = `quick-view-${type === 'licks' ? 'module' : 'chart'}-${item.id}`;
-      pick.setAttribute('aria-current', item.id === currentId(type) ? 'page' : 'false');
-      const text = document.createElement('span'); text.className = 'module-sheet-copy';
-      const name = document.createElement('span'); name.className = 'module-sheet-name'; name.textContent = title;
-      text.append(name);
-      if (type === 'charts' && item.composer) {
-        const meta = document.createElement('span'); meta.className = 'module-sheet-meta';
-        meta.textContent = item.composer; text.append(meta);
-      }
-      pick.append(text);
-      if (progress[item.id] > 0) {
-        const mastery = document.createElement('span'); mastery.className = 'library-mastery';
-        mastery.textContent = `${progress[item.id]}% mastered`; pick.append(mastery);
-      }
-      pick.onclick = () => { dialog.close(); onPick(type, item.id); };
-      const star = document.createElement('button'); star.type = 'button'; star.className = 'favorite-toggle'; star.dataset.favorite = item.id;
-      star.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9Z"/></svg>';
-      star.setAttribute('aria-pressed', String(favorite));
-      star.setAttribute('aria-label', `${favorite ? 'Remove' : 'Add'} ${title} ${favorite ? 'from' : 'to'} favorites`);
-      star.onclick = () => { onFavorite(type, item.id, !favorite); render(); document.getElementById('library-status').textContent = `${title} ${favorite ? 'removed from' : 'added to'} favorites.`; };
-      row.append(pick, star); return row;
-    }));
-    if (!matches.length) {
-      const empty = document.createElement('p'); empty.className = 'help library-empty';
-      empty.textContent = query ? 'No matches. Try another name.' : 'No favorites yet. Turn off Favorites only and tap a star to add one.';
-      list.append(empty);
+  const licks = modules.filter(item => item.id !== 'chord-tones');
+  const sortedCharts = [...charts].sort((a, b) => a.title.localeCompare(b.title));
+  let type = 'licks';
+  let browsing = false;
+  let category = null;
+  let activePlay = null;
+
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      observer.unobserve(entry.target);
+      const module = licks.find(item => item.id === entry.target.dataset.lick);
+      void engravePreview(entry.target, module).catch(() => {
+        entry.target.textContent = 'Notation unavailable';
+      });
     }
-    if (focused) {
-      const buttons = [...list.querySelectorAll('[data-favorite]')];
-      const target = buttons.find(button => button.dataset.favorite === focused)
-        ?? buttons[Math.min(focusedIndex, buttons.length - 1)] ?? filter;
-      target.focus({ preventScroll: true });
+  }, { root: list, rootMargin: '160px' });
+
+  function stop() {
+    previewAudio.stop();
+    if (!activePlay) return;
+    activePlay.textContent = 'Play';
+    activePlay.setAttribute('aria-label', activePlay.dataset.playLabel);
+    activePlay = null;
+  }
+  previewAudio.onEnded = stop;
+
+  function openItem(item) {
+    if (!getRotation(type).includes(item.id)) return;
+    stop();
+    dialog.close();
+    onPick(type, item.id);
+  }
+
+  function updateMembership(item, enrolled) {
+    onEnrollment(type, item.id, enrolled);
+    status.textContent = `${item.name ?? item.title} ${enrolled ? 'added to' : 'removed from'} My Rotation.`;
+  }
+
+  function actionsFor(item, enrolled, progress) {
+    const actions = element('div', 'library-actions');
+    if (type === 'licks') {
+      const play = button('Play', async () => {
+        const wasPlaying = activePlay === play;
+        stop();
+        if (wasPlaying) return;
+        activePlay = play;
+        play.textContent = 'Stop';
+        play.setAttribute('aria-label', `Stop ${item.name}`);
+        try {
+          await previewAudio.play(item);
+        } catch {
+          if (activePlay !== play) return;
+          stop();
+          status.textContent = 'Audio preview unavailable.';
+        }
+      });
+      play.dataset.playLabel = `Play ${item.name}`;
+      play.setAttribute('aria-label', play.dataset.playLabel);
+      actions.append(play);
+      if (progress > 0) actions.append(masteryBadge(progress));
+    }
+    const enrollment = element('div', 'library-enrollment');
+    function showAdded() {
+      const added = element('span', 'library-added', '✓ Added');
+      const open = button('Open', () => openItem(item), 'library-action library-action-primary');
+      open.setAttribute('aria-label', `Open ${item.name ?? item.title}`);
+      enrollment.replaceChildren(added, open);
+      return open;
+    }
+    if (enrolled) showAdded();
+    else {
+      const add = button('Add', () => {
+        updateMembership(item, true);
+        showAdded().focus();
+      }, 'library-action library-action-primary');
+      add.setAttribute('aria-label', `Add ${item.name ?? item.title}`);
+      enrollment.append(add);
+    }
+    actions.append(enrollment);
+    return actions;
+  }
+
+  function masteryBadge(progress) {
+    return element('span', 'library-mastery', progress === 100 ? 'Mastered' : `${progress}% mastered`);
+  }
+
+  function itemCopy(item) {
+    const copy = element('span', 'module-sheet-copy');
+    copy.append(element('span', 'module-sheet-name', item.name ?? item.title));
+    if (type === 'charts') {
+      copy.append(element('span', 'module-sheet-meta', [item.composer, chartKeyLabel(item)].filter(Boolean).join(' · ')));
+    }
+    return copy;
+  }
+
+  function rotationRow(item, progress) {
+    const row = element('div', 'library-picker-row');
+    row.dataset.current = String(item.id === currentId(type));
+    const pick = button('', () => openItem(item), 'module-sheet-row');
+    pick.dataset.testid = `quick-view-${type === 'licks' ? 'module' : 'chart'}-${item.id}`;
+    pick.setAttribute('aria-current', item.id === currentId(type) ? 'page' : 'false');
+    pick.append(itemCopy(item));
+    if (progress > 0) pick.append(masteryBadge(progress));
+    row.append(pick);
+    if (item.id !== 'chord-tones') {
+      const menu = element('details', 'library-menu');
+      const label = `Options for ${item.name ?? item.title}`;
+      const summary = element('summary', 'library-action', '⋯');
+      summary.setAttribute('aria-label', label);
+      summary.onclick = () => {
+        for (const other of list.querySelectorAll('details[open]')) if (other !== menu) other.open = false;
+      };
+      const remove = button('Remove', () => {
+        const next = row.nextElementSibling?.querySelector('button') ?? row.previousElementSibling?.querySelector('button');
+        const nextId = next?.dataset.testid;
+        updateMembership(item, false);
+        render();
+        (list.querySelector(`[data-testid="${nextId}"]`) ?? browseButton).focus();
+      });
+      remove.setAttribute('aria-label', `Remove ${item.name ?? item.title}`);
+      menu.append(summary, remove);
+      row.append(menu);
+    }
+    return row;
+  }
+
+  function exploreItem(item, enrolled, progress) {
+    if (type === 'charts') {
+      const row = element('div', 'library-chart-row');
+      row.append(itemCopy(item), actionsFor(item, enrolled, progress));
+      return row;
+    }
+    const card = element('article', 'library-lick-card');
+    card.append(element('h3', '', item.name));
+    const staff = element('div', 'library-staff');
+    staff.dataset.lick = item.id;
+    staff.setAttribute('aria-label', `Sheet music for ${item.name}`);
+    card.append(staff, actionsFor(item, enrolled, progress));
+    observer.observe(staff);
+    return card;
+  }
+
+  function render() {
+    // A settings refresh or navigation can replace the button for an active preview.
+    stop();
+    observer.disconnect();
+    const query = search.value.trim().toLocaleLowerCase();
+    const rotation = getRotation(type);
+    const progress = getProgress(type);
+    const categoryName = category?.[0];
+    const showTiles = browsing && type === 'licks' && !category && !query;
+    dialog.dataset.mode = browsing ? 'browse' : 'rotation';
+    list.dataset.layout = showTiles ? 'tiles' : browsing && type === 'licks' ? 'cards' : 'list';
+    title.textContent = browsing ? (type === 'licks' ? 'Explore Licks' : 'Browse Charts') : 'My Rotation';
+    breadcrumbs.hidden = !categoryName;
+    breadcrumbs.textContent = categoryName ?? '';
+    browseButton.hidden = browsing;
+    browseButton.textContent = type === 'licks' ? 'Explore licks' : 'Browse charts';
+    backButton.hidden = !browsing;
+    backButton.textContent = categoryName || (type === 'licks' && query) ? 'Categories' : 'My Rotation';
+    for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.libraryTab === type));
+    search.closest('label').hidden = !browsing;
+    search.placeholder = type === 'licks' ? 'Search licks' : 'Search charts';
+
+    if (showTiles) {
+      list.replaceChildren(...categories.flatMap(([label, ids], index) => {
+        const members = licks.filter(lick => ids.split(' ').includes(lick.id));
+        if (!members.length) return [];
+        const tile = button(label, () => {
+          category = [label, members];
+          render();
+          list.scrollTop = 0;
+          breadcrumbs.focus();
+        }, 'library-tile');
+        tile.dataset.sleeve = ['oxblood', 'teal', 'amber'][index % 3];
+        tile.append(element('span', 'library-tile-count', `${members.length} licks`));
+        return [tile];
+      }));
+      return;
+    }
+
+    const source = type === 'licks' ? (browsing ? licks : modules) : sortedCharts;
+    const matches = browsing
+      ? (category?.[1] ?? source).filter(item => [item.name ?? item.title, item.composer].some(text => text?.toLocaleLowerCase().includes(query)))
+      : rotation.map(id => source.find(item => item.id === id)).filter(Boolean);
+    list.replaceChildren(...matches.map(item => browsing
+      ? exploreItem(item, rotation.includes(item.id), progress[item.id])
+      : rotationRow(item, progress[item.id])));
+    if (!matches.length) {
+      list.append(element('p', 'help library-empty', browsing ? 'No matches. Try another search.' : 'What tunes are you working on?'));
     }
   }
-  search.addEventListener('input', render);
-  filter.onclick = () => { favoritesOnly = !favoritesOnly; render(); };
-  for (const tab of tabs) tab.onclick = () => {
-    if (type === tab.dataset.libraryTab) return;
-    type = tab.dataset.libraryTab;
+
+  function navigate() {
+    category = null;
     search.value = '';
     render();
     list.scrollTop = 0;
+  }
+
+  search.addEventListener('input', () => {
+    render();
+    list.scrollTop = 0;
+  });
+  browseButton.onclick = () => {
+    browsing = true;
+    navigate();
+    if (type === 'licks') void previewAudio.prepare().catch(() => {});
+    (type === 'charts' ? search : title).focus();
   };
-  return { render, open(next = type) { type = next; search.value = ''; favoritesOnly = false; render(); if (!dialog.open) dialog.showModal(); } };
+  backButton.onclick = () => {
+    const previousCategory = category?.[0];
+    if (!category && !(type === 'licks' && search.value.trim())) browsing = false;
+    navigate();
+    const tile = [...list.querySelectorAll('.library-tile')].find(item => item.firstChild.textContent === previousCategory);
+    (tile ?? (browsing ? title : browseButton)).focus();
+  };
+  for (const tab of tabs) {
+    tab.onclick = () => {
+      if (type === tab.dataset.libraryTab) return;
+      type = tab.dataset.libraryTab;
+      navigate();
+      if (browsing && type === 'licks') void previewAudio.prepare().catch(() => {});
+    };
+  }
+  dialog.addEventListener('close', () => {
+    if (dialog.open) return;
+    observer.disconnect();
+    stop();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && dialog.open) stop();
+  });
+  return {
+    render,
+    open(next, { browse = false } = {}) {
+      type = next;
+      browsing = browse;
+      if (!dialog.open) dialog.showModal();
+      navigate();
+      if (browse && type === 'licks') void previewAudio.prepare().catch(() => {});
+      title.focus();
+    },
+  };
 }

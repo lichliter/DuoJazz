@@ -60,8 +60,9 @@ const progressFunctions = ["shownMastery", "clearMasteryPreview", "applyDeepLink
 
 test('saving a chart switch cannot render the previous chart or carry its key into Four', () => {
   const rendered = [], saved = [];
-  const context = appContext(['selectTab', 'currentChart', 'chartConcertKey'], {
+  const context = appContext(['selectTab', 'rotationChart', 'currentChart', 'chartConcertKey'], {
     CHART_LIBRARY,
+    practiceUI: { getSelected: () => CHART_LIBRARY.map(chart => chart.id) },
     nav: { tab: 'charts', tune: 'blue-bossa' }, lastChartTune: 'blue-bossa',
     chartKeySelection: { chartId: 'blue-bossa', keyId: 'C' },
     saveTabScroll: noop, restoreTabScroll: noop,
@@ -81,8 +82,9 @@ test('saving a chart switch cannot render the previous chart or carry its key in
 });
 
 test('a chosen key survives rerendering its chart but never applies to another chart', () => {
-  const context = appContext(['selectTab', 'currentChart', 'chartConcertKey'], {
+  const context = appContext(['selectTab', 'rotationChart', 'currentChart', 'chartConcertKey'], {
     CHART_LIBRARY,
+    practiceUI: { getSelected: () => CHART_LIBRARY.map(chart => chart.id) },
     nav: { tab: 'charts', tune: 'four' }, lastChartTune: 'four',
     chartKeySelection: { chartId: 'four', keyId: 'D' },
     saveTabScroll: noop, restoreTabScroll: noop,

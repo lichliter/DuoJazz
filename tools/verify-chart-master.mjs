@@ -24,7 +24,9 @@ await withAppUrl(async (appUrl) => {
     await a.page.locator('#settings-close').click();
     await a.page.locator('#lesson-list .module-banner').click();
     await a.page.locator('[data-library-tab=charts]').click();
-    await a.page.locator('[data-testid=quick-view-chart-cry-me-a-river]').click();
+    await a.page.locator('#library-browse').click();
+    await a.page.getByRole('button', { name: 'Add Cry Me a River', exact: true }).click();
+    await a.page.getByRole('button', { name: 'Open Cry Me a River', exact: true }).click();
     assert.deepEqual(await a.page.locator('#chart-tree .sleeve-title').allTextContents(), ['Learn', 'Practice', 'Master']);
     await a.page.screenshot({ animations: 'disabled', path: 'artifacts/chart-three-modes.png', fullPage: true });
     await a.page.locator('#chart-tree .sleeve-node').nth(2).click();
