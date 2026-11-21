@@ -587,7 +587,10 @@ export function spellMelodyMidi(midi, shownKey, event, usesFlats = null) {
   if (!Number.isInteger(event?.diatonicStep) || !Number.isFinite(shownKey?.pc)) {
     return spellShownMidi(midi, shownKey, usesFlats);
   }
-  const tonic = spellPitchInKey(shownKey.pc + (event.cellTonicInterval ?? 0), shownKey);
+  const offset = wrapPc(event.cellTonicInterval ?? 0);
+  const tonic = offset === 0
+    ? spellPitchInKey(shownKey.pc, shownKey)
+    : { letter: spellingRow(wrapPc(shownKey.pc + offset), event.lickKeyQuality ?? "major").id[0] };
   const index = LETTERS.indexOf(tonic.letter) + event.diatonicStep;
   const letter = LETTERS[((index % 7) + 7) % 7];
   const pc = wrapPc(midi);
@@ -597,6 +600,7 @@ export function spellMelodyMidi(midi, shownKey, event, usesFlats = null) {
 }
 
 export function rhythmLabel(beats) {
+  if (Math.abs(beats - 1 / 6) < 1e-6) return "sextuplet sixteenth";
   if (Math.abs(beats - 0.25) < 1e-6) return "sixteenth";
   if (Math.abs(beats - 1 / 3) < 1e-6) return "triplet eighth";
   if (beats === 0.5) return "eighth";
@@ -620,7 +624,7 @@ export function phraseStartBeat(applicationId) {
   return (first - 1) * BEATS_PER_BAR;
 }
 
-function timelineFromElements(elements, origin, cellTonicInterval, spotIndex) {
+function timelineFromElements(elements, origin, cellTonicInterval, spotIndex, lickKeyQuality = null) {
   let beat = origin;
   const items = [];
   for (const el of elements) {
@@ -630,6 +634,7 @@ function timelineFromElements(elements, origin, cellTonicInterval, spotIndex) {
       interval: el.type === "note" ? el.interval + cellTonicInterval : null,
       cellInterval: el.interval,
       cellTonicInterval,
+      lickKeyQuality,
       role: "phrase",
       spotIndex,
     });
@@ -643,14 +648,15 @@ export function phraseTimeline(applicationId, isolated = false) {
   const lick = lickById(app.lickId);
   if (isolated) {
     const pickup = lick.pickupBeats > 0 ? lick.pickupBeats : 0;
-    return timelineFromElements(lick.elements, 0 - pickup, app.cellTonicInterval ?? 0, 0);
+    return timelineFromElements(lick.elements, 0 - pickup, app.cellTonicInterval ?? 0, 0, lick.keyQuality);
   }
   const spots = spotsFor(applicationId);
   const items = [];
   spots.forEach((spot, index) => {
     const { elements, pickupBeats } = elementsForSpot(app, spot, spots[index + 1]);
     const origin = (spot.bar - 1) * BEATS_PER_BAR + (spot.beatOffset ?? 0) - (pickupBeats || 0);
-    items.push(...timelineFromElements(elements, origin, spot.anchorInterval ?? 0, index));
+    const spotLick = lickById(spot.lickId ?? app.lickId);
+    items.push(...timelineFromElements(elements, origin, spot.anchorInterval ?? 0, index, spotLick.keyQuality));
   });
   return items.sort((a, b) => a.beat - b.beat);
 }
@@ -1160,7 +1166,7 @@ function noteToAbcBody(item, concertKey, displayMode, melodyRegister, octaveBase
     barState,
     spellMelodyMidi(shownMidi, shownKey, item, usesFlatsOverride),
   );
-  const dur = item.tuplet === 3 ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);
+  const dur = item.tuplet ? abcDuration(tupletWrittenBeats(item)) : abcDuration(durationBeats);
   return `${abcArticulation(item)}${pitch}${dur}${tieOut ? "-" : ""}`;
 }
 
@@ -1180,6 +1186,18 @@ export function phraseMeasureCount(applicationId = DEFAULT_APPLICATION_ID) {
 }
 
 function tokenDurationBeats(token) {
+  const tuplet = token.match(/^\((\d+)(?::(\d+))?(?::\d+)?(.*)$/);
+  if (tuplet) {
+    const p = Number(tuplet[1]);
+    const q = Number(tuplet[2] || (p === 3 ? 2 : p === 6 ? 4 : 2));
+    const inner = tuplet[3].match(/[zZ](?:\d+|\/\d+)?|[uv]?[.=_^]*[A-Ga-g][,']*(?:\d+|\/\d+)?/g) ?? [];
+    const written = inner.reduce((sum, part) => {
+      const marked = part.match(/(\d+|\/\d+)$/);
+      if (!marked) return sum + 0.5;
+      return sum + (marked[1].startsWith("/") ? 0.5 / Number(marked[1].slice(1) || 2) : Number(marked[1]) * 0.5);
+    }, 0);
+    return written * (q / p);
+  }
   const rest = token.match(/^[yzx](\d+)?/i);
   if (rest) return (rest[1] ? Number(rest[1]) : 1) * 0.5;
   const notes = token.match(/[uv]?[.=_^]*[A-Ga-g][,']*(?:\d+|\/\d+)?/g) ?? [];
@@ -1250,6 +1268,26 @@ function renderSlice(items, start, end, ctx) {
       abc += "(3";
       for (const note of group) {
         abc += noteToAbcBody(note, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, tupletWrittenBeats(note), false, ctx.quality, ctx.barState, flatsForItem(ctx, note));
+      }
+      cursor = group[group.length - 1].beat + group[group.length - 1].beats;
+      if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
+        abc += " | ";
+        ctx.barState = newBarState(ctx.shownKey);
+      } else if (atBeatBoundary(cursor)) abc += " ";
+      continue;
+    }
+    if (item.tuplet === 6) {
+      const group = [];
+      let total = 0;
+      while (i < covering.length && covering[i].tuplet === 6 && total < 1 - 1e-6) {
+        group.push(covering[i]);
+        total += covering[i].beats;
+        i += 1;
+      }
+      abc += `(6:4:${group.length}`;
+      for (const el of group) {
+        if (el.type === "rest") abc += `z${abcDuration(tupletWrittenBeats(el))}`;
+        else abc += noteToAbcBody(el, ctx.concertKey, ctx.displayMode, ctx.melodyRegister, ctx.octaveBase, tupletWrittenBeats(el), false, ctx.quality, ctx.barState, flatsForItem(ctx, el));
       }
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       if (almost(cursor % 4, 0) && cursor > start + 1e-6 && cursor < end - 1e-6) {
@@ -1654,7 +1692,7 @@ export function scheduleChorus({
           midi: eventMelodyMidi(concertKey, note, melodyRegister, octaveBase),
           durationBeats: note.beats,
           role: note.role,
-          swing: note.tuplet ? false : undefined,
+          swing: note.tuplet ? false : note.swing,
         });
       }
     }

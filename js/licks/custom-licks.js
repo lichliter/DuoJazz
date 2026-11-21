@@ -2,8 +2,8 @@ function N(interval, beats, extra = {}) {
   return { type: "note", interval, beats, ...extra };
 }
 
-function R(beats) {
-  return { type: "rest", beats };
+function R(beats, extra = {}) {
+  return { type: "rest", beats, ...extra };
 }
 
 function bar(chords) {
@@ -13,6 +13,9 @@ function bar(chords) {
 function chord(intervalFromTonic, quality, durationBeats = 4, extra = {}) {
   return { intervalFromTonic, quality, durationBeats, ...extra };
 }
+
+const TRIPLET_EIGHTH = 1 / 3;
+const SEXTUPLET_SIXTEENTH = 1 / 6;
 
 export const CUSTOM_LICKS = [
   {
@@ -177,6 +180,123 @@ export const CUSTOM_LICKS = [
           { ...tonic, beats: 4 },
         ])],
       }];
+    },
+  },
+  {
+    lick: {
+      id: "south-of-the-river",
+      name: "South of the River",
+      shortName: "South of the River",
+      source: "Brian’s adaptation of Tom Misch’s South of the River; not an exact transcription.",
+      octave: -2,
+      pickupBeats: 0,
+      learnBeats: 8,
+      keyQuality: "minor",
+      defaultKeyId: "G",
+      // Beat 1: E F A C sextuplet. Beats 2–4: A Bb D F, D Eb G Bb, D Db C B.
+      // Bar 2 begins with a quarter-note Bb.
+      elements: [
+        R(TRIPLET_EIGHTH, { tuplet: 6 }),
+        N(9, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 5 }),
+        N(10, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 6 }),
+        N(14, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 8 }),
+        N(17, SEXTUPLET_SIXTEENTH, { tuplet: 6, diatonicStep: 10 }),
+        N(14, 0.25, { swing: false, diatonicStep: 8 }),
+        N(15, 0.25, { swing: false, diatonicStep: 9 }),
+        N(19, 0.25, { swing: false, diatonicStep: 11 }),
+        N(22, 0.25, { swing: false, diatonicStep: 13 }),
+        N(19, 0.25, { swing: false, diatonicStep: 11 }),
+        N(20, 0.25, { swing: false, diatonicStep: 12 }),
+        N(24, 0.25, { swing: false, diatonicStep: 14 }),
+        N(27, 0.25, { swing: false, diatonicStep: 16 }),
+        N(31, 0.25, { swing: false, diatonicStep: 18 }),
+        N(30, 0.25, { swing: false }),
+        N(29, 0.25, { swing: false, diatonicStep: 17 }),
+        N(28, 0.25, { swing: false }),
+        N(27, 1, { diatonicStep: 16 }), R(3),
+      ],
+    },
+    learnForm: {
+      id: "south-of-the-river-learn",
+      title: "South of the River",
+      shortTitle: "The lick",
+      keyQuality: "minor",
+      bars: [bar([chord(0, "minor7")]), bar([chord(5, "minor7")])],
+    },
+    learnApplication: {
+      id: "south-of-the-river-learn",
+      lickId: "south-of-the-river",
+      formId: "south-of-the-river-learn",
+      label: "Learn the lick",
+      cellTonicInterval: 0,
+      phraseStartBar: 1,
+      leadIn: [],
+      resolve: [],
+      copyKind: "learn",
+    },
+    module: {
+      id: "south-of-the-river",
+      lickId: "south-of-the-river",
+      name: "South of the River",
+      lessons: [{
+        id: "south-of-the-river-learn",
+        kind: "learn",
+        applicationId: "south-of-the-river-learn",
+        title: "Learn the lick",
+        coverTitle: "Learn the lick",
+        summary: "Play the sextuplet into beat 2 and climb in sixteenths to high D on beat 4. Walk down chromatically to B♭ on the next downbeat.",
+        context: "Minor i → iv · adapted from Tom Misch’s South of the River",
+        defaultKeyId: "G",
+      }],
+    },
+    practiceDefinitions(lick) {
+      const source = "Brian’s adaptation of Tom Misch’s South of the River";
+      const variant = (pattern) => ({
+        id: "original",
+        label: "Original",
+        pattern,
+        elements: lick.elements,
+        pickupBeats: 0,
+      });
+      const minorQualities = ["minor7", "minor11", "minor"];
+      const majorQualities = ["major7", "major6"];
+      return [
+        {
+          lickId: "south-of-the-river",
+          id: "minor-i-iv",
+          label: "Minor i → iv",
+          description: "Play the ascent and chromatic descent over i7, then land on the seventh of iv7 on the next downbeat.",
+          source: `${source} · minor i → iv practice`,
+          exampleTitle: "Minor i → iv vamp",
+          variants: [variant([
+            { root: 0, family: "minor", beats: 4, qualities: minorQualities, quality: "minor7" },
+            { root: 5, family: "minor", beats: 4, qualities: minorQualities, quality: "minor7" },
+          ])],
+        },
+        {
+          lickId: "south-of-the-river",
+          id: "minor-home",
+          label: "Minor home",
+          description: "Stay over two bars of static minor seventh, starting the descent on the fifth and resolving on the minor third.",
+          source: `${source} · static minor practice`,
+          exampleTitle: "Minor tonic vamp",
+          variants: [variant([
+            { root: 0, family: "minor", beats: 8, qualities: minorQualities, quality: "minor7" },
+          ])],
+        },
+        {
+          lickId: "south-of-the-river",
+          id: "major-i-iv",
+          label: "Major I → IV",
+          description: "Play the opening ♯11–5–7–9 figure over the relative major tonic, then resolve to the fifth of IV on the next downbeat.",
+          source: `${source} · major I → IV practice`,
+          exampleTitle: "Major I → IV vamp",
+          variants: [variant([
+            { root: 3, family: "major", beats: 4, qualities: majorQualities, quality: "major7" },
+            { root: 8, family: "major", beats: 4, qualities: majorQualities, quality: "major7" },
+          ])],
+        },
+      ];
     },
   },
 ];

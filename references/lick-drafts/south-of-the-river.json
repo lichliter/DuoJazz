@@ -1,0 +1,72 @@
+{
+  "id": "south-of-the-river",
+  "title": "South of the River",
+  "status": "implemented",
+  "source": {
+    "title": "South of the River",
+    "artist": "Tom Misch",
+    "attribution": "Brian’s adaptation of Tom Misch’s South of the River; not an exact transcription",
+    "referenceNote": "Brian confirmed the note sequence and rhythmic grouping in 4/4 for this two-bar G-minor adaptation."
+  },
+  "startBeatOffset": 0,
+  "pickupBeats": 0,
+  "entrance": "Beat 1 opens with a triplet-eighth rest followed by four sextuplet sixteenths (E–F–A–C). Low A lands on beat 2.",
+  "notes": [
+    {"pitch": "E", "durationBeats": 0.16666666666666666, "tuplet": 6},
+    {"pitch": "F", "durationBeats": 0.16666666666666666, "tuplet": 6},
+    {"pitch": "A", "durationBeats": 0.16666666666666666, "tuplet": 6},
+    {"pitch": "C", "durationBeats": 0.16666666666666666, "tuplet": 6},
+    {"pitch": "A", "durationBeats": 0.25},
+    {"pitch": "Bb", "durationBeats": 0.25},
+    {"pitch": "D", "durationBeats": 0.25},
+    {"pitch": "F", "durationBeats": 0.25},
+    {"pitch": "D", "durationBeats": 0.25},
+    {"pitch": "Eb", "durationBeats": 0.25},
+    {"pitch": "G", "durationBeats": 0.25},
+    {"pitch": "Bb", "durationBeats": 0.25},
+    {"pitch": "D", "durationBeats": 0.25},
+    {"pitch": "Db", "durationBeats": 0.25},
+    {"pitch": "C", "durationBeats": 0.25},
+    {"pitch": "B", "durationBeats": 0.25},
+    {"pitch": "Bb", "durationBeats": 1}
+  ],
+  "rhythmStatus": "Straight sixteenths follow the sextuplet. High D lands on beat 4, followed by D♭–C–B within that beat. Quarter-note B♭ lands on bar 2 beat 1, with three beats of rest to finish the bar.",
+  "tonalCenter": "G",
+  "keyQuality": "minor",
+  "scaleContext": {
+    "name": "G minor / Dorian–blues",
+    "pitches": [
+      "G",
+      "A",
+      "Bb",
+      "C",
+      "D",
+      "E",
+      "Eb",
+      "F",
+      "Db",
+      "B"
+    ],
+    "basis": "The E–F–A–C opening adds a natural sixth to the G-minor sound. E♭ introduces the minor sixth later in bar 1, and D–D♭–C–B approaches B♭ chromatically. The final B♭ is the minor third of G and the seventh of the Cm7 backing chord."
+  },
+  "intervalsFromTonic": [9, 10, 14, 17, 14, 15, 19, 22, 19, 20, 24, 27, 31, 30, 29, 28, 27],
+  "applications": [
+    {
+      "id": "minor-i-iv",
+      "pattern": "Two bars moving from i7 to iv7; example uses Gm7 then Cm7.",
+      "matching": "minor7, minor11, or minor for 4 beats on i followed by 4 beats on iv."
+    },
+    {
+      "id": "minor-home",
+      "pattern": "Two full bars over static minor seventh; example uses Gm7.",
+      "matching": "minor7, minor11, or minor for 8 continuous beats."
+    },
+    {
+      "id": "major-i-iv",
+      "pattern": "Same shapes shifted to the relative major I → IV (B♭maj7 → E♭maj7 in G minor).",
+      "matching": "Major7 or major6 for 4 beats on I followed by 4 beats on IV."
+    }
+  ],
+  "meter": "4/4",
+  "endRestBeats": 3
+}

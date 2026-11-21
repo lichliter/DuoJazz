@@ -166,8 +166,8 @@ function noteXml(item, ctx, beats, tie = "") {
   return {
     id,
     beats,
-    beamable: beats < 1 - 1e-6 && item.tuplet !== 3,
-    tuplet: item.tuplet === 3,
+    beamable: beats < 1 - 1e-6 && !item.tuplet,
+    tuplet: Boolean(item.tuplet),
     pname: pitch.pname,
     oct: pitch.oct,
     xml: `<note xml:id="${id}" pname="${pitch.pname}" oct="${pitch.oct}" ${durAttrs(beats)}${accid}${tieAttr}>${inner}</note>`,
@@ -241,6 +241,28 @@ function sliceTokens(items, start, end, ctx, slashRests) {
         type: "tuplet",
         beats: group.reduce((sum, note) => sum + note.beats, 0),
         notes: group.map((note) => noteXml(note, ctx, almost(note.beats, 0.5 / 3) || almost(note.beats, 1 / 6) ? 0.25 : 0.5)),
+      });
+      cursor = group[group.length - 1].beat + group[group.length - 1].beats;
+      continue;
+    }
+    if (item.tuplet === 6) {
+      const group = [];
+      let total = 0;
+      while (i < covering.length && covering[i].tuplet === 6 && total < 1 - 1e-6) {
+        group.push(covering[i]);
+        total += covering[i].beats;
+        i += 1;
+      }
+      tokens.push({
+        type: "tuplet",
+        num: 6,
+        numbase: 4,
+        bracket: true,
+        beats: total,
+        items: group.map((el) => {
+          const written = almost(el.beats, 1 / 3) ? 0.5 : 0.25;
+          return el.type === "rest" ? { rest: true, ...restXml(written) } : noteXml(el, ctx, written);
+        }),
       });
       cursor = group[group.length - 1].beat + group[group.length - 1].beats;
       continue;
@@ -362,9 +384,26 @@ function emitLayer(tokens, clef = "bass", origin = 0) {
   while (i < tokens.length) {
     const token = tokens[i];
     if (token.type === "tuplet") {
-      const dir = stemDirForNotes(token.notes, clef);
-      const inner = token.notes.map((note) => withStemDir(note.xml, dir)).join("");
-      out.push(`<tuplet num="3" numbase="2" bracket.visible="false"><beam stem.dir="${dir}">${inner}</beam></tuplet>`);
+      if (token.items) {
+        const dir = stemDirForNotes(token.items.filter((el) => !el.rest), clef);
+        let inner = "";
+        let beam = [];
+        const flush = () => {
+          if (beam.length >= 2) inner += `<beam stem.dir="${dir}">${beam.map((note) => withStemDir(note.xml, dir)).join("")}</beam>`;
+          else if (beam.length === 1) inner += beam[0].xml;
+          beam = [];
+        };
+        for (const el of token.items) {
+          if (el.rest) { flush(); inner += el.xml; }
+          else beam.push(el);
+        }
+        flush();
+        out.push(`<tuplet num="${token.num}" numbase="${token.numbase}" bracket.visible="${token.bracket ? "true" : "false"}">${inner}</tuplet>`);
+      } else {
+        const dir = stemDirForNotes(token.notes, clef);
+        const inner = token.notes.map((note) => withStemDir(note.xml, dir)).join("");
+        out.push(`<tuplet num="3" numbase="2" bracket.visible="false"><beam stem.dir="${dir}">${inner}</beam></tuplet>`);
+      }
       cursor += token.beats;
       i += 1;
       continue;
