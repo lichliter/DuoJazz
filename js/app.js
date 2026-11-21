@@ -1414,10 +1414,6 @@ function renderTempoModal({ keepInput = false } = {}) {
   const current = clampTempo(session.tempo, prefs.tempo);
   const defaultTempo = clampTempo(prefs.tempo, 96);
   const overridden = hasLessonTempoOverride(prefs, session.lessonId) || current !== defaultTempo;
-  const moduleName = moduleForLesson(session.lessonId).name;
-  if (els.tempoModalContext) {
-    els.tempoModalContext.textContent = moduleName;
-  }
   if (els.sessionTempoInput && !keepInput) {
     els.sessionTempoInput.value = String(current);
   }

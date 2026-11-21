@@ -31,7 +31,6 @@ export function collectElements(doc = document) {
     sessionTempo: doc.getElementById("session-tempo"),
     tempoModal: doc.getElementById("tempo-modal"),
     tempoModalClose: doc.getElementById("tempo-modal-close"),
-    tempoModalContext: doc.getElementById("tempo-modal-context"),
     sessionTempoDown: doc.getElementById("session-tempo-down"),
     sessionTempoUp: doc.getElementById("session-tempo-up"),
     sessionTempoInput: doc.getElementById("session-tempo-input"),

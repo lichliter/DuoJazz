@@ -1128,15 +1128,6 @@ button.module-banner {
   padding: var(--space-4) var(--space-4) var(--space-2);
 }
 
-.tempo-modal-context {
-  margin: 0;
-  align-self: stretch;
-  width: 100%;
-  text-align: left;
-  font: var(--text-footnote);
-  color: var(--label-secondary);
-}
-
 .tempo-modal-stepper {
   display: flex;
   align-items: center;
