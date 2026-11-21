@@ -35,7 +35,9 @@ export function setupLibraryPicker({
   const search = document.getElementById('library-search');
   const browseButton = document.getElementById('library-browse');
   const backButton = document.getElementById('library-back');
+  const rotationBackButton = document.getElementById('library-rotation-back');
   const breadcrumbs = document.getElementById('library-category');
+  const categoryToolbar = breadcrumbs.parentElement;
   const tabs = [...dialog.querySelectorAll('[data-library-tab]')];
   const licks = modules.filter(item => item.id !== 'chord-tones');
   const sortedCharts = [...charts].sort((a, b) => a.title.localeCompare(b.title));
@@ -77,7 +79,7 @@ export function setupLibraryPicker({
     status.textContent = `${item.name ?? item.title} ${enrolled ? 'added to' : 'removed from'} My Rotation.`;
   }
 
-  function actionsFor(item, enrolled, progress) {
+  function actionsFor(item, enrolled, progress, moveToAdded) {
     const actions = element('div', 'library-actions');
     if (type === 'licks') {
       const play = button('Play', async () => {
@@ -100,24 +102,19 @@ export function setupLibraryPicker({
       actions.append(play);
       if (progress > 0) actions.append(masteryBadge(progress));
     }
-    const enrollment = element('div', 'library-enrollment');
-    function showAdded() {
-      const added = element('span', 'library-added', '✓ Added');
-      const open = button('Open', () => openItem(item), 'library-action library-action-primary');
-      open.setAttribute('aria-label', `Open ${item.name ?? item.title}`);
-      enrollment.replaceChildren(added, open);
-      return open;
-    }
-    if (enrolled) showAdded();
+    const open = button('Open', () => openItem(item), 'library-action library-item-action');
+    open.setAttribute('aria-label', `Open ${item.name ?? item.title}`);
+    if (enrolled) actions.append(open);
     else {
       const add = button('Add', () => {
         updateMembership(item, true);
-        showAdded().focus();
-      }, 'library-action library-action-primary');
+        add.replaceWith(open);
+        moveToAdded();
+        open.focus();
+      }, 'library-action library-item-action library-action-primary');
       add.setAttribute('aria-label', `Add ${item.name ?? item.title}`);
-      enrollment.append(add);
+      actions.append(add);
     }
-    actions.append(enrollment);
     return actions;
   }
 
@@ -237,20 +234,23 @@ export function setupLibraryPicker({
     return row;
   }
 
-  function exploreItem(item, enrolled, progress) {
-    if (type === 'charts') {
-      const row = element('div', 'library-chart-row');
-      row.append(itemCopy(item), actionsFor(item, enrolled, progress));
-      return row;
+  function exploreItem(item, enrolled, progress, addedSection) {
+    const isLick = type === 'licks';
+    const row = element(isLick ? 'article' : 'div', isLick ? 'library-lick-card' : 'library-chart-row');
+    if (isLick) {
+      const staff = element('div', 'library-staff');
+      staff.dataset.lick = item.id;
+      staff.setAttribute('aria-label', `Sheet music for ${item.name}`);
+      row.append(element('h3', '', item.name), staff);
+      observer.observe(staff);
+    } else {
+      row.append(itemCopy(item));
     }
-    const card = element('article', 'library-lick-card');
-    card.append(element('h3', '', item.name));
-    const staff = element('div', 'library-staff');
-    staff.dataset.lick = item.id;
-    staff.setAttribute('aria-label', `Sheet music for ${item.name}`);
-    card.append(staff, actionsFor(item, enrolled, progress));
-    observer.observe(staff);
-    return card;
+    row.append(actionsFor(item, enrolled, progress, () => {
+      addedSection.append(row);
+      addedSection.hidden = false;
+    }));
+    return row;
   }
 
   function render() {
@@ -270,8 +270,8 @@ export function setupLibraryPicker({
     breadcrumbs.textContent = categoryName ?? '';
     browseButton.hidden = browsing;
     browseButton.setAttribute('aria-label', type === 'licks' ? 'Explore licks' : 'Browse charts');
-    backButton.hidden = !browsing;
-    backButton.textContent = categoryName || (type === 'licks' && query) ? 'Categories' : 'My Rotation';
+    rotationBackButton.hidden = !browsing || type !== 'charts';
+    categoryToolbar.hidden = !browsing || type !== 'licks' || showTiles;
     for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.libraryTab === type));
     search.closest('label').hidden = !browsing;
     search.placeholder = type === 'licks' ? 'Search licks' : 'Search charts';
@@ -297,11 +297,29 @@ export function setupLibraryPicker({
     const matches = browsing
       ? (category?.[1] ?? source).filter(item => [item.name ?? item.title, item.composer].some(text => text?.toLocaleLowerCase().includes(query)))
       : rotation.map(id => source.find(item => item.id === id)).filter(Boolean);
-    list.replaceChildren(...matches.map(item => browsing
-      ? exploreItem(item, rotation.includes(item.id), progress[item.id])
-      : rotationRow(item, progress[item.id])));
     if (!matches.length) {
-      list.append(element('p', 'help library-empty', browsing ? 'No matches. Try another search.' : 'What tunes are you working on?'));
+      list.replaceChildren(element('p', 'help library-empty', browsing ? 'No matches. Try another search.' : 'What tunes are you working on?'));
+    } else if (browsing) {
+      const addedSection = element('section', 'library-added-section');
+      const heading = element('h3', '', 'Added');
+      heading.id = 'library-added-title';
+      addedSection.setAttribute('aria-labelledby', heading.id);
+      addedSection.append(heading);
+      addedSection.hidden = true;
+      const available = [];
+      for (const item of matches) {
+        const enrolled = rotation.includes(item.id);
+        const row = exploreItem(item, enrolled, progress[item.id], addedSection);
+        if (enrolled) {
+          addedSection.append(row);
+          addedSection.hidden = false;
+        } else {
+          available.push(row);
+        }
+      }
+      list.replaceChildren(...available, addedSection);
+    } else {
+      list.replaceChildren(...matches.map(item => rotationRow(item, progress[item.id])));
     }
   }
 
@@ -324,10 +342,14 @@ export function setupLibraryPicker({
   };
   backButton.onclick = () => {
     const previousCategory = category?.[0];
-    if (!category && !(type === 'licks' && search.value.trim())) browsing = false;
     navigate();
     const tile = [...list.querySelectorAll('.library-tile')].find(item => item.firstChild.textContent === previousCategory);
-    (tile ?? (browsing ? title : browseButton)).focus();
+    (tile ?? title).focus();
+  };
+  rotationBackButton.onclick = () => {
+    browsing = false;
+    navigate();
+    browseButton.focus();
   };
   for (const tab of tabs) {
     tab.onclick = () => {
