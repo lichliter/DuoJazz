@@ -65,8 +65,11 @@ test("registry keeps thirty workbook modules after the chord-tone foundation", (
     "se", "mp", "ssr", "sat", "ctdc", "tpr", "ntp", "dct", "ae", "fe",
     "bb", "lg", "bcf", "dss", "nnr",
   ]);
-  assert.equal(LICKS.length, 32);
-  assert.equal(MODULES.length, 33);
+  assert.ok(LICKS.length >= 30);
+  assert.equal(new Set(LICKS.map((lick) => lick.id)).size, LICKS.length);
+  assert.equal(MODULES.length, LICKS.length + 1);
+  assert.equal(new Set(MODULES.map((module) => module.id)).size, MODULES.length);
+  assert.deepEqual(MODULES.map((module) => module.number), MODULES.map((_, index) => index + 1));
   assert.deepEqual(
     MODULES.slice(1, 6).map((module) => module.lessons.filter((lesson) => lesson.group !== "your-tunes").length),
     [8, 6, 5, 5, 6],
@@ -78,9 +81,13 @@ test("registry keeps thirty workbook modules after the chord-tone foundation", (
       && module.lessons[1].kind === "master"
       && module.lessons.slice(2).every((lesson) => lesson.kind === "integrate");
   }));
+  const expectedCoreCount = MODULES.reduce(
+    (sum, module) => sum + module.lessons.filter((lesson) => lesson.group !== "your-tunes").length,
+    0,
+  );
   assert.equal(
     LESSONS.filter((lesson) => !["your-tunes", "my-tunes", "application-practice", "chart-tones"].includes(lesson.group)).length,
-    25 + 25 + WORKBOOK_TRACKS.length + MODULES.length - 1 + 8 + 2,
+    expectedCoreCount,
   );
   assert.ok(LESSONS.every((lesson) => lesson.kind === "learn" || lesson.kind === "master" || lesson.kind === "integrate"));
   for (const lick of LICKS.slice(0, 30)) {
@@ -348,7 +355,7 @@ test("Start bubble walks the module path in book order", () => {
   assert.equal(recommendedLessonId(all), null);
   const nodes = lessonPathNodes(defaultPrefs(), cmarDone);
   assert.equal(nodes.filter((node) => node.recommended).map((node) => node.id).join(), "emr-learn");
-  assert.equal(nodes.filter((node) => node.number === "01").length, 33);
+  assert.equal(nodes.filter((node) => node.number === "01").length, MODULES.length);
 });
 
 test("sleeve colors rotate so neighboring modules do not share an edge color", () => {

@@ -4,32 +4,45 @@ A browser app for learning jazz licks — from visual learning to notation readi
 
 ## Run locally
 
-From the repository root, with Node.js 22+ and Python 3 installed:
+From the repository root, with Node.js 22+ installed (and Python 3 optional):
 
 ```bash
 npm start
-# open http://127.0.0.1:4173/
+# open http://127.0.0.1:4173/ (Node dev server with no-store caching & SSE live reload; set DEV_RELOAD=0 to disable reload)
 ```
 
-There are no npm dependencies to install and no build step. The Supabase browser SDK is vendored at version 2.119.0 in `js/vendor/`, with its license. Alternatively, serve the repository with `python3 -m http.server 4173 --bind 127.0.0.1`.
+There are no npm dependencies to install and no build step. The Supabase browser SDK is vendored at version 2.119.0 in `js/vendor/`, with its license. Alternatively, serve the repository with `npm run start:python` (`python3 -m http.server 4173 --bind 127.0.0.1`).
 
 ```bash
-npm test
-# equivalent: node --test js/*.test.mjs
+npm test              # fast single-isolate suite: node --test --experimental-test-isolation=none js/*.test.mjs
+npm run test:watch    # re-run on edits
+npm run test:isolated # default isolated-process Node runner
+npm run test:exhaustive # full Cartesian test sweep (DUOJAZZ_EXHAUSTIVE=1)
+npm run lint          # syntax check + oxlint (when installed) + precache check (`tools/check.mjs`)
+npm run release       # auto-bump `?v=` queries for changed assets and update `js/version.js` + `precache.js`
+npm run verify        # run browser verification suite via `tools/verify-all.mjs` (optional script names, e.g. `guest`)
+npm run new-lick -- --id my-lick --name "My Lick" --key F --quality minor
+```
+
+Optional local git pre-commit hook (runs syntax/lint checks on staged JS and flags missing precache updates):
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 Microphone access needs localhost or HTTPS and a user gesture. Notation (Verovio 6.3.0), fonts, and instrument samples are served locally. After the first online visit finishes installing the service worker, the app can reopen and practice offline, including under a deployment subdirectory. Returning users can access their saved account’s local progress even if its access token has expired; sign-in and cloud sync require connectivity. Offline sign-out removes the local session. Progress sync retries on reconnect. Browser storage eviction or clearing site data requires another online visit.
 
-The PWA manifest supports installation from the browser. Service-worker releases install atomically and activate after old app tabs close, avoiding mixed versions during practice. After any app/asset change, run `node tools/generate-precache.mjs` and commit `precache.js`; its content hash versions each release. The worker caches only the listed static assets, never account API responses.
+The PWA manifest supports installation from the browser. Service-worker releases install atomically and activate after old app tabs close, avoiding mixed versions during practice. After any app/asset change, run `npm run release` (or `npm run precache` / `node tools/generate-precache.mjs` if `?v=` queries do not need bumping) and commit `precache.js`; its content hash versions each release. The worker caches only the listed static assets, never account API responses.
 
 ## Project layout
 
-- `index.html`, `css/`, `js/` — application, music engine, practice flow, audio, and pitch detection.
+- `index.html`, `css/`, `js/` (`js/licks/` for custom lick definitions) — application, music engine, practice flow, audio, and pitch detection.
 - `js/*.test.mjs` — Node.js test suite, also run by GitHub Actions on Linux.
 - `fonts/`, `icons/`, `manifest.webmanifest` — bundled fonts and installable web app assets.
 - `sound/` — bundled instrument samples, manifest, and [sample credits](sound/CREDITS.md).
 - `gallery.html` — UI gallery; `sound.html` — developer-only backing A/B comparison.
-- `DuoJazz.pen`, `images/`, `references/`, `tools/` — design and notation reference material.
+- `DuoJazz.pen`, `images/`, `references/`, `tools/` (including `tools/lib/browser-harness.mjs`) — design, notation reference material, and zero-dep dev/verify scripts.
+- `.githooks/` — optional pre-commit hook wrapping `tools/check.mjs --staged --precache`.
 
 See [AGENTS.md](AGENTS.md) for contributor and coding-agent guidance.
 

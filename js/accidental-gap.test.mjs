@@ -8,17 +8,10 @@ import { join } from "node:path";
 import { chartGrid, chartKeyChoices } from "./charts.js";
 import { chorusChords, getKey } from "./music.js";
 import { compactChordSymbol } from "./engrave.js";
-
-const CHROME_CANDIDATES = [
-  process.env.CHROME_PATH,
-  "/usr/bin/google-chrome-stable",
-  "/usr/bin/google-chrome",
-  "/usr/bin/chromium",
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-].filter(Boolean);
+import { findChromium } from "../tools/lib/browser-harness.mjs";
 
 function chromeBin() {
-  return CHROME_CANDIDATES.find((path) => existsSync(path)) ?? null;
+  return findChromium();
 }
 
 function tally(names) {

@@ -110,7 +110,7 @@ import { applicationById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from 
 import { MY_CHARTS_KEY, MY_LICKS_KEY, loadMyCharts, loadMyLicks } from "./practice-catalog.js";
 import { gradedMasteryPercent } from "./library-progress.js";
 import { setupLibraryPicker } from "./library-ui.js";
-import { CHORD_QUALITIES, transposeToneKey } from "./chord-tones.js";
+import { transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js";
@@ -149,11 +149,14 @@ import {
   openTakeRecorder,
   pushTakeFrame,
 } from "./take-dump.js";
-import { sleeveTrailPath } from "./path-trail.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { initAccount } from "./account.js";
 import { createCloudSettings, PREFERENCE_NAMES } from "./cloud-settings.js";
 import { closeSheet, initDialogInteractions } from "./dialogs.js";
+import { collectElements } from "./app-dom.js";
+import { createHomeView } from "./app-home.js";
+import { createChartsView } from "./app-charts.js";
+import { createWrapupView } from "./app-wrapup.js";
 
 initDialogInteractions();
 
@@ -211,79 +214,7 @@ function isTimedChart() {
 }
 const tabScroll = { licks: 0, charts: 0, settings: 0 };
 
-const els = {
-  storageNotice: document.getElementById("storage-notice"),
-  shell: document.getElementById("app-shell"),
-  masthead: document.getElementById("masthead"),
-  home: document.getElementById("screen-home"),
-  charts: document.getElementById("screen-charts"),
-  settingsModal: document.getElementById("settings-modal"),
-  session: document.getElementById("screen-session"),
-  wrapup: document.getElementById("screen-wrapup"),
-  settingsClose: document.getElementById("settings-close"),
-  chartKeys: document.getElementById("chart-keys"),
-  chartSheet: document.getElementById("chart-sheet"),
-  chartGrid: document.getElementById("chart-grid"),
-  lessonList: document.getElementById("lesson-list"),
-  instrumentList: document.getElementById("instrument-list"),
-  settingsForm: document.getElementById("settings-form"),
-  appVersion: document.getElementById("app-version"),
-  nextModule: document.getElementById("next-module"),
-  quickViewTitle: document.getElementById("quick-view-title"),
-  sessionTitle: document.getElementById("session-title"),
-  sessionModule: document.getElementById("session-module"),
-  primaryCount: document.getElementById("primary-count"),
-  keyModes: document.getElementById("key-modes"),
-  keyOrderPreview: document.getElementById("key-order-preview"),
-  setupKeys: document.getElementById("setup-keys"),
-  startKey: document.getElementById("start-key"),
-  allKeysToggle: document.getElementById("all-keys-toggle"),
-  allKeysLabel: document.getElementById("all-keys-label"),
-  sessionOctave: document.getElementById("session-octave"),
-  tempoReadout: document.getElementById("tempo-readout"),
-  tempoDown: document.getElementById("tempo-down"),
-  tempoUp: document.getElementById("tempo-up"),
-  sessionExit: document.getElementById("session-exit"),
-  quickView: document.getElementById("quick-view"),
-  quickViewList: document.getElementById("quick-view-list"),
-  leaveConfirm: document.getElementById("leave-confirm"),
-  sessionKey: document.getElementById("session-key"),
-  keyCycle: document.getElementById("key-cycle"),
-  cardBadge: document.getElementById("card-badge"),
-  hearIt: document.getElementById("hear-it"),
-  notation: document.getElementById("notation"),
-  hiddenAnswer: document.getElementById("hidden-answer"),
-  listenState: document.getElementById("listen-state"),
-  listenKicker: document.getElementById("listen-kicker"),
-  listenDetail: document.getElementById("listen-detail"),
-  primary: document.getElementById("primary"),
-  continueBtn: document.getElementById("continue-btn"),
-  showNotes: document.getElementById("show-notes"),
-  meter: document.getElementById("meter"),
-  gradeLine: document.getElementById("grade-line"),
-  debugStrip: document.getElementById("debug-strip"),
-  debugLive: document.getElementById("debug-live"),
-  debugAttempt: document.getElementById("debug-attempt"),
-  saveTake: document.getElementById("save-take"),
-  autoToggle: document.getElementById("auto-toggle"),
-  celebrate: document.getElementById("celebrate"),
-  celebrateKey: document.getElementById("celebrate-key"),
-  sessionMic: document.getElementById("session-mic"),
-  wrapupKicker: document.getElementById("wrapup-kicker"),
-  wrapupHeading: document.getElementById("wrapup-heading"),
-  wrapupDetail: document.getElementById("wrapup-detail"),
-  wrapupMedalMark: document.getElementById("wrapup-medal-mark"),
-  wrapupMedal: document.getElementById("wrapup-medal"),
-  wrapupSleeve: document.getElementById("wrapup-sleeve"),
-  wrapupSleeveNum: document.getElementById("wrapup-sleeve-num"),
-  wrapupSleeveTitle: document.getElementById("wrapup-sleeve-title"),
-  resultList: document.getElementById("result-list"),
-  nextKey: document.getElementById("next-key"),
-  againKey: document.getElementById("again-key"),
-  doneSession: document.getElementById("done-session"),
-  swing: document.getElementById("swing"),
-  metronome: document.getElementById("metronome"),
-};
+const els = collectElements(document);
 
 function loadSelectedModule() {
   try {
@@ -1266,218 +1197,23 @@ function keysByLesson(current = shownMastery()) {
   );
 }
 
-function moduleBanner(module) {
-  const section = document.createElement("button");
-  section.type = "button";
-  section.className = "module-banner";
-  section.dataset.testid = `module-banner-${module.id}`;
-  section.setAttribute("aria-haspopup", "dialog");
-  section.setAttribute("aria-controls", "quick-view");
-  section.setAttribute("aria-label", `Choose a ${module.chart ? "chart" : "lick"}. ${module.name}`);
-  const copy = document.createElement("div");
-  copy.className = "banner-copy";
-  const kicker = document.createElement("p");
-  kicker.className = "banner-kicker";
-  kicker.textContent = module.chart ? "Chart" : `Module ${module.number}`;
-  const title = document.createElement("h2");
-  title.textContent = module.name;
-  copy.append(kicker, title);
-  const chevron = document.createElement("span");
-  chevron.className = "banner-chevron";
-  chevron.setAttribute("aria-hidden", "true");
-  chevron.innerHTML = `<svg viewBox="0 0 24 24" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M5.5 9 12 16l6.5-7"/></svg>`;
-  section.append(copy, chevron);
-  section.addEventListener("click", () => requestQuickView());
-  return section;
-}
-
-function moduleBlock(module, nodes) {
-  const wrap = document.createElement("section");
-  wrap.className = "module-block is-current";
-  wrap.dataset.module = module.id;
-  wrap.append(moduleBanner(module));
-  const groups = module.id === 'chord-tones'
-    ? CHORD_QUALITIES.map(quality => ({ id: quality.id, title: quality.title, nodes: nodes.filter(node => lessonById(node.id).chordQuality === quality.id) }))
-    : [
-      { id: 'practice', title: 'Practice', nodes: nodes.filter(node => !node.practice) },
-      { id: 'integrate', title: 'Integrate', nodes: nodes.filter(node => node.practice) },
-    ];
-  for (const group of groups) {
-    if (!group.nodes.length) continue;
-    const section = document.createElement('section'); section.className = 'lesson-section';
-    const heading = document.createElement('h3'); heading.className = 'lesson-section-title';
-    heading.id = `section-${module.id}-${group.id}`; heading.textContent = group.title;
-    section.setAttribute('aria-labelledby', heading.id);
-    section.append(heading, ...group.nodes.map((node, index) => sleeveButton({
-      ...node,
-      align: group.nodes.length === 2 ? (index ? 'right' : 'left') : ['left', 'center', 'right'][index % 3],
-      coverTitle: node.practice ? node.coverTitle : (lessonById(node.id).kind === 'learn' ? 'Learn' : 'Master'),
-      number: node.practice ? 'Integrate' : node.number,
-    })));
-    wrap.append(section);
-  }
-  return wrap;
-}
-
-function homeNextModuleButton(link) {
-  const wrap = document.createElement("div");
-  wrap.className = "path-end path-end-next";
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "next-module-path";
-  btn.dataset.testid = "home-next-module";
-  btn.textContent = link.label;
-  btn.addEventListener("click", () => {
-    if (link.id) selectModule(link.id);
-  });
-  wrap.append(btn);
-  return wrap;
-}
-
-function renderHome() {
-  if (!MODULES.some((module) => module.id === selectedModuleId)) {
-    selectedModuleId = MODULES[0].id;
-  }
-  const module = moduleById(selectedModuleId) ?? MODULES[0];
-  const keys = keysByLesson();
-  const applications = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
-  const lessons = [
-    ...module.lessons.filter((lesson) => !isPracticeLesson(lesson)),
-    ...applications.map((group) => ({
-      ...lessonById(group.choices[0]?.lessonId ?? group.exampleLessonId),
-      title: group.label, coverTitle: group.label, context: group.description,
-    })),
-  ];
-  const nodes = moduleRoadNodes({ ...module, lessons }, prefs, keys);
-  els.lessonList.replaceChildren(
-    moduleBlock(module, nodes),
-    homeNextModuleButton(homeNextModule(module, keys)),
-  );
-  requestAnimationFrame(paintPathTrail);
-}
-
-function sleeveBoxFromStage(stage, svgRect) {
-  const stageRect = stage.getBoundingClientRect();
-  return {
-    cx: stageRect.left + stageRect.width / 2 - svgRect.left,
-    cy: stageRect.top + stageRect.height / 2 - svgRect.top,
-    halfW: stageRect.width / 2,
-    halfH: stageRect.height / 2,
-  };
-}
-
-function paintPathTrail() {
-  for (const container of document.querySelectorAll('.lesson-path')) paintLessonTrail(container);
-}
-
-function paintLessonTrail(container) {
-  const svg = container.querySelector(".path-trail");
-  const lessonList = container.querySelector('.lesson-list');
-  const path = svg?.querySelector("[data-trail]");
-  const cap = svg?.querySelector("[data-trail-cap]");
-  if (!svg || !path || !lessonList) return;
-  const svgRect = svg.getBoundingClientRect();
-  if (svgRect.width < 8 || svgRect.height < 8) {
-    path.setAttribute("d", "");
-    return;
-  }
-  svg.setAttribute("viewBox", `0 0 ${svgRect.width} ${svgRect.height}`);
-  const sleeves = [...lessonList.querySelectorAll(".sleeve-node .sleeve-stage")]
-    .map((stage) => sleeveBoxFromStage(stage, svgRect));
-  const endEl = lessonList.querySelector(".path-end-sleeve");
-  let end = null;
-  if (endEl) {
-    const rect = endEl.getBoundingClientRect();
-    end = {
-      cx: rect.left + rect.width / 2 - svgRect.left,
-      cy: rect.top + rect.height / 2 - svgRect.top,
-    };
-  }
-  const sections = [...lessonList.querySelectorAll('.lesson-section')];
-  const trails = sections.map((section, index) => {
-    const group = [...section.querySelectorAll('.sleeve-stage')].map(stage => sleeveBoxFromStage(stage, svgRect));
-    return sleeveTrailPath(group, index === sections.length - 1 ? end : null);
-  });
-  path.setAttribute("d", sections.length ? trails.join(' ') : sleeveTrailPath(sleeves, end));
-  const last = end ?? sleeves.at(-1);
-  if (cap && last) {
-    cap.setAttribute("cx", String(last.cx));
-    cap.setAttribute("cy", String(last.cy));
-    cap.setAttribute("r", "8");
-  }
-}
-
-function sleeveButton(node) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "sleeve-node";
-  btn.dataset.testid = `lesson-${node.id}`;
-  btn.dataset.sleeve = node.sleeve;
-  btn.dataset.align = node.align;
-  btn.dataset.recommended = String(node.recommended);
-  btn.dataset.complete = String(node.complete);
-  btn.dataset.vinylTier = node.vinylTier;
-  btn.dataset.practice = node.practice ? "true" : "false";
-  const bits = node.practice
-    ? [`Practice: ${node.title}`, node.caption].filter(Boolean)
-    : [
-      `Lesson ${node.number}: ${node.title}`,
-      `${node.passedCount} of ${node.keyTarget ?? 12} ${node.progressUnit ?? 'keys'} passed`,
-      `${node.vinylTier} vinyl`,
-    ];
-  if (node.recommended) bits.push("recommended start");
-  if (node.complete) bits.push(`all ${node.progressUnit ?? 'keys'} passed`);
-  btn.setAttribute("aria-label", bits.join(". "));
-
-  const stage = document.createElement("span");
-  stage.className = "sleeve-stage";
-  const vinyl = document.createElement("span");
-  vinyl.className = "vinyl";
-  vinyl.dataset.tier = node.vinylTier;
-  vinyl.setAttribute("aria-hidden", "true");
-  const vinylLabel = document.createElement("span");
-  vinylLabel.className = "vinyl-label";
-  vinyl.append(vinylLabel);
-  const sleeve = document.createElement("span");
-  sleeve.className = "sleeve";
-  const deco = document.createElement("span");
-  deco.className = "sleeve-deco";
-  deco.setAttribute("aria-hidden", "true");
-  const num = document.createElement("span");
-  num.className = "sleeve-num";
-  num.textContent = node.number;
-  const cover = document.createElement("span");
-  cover.className = "sleeve-title";
-  cover.textContent = node.coverTitle;
-  sleeve.append(deco, num, cover);
-  stage.append(vinyl, sleeve);
-  btn.append(stage);
-
-  const applicationId = node.onSelect ? null : lessonById(node.id).practiceApplicationId;
-  if (applicationId) {
-    btn.dataset.application = applicationId;
-    btn.setAttribute("aria-haspopup", "dialog");
-    btn.setAttribute("aria-controls", "application-charts");
-  }
-  btn.addEventListener("click", () => node.onSelect ? node.onSelect() : applicationId
-    ? practiceUI.openApplication(applicationId)
-    : openSetup(node.id));
-  return btn;
-}
-
-function chipRow(host, options, current, onPick) {
-  host.replaceChildren(
-    ...options.map((option) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "chip";
-      fillMusicLabel(btn, option.label);
-      btn.setAttribute("aria-pressed", String(option.id === current));
-      btn.addEventListener("click", () => onPick(option.id));
-      return btn;
-    }),
-  );
-}
+const {
+  moduleBanner,
+  sleeveButton,
+  paintPathTrail,
+  renderHome,
+  chipRow,
+} = createHomeView({
+  els,
+  getPrefs: () => prefs,
+  getSelectedModuleId: () => selectedModuleId,
+  setSelectedModuleId: (id) => { selectedModuleId = id; },
+  keysByLesson,
+  requestQuickView,
+  selectModule,
+  openSetup,
+  openApplication: (id) => practiceUI.openApplication(id),
+});
 
 function renderSetup() {
   renderSettings();
@@ -2106,68 +1842,13 @@ function renderMeter(snap = transport.snapshot()) {
   els.meter.textContent = "";
 }
 
-function resultLabel(row) {
-  return row.summary ?? (row.outcome === "completed" ? "Completed" : row.outcome);
-}
-
-function renderWrapup() {
-  const copy = wrapupCopy(session);
-  const lesson = lessonById(session.lessonId);
-  els.shell.dataset.sleeve = lesson.sleeve;
-  if (els.wrapupKicker) els.wrapupKicker.textContent = copy.kicker;
-  fillMusicLabel(els.wrapupHeading, copy.heading);
-  els.wrapupDetail.textContent = copy.detail;
-  if (els.wrapupSleeve) {
-    els.wrapupSleeve.hidden = false;
-    els.wrapupSleeve.dataset.sleeve = lesson.sleeve;
-    els.wrapupSleeve.classList.toggle("is-upgrade", Boolean(wrapupBanner?.upgraded));
-    const wrapVinyl = els.wrapupSleeve.querySelector(".vinyl");
-    if (wrapVinyl) {
-      wrapVinyl.dataset.tier = session.sequence
-        ? (session.sequence.every(item => shownMastery().lessons[item.lessonId]?.passedKeys.includes(item.keyId)) ? 'gold' : 'black')
-        : lessonVinylTier(lesson, lessonPassedKeys(shownMastery(), lesson.id).length);
-    }
-  }
-  if (els.wrapupSleeveNum) {
-    const module = moduleForLesson(lesson.id);
-    els.wrapupSleeveNum.textContent = lesson.chartTimed ? '03' : session.sequence ? (lesson.kind === 'learn' ? '01' : '02') : String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
-  }
-  if (els.wrapupSleeveTitle) els.wrapupSleeveTitle.textContent = lesson.coverTitle;
-  els.resultList.replaceChildren(
-    ...copy.results.map((row) => {
-      const item = document.createElement("li");
-      const label = document.createElement("span");
-      label.textContent = row.label;
-      const outcome = document.createElement("span");
-      outcome.className = "outcome";
-      outcome.textContent = resultLabel(row);
-      item.append(label, outcome);
-      return item;
-    }),
-  );
-  const moduleStats = moduleMastery(shownMastery(), moduleForLesson(lesson.id).id);
-  const count = moduleStats.masteredKeys.length;
-  document.getElementById("wrapup-medal-panel").hidden = Boolean(session.sequence || isTimedChart());
-  if (els.wrapupMedalMark) {
-    els.wrapupMedalMark.hidden = Boolean(session.sequence || isTimedChart());
-    els.wrapupMedalMark.textContent = wrapupBanner?.upgraded
-      ? `Medal up · ${displayMedal(moduleStats.medal)}`
-      : (count ? displayMedal(moduleStats.medal) : "Medal");
-  }
-  if (els.wrapupMedal) {
-    els.wrapupMedal.hidden = Boolean(session.sequence || isTimedChart());
-    els.wrapupMedal.textContent = wrapupBanner?.upgraded
-      ? `${displayMedal(moduleStats.medal)} unlocked`
-      : (count ? `${count} of 12 keys mastered` : "No medal yet for this module");
-  }
-  els.nextKey.hidden = !copy.nextKeyLabel;
-  if (copy.nextKeyLabel) fillMusicLabel(els.nextKey, copy.nextKeyLabel);
-  const nextModule = wrapupNextModule(session);
-  if (els.nextModule) {
-    els.nextModule.hidden = !nextModule;
-    if (nextModule) els.nextModule.textContent = nextModule.label;
-  }
-}
+const { renderWrapup } = createWrapupView({
+  els,
+  getSession: () => session,
+  getWrapupBanner: () => wrapupBanner,
+  shownMastery,
+  isTimedChart,
+});
 
 function currentChart() {
   return CHART_LIBRARY.find(chart => chart.id === nav.tune) ?? CHART_LIBRARY.find(chart => chart.id === lastChartTune) ?? CHART_LIBRARY[0];
@@ -2192,139 +1873,20 @@ function startChartTones(kind) {
   startLesson(sequence[0].lessonId, { sequence, keyId: sequence[0].keyId });
 }
 
-function chartApplications(chartId, moduleId) {
-  return PRACTICE_CATALOG.groups.filter(group => group.moduleId === moduleId).flatMap(group =>
-    group.choices.filter(choice => choice.chartId === chartId).map(choice => ({ group, choice })));
-}
-
-function openChartApplications(moduleId) {
-  const chart = currentChart(), module = moduleById(moduleId);
-  const dialog = document.getElementById('chart-applications');
-  document.getElementById('chart-applications-title').textContent = module.name;
-  document.getElementById('chart-applications-description').textContent = `Applications in ${chart.title}`;
-  const matches = chartApplications(chart.id, moduleId);
-  const list = document.getElementById('chart-applications-list');
-  list.replaceChildren(...matches.map(({ group, choice }) => {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'chart-application-choice';
-    button.dataset.lesson = choice.lessonId;
-    const title = document.createElement('strong'); title.textContent = group.label;
-    const version = group.variants.find(variant => variant.id === choice.variantId);
-    const detail = document.createElement('span'); detail.textContent = `${group.description} ${group.variants.length > 1 ? `${version.label}. ` : ''}${choice.context}`;
-    button.append(title, detail);
-    button.onclick = () => {
-      closeSheet(dialog);
-      const lesson = lessonById(choice.lessonId);
-      const delta = getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc;
-      startLesson(lesson.id, { keyId: transposeToneKey(lesson.defaultKeyId, delta) });
-    };
-    return button;
-  }));
-  if (!matches.length) {
-    const empty = document.createElement('p'); empty.className = 'help';
-    empty.textContent = 'No supported applications of this lick match this chart. Try another favorite lick or chart.'; list.append(empty);
-  }
-  dialog.showModal();
-}
-
-function renderChartDetail() {
-  const tune = currentChart();
-  const chartConcertKeyId = chartConcertKey(tune);
-  const parent = CHART_MODULES.find(module => module.id === `chart-${tune.id}`);
-  const first = [parent.lessons.find(lesson => lesson.kind === 'learn'), parent.lessons.find(lesson => lesson.chartPractice), parent.lessons.find(lesson => lesson.chartTimed)];
-  const progress = keysByLesson();
-  const delta = getKey(chartConcertKeyId).pc - getKey(tune.key).pc;
-  const nodes = moduleRoadNodes({ ...parent, lessons: first }, prefs, {}).map((node, index) => {
-    const kind = ['learn', 'practice', 'master'][index];
-    const lessons = parent.lessons.filter(lesson => index === 2 ? lesson.chartTimed : !lesson.chartTimed && (index === 1 ? lesson.chartPractice : lesson.kind === 'learn'));
-    const passed = lessons.filter(lesson => progress[lesson.id]?.includes(transposeToneKey(lesson.defaultKeyId, delta))).length;
-    const label = ['Learn', 'Practice', 'Master'][index];
-    return { ...node, title: index === 2 ? 'Master the changes from memory, in time' : `${label} chord tones`, coverTitle: label,
-      passedCount: passed, keyTarget: lessons.length, progressUnit: index === 2 ? 'runs' : 'chords', complete: passed === lessons.length,
-      vinylTier: passed === lessons.length ? 'gold' : passed ? 'bronze' : 'black',
-      onSelect: () => startChartTones(kind) };
-  });
-  const block = document.createElement('section'); block.className = 'module-block is-current';
-  block.append(moduleBanner({ ...parent, chart: true }), document.getElementById('view-chart'));
-  const practice = document.createElement('section'); practice.className = 'lesson-section';
-  const practiceHeading = document.createElement('h3'); practiceHeading.className = 'lesson-section-title';
-  practiceHeading.id = `section-${parent.id}-practice`; practiceHeading.textContent = 'Practice';
-  practice.setAttribute('aria-labelledby', practiceHeading.id);
-  practice.append(practiceHeading, ...nodes.map(sleeveButton));
-  const integrate = document.createElement('section'); integrate.className = 'lesson-section';
-  const favoritesHeader = document.createElement('div'); favoritesHeader.className = 'chart-favorites-header';
-  const heading = document.createElement('h3'); heading.className = 'lesson-section-title'; heading.textContent = 'Integrate';
-  heading.id = `section-${parent.id}-integrate`;
-  integrate.setAttribute('aria-labelledby', heading.id);
-  const manage = document.createElement('button'); manage.type = 'button'; manage.className = 'collection-action chart-favorites-manage'; manage.textContent = 'Manage';
-  manage.setAttribute('aria-label', 'Manage favorite licks'); manage.setAttribute('aria-haspopup', 'dialog'); manage.setAttribute('aria-controls', 'quick-view');
-  manage.onclick = () => libraryPicker.open('licks');
-  favoritesHeader.append(heading, manage); integrate.append(favoritesHeader);
-  const favorites = MODULES.filter(module => favoriteLicks.includes(module.id) && module.id !== 'chord-tones');
-  for (const [index, module] of favorites.entries()) {
-    const matches = chartApplications(tune.id, module.id);
-    const node = { id: `chart-favorite-${module.id}`, title: module.name, coverTitle: module.name, number: 'Lick', practice: true,
-      caption: `${matches.length} matching applications`, sleeve: ['oxblood', 'amber', 'teal'][index % 3], align: index % 2 ? 'right' : 'left',
-      vinylTier: 'black', onSelect: () => openChartApplications(module.id) };
-    integrate.append(sleeveButton(node));
-  }
-  if (!favorites.length) {
-    const empty = document.createElement('p'); empty.className = 'help library-empty'; empty.textContent = 'Favorite licks in the picker to practice them on this chart.'; integrate.append(empty);
-  }
-  block.append(practice, integrate);
-  document.getElementById('chart-tree').replaceChildren(block);
-  requestAnimationFrame(paintPathTrail);
-  const grid = chartGrid(tune, { instrumentId: prefs.instrumentId, concertKeyId: chartConcertKeyId });
-  document.getElementById('chart-heading-title').textContent = tune.title;
-  els.chartKeys.replaceChildren(...chartKeyChoices(tune.keyQuality, prefs.instrumentId).map(choice => {
-    const option = document.createElement('option'); option.value = choice.id; option.textContent = choice.label; return option;
-  }));
-  els.chartKeys.value = chartConcertKeyId;
-  if (els.chartGrid) {
-    els.chartGrid.replaceChildren(
-      ...grid.rows.map((row) => {
-        const line = document.createElement("div");
-        line.className = "ireal-row";
-        for (const bar of row.bars) {
-          const cell = document.createElement("div");
-          cell.className = "ireal-bar";
-          if (bar.sectionLabel) {
-            const mark = document.createElement("span");
-            mark.className = "ireal-section";
-            mark.textContent = bar.sectionLabel;
-            cell.append(mark);
-          }
-          if (bar.repeatStart) {
-            const mark = document.createElement("span");
-            mark.className = "ireal-repeat start";
-            mark.textContent = "|:";
-            cell.append(mark);
-          }
-          if (bar.repeatEnd) {
-            const mark = document.createElement("span");
-            mark.className = "ireal-repeat end";
-            mark.textContent = ":|";
-            cell.append(mark);
-          }
-          const chords = document.createElement("div");
-          chords.className = "ireal-chords";
-          for (const chord of bar.chords) {
-            const symbol = document.createElement("span");
-            symbol.className = "chord-symbol";
-            fillMusicLabel(symbol, compactChordSymbol(chord.name));
-            chords.append(symbol);
-          }
-          cell.append(chords);
-          line.append(cell);
-        }
-        return line;
-      }),
-    );
-  }
-}
-
-function renderCharts() {
-  renderChartDetail();
-}
+const { renderChartDetail, renderCharts } = createChartsView({
+  els,
+  getPrefs: () => prefs,
+  getFavoriteLicks: () => favoriteLicks,
+  currentChart,
+  chartConcertKey,
+  keysByLesson,
+  startChartTones,
+  startLesson,
+  moduleBanner,
+  sleeveButton,
+  openLickPicker: () => libraryPicker.open("licks"),
+  paintPathTrail,
+});
 
 function render(snap = transport.snapshot()) {
   renderStorageNotice();

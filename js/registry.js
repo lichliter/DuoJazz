@@ -26,11 +26,14 @@ import {
 } from "./workbook-tracks.js";
 import { buildPracticeCatalog } from "./practice-catalog.js";
 import { buildChordToneExercises } from "./chord-tones.js";
+import { CUSTOM_LICKS } from "./licks/custom-licks.js";
 
 export { TUNES };
 
 let applicationIndex = null;
 let lessonIndex = null;
+let lickIndex = null;
+let moduleIndex = null;
 const toneLickIndex = new Map();
 
 export const TROMBONE_LOW_MIDI = 40; // E2
@@ -63,20 +66,6 @@ function ireal(tune) {
 }
 
 export const FORMS = {
-  "lotus-inspired-learn": {
-    id: "lotus-inspired-learn",
-    title: "Lotus-inspired",
-    shortTitle: "The lick",
-    keyQuality: "minor",
-    bars: [bar([chord(0, "minormaj7")]), bar([chord(0, "minormaj7")])],
-  },
-  "minor-rise-return-learn": {
-    id: "minor-rise-return-learn",
-    title: "Minor Rise and Return",
-    shortTitle: "The lick",
-    keyQuality: "minor",
-    bars: [bar([chord(0, "minor7")])],
-  },
   "autumn-leaves-8": {
     id: "autumn-leaves-8",
     title: "Autumn Leaves · opening 8 bars",
@@ -506,6 +495,7 @@ export const FORMS = {
   ...deriveTuneForms(TUNES),
   ...WORKBOOK_FORMS,
   ...WORKBOOK_TRACK_FORMS,
+  ...Object.fromEntries(CUSTOM_LICKS.map((entry) => [entry.learnForm.id, entry.learnForm])),
 };
 
 const CMAR_LEAD_HOME = [
@@ -691,38 +681,7 @@ export const LICKS = [
     ],
   },
   ...WORKBOOK_LICKS,
-  {
-    id: "minor-rise-return",
-    name: "Minor Rise and Return",
-    shortName: "Minor rise and return",
-    source: "Brian’s lick",
-    octave: -2,
-    pickupBeats: 0,
-    learnBeats: 4,
-    keyQuality: "minor",
-    defaultKeyId: "Bb",
-    elements: [N(0, 0.5), N(2, 0.5), N(3, 0.5), N(5, 0.5), N(2, 0.5), N(0, 0.5)],
-  },
-  {
-    id: "lotus-inspired",
-    name: "Lotus-inspired",
-    shortName: "Lotus-inspired",
-    source: "Brian’s simplified adaptation of Lotus by Shaun Martin (around 1:28); not an exact transcription.",
-    octave: -1,
-    pickupBeats: 1.5,
-    learnBeats: 8,
-    keyQuality: "minor",
-    defaultKeyId: "F",
-    // Relative to F: E F G Ab G F E G F C. The final C is below the opening E.
-    // Three eighth-note pickups begin on & of 3; Ab lands on the first downbeat.
-    elements: [
-      N(-1, 0.5, { diatonicStep: -1, pickup: true }), N(0, 0.5, { diatonicStep: 0, pickup: true }),
-      N(2, 0.5, { diatonicStep: 1, pickup: true }), N(3, 1, { diatonicStep: 2 }),
-      N(2, 0.5, { diatonicStep: 1 }), N(0, 0.5, { diatonicStep: 0 }),
-      N(-1, 0.5, { diatonicStep: -1 }), N(2, 1, { diatonicStep: 1 }),
-      N(0, 1, { diatonicStep: 0 }), N(-5, 1, { diatonicStep: -3 }), R(2.5),
-    ],
-  },
+  ...CUSTOM_LICKS.map((entry) => entry.lick),
 ];
 
 export const FRAGMENTS = {
@@ -1084,29 +1043,7 @@ export const ALL_APPLICATIONS = [
   ...deriveTuneApplications(TUNES),
   ...WORKBOOK_APPLICATIONS,
   ...WORKBOOK_TRACK_APPLICATIONS,
-  {
-    id: "lotus-inspired-learn",
-    lickId: "lotus-inspired",
-    formId: "lotus-inspired-learn",
-    label: "Learn the lick",
-    cellTonicInterval: 0,
-    phraseStartBar: 1,
-    includePickup: true,
-    leadIn: [],
-    resolve: [],
-    copyKind: "learn",
-  },
-  {
-    id: "minor-rise-return-learn",
-    lickId: "minor-rise-return",
-    formId: "minor-rise-return-learn",
-    label: "Learn the lick",
-    cellTonicInterval: 0,
-    phraseStartBar: 1,
-    leadIn: [],
-    resolve: [],
-    copyKind: "learn",
-  },
+  ...CUSTOM_LICKS.map((entry) => entry.learnApplication),
 ];
 
 const SLEEVE_CYCLE = ["amber", "teal", "oxblood"];
@@ -1418,39 +1355,9 @@ export const MODULES = [
 
 const CORE_SLEEVE_START = MODULES.reduce((sum, module) => sum + module.lessons.length, 0) % 3;
 MODULES.push(...buildWorkbookModules(CORE_SLEEVE_START));
-MODULES.push({
-  id: "minor-rise-return",
-  number: 31,
-  lickId: "minor-rise-return",
-  name: "Minor Rise and Return",
-  lessons: [{
-    id: "minor-rise-return-learn",
-    kind: "learn",
-    applicationId: "minor-rise-return-learn",
-    title: "Learn the lick",
-    coverTitle: "Learn the lick",
-    summary: "Rise from B♭ through C, D♭ and E♭, then return through C to B♭, all eighth notes.",
-    context: "The lick in this key",
-    defaultKeyId: "Bb",
-  }],
-});
-
-MODULES.push({
-  id: "lotus-inspired",
-  number: 32,
-  lickId: "lotus-inspired",
-  name: "Lotus-inspired",
-  lessons: [{
-    id: "lotus-inspired-learn",
-    kind: "learn",
-    applicationId: "lotus-inspired-learn",
-    title: "Learn the lick",
-    coverTitle: "Learn the lick",
-    summary: "Enter on the & of 3 with three pickup notes, land on the minor third on beat 1, then descend to the fifth below home.",
-    context: "Harmonic minor · simplified from Shaun Martin’s Lotus",
-    defaultKeyId: "F",
-  }],
-});
+for (const entry of CUSTOM_LICKS) {
+  MODULES.push({ ...entry.module, number: MODULES.length + 1 });
+}
 const toneFoundations = buildChordToneExercises();
 for (const module of MODULES) module.number += 1;
 MODULES.unshift(toneFoundations.module);
@@ -1511,58 +1418,16 @@ export const TUNE_LESSONS = TUNE_SECTION.lessons.map((lesson, index) => ({
 
 export const LESSONS = [...MODULE_LESSONS, ...TUNE_LESSONS];
 
-function lotusApplications() {
-  // Keep the leading tone away from an explicit minor seventh in the backing.
-  const tonic = { root: 0, family: "minor", beats: 8,
-    qualities: ["minor", "minor6", "minorb6", "minormaj7"], quality: "minormaj7" };
-  const source = "Brian’s simplified adaptation of Shaun Martin’s Lotus · harmonic-minor practice";
-  const variant = (pattern) => ({
-    id: "original", label: "Original", pattern,
-    elements: lickById("lotus-inspired").elements, pickupBeats: lickById("lotus-inspired").pickupBeats,
-  });
-  return [{
-    lickId: "lotus-inspired",
-    id: "minor-home",
-    label: "Minor home",
-    description: "Enter on the & of 3 with three pickup notes into minor. Use the raised seventh as a leading tone and finish on the fifth below the minor root.",
-    source,
-    exampleTitle: "Minor tonic vamp",
-    variants: [variant([tonic])],
-  }, {
-    lickId: "lotus-inspired",
-    id: "minor-cadence",
-    label: "V → minor",
-    description: "Lead into V7 with three eighth-note pickups from the & of 3, then carry the phrase into minor and finish on the tonic chord’s fifth.",
-    source,
-    exampleTitle: "Minor cadence",
-    variants: [variant([
-      { root: 7, family: "dominant", beats: 4,
-        qualities: ["dominant7", "dominant7b9", "dominant7b13"], quality: "dominant7b9" },
-      { ...tonic, beats: 4 },
-    ])],
-  }];
-}
+lickIndex = new Map(LICKS.map((lick) => [lick.id, lick]));
+applicationIndex = new Map(ALL_APPLICATIONS.map((app) => [app.id, app]));
 
 export const PRACTICE_CATALOG = buildPracticeCatalog({
   modules: MODULES, tunes: TUNES, licks: LICKS, fragments: FRAGMENTS, applicationById, formById,
-  additionalDefinitions: [{
-    lickId: "minor-rise-return",
-    id: "minor-home",
-    label: "Minor home",
-    description: "Play the shape from the minor chord’s root, rising to the fourth and returning home.",
-    source: "Brian’s lick · minor chord practice",
-    exampleTitle: "Minor vamp",
-    variants: [{
-      id: "original",
-      label: "Original",
-      pattern: [{ root: 0, family: "minor", beats: 4 }],
-      elements: lickById("minor-rise-return").elements,
-      pickupBeats: 0,
-    }],
-  }, ...lotusApplications()],
+  additionalDefinitions: CUSTOM_LICKS.flatMap((entry) => entry.practiceDefinitions(entry.lick)),
 });
 Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);
+for (const app of PRACTICE_CATALOG.applications) applicationIndex.set(app.id, app);
 LESSONS.push(...PRACTICE_CATALOG.lessons);
 const EXCERPT_COMPOSERS = {
   'cry-me-a-river': 'Arthur Hamilton',
@@ -1577,12 +1442,20 @@ const EXCERPT_COMPOSERS = {
   summertime: 'George Gershwin',
   'take-the-a-train': 'Billy Strayhorn',
 };
+const tunesById = new Map(TUNES.map((tune) => [tune.id, tune]));
+const firstChoiceByChartId = new Map();
+for (const group of PRACTICE_CATALOG.groups) {
+  for (const item of group.choices) {
+    if (item.chartId && !firstChoiceByChartId.has(item.chartId)) firstChoiceByChartId.set(item.chartId, item);
+  }
+}
+const catalogLessonsById = new Map(PRACTICE_CATALOG.lessons.map((item) => [item.id, item]));
 // Include saved excerpt charts as well as complete tunes in the shared picker.
 export const CHART_LIBRARY = PRACTICE_CATALOG.charts.map(chart => {
-  const full = TUNES.find(tune => tune.id === chart.id);
+  const full = tunesById.get(chart.id);
   if (full) return { ...full, excerpt: false };
-  const choice = PRACTICE_CATALOG.groups.flatMap(group => group.choices).find(item => item.chartId === chart.id);
-  const lesson = PRACTICE_CATALOG.lessons.find(item => item.id === choice?.lessonId);
+  const choice = firstChoiceByChartId.get(chart.id);
+  const lesson = catalogLessonsById.get(choice?.lessonId);
   const form = lesson && formById(applicationById(lesson.applicationId).formId);
   return form ? { ...chart, composer: EXCERPT_COMPOSERS[chart.id] ?? chart.composer, key: lesson.defaultKeyId, keyQuality: form.keyQuality, excerpt: true, sections: [{ label: 'Excerpt', bars: form.bars.map(bar => bar.chords ?? bar) }] } : null;
 }).filter(Boolean);
@@ -1591,13 +1464,19 @@ export const CHART_MODULES = chartTones.chartModules;
 // The foundation definitions were already registered above.
 for (const lick of chartTones.licks) toneLickIndex.set(lick.id, lick);
 Object.assign(FORMS, Object.fromEntries(Object.entries(chartTones.forms).filter(([id]) => id.startsWith('tones-chart-'))));
-ALL_APPLICATIONS.push(...chartTones.applications.filter(app => app.id.startsWith('tones-chart-')));
+const chartToneApps = chartTones.applications.filter(app => app.id.startsWith('tones-chart-'));
+ALL_APPLICATIONS.push(...chartToneApps);
+for (const app of chartToneApps) applicationIndex.set(app.id, app);
 LESSONS.push(...chartTones.lessons);
-applicationIndex = new Map(ALL_APPLICATIONS.map((app) => [app.id, app]));
 lessonIndex = new Map(LESSONS.map((lesson) => [lesson.id, lesson]));
+moduleIndex = new Map([
+  ...MODULES.map((module) => [module.id, module]),
+  ...CHART_MODULES.map((module) => [module.id, module]),
+  [TUNE_SECTION.id, TUNE_SECTION],
+]);
 
 export function lickById(id) {
-  return toneLickIndex.get(id) ?? LICKS.find((lick) => lick.id === id) ?? LICKS[0];
+  return toneLickIndex.get(id) ?? lickIndex?.get(id) ?? LICKS.find((lick) => lick.id === id) ?? LICKS[0];
 }
 
 export function formById(id) {
@@ -1610,10 +1489,7 @@ export function applicationById(id) {
 }
 
 export function moduleById(id) {
-  if (id === TUNE_SECTION.id) return TUNE_SECTION;
-  const chart = CHART_MODULES.find(module => module.id === id);
-  if (chart) return chart;
-  return MODULES.find((module) => module.id === id) ?? MODULES[0];
+  return moduleIndex?.get(id) ?? MODULES[0];
 }
 
 export function lessonById(id) {

@@ -17,12 +17,13 @@ Skills in `.agents/skills/`:
 
 ## Run and test
 
-- Requirements: Node.js 22+ and Python 3. No package installation or build step is needed.
-- Serve the repository root at http://127.0.0.1:4173/ with `npm start` or `python3 -m http.server 4173 --bind 127.0.0.1`.
-- Tests: `npm test` or `node --test js/*.test.mjs` from the repository root.
+- Requirements: Node.js 22+ (Python 3 optional for `npm run start:python`). No package installation or build step is needed.
+- Serve the repository root at http://127.0.0.1:4173/ with `npm start` (`tools/dev-server.mjs` with `no-store` caching and SSE live reload; pass `DEV_RELOAD=0` to disable reload) or `npm run start:python`.
+- Tests & checks: `npm test` (`--experimental-test-isolation=none`), `npm run test:watch`, `npm run test:isolated`, `npm run test:exhaustive`, and `npm run lint` (`tools/check.mjs`).
+- Tooling & scaffolding: `npm run verify` (`tools/verify-all.mjs` using `tools/lib/browser-harness.mjs`) and `npm run new-lick` (`tools/new-lick.mjs` + `js/licks/custom-licks.js`). Optional local hook: `git config core.hooksPath .githooks`.
 - Developer inspection hooks: `window.__DUOJAZZ__`, `/?screen=...` review links (see `README.md`), and `tools/verify-*.mjs`.
 - Microphone access requires localhost or HTTPS and a user gesture.
-- Notation and fonts are vendored locally for offline use. After app/asset changes, bump the relevant `?v=` query parameter(s) in `index.html` (and any versioned module imports you changed, such as in `js/app.js` or `js/pitch.js`), run `node tools/generate-precache.mjs`, and commit `precache.js` (checked by `js/pwa.test.mjs`).
+- Notation and fonts are vendored locally for offline use. After app/asset changes, run `npm run release` (`tools/bump-assets.mjs` auto-bumps the relevant `?v=` query parameter(s) for changed files and regenerates `js/version.js` and `precache.js`) and commit `precache.js` (checked by `js/pwa.test.mjs`). Or run `npm run precache` (`node tools/generate-precache.mjs`) directly.
 - Do not install Xcode or a Swift toolchain; this repository maintains only the web app.
 
 ## Verification and merging

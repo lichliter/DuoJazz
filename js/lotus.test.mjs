@@ -46,8 +46,9 @@ test('Lotus starts on & of 3 with three pickups and preserves the corrected pitc
   assert.equal(contract.startBeatOffset, -1.5);
   assert.equal(contract.pickupBeats, 1.5);
   assert.equal(contract.preview.endRestBeats, rest.beats);
-  assert.equal(MODULES.at(-1).id, 'lotus-inspired');
-  assert.deepEqual(MODULES.at(-1).lessons.map(l => l.kind), ['learn', 'master']);
+  const lotusModule = MODULES.find((m) => m.id === 'lotus-inspired');
+  assert.ok(lotusModule);
+  assert.deepEqual(lotusModule.lessons.map(l => l.kind), ['learn', 'master']);
 });
 
 test('Lotus notation and model agree in all keys, on both horns, with lead-only octave shifts', () => {

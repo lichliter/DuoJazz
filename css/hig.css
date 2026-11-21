@@ -1,4 +1,6 @@
-/* Phase 1 session/sheet chrome on the restored warm road home. */
+/* Layer 2 (index.html only): layers on top of tokens.css and styles.css
+ * for app chrome, sheets, and session layout overrides.
+ * Warm dark palette comes from css/tokens.css. */
 
 .inset-group.profile-charts-card {
   display: flex;

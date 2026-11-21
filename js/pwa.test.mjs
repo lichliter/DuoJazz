@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { precacheSource, versionSource } from '../tools/generate-precache.mjs';
+import { releaseAssets } from '../tools/generate-precache.mjs';
 
 async function pwaHarness({ online = true, failure = false, active = false } = {}) {
   const status = { textContent: '', hidden: true };
@@ -78,8 +78,9 @@ test('registration failures persist until a successful reconnect', async () => {
 });
 
 test('offline release includes the current application assets', async () => {
-  assert.equal(await readFile(new URL('../precache.js', import.meta.url), 'utf8'), await precacheSource());
-  assert.equal(await readFile(new URL('./version.js', import.meta.url), 'utf8'), await versionSource());
+  const assets = await releaseAssets();
+  assert.equal(await readFile(new URL('../precache.js', import.meta.url), 'utf8'), assets.precache);
+  assert.equal(await readFile(new URL('./version.js', import.meta.url), 'utf8'), assets.version);
   const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const settings = index.slice(index.indexOf('id="settings-modal"'), index.indexOf('</dialog>', index.indexOf('id="settings-modal"')));
   assert.match(settings, /id="app-version"[^>]*class="profile-version"/);

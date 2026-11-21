@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { INSTRUMENTS } from "./instruments.js";
-import { LESSONS } from "./registry.js";
+import { applicationById, LESSONS } from "./registry.js";
 import {
   BEATS_PER_BAR,
   concertMidiToWritten,
@@ -402,30 +402,89 @@ test("Cry Me a River Lesson 1 in A-flat minor descends in trombone and treble", 
   }
 });
 
+const EXHAUSTIVE = process.env.DUOJAZZ_EXHAUSTIVE === "1";
+
 test("engraved spelling round-trips to the shown MIDI in every key, instrument, and lesson", () => {
   const modes = ["phrase", "landing", "model"];
-  for (const lesson of LESSONS) {
-    for (const key of KEYS) {
-      for (const instrument of INSTRUMENTS) {
-        for (const mode of modes) {
-          const mei = meiForMode(mode, key, instrument, lesson.applicationId);
+  const representativeKeys = ["C", "Bb", "F#"].map((id) => getKey(id));
+  const representativeInstruments = ["trombone", "piano", "trumpet", "alto-sax"]
+    .map((id) => INSTRUMENTS.find((item) => item.id === id));
+  const coreMatrixApps = new Set([
+    "minor-home", "emr-learn", "bo-learn", "lotus-inspired-learn", "tune-st-thomas-cmar", "tones-major7",
+  ]);
+
+  const cases = [];
+  if (EXHAUSTIVE) {
+    const seenApps = new Set();
+    for (const lesson of LESSONS) {
+      if (seenApps.has(lesson.applicationId)) continue;
+      seenApps.add(lesson.applicationId);
+      cases.push({ lesson, keys: KEYS, instruments: INSTRUMENTS, modes });
+    }
+  } else {
+    const seenApps = new Set();
+    const seenQualities = new Set();
+    const seenVariants = new Set();
+    for (const lesson of LESSONS) {
+      if (seenApps.has(lesson.applicationId)) continue;
+      seenApps.add(lesson.applicationId);
+      if (lesson.group === "chart-tones") {
+        if (lesson.chartTimed) {
+          cases.push({
+            lesson,
+            keys: representativeKeys.slice(0, 2),
+            instruments: [representativeInstruments[1], representativeInstruments[2]],
+            modes: ["landing"],
+          });
+        } else if (lesson.chordQuality && !seenQualities.has(lesson.chordQuality)) {
+          seenQualities.add(lesson.chordQuality);
+          cases.push({ lesson, keys: KEYS, instruments: INSTRUMENTS, modes: ["phrase"] });
+        }
+        continue;
+      }
+      if (lesson.group === "application-practice") {
+        const app = applicationById(lesson.applicationId);
+        const variantKey = `${app.workbookApplicationId}:${app.workbookVariantId}`;
+        if (seenVariants.has(variantKey)) continue;
+        seenVariants.add(variantKey);
+        cases.push({
+          lesson,
+          keys: representativeKeys.slice(0, 2),
+          instruments: [representativeInstruments[0], representativeInstruments[2]],
+          modes: ["phrase", "landing"],
+        });
+        continue;
+      }
+      if (coreMatrixApps.has(lesson.applicationId)) {
+        cases.push({ lesson, keys: KEYS, instruments: INSTRUMENTS, modes });
+      } else {
+        cases.push({ lesson, keys: representativeKeys, instruments: representativeInstruments, modes });
+      }
+    }
+  }
+
+  for (const entry of cases) {
+    for (const key of entry.keys) {
+      for (const instrument of entry.instruments) {
+        for (const mode of entry.modes) {
+          const mei = meiForMode(mode, key, instrument, entry.lesson.applicationId);
           const got = engravedMidis(mei);
           const expected = expectedEngravedMidis({
             concertKey: key,
             displayMode: instrument.id,
-            applicationId: lesson.applicationId,
+            applicationId: entry.lesson.applicationId,
             mode,
           });
           const index = got.findIndex((midi, note) => midi !== expected[note]);
           assert.equal(
             got.length,
             expected.length,
-            `${lesson.id} ${key.id} ${instrument.id} ${mode} count ${got.length} != ${expected.length}`,
+            `${entry.lesson.id} ${key.id} ${instrument.id} ${mode} count ${got.length} != ${expected.length}`,
           );
           assert.equal(
             index,
             -1,
-            `${lesson.id} ${key.id} ${instrument.id} ${mode} note ${index}: ${got[index]} != ${expected[index]}`,
+            `${entry.lesson.id} ${key.id} ${instrument.id} ${mode} note ${index}: ${got[index]} != ${expected[index]}`,
           );
         }
       }

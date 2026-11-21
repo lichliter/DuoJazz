@@ -247,11 +247,12 @@ test("home shares one side gutter and an even stack", async () => {
 test("the lick banner opens the module list and the hamburger is gone", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
   assert.doesNotMatch(index, /modules-menu/);
   assert.doesNotMatch(index, /id="quick-view-btn"/);
   assert.doesNotMatch(index, /id="settings-btn"/);
   assert.match(index, /id="account-chip"[^>]*aria-controls="settings-modal"/);
-  assert.ok(app.includes('Choose a ${module.chart ? "chart" : "lick"}. ${module.name}'));
+  assert.ok(appHome.includes('Choose a ${module.chart ? "chart" : "lick"}. ${module.name}'));
   assert.match(app, /requestQuickView\(\)/);
   const practice = app.slice(app.indexOf("async function beginPracticeLoop"), app.indexOf("async function beginTimedChart"));
   assert.match(practice, /recordBackingConfig\(session\)/);
@@ -265,13 +266,16 @@ test("the lick banner opens the module list and the hamburger is gone", async ()
 test("the module banner uses a chevron and Lesson 2 names the key above the staff", async () => {
   const index = await readFile(new URL("../index.html", import.meta.url), "utf8");
   const app = await readFile(new URL("./app.js", import.meta.url), "utf8");
+  const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
+  const appWrapup = await readFile(new URL("./app-wrapup.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../css/styles.css", import.meta.url), "utf8");
   const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
-  assert.match(app, /banner-chevron/);
-  assert.match(app, /d="M5\.5 9 12 16l6\.5-7"/);
-  assert.doesNotMatch(app, /M9 5\.5 16 12l-7 6\.5/);
-  assert.match(app, /of 12 keys mastered/);
-  assert.doesNotMatch(app, /medal-badge/);
+  const appUi = `${app}\n${appHome}\n${appWrapup}`;
+  assert.match(appHome, /banner-chevron/);
+  assert.match(appHome, /d="M5\.5 9 12 16l6\.5-7"/);
+  assert.doesNotMatch(appUi, /M9 5\.5 16 12l-7 6\.5/);
+  assert.match(appWrapup, /of 12 keys mastered/);
+  assert.doesNotMatch(appUi, /medal-badge/);
   assert.match(styles, /\.banner-chevron/);
   assert.match(index, /id="session-module"/);
   assert.doesNotMatch(index, /id="staff-key"|id="session-key-count"/);
@@ -291,7 +295,7 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(app, /displayMode, "major"\)/);
   assert.match(app, /els\.sessionKey\.hidden = !practice/);
   assert.match(app, /fillMusicLabel\(els\.sessionTitle/);
-  assert.match(index, /\?v=150/);
+  assert.match(index, /js\/app\.js\?v=\d+/);
   assert.doesNotMatch(index, /\?v=145/);
 });
 

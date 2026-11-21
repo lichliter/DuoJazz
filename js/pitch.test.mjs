@@ -1,4 +1,4 @@
-import test, { after } from "node:test";
+import test, { afterEach, suite } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PitchMonitor, RAPID_MIC_CONSTRAINTS, VOICE_MIC_CONSTRAINTS, micCopy } from "./pitch.js";
@@ -7,14 +7,16 @@ import { rapidMicStep } from "./rapid.js";
 const originalWindow = globalThis.window;
 const originalWorkletNode = globalThis.AudioWorkletNode;
 const originalMediaDevices = globalThis.navigator?.mediaDevices;
-after(() => {
+function restorePitchGlobals() {
   if (originalWindow === undefined) delete globalThis.window;
   else globalThis.window = originalWindow;
   if (originalWorkletNode === undefined) delete globalThis.AudioWorkletNode;
   else globalThis.AudioWorkletNode = originalWorkletNode;
-  if (originalMediaDevices === undefined) delete globalThis.navigator.mediaDevices;
-  else globalThis.navigator.mediaDevices = originalMediaDevices;
-});
+  if (globalThis.navigator) {
+    if (originalMediaDevices === undefined) delete globalThis.navigator.mediaDevices;
+    else globalThis.navigator.mediaDevices = originalMediaDevices;
+  }
+}
 
 function fakeCtx() {
   return {
@@ -60,6 +62,9 @@ function installMic() {
   };
   return { calls, tracks };
 }
+
+suite("pitch monitor", () => {
+afterEach(restorePitchGlobals);
 
 test("rapid fire asks for a raw mic and reuses it across attempts", async () => {
   const { calls, tracks } = installMic();
@@ -405,4 +410,5 @@ test('quiet confident horn frames are captured while low-confidence noise is ign
   assert.equal(monitor.observations.length, 0);
   monitor.handleFrame({ hz: 440, amp: 0.004, confidence: 0.95 });
   assert.equal(monitor.observations.length, 1);
+});
 });

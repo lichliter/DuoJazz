@@ -1,4 +1,4 @@
-import test, { after } from "node:test";
+import test, { afterEach, suite } from "node:test";
 import assert from "node:assert/strict";
 import { Transport } from "./audio.js";
 import { BandTransport } from "./sound-engine.js";
@@ -7,10 +7,10 @@ import { createSession, demoAudioConfig } from "./session.js";
 import { expectedNotesFor } from "./grade.js";
 
 const originalWindow = globalThis.window;
-after(() => {
+function restoreWindow() {
   if (originalWindow === undefined) delete globalThis.window;
   else globalThis.window = originalWindow;
-});
+}
 
 class AudioParamMock {
   constructor() {
@@ -149,6 +149,9 @@ function sampledLibrary() {
     drum: () => ({}),
   };
 }
+
+suite("audio transport", () => {
+afterEach(restoreWindow);
 
 test("different sample requests serialize, recheck readiness, and keep the latest instrument", async () => {
   const { transport } = await setup();
@@ -489,3 +492,4 @@ for (const TransportClass of [Transport, BandTransport]) {
     assert.equal(context.state, 'running');
   });
 }
+});

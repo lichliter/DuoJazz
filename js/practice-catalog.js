@@ -13,33 +13,45 @@ export function chordFamily(quality) {
   return quality;
 }
 
+const timelineCache = new WeakMap();
+const soundEndCache = new WeakMap();
+
 export function formTimeline(form) {
+  const cached = timelineCache.get(form);
+  if (cached) return cached;
   let beat = 0;
-  return form.bars.flatMap((bar) => (bar.chords ?? bar).map((chord) => {
+  const timeline = form.bars.flatMap((bar) => (bar.chords ?? bar).map((chord) => {
     const event = { ...chord, beat, end: beat + (chord.durationBeats ?? 4) };
     beat = event.end;
     return event;
   }));
+  timelineCache.set(form, timeline);
+  return timeline;
 }
 
 export function variantSoundEnd(variant) {
+  const cached = soundEndCache.get(variant);
+  if (cached !== undefined) return cached;
   let beat = -variant.pickupBeats;
   let end = 0;
   for (const element of variant.elements) {
     if (element.type === "note") end = beat + element.beats;
     beat += element.beats;
   }
+  soundEndCache.set(variant, end);
   return end;
 }
 
 /** Every sounding beat must fit the stated harmony, including sustained notes. */
-export function matchesAt(timeline, variant, start, anchor) {
-  const needed = variantSoundEnd(variant);
+export function matchesAt(timeline, variant, start, anchor, needed = variantSoundEnd(variant), startIndex = 0) {
   let position = 0;
+  let ti = startIndex;
   for (const expected of variant.pattern) {
     const end = Math.min(position + expected.beats, needed);
     for (let cursor = position; cursor < end - 1e-6;) {
-      const actual = timeline.find((event) => event.beat <= start + cursor + 1e-6 && event.end > start + cursor + 1e-6);
+      const pos = start + cursor;
+      while (ti < timeline.length && timeline[ti].end <= pos + 1e-6) ti += 1;
+      const actual = ti < timeline.length && timeline[ti].beat <= pos + 1e-6 ? timeline[ti] : null;
       if (!actual || chordFamily(actual.quality) !== expected.family
         || (expected.qualities && !expected.qualities.includes(actual.quality))
         || pc(actual.intervalFromTonic) !== pc(anchor + expected.root)) return false;
@@ -53,6 +65,7 @@ export function matchesAt(timeline, variant, start, anchor) {
 
 export function matchApplication(form, variant) {
   const timeline = formTimeline(form);
+  const needed = variantSoundEnd(variant);
   const spots = [];
   let lastEnd = -Infinity;
   for (const [index, event] of timeline.entries()) {
@@ -62,14 +75,14 @@ export function matchApplication(form, variant) {
       && chordFamily(previous.quality) === chordFamily(event.quality)) continue;
     if (event.beat - variant.pickupBeats < lastEnd - 1e-6) continue;
     const anchor = event.intervalFromTonic - variant.pattern[0].root;
-    if (!matchesAt(timeline, variant, event.beat, anchor)) continue;
+    if (!matchesAt(timeline, variant, event.beat, anchor, needed, index)) continue;
     spots.push({
       bar: Math.floor(event.beat / 4) + 1, beatOffset: event.beat % 4,
       anchorInterval: anchor, fragment: "full", elements: variant.elements,
       pickup: variant.pickupBeats > 0, pickupBeats: variant.pickupBeats,
       variantId: variant.id,
     });
-    lastEnd = event.beat + variantSoundEnd(variant);
+    lastEnd = event.beat + needed;
   }
   return spots;
 }
@@ -114,35 +127,66 @@ function exampleForm(id, definition, variant, keyQuality) {
 export function buildPracticeCatalog({ modules, tunes, licks, fragments, applicationById, formById, additionalDefinitions = [] }) {
   const definitions = [...workbookApplicationDefinitions(licks, fragments), ...additionalDefinitions];
   const charts = tunes.map((tune) => ({ id: tune.id, title: tune.title }));
+  const chartsById = new Map(charts.map((chart) => [chart.id, chart]));
+  const chartsBySlug = new Map();
+  for (const chart of charts) {
+    const key = slug(chart.title);
+    if (!chartsBySlug.has(key)) chartsBySlug.set(key, chart);
+  }
   const sources = [];
+  const seenFormIds = new Set();
   for (const module of modules) {
-    for (const lesson of module.lessons.filter((item) => item.kind === "integrate" && item.group !== "your-tunes")) {
+    for (const lesson of module.lessons) {
+      if (lesson.kind !== "integrate" || lesson.group === "your-tunes") continue;
       const app = applicationById(lesson.applicationId);
       const form = formById(app.formId);
       const title = ["minor-home", "altered-dominant"].includes(app.id) ? "Autumn Leaves" : lesson.coverTitle;
-      let chart = charts.find((item) => item.id === (lesson.tuneId ?? app.tuneId ?? form.tuneId))
-        ?? charts.find((item) => slug(item.title) === slug(title));
-      if (!chart && title === "Billie's Bounce") chart = charts.find((item) => item.id === "nows-time");
-      if (!chart) { chart = { id: slug(title), title }; charts.push(chart); }
-      if (!sources.some((source) => source.form.id === form.id)) {
+      const titleSlug = slug(title);
+      let chart = chartsById.get(lesson.tuneId ?? app.tuneId ?? form.tuneId) ?? chartsBySlug.get(titleSlug);
+      if (!chart && title === "Billie's Bounce") chart = chartsById.get("nows-time");
+      if (!chart) {
+        chart = { id: titleSlug, title };
+        charts.push(chart);
+        chartsById.set(chart.id, chart);
+        if (!chartsBySlug.has(titleSlug)) chartsBySlug.set(titleSlug, chart);
+      }
+      if (!seenFormIds.has(form.id)) {
+        seenFormIds.add(form.id);
         sources.push({ chart, form, key: lesson.defaultKeyId, moduleId: module.id });
       }
     }
   }
   for (const tune of tunes) {
-    sources.push({ chart: charts.find((chart) => chart.id === tune.id), form: formById(`tune-${tune.id}`), key: tune.key });
+    sources.push({ chart: chartsById.get(tune.id), form: formById(`tune-${tune.id}`), key: tune.key });
   }
+
+  const modulesById = new Map(modules.map((module) => [module.id, module]));
+  const licksById = new Map(licks.map((lick) => [lick.id, lick]));
+  const sourcesByModule = new Map();
+  for (const source of sources) {
+    if (!source.moduleId) continue;
+    let list = sourcesByModule.get(source.moduleId);
+    if (!list) {
+      list = [];
+      sourcesByModule.set(source.moduleId, list);
+    }
+    list.push(source);
+  }
+  const moduleGroupCounts = new Map();
 
   const forms = {};
   const groups = [];
   const applications = [];
   const lessons = [];
   for (const definition of definitions) {
-    const module = modules.find((item) => item.id === definition.lickId);
-    const lick = licks.find((item) => item.id === definition.lickId);
+    const module = modulesById.get(definition.lickId);
+    const lick = licksById.get(definition.lickId);
     const group = { ...definition, id: `${module.id}:${definition.id}`, moduleId: module.id, choices: [], variants: [] };
     const prefix = `practice-${module.id}-${definition.id}`;
-    const sleeve = ["oxblood", "amber", "teal"][groups.filter((item) => item.moduleId === module.id).length % 3];
+    const groupCount = moduleGroupCounts.get(module.id) ?? 0;
+    moduleGroupCounts.set(module.id, groupCount + 1);
+    const sleeve = ["oxblood", "amber", "teal"][groupCount % 3];
+    const seenChoiceKeys = new Set();
     const register = (id, form, spots, key, chart, variant) => {
       applications.push({
         id, lickId: module.id, formId: form.id, label: definition.label,
@@ -163,6 +207,7 @@ export function buildPracticeCatalog({ modules, tunes, licks, fragments, applica
       });
       return { chartId: chart?.id, lessonId: id, title, context, variantId: variant.id };
     };
+    const moduleSources = sourcesByModule.get(module.id) ?? [];
     for (const [index, variant] of definition.variants.entries()) {
       const exampleId = `${prefix}-example-${variant.id}`;
       const form = exampleForm(`${exampleId}-form`, definition, variant, lick.keyQuality);
@@ -170,13 +215,18 @@ export function buildPracticeCatalog({ modules, tunes, licks, fragments, applica
       register(exampleId, form, [{ bar: 1, beatOffset: 0, anchorInterval: 0, fragment: "full", elements: variant.elements, pickupBeats: variant.pickupBeats, pickup: variant.pickupBeats > 0, variantId: variant.id }], lick.defaultKeyId, null, variant);
       group.variants.push({ id: variant.id, label: variant.label, page: variant.page ?? definition.page, exampleLessonId: exampleId });
       // Prefer the lick's existing excerpt where it satisfies the complete rule.
-      const ordered = [...sources.filter((source) => source.moduleId === module.id), ...sources.filter((source) => source.moduleId !== module.id)];
-      for (const source of ordered) {
-        if (group.choices.some((choice) => choice.chartId === source.chart.id && choice.variantId === variant.id)) continue;
+      const visitSource = (source) => {
+        const choiceKey = `${variant.id}\0${source.chart.id}`;
+        if (seenChoiceKeys.has(choiceKey)) return;
         const spots = matchApplication(source.form, variant);
-        if (!spots.length) continue;
+        if (!spots.length) return;
+        seenChoiceKeys.add(choiceKey);
         const id = `${prefix}-${source.chart.id}${index ? `--${variant.id}` : ""}`;
         group.choices.push(register(id, source.form, spots, source.key, source.chart, variant));
+      };
+      for (const source of moduleSources) visitSource(source);
+      for (const source of sources) {
+        if (source.moduleId !== module.id) visitSource(source);
       }
     }
     group.exampleLessonId = group.variants[0].exampleLessonId;
