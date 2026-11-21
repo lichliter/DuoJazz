@@ -3,10 +3,10 @@ import { startStaticServer } from "../dev-server.mjs";
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
-  "/usr/bin/chromium",
-  "/usr/bin/chromium-browser",
   "/usr/bin/google-chrome-stable",
   "/usr/bin/google-chrome",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].filter(Boolean);
 
