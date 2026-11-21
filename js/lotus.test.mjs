@@ -71,7 +71,7 @@ test('Lotus notation and model agree in all keys, on both horns, with lead-only 
 
 test('Lotus Learn and Master accept the corrected C ending and reject the old E ending', () => {
   for (const kind of ['learn', 'master']) {
-    const session = jumpToCard(createSession({ lessonId: `lotus-inspired-${kind}`, startKeyId: 'F' }), 'play');
+    const session = jumpToCard(createSession({ lessonId: `lotus-inspired-${kind}`, startKeyId: 'F', swing: false }), 'play');
     const notes = expectedNotesFor(session);
     assert.equal(notes.length, 10);
     assert.deepEqual(notes.map(n => n.startBeat), starts);

@@ -5,6 +5,7 @@
 
 import { chordTargetCss, PHONE_STAFF_FLOOR_PX, STAFF_PX } from "./lesson.js";
 import { meiHasBowing } from "./mei.js";
+import { beatsToSeconds, eventUsesSwing } from "./music.js";
 
 const INK = "#2b211a";
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -907,8 +908,30 @@ export function parseTimemap(raw) {
   }
 }
 
+export function playbackTimemap(timemap, phrase, tempo, swing) {
+  // Verovio starts the pickup measure at zero. The audio clock starts at the downbeat.
+  const pickupStart = Math.min(0, phrase[0]?.beat ?? 0);
+  if (!swing && !pickupStart) return timemap;
+
+  const swungIds = new Set();
+  const mapped = [];
+  for (const event of timemap) {
+    const beat = event.qstamp + pickupStart;
+    const note = event.on?.length && phrase.find((item) => Math.abs(item.beat - beat) < 1e-5);
+    const swungBeat = beatsToSeconds(beat, tempo, true) * tempo / 60;
+    for (const id of event.off ?? []) {
+      mapped.push({ qstamp: swungIds.delete(id) ? swungBeat : beat, off: [id] });
+    }
+    for (const id of event.on ?? []) {
+      if (note && eventUsesSwing(note, swing)) swungIds.add(id);
+      mapped.push({ qstamp: swungIds.has(id) ? swungBeat : beat, on: [id] });
+    }
+  }
+  return mapped;
+}
+
 export function soundingIdsAt(timemap, qstamp) {
-  if (!(qstamp >= 0) || !Array.isArray(timemap) || !timemap.length) return [];
+  if (!Number.isFinite(qstamp) || !Array.isArray(timemap) || !timemap.length) return [];
   const events = [...timemap].sort((a, b) => (a.qstamp ?? a.tstamp ?? 0) - (b.qstamp ?? b.tstamp ?? 0));
   const on = new Set();
   for (const ev of events) {
@@ -925,7 +948,7 @@ export function applySoundingHighlight(root, ids) {
   if (!svg?.querySelectorAll) return;
   for (const el of svg.querySelectorAll(".sounding")) el.classList.remove("sounding");
   for (const id of ids ?? []) {
-    const el = svg.querySelector(`[id="${id}"]`) ?? svg.querySelector(`#${id}`);
+    const el = svg.querySelector(`[data-id="${id}"], [id="${id}"]`);
     if (!el) continue;
     el.classList.add("sounding");
     for (const part of el.querySelectorAll(".notehead, .stem, .flag, .accid, .rest, .slash, use, path, text, tspan")) {

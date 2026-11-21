@@ -12,6 +12,7 @@ import {
   phraseEvents,
   wrapPc,
   beatsToSeconds,
+  eventUsesSwing,
 } from "./music.js";
 import {
   currentCard,
@@ -76,7 +77,8 @@ export function expectedNotesFor(session) {
   const octaveBase = octaveForApplication(lesson.applicationId, key.pc, session.displayMode);
   const octaves = spotOctavesFor(lesson.applicationId, key.pc, session.displayMode);
   return events.map((event, index) => {
-    const startBeat = lesson.chartTimed ? beatsToSeconds(event.beat, session.tempo, session.swing) * session.tempo / 60 : event.beat;
+    const swing = eventUsesSwing(event, session.swing);
+    const startBeat = swing ? beatsToSeconds(event.beat, session.tempo, swing) * session.tempo / 60 : event.beat;
     const cellPc = event.cellInterval == null
       ? key.pc
       : wrapPc(key.pc + (event.cellTonicInterval ?? 0));
@@ -87,17 +89,17 @@ export function expectedNotesFor(session) {
       number: index + 1,
       startBeat,
       beats: event.beats,
-      bar: startBeat < 0 ? 1 : Math.floor(startBeat / BEATS_PER_BAR) + 1,
+      bar: event.beat < 0 ? 1 : Math.floor((event.beat + 1e-9) / BEATS_PER_BAR) + 1,
       midi: melodyMidiForInterval(cellPc, interval, session.melodyRegister, oct),
       spotIndex: event.spotIndex ?? 0,
     };
   });
 }
 
-function pickOnset(pool, note, windowBeats, strictTiming = false) {
+function pickOnset(pool, note, windowBeats, strictTiming, nextStartBeat) {
   const start = note.startBeat - windowBeats;
   const lateEnd = note.startBeat + (strictTiming ? 0 : Math.max(note.beats, 1)) + windowBeats;
-  const tightEnd = note.startBeat + windowBeats;
+  const tightEnd = Math.min(note.startBeat + windowBeats, (note.startBeat + nextStartBeat) / 2);
   let best = -1;
   let bestScore = Infinity;
   for (let i = 0; i < pool.length; i += 1) {
@@ -132,9 +134,9 @@ function classifyPitch(cents) {
   return { ok: false, kind: cents < 0 ? "flat" : "sharp" };
 }
 
-function gradeNoteWithPool(note, pool, tempo, strictTiming = false) {
+function gradeNoteWithPool(note, pool, tempo, strictTiming = false, nextStartBeat = Infinity) {
   const windowBeats = strictTiming ? Math.min(timingWindowBeats(tempo), note.beats * 0.45) : timingWindowBeats(tempo);
-  const onset = pickOnset(pool, note, windowBeats, strictTiming);
+  const onset = pickOnset(pool, note, windowBeats, strictTiming, nextStartBeat);
   if (!onset) {
     return {
       ...note,
@@ -206,7 +208,8 @@ export function mostUsefulCorrection(noteResults) {
 
 export function gradePerformance({ expected, observations, tempo, passThreshold = PASS_THRESHOLD, strictTiming = false }) {
   const pool = observations.map((row) => ({ ...row }));
-  const notes = expected.map((note) => gradeNoteWithPool(note, pool, tempo, strictTiming));
+  const notes = expected.map((note, index) =>
+    gradeNoteWithPool(note, pool, tempo, strictTiming, expected[index + 1]?.startBeat));
   const passedCount = notes.filter((note) => note.passed).length;
   const score = notes.length ? passedCount / notes.length : 0;
   const spotIds = [...new Set(notes.map((note) => note.spotIndex ?? 0))];

@@ -126,9 +126,9 @@ test("Diminished Stairsteps keeps its pickup before bar 6 in phrase, model, and 
   assert.deepEqual(phraseEvents(applicationId).map((note) => note.beat), integratedBeats);
   assert.deepEqual(modelSolo(applicationId).map((note) => note.beat), integratedBeats);
   assert.deepEqual(phraseNotes(getKey("C"), "piano", applicationId).slice(0, 3).map((note) => note.startBeat), [19, 19.5, 20]);
-  const isolated = createSession({ lessonId: "dss-learn", startKeyId: "C" });
+  const isolated = createSession({ lessonId: "dss-learn", startKeyId: "C", swing: false });
   assert.deepEqual(expectedNotesFor(isolated).map((note) => note.startBeat), isolatedBeats);
-  const integrated = createSession({ lessonId: "dss-integrate-nows-time", startKeyId: "C" });
+  const integrated = createSession({ lessonId: "dss-integrate-nows-time", startKeyId: "C", swing: false });
   for (const card of ["play", "listen", "quiz"]) {
     const session = jumpToCard(integrated, card);
     const expected = expectedNotesFor(session);

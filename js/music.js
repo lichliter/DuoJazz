@@ -969,7 +969,7 @@ export function swingRatio(tempo) {
 
 export function beatsToSeconds(beats, tempo, swingEnabled) {
   const beatDur = 60 / tempo;
-  if (!swingEnabled || beats < 0) return beats * beatDur;
+  if (!swingEnabled) return beats * beatDur;
   const ratio = swingRatio(tempo);
   const whole = Math.floor(beats + 1e-9);
   const frac = beats - whole;
@@ -977,6 +977,11 @@ export function beatsToSeconds(beats, tempo, swingEnabled) {
   if (frac <= 0.5) extra = (frac / 0.5) * ratio * beatDur;
   else extra = ratio * beatDur + ((frac - 0.5) / 0.5) * (1 - ratio) * beatDur;
   return whole * beatDur + extra;
+}
+
+export function eventUsesSwing(event, swingEnabled) {
+  const melody = event.type === "note" || event.type === "melody";
+  return swingEnabled && event.swing !== false && !event.tuplet && (melody || event.beat >= 0);
 }
 
 function almost(a, b, eps = 1e-6) {

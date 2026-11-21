@@ -1,6 +1,7 @@
 import {
   COUNT_IN_BEATS,
   beatsToSeconds,
+  eventUsesSwing,
 } from "./music.js";
 import { SampleLibrary } from "./sound-samples.js";
 import {
@@ -290,13 +291,19 @@ export class Transport {
     src.stop(time + duration);
   }
 
+  eventTime(event, origin) {
+    const swing = eventUsesSwing(event, this.swing);
+    const start = beatsToSeconds(event.beat, this.tempo, swing);
+    const dur = beatsToSeconds(event.beat + (event.durationBeats ?? 0.5), this.tempo, swing) - start;
+    const time = origin + start;
+    if (time + dur < this.ctx.currentTime) return null;
+    return { time: Math.max(time, this.ctx.currentTime), dur };
+  }
+
   scheduleEvent(event, origin) {
-    const swing = event.swing === false || event.beat < 0 ? false : this.swing;
-    let time = origin + beatsToSeconds(event.beat, this.tempo, swing);
-    const dur = beatsToSeconds(event.beat + (event.durationBeats ?? 0.5), this.tempo, swing)
-      - beatsToSeconds(event.beat, this.tempo, swing);
-    if (time + dur < this.ctx.currentTime) return;
-    if (time < this.ctx.currentTime) time = this.ctx.currentTime;
+    const placed = this.eventTime(event, origin);
+    if (!placed) return;
+    const { time, dur } = placed;
     const vel = event.velocity ?? 0.7;
     const sampled = this.samplesReady();
 

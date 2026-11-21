@@ -1,6 +1,7 @@
 import {
   getKey,
   displayKey,
+  phraseEvents,
   phraseSpanBars,
   chorusChords,
   learnChords,
@@ -30,6 +31,7 @@ import {
   markFirstMelodyNote,
   padViewBoxToInk,
   measureEngraving,
+  playbackTimemap,
   soundingIdsAt,
   whenVerovioReady,
 } from "./engrave.js";
@@ -180,6 +182,7 @@ let session = null;
 let lastNotationLayout = null;
 let lastPlayheadSystem = null;
 let lastTimemap = [];
+let lastPlaybackTimemap = [];
 let lastChordTimings = [];
 let audioError = "";
 let audioNotice = "";
@@ -1588,14 +1591,15 @@ function notationRoot(svg) {
 function updatePlayhead(snap = transport.snapshot()) {
   const svg = els.notation.querySelector("svg");
   if (!svg || !session) return;
-  const active = (snap.playing || snap.paused) && !snap.inCountIn;
+  const active = snap.playing || snap.paused;
   if (!active) {
     applySoundingHighlight(svg, []);
     lastPlayheadSystem = null;
     return;
   }
-  const beats = Math.max(0, snap.beats ?? 0);
-  applySoundingHighlight(svg, soundingIdsAt(lastTimemap, beats));
+  const beats = snap.beats ?? 0;
+  applySoundingHighlight(svg, soundingIdsAt(lastPlaybackTimemap, beats));
+  if (snap.inCountIn) return;
   highlightActiveChords(svg, beats, lastChordTimings);
   const view = sessionPresentation(session);
   const barsOnStaff = lastNotationLayout?.barsPerLine
@@ -1772,6 +1776,7 @@ function renderNotation() {
     notationGen += 1;
     notationRenderKey = null;
     lastTimemap = [];
+    lastPlaybackTimemap = [];
     lastChordTimings = [];
     els.notation.replaceChildren();
     lastPlayheadSystem = null;
@@ -1811,12 +1816,14 @@ function renderNotation() {
     });
   const renderKey = JSON.stringify([session.lessonId, mei, layout, width, spec.memory && !notesRevealed]);
   if (notationRenderKey === renderKey) {
+    updatePlaybackTimemap();
     fitNotationInView();
     updatePlayhead();
     return;
   }
   notationRenderKey = renderKey;
   lastTimemap = [];
+  lastPlaybackTimemap = [];
   lastChordTimings = chordTimingsFor(session);
   lastNotationLayout = {
     ...layout,
@@ -1843,6 +1850,7 @@ function renderNotation() {
     };
     lastEngraveMs = engraved.elapsedMs;
     lastTimemap = engraved.timemap ?? [];
+    updatePlaybackTimemap();
     if (els.notation.classList.contains("notation-memory")) markFirstMelodyNote(els.notation);
     fitNotationInView();
     updatePlayhead();
@@ -1851,6 +1859,13 @@ function renderNotation() {
     notationRenderKey = null;
     els.notation.replaceChildren();
   });
+}
+
+function updatePlaybackTimemap() {
+  const lesson = lessonById(session.lessonId);
+  const isolated = sessionEngraveSpec(session).mei === "phrase";
+  const phrase = phraseEvents(lesson.applicationId, isolated);
+  lastPlaybackTimemap = playbackTimemap(lastTimemap, phrase, session.tempo, session.swing);
 }
 
 function renderInstruments() {

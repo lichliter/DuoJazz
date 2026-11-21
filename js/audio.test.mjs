@@ -229,12 +229,17 @@ for (const [lessonId, pickupStarts] of [
       const melody = [];
       const scheduleEvent = transport.scheduleEvent.bind(transport);
       transport.scheduleEvent = (event, origin) => {
-        if (event.type === "melody") melody.push({ beat: event.beat, midi: event.midi });
+        if (event.type === "melody") {
+          const { time } = transport.eventTime(event, origin);
+          melody.push({ beat: event.beat, startBeat: (time - origin) * session.tempo / 60, midi: event.midi });
+        }
         scheduleEvent(event, origin);
       };
       await transport.start(demoAudioConfig(session));
       assert.deepEqual(melody.slice(0, pickupStarts.length).map((note) => note.beat), pickupStarts);
-      assert.deepEqual(melody, expectedNotesFor(session).map((note) => ({ beat: note.startBeat, midi: note.midi })));
+      const expected = expectedNotesFor(session);
+      assert.deepEqual(melody.map((note) => note.midi), expected.map((note) => note.midi));
+      melody.forEach((note, index) => almost(note.startBeat, expected[index].startBeat));
       assert.equal(transport.snapshot().inCountIn, true);
       transport.stop();
     });
@@ -293,6 +298,11 @@ for (const TransportClass of [Transport, BandTransport]) {
     const oscillator = context.created[before];
     const shortEighth = beatsToSeconds(1, 120, true) - beatsToSeconds(0.5, 120, true);
     almost(oscillator.stopAt - oscillator.startAt - 0.05, shortEighth * 0.92);
+    const pickup = { type: "melody", beat: -0.5, durationBeats: 0.5 };
+    const played = transport.eventTime(pickup, 10);
+    almost(played.time, 10 - shortEighth);
+    almost(played.dur, shortEighth);
+    almost(transport.eventTime({ ...pickup, swing: false }, 10).time, 9.75);
   });
 
   test(`${TransportClass.name} keeps repeated early and late loop boundaries on the audio clock`, async () => {

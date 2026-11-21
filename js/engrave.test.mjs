@@ -19,6 +19,7 @@ import {
   slashRecenterDelta,
   smuflChordChar,
   soundingIdsAt,
+  playbackTimemap,
   staffCssFromPage,
   STAFF_USER_UNITS,
   svgHasBowingMarks,
@@ -524,6 +525,37 @@ test("timemap highlight picks the event covering the current quarter", () => {
   assert.deepEqual(soundingIdsAt(timemap, 1.1), ["n2"]);
   assert.deepEqual(soundingIdsAt(timemap, 3.5), ["n3"]);
   assert.deepEqual(soundingIdsAt(timemap, -1), []);
+});
+
+test("playhead follows swung pickups and offbeats while keeping tuplets and straight notes on time", () => {
+  const timemap = [
+    { qstamp: 0, on: ["pickup"] },
+    { qstamp: 0.5, off: ["pickup"], on: ["downbeat"] },
+    { qstamp: 1, off: ["downbeat"], on: ["offbeat"] },
+    { qstamp: 1.5, off: ["offbeat"], on: ["triplet"] },
+    { qstamp: 1.833333, off: ["triplet"], on: ["triplet2"] },
+    { qstamp: 2.5, off: ["triplet2"], on: ["straightDownbeat"] },
+    { qstamp: 3, off: ["straightDownbeat"], on: ["straightOffbeat"] },
+  ];
+  const phrase = [
+    { type: "note", beat: -0.5 },
+    { type: "note", beat: 0 },
+    { type: "note", beat: 0.5 },
+    { type: "note", beat: 1, tuplet: 3 },
+    { type: "note", beat: 1 + 1 / 3, tuplet: 3 },
+    { type: "note", beat: 2, swing: false },
+    { type: "note", beat: 2.5, swing: false },
+  ];
+  const swung = playbackTimemap(timemap, phrase, 96, true);
+  assert.deepEqual(soundingIdsAt(swung, -0.45), []);
+  assert.deepEqual(soundingIdsAt(swung, -0.3), ["pickup"]);
+  assert.deepEqual(soundingIdsAt(swung, 0.55), ["downbeat"]);
+  assert.deepEqual(soundingIdsAt(swung, 0.7), ["offbeat"]);
+  assert.deepEqual(soundingIdsAt(swung, 1.34), ["triplet2"]);
+  assert.deepEqual(soundingIdsAt(swung, 2.55), ["straightOffbeat"]);
+  const straight = playbackTimemap(timemap, phrase, 96, false);
+  assert.deepEqual(soundingIdsAt(straight, -0.45), ["pickup"]);
+  assert.deepEqual(soundingIdsAt(straight, 0.55), ["offbeat"]);
 });
 
 test("home controls and session paper match the simplify revision", async () => {

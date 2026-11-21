@@ -4,7 +4,6 @@
  */
 
 import { Transport } from "./audio.js";
-import { beatsToSeconds } from "./music.js";
 import { countInEvents, isSampledEngine } from "./sound-band.js";
 
 function midiToHz(midi) {
@@ -84,16 +83,6 @@ export class BandTransport extends Transport {
     if (countIn) this.scheduleCountIn(origin);
     for (const event of events) this.scheduleEvent(event, origin);
     this.chorusLengthBeats = config.lengthBeats ?? 0;
-  }
-
-  eventTime(event, origin) {
-    const swing = event.swing === false || event.beat < 0 ? false : this.swing;
-    let time = origin + beatsToSeconds(event.beat, this.tempo, swing);
-    const dur = beatsToSeconds(event.beat + (event.durationBeats ?? 0.5), this.tempo, swing)
-      - beatsToSeconds(event.beat, this.tempo, swing);
-    if (time + dur < this.ctx.currentTime) return null;
-    if (time < this.ctx.currentTime) time = this.ctx.currentTime;
-    return { time, dur };
   }
 
   scheduleEvent(event, origin) {
