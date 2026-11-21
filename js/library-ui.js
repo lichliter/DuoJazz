@@ -43,6 +43,7 @@ export function setupLibraryPicker({
   let browsing = false;
   let category = null;
   let activePlay = null;
+  let revealedRow = null;
 
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) {
@@ -133,6 +134,84 @@ export function setupLibraryPicker({
     return copy;
   }
 
+  function revealRow(row) {
+    if (revealedRow === row) return;
+    if (revealedRow) delete revealedRow.dataset.revealed;
+    revealedRow = row;
+    if (row) row.dataset.revealed = 'true';
+  }
+
+  function enableSwipe(row, pick, remove, removeItem) {
+    let gesture = null;
+    let suppressClick = false;
+
+    pick.addEventListener('click', event => {
+      if (suppressClick && event.detail !== 0) event.stopImmediatePropagation();
+    }, { capture: true });
+
+    pick.onpointerdown = event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      suppressClick = false;
+      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, start: revealedRow === row ? remove.offsetWidth : 0 };
+    };
+
+    pick.onpointermove = event => {
+      if (gesture?.id !== event.pointerId || !event.buttons) return;
+      const dx = gesture.x - event.clientX;
+      const dy = Math.abs(gesture.y - event.clientY);
+      if (!gesture.dragging) {
+        if (Math.max(Math.abs(dx), dy) < 10) return;
+        if (dy >= Math.abs(dx)) {
+          gesture = null;
+          return;
+        }
+        gesture.dragging = true;
+        row.dataset.dragging = 'true';
+        pick.setPointerCapture(event.pointerId);
+      }
+      const distance = Math.min(row.clientWidth, Math.max(0, gesture.start + dx));
+      row.style.setProperty('--rotation-row-offset', `${-distance}px`);
+    };
+
+    function finishSwipe(event, cancelled) {
+      if (gesture?.id !== event.pointerId) return;
+      const { dragging, start, x } = gesture;
+      gesture = null;
+      if (!dragging) return;
+      suppressClick = true;
+      delete row.dataset.dragging;
+      row.style.removeProperty('--rotation-row-offset');
+      if (cancelled) return;
+      const distance = start + x - event.clientX;
+      if (distance >= Math.max(remove.offsetWidth + 32, row.clientWidth * 0.6)) {
+        removeItem();
+      } else {
+        revealRow(distance >= remove.offsetWidth / 2 ? row : null);
+      }
+    }
+
+    pick.onpointerup = event => finishSwipe(event, false);
+    pick.onpointercancel = event => finishSwipe(event, true);
+    pick.onlostpointercapture = event => {
+      if (event.target === pick) finishSwipe(event, true);
+    };
+    remove.onfocus = () => revealRow(row);
+    row.onfocusout = event => {
+      if (revealedRow === row && !row.contains(event.relatedTarget)) revealRow(null);
+    };
+    pick.setAttribute('aria-keyshortcuts', 'ArrowLeft');
+    row.onkeydown = event => {
+      if (event.key === 'ArrowLeft' && event.target === pick) {
+        event.preventDefault();
+        remove.focus();
+      } else if (event.key === 'ArrowRight' && revealedRow === row) {
+        event.preventDefault();
+        revealRow(null);
+        pick.focus();
+      }
+    };
+  }
+
   function rotationRow(item, progress) {
     const row = element('div', 'library-picker-row');
     row.dataset.current = String(item.id === currentId(type));
@@ -143,23 +222,17 @@ export function setupLibraryPicker({
     if (progress > 0) pick.append(masteryBadge(progress));
     row.append(pick);
     if (item.id !== 'chord-tones') {
-      const menu = element('details', 'library-menu');
-      const label = `Options for ${item.name ?? item.title}`;
-      const summary = element('summary', 'library-action', '⋯');
-      summary.setAttribute('aria-label', label);
-      summary.onclick = () => {
-        for (const other of list.querySelectorAll('details[open]')) if (other !== menu) other.open = false;
-      };
-      const remove = button('Remove', () => {
+      const removeItem = () => {
         const next = row.nextElementSibling?.querySelector('button') ?? row.previousElementSibling?.querySelector('button');
         const nextId = next?.dataset.testid;
         updateMembership(item, false);
         render();
         (list.querySelector(`[data-testid="${nextId}"]`) ?? browseButton).focus();
-      });
+      };
+      const remove = button('Remove', removeItem, 'library-remove');
       remove.setAttribute('aria-label', `Remove ${item.name ?? item.title}`);
-      menu.append(summary, remove);
-      row.append(menu);
+      row.append(remove);
+      enableSwipe(row, pick, remove, removeItem);
     }
     return row;
   }
@@ -184,6 +257,7 @@ export function setupLibraryPicker({
     // A settings refresh or navigation can replace the button for an active preview.
     stop();
     observer.disconnect();
+    revealRow(null);
     const query = search.value.trim().toLocaleLowerCase();
     const rotation = getRotation(type);
     const progress = getProgress(type);
@@ -263,6 +337,9 @@ export function setupLibraryPicker({
       if (browsing && type === 'licks') void previewAudio.prepare().catch(() => {});
     };
   }
+  dialog.addEventListener('pointerdown', event => {
+    if (revealedRow && !revealedRow.contains(event.target)) revealRow(null);
+  });
   dialog.addEventListener('close', () => {
     if (dialog.open) return;
     observer.disconnect();

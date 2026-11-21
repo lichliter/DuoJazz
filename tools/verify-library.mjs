@@ -5,11 +5,12 @@ import { createCloudMock, launchBrowser, poll, withAppUrl } from './lib/browser-
 await mkdir('artifacts', { recursive: true });
 const cloud = createCloudMock();
 
-async function device(browser, appUrl, viewport = { width: 820, height: 1180 }, record = true) {
+async function device(browser, appUrl, viewport = { width: 820, height: 1180 }) {
   const context = await browser.newContext({
     viewport,
     serviceWorkers: 'block',
-    ...(record && { recordVideo: { dir: 'artifacts/library-videos' } }),
+    hasTouch: viewport.width < 600,
+    recordVideo: { dir: 'artifacts/library-videos' },
   });
   await cloud.installRoutes(context);
   const page = await context.newPage();
@@ -21,6 +22,18 @@ async function device(browser, appUrl, viewport = { width: 820, height: 1180 }, 
   await page.goto(appUrl, { waitUntil: 'networkidle' });
   await page.locator('#account-chip').click();
   return { context, page, errors };
+}
+
+async function swipeTouch(cdp, row, dx, dy = 0) {
+  const { x, y, width, height } = await row.boundingBox();
+  const startX = x + width * (dx < -100 ? 0.87 : 0.38);
+  const centerY = y + height / 2;
+  const dispatch = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  await dispatch('touchStart', [{ x: startX, y: centerY }]);
+  for (let step = 1; step <= 8; step++) {
+    await dispatch('touchMove', [{ x: startX + dx * step / 8, y: centerY + dy * step / 8 }]);
+  }
+  await dispatch('touchEnd', []);
 }
 
 const results = [];
@@ -137,19 +150,35 @@ await withAppUrl(async (appUrl) => {
     assert.deepEqual(a.errors, []);
     await a.context.close();
     await video.saveAs('artifacts/rotation-tablet-flow.webm');
-    const fresh = await device(browser, appUrl, undefined, false);
+    const fresh = await device(browser, appUrl);
+    const swipeVideo = fresh.page.video();
     await fresh.page.locator('#settings-close').click();
     await fresh.page.locator('#lesson-list .module-banner').click();
     await fresh.page.locator('[data-library-tab="charts"]').click();
     await fresh.page.locator('[data-testid="quick-view-chart-autumn-leaves"]').click();
     assert.equal(await fresh.page.locator('[data-testid="lesson-chart-favorite-cmar"]').count(), 1);
     await fresh.page.locator('#chart-tree .module-banner').click();
-    await fresh.page.getByLabel('Options for Autumn Leaves', { exact: true }).click();
-    await fresh.page.getByRole('button', { name: 'Remove Autumn Leaves', exact: true }).click();
+    const chartPick = fresh.page.getByTestId('quick-view-chart-autumn-leaves');
+    const chartRow = chartPick.locator('..');
+    const chartRemove = fresh.page.getByRole('button', { name: 'Remove Autumn Leaves', exact: true });
+    await chartPick.focus();
+    await chartPick.press('ArrowLeft');
+    assert.equal(await chartRemove.evaluate(button => button === document.activeElement), true);
+    await chartRemove.press('ArrowRight');
+    assert.equal(await chartRow.getAttribute('data-revealed'), null);
+    const { x, y, width, height } = await chartRow.boundingBox();
+    await fresh.page.mouse.move(x + width * 0.8, y + height / 2);
+    await fresh.page.mouse.down();
+    await fresh.page.mouse.move(x + width * 0.8 - 75, y + height / 2, { steps: 8 });
+    await fresh.page.mouse.up();
+    assert.equal(await chartRow.getAttribute('data-revealed'), 'true');
+    await fresh.page.screenshot({ animations: 'disabled', path: 'artifacts/rotation-ipad-remove.png' });
+    await chartRemove.click();
     await poll(() => cloud.rows.get('test-account-a:chart:autumn-leaves')?.value === false);
     assert.deepEqual(fresh.errors, []);
     await fresh.context.close();
-    results.push('PASS: both rotations restore on a fresh device and chart removal saves');
+    await swipeVideo.saveAs('artifacts/rotation-ipad-remove.webm');
+    results.push('PASS: both rotations restore on a fresh device, and partial drag and keyboard reveal chart removal');
     const earned = { user_id: 'test-account-a', lesson_id: 'fe-master', key_id: 'C', kind: 'passedKeys' };
     cloud.progress.set('test-account-a:fe-master:C:passedKeys', earned);
     const mobile = await device(browser, appUrl, { width: 390, height: 844 });
@@ -186,6 +215,28 @@ await withAppUrl(async (appUrl) => {
     await mobile.page.screenshot({ animations: 'disabled', path: 'artifacts/library-mobile-applications.png' });
     assert.equal(await mobile.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     results.push('PASS: phone layout, My Rotation, and a lick with no supported chart application');
+    await mobile.page.getByRole('button', { name: 'Close applications', exact: true }).click();
+    await mobile.page.locator('#chart-tree .module-banner').click();
+    await mobile.page.locator('[data-library-tab="licks"]').click();
+    const lickPick = mobile.page.getByTestId('quick-view-module-gts');
+    const lickRow = lickPick.locator('..');
+    const cdp = await mobile.context.newCDPSession(mobile.page);
+    await swipeTouch(cdp, lickRow, -70);
+    await mobile.page.waitForFunction(() => document.querySelector('[data-testid=quick-view-module-gts]').parentElement.dataset.revealed === 'true');
+    await mobile.page.screenshot({ animations: 'disabled', path: 'artifacts/rotation-phone-remove.png' });
+    await swipeTouch(cdp, lickRow, 65);
+    await mobile.page.waitForFunction(() => !document.querySelector('[data-testid=quick-view-module-gts]').parentElement.dataset.revealed);
+    await swipeTouch(cdp, lickRow, -295);
+    await lickPick.waitFor({ state: 'detached' });
+    await poll(() => cloud.rows.get('test-account-a:lick:gts')?.value === false);
+    assert.equal(await mobile.page.locator('#quick-view').isVisible(), true);
+    results.push('PASS: partial touch swipe reveals Remove, right swipe closes it, and full left swipe removes the lick');
+    await mobile.page.setViewportSize({ width: 390, height: 360 });
+    const firstSwipeableRow = mobile.page.getByTestId('quick-view-module-cmar').locator('..');
+    await swipeTouch(cdp, firstSwipeableRow, 0, -100);
+    await mobile.page.waitForFunction(() => document.getElementById('quick-view-list').scrollTop > 0);
+    assert.equal(await firstSwipeableRow.getAttribute('data-revealed'), null);
+    results.push('PASS: a vertical touch swipe still scrolls the rotation list');
     assert.deepEqual(mobile.errors, []);
     await mobile.context.close();
     await phoneVideo.saveAs('artifacts/rotation-phone-flow.webm');
