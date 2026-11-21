@@ -463,6 +463,7 @@ test("practice screen tempo controls save per-lick overrides without altering th
     applySession(next) { context.session = next; },
   });
   context.els.sessionTempoInput = { value: "" };
+  context.els.sessionTempoTap = { textContent: "" };
   context.els.sessionTempoReset = { hidden: true, textContent: "" };
   context.els.tempoModalContext = { textContent: "" };
 
@@ -474,7 +475,10 @@ test("practice screen tempo controls save per-lick overrides without altering th
   assert.equal(context.session.tempo, 80);
   assert.equal(context.prefs.tempo, 96);
   assert.equal(sessions.hasLessonTempoOverride(context.prefs, "learn-lick"), true);
+  assert.equal(context.els.tempoModalContext.textContent, "Cry Me a River");
+  assert.equal(context.els.sessionTempoTap.textContent, "Tap");
   assert.equal(context.els.sessionTempoReset.hidden, false);
+  assert.equal(context.els.sessionTempoReset.textContent, "Reset");
 
   // Typing a tempo directly in the modal input updates the lick's override.
   context.els.sessionTempoInput.value = "74";

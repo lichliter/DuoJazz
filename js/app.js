@@ -1393,15 +1393,8 @@ function renderSessionTempo() {
   readout.dataset.overridden = String(overridden);
   readout.setAttribute("aria-haspopup", "dialog");
   readout.setAttribute("aria-controls", "tempo-modal");
-  readout.setAttribute(
-    "aria-label",
-    overridden
-      ? `Tempo ${current} bpm (custom)`
-      : `Tempo ${current} bpm`,
-  );
-  readout.title = overridden
-    ? `Tempo ${current} bpm (custom for this lick)`
-    : `Tempo ${current} bpm`;
+  readout.setAttribute("aria-label", `Tempo ${current} bpm`);
+  readout.title = `Tempo ${current} bpm`;
   readout.addEventListener("click", () => openTempoModal());
 
   const value = document.createElement("span");
@@ -1423,9 +1416,7 @@ function renderTempoModal({ keepInput = false } = {}) {
   const overridden = hasLessonTempoOverride(prefs, session.lessonId) || current !== defaultTempo;
   const moduleName = moduleForLesson(session.lessonId).name;
   if (els.tempoModalContext) {
-    els.tempoModalContext.textContent = overridden
-      ? `Custom for ${moduleName} · default is ${defaultTempo} bpm`
-      : `Default tempo (${defaultTempo} bpm) · adjusting sets a custom tempo for ${moduleName}`;
+    els.tempoModalContext.textContent = moduleName;
   }
   if (els.sessionTempoInput && !keepInput) {
     els.sessionTempoInput.value = String(current);
@@ -1433,11 +1424,11 @@ function renderTempoModal({ keepInput = false } = {}) {
   if (els.sessionTempoDown) els.sessionTempoDown.disabled = current <= 60;
   if (els.sessionTempoUp) els.sessionTempoUp.disabled = current >= 160;
   if (els.sessionTempoTap) {
-    els.sessionTempoTap.textContent = tempoTaps.length === 1 ? "Keep tapping…" : "Tap tempo";
+    els.sessionTempoTap.textContent = "Tap";
   }
   if (els.sessionTempoReset) {
     els.sessionTempoReset.hidden = !overridden;
-    els.sessionTempoReset.textContent = `Reset to default (${defaultTempo} bpm)`;
+    els.sessionTempoReset.textContent = "Reset";
   }
 }
 

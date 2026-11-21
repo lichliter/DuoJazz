@@ -1076,7 +1076,7 @@ button.module-banner {
   flex-direction: row;
   align-items: center;
   flex: 0 0 auto;
-  margin-inline: auto;
+  margin-right: auto;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1104,22 +1104,6 @@ button.module-banner {
   filter: brightness(0.94);
 }
 
-.session-tempo .tempo-readout-btn[data-overridden="true"] {
-  background: color-mix(in srgb, var(--tint-solid) 26%, var(--fill));
-  border-color: color-mix(in srgb, var(--tint) 45%, var(--separator));
-}
-
-.session-tempo .tempo-readout-btn[data-overridden="true"]::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--tint);
-}
-
 .session-tempo .tempo-bpm-value {
   font: 700 15px/1.05 var(--font);
   color: var(--label);
@@ -1130,11 +1114,6 @@ button.module-banner {
   color: var(--label-secondary);
   text-transform: lowercase;
   letter-spacing: 0.02em;
-}
-
-.session-tempo .tempo-readout-btn[data-overridden="true"] .tempo-bpm-value,
-.session-tempo .tempo-readout-btn[data-overridden="true"] .tempo-bpm-unit {
-  color: var(--tint);
 }
 
 .tempo-modal {
@@ -1151,7 +1130,9 @@ button.module-banner {
 
 .tempo-modal-context {
   margin: 0;
-  text-align: center;
+  align-self: stretch;
+  width: 100%;
+  text-align: left;
   font: var(--text-footnote);
   color: var(--label-secondary);
 }
@@ -2083,13 +2064,6 @@ button.module-banner {
     min-width: 96px;
     padding: 0 18px;
     gap: 2px;
-  }
-
-  .session-screen .session-tempo .tempo-readout-btn[data-overridden="true"]::after {
-    top: 8px;
-    right: 8px;
-    width: 7px;
-    height: 7px;
   }
 
   .session-screen .session-tempo .tempo-bpm-value {
