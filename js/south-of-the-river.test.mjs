@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { MODULES, PRACTICE_CATALOG, applicationById, formById, spotsFor, lickById, learnBeatsFor } from './registry.js';
-import { getKey, phraseNotes, phraseABC, phraseMeasureCount, phraseTimeline, scheduleChorus, chorusChords, beamGroupsCrossBeat3 } from './music.js';
+import { getKey, phraseNotes, phraseABC, phraseMeasureCount, phraseTimeline, scheduleChorus, chorusChords, beamGroupsCrossBeat3, swingRatio } from './music.js';
 import { TWELVE_KEY_IDS, createSession, jumpToCard, defaultPrefs, demoAudioConfig, recordBackingConfig } from './session.js';
 import { expectedNotesFor, gradeSession, synthTrack, hzFromMidi } from './grade.js';
 import { runFollower, octaveModeForLesson } from './follow.js';
@@ -30,6 +30,11 @@ const nearList = (actual, expected) => {
   assert.equal(actual.length, expected.length);
   actual.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-6, `${i}: ${v} !== ${expected[i]}`));
 };
+
+function swungStartsAt(tempo) {
+  const ratio = swingRatio(tempo);
+  return starts.map((beat, i) => i >= 4 && beat % 1 === 0.5 ? Math.floor(beat) + ratio : beat);
+}
 
 test('South of the River doubles the isolated rhythm while preserving the pitches and bar 3 resolution', async () => {
   const notes = phraseNotes(getKey('G'), 'concert', appId);
@@ -120,7 +125,8 @@ test('South of the River building blocks preserve the half-time phrase across ke
     for (const lesson of module.lessons) {
       const session = jumpToCard(createSession({ lessonId: lesson.id, startKeyId: 'G' }), 'play');
       const notes = expectedNotesFor(session);
-      nearList(notes.map(n => n.startBeat), blockStarts);
+      nearList(notes.map(n => n.startBeat), swungStartsAt(session.tempo).slice(block.from, block.to).map(beat => beat - block.offset));
+      nearList(expectedNotesFor({ ...session, swing: false }).map(n => n.startBeat), blockStarts);
       assert.equal(demoAudioConfig(session).lengthBeats, block.length);
       assert.equal(gradeSession(session, synthTrack(notes)).passed, true);
       const wrong = notes.map(n => ({ ...n, midi: n.midi + 1 }));
@@ -175,7 +181,8 @@ test('South of the River notation and model agree in all keys, on both horns, wi
     assert.deepEqual(model.map(e => e.midi), notes.map(n => n.concertMidi));
     nearList(model.map(e => e.beat), starts);
     nearList(model.map(e => e.durationBeats), durations);
-    assert.ok(model.slice(0, -1).every(e => e.swing === false));
+    assert.ok(model.slice(0, 4).every(e => e.swing === false));
+    assert.ok(model.slice(4, -1).every(e => e.swing === true));
     const shiftedUp = scheduleChorus({ ...config, melodyRegister: 1 });
     assert.deepEqual(shiftedUp.filter(e => e.type === 'melody').map(e => e.midi), model.map(e => e.midi + 12));
     assert.deepEqual(shiftedUp.filter(e => e.type !== 'melody'), events.filter(e => e.type !== 'melody'));
@@ -190,7 +197,8 @@ test('South of the River Learn and Master grade the 17-note phrase and reject wr
     const session = jumpToCard(createSession({ lessonId: `south-of-the-river-${kind}`, startKeyId: 'G' }), 'play');
     const notes = expectedNotesFor(session);
     assert.equal(notes.length, 17);
-    nearList(notes.map(n => n.startBeat), starts);
+    nearList(notes.map(n => n.startBeat), swungStartsAt(session.tempo));
+    nearList(expectedNotesFor({ ...session, swing: false }).map(n => n.startBeat), starts);
     assert.equal(demoAudioConfig(session).lengthBeats, 12);
     assert.equal(gradeSession(session, synthTrack(notes)).passed, true);
     const wrong = notes.map((n, i) => (i === notes.length - 1 ? { ...n, midi: n.midi - 2 } : n));
@@ -227,6 +235,7 @@ test('South of the River integrations have valid vamps, real charts, and matchin
       assert.deepEqual(model.map(e => e.midi), notes.map(n => n.concertMidi));
       nearList(model.map(e => e.beat), notes.map(n => n.startBeat));
       nearList(model.slice(0, originalDurations.length).map(e => e.durationBeats), originalDurations);
+      assert.ok(model.slice(0, -1).filter(e => e.durationBeats < 1).every(e => e.swing === false));
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(e => e.type !== 'melody'));
       const mei = chorusStaffMEI({ concertKey: getKey('G'), displayMode: 'concert', applicationId: config.applicationId, mode: 'landing' });
       assert.doesNotMatch(mei, /accid="(?:ss|ff)"/);

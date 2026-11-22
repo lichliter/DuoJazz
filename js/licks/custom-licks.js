@@ -50,6 +50,7 @@ function halfTime(elements) {
   return elements.map((element) => ({
     ...element,
     beats: element.beats * 2,
+    ...(element.beats === 0.25 && { swing: true }),
     ...(element.tuplet === 6 && { tupletSpanBeats: 2 }),
   }));
 }
@@ -67,7 +68,7 @@ const southBlocks = [
     originalElements: [...southOpening, R(2)],
     elements: halfTimeOpening,
     bars: [southTonicBar],
-    summary: "Play the eighth-note sextuplet across beats 1 and 2, then finish the figure in straight eighths.",
+    summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
     minorHomeDescription: "Use the natural sixth in the sextuplet, then climb from the ninth to the seventh in straight sixteenths.",
   },
   {
@@ -77,7 +78,7 @@ const southBlocks = [
     originalElements: [...southLanding, R(1)],
     elements: halfTimeLanding,
     bars: [southTonicBar, southLandingBar],
-    summary: "Climb in straight eighths, then descend chromatically to the half-note landing on the next downbeat.",
+    summary: "Swing the eighths through the climb and chromatic descent, then land on the next downbeat.",
     minorHomeDescription: "Climb from the fifth, then descend chromatically to the minor third over the same chord.",
   },
 ];
@@ -328,7 +329,7 @@ export const CUSTOM_LICKS = [
         applicationId: "south-of-the-river-learn",
         title: "Learn the lick",
         coverTitle: "Learn the lick",
-        summary: "Play the eighth-note sextuplet across beats 1 and 2, then climb in straight eighths across two bars. Walk down chromatically to B♭ on the downbeat of bar 3.",
+        summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths from beat 3. Walk down chromatically to B♭ on the downbeat of bar 3.",
         context: "Minor i → iv · Half-time practice",
         defaultKeyId: "G",
       }],

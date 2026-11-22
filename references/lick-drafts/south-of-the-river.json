@@ -86,7 +86,7 @@
   "halfTimePractice": {
     "appliesTo": "Learn and Master for the full phrase and both building blocks. Integrate uses the original rhythm and chart placements.",
     "durationMultiplier": 2,
-    "entrance": "The opening rest and E–F–A–C form an eighth-note sextuplet across beats 1–2. The straight eighths begin on beat 3.",
+    "entrance": "The opening rest and E–F–A–C form an evenly spaced eighth-note sextuplet across beats 1–2. The eighths from beat 3 follow the Swing eighths setting.",
     "learnHarmony": "Two bars of Gm7 then one of Cm7. Half-note B♭ lands on bar 3 beat 1.",
     "endRestBeats": 2
   },
