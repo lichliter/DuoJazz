@@ -204,15 +204,68 @@ button.module-banner {
   cursor: pointer;
 }
 
+.module-header {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.rotation-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 20px;
+  border: 1px solid color-mix(in srgb, var(--tint) 38%, var(--separator));
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  color: var(--tint);
+  font: var(--text-headline);
+  cursor: pointer;
+}
+
+.rotation-add-button:hover {
+  background: var(--fill);
+}
+
+.rotation-add-button:active {
+  background: var(--fill-pressed);
+}
+
+.rotation-add-button:focus-visible {
+  outline: 2px solid var(--tint);
+  outline-offset: 2px;
+}
+
+.rotation-add-plus {
+  font-size: 1.25em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lesson-path {
+  --road-content-width: min(100%, calc(var(--path-right) - var(--path-left) + var(--sleeve-size)));
+}
+
+@media (max-width: 720px) {
+  .lesson-path {
+    --road-content-width: calc(100% - 1.6rem);
+  }
+}
+
 .lesson-section { display: grid; gap: 20px; min-width: 0; padding-top: 16px; }
 .lesson-section + .lesson-section { margin-top: 16px; }
 .lesson-section-title { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; margin: 0 0 4px; padding: 8px 0; background: var(--bg); color: var(--label); font: var(--text-title-3); text-transform: none; letter-spacing: 0; }
 .lesson-section-title::after { content: ''; height: 1px; flex: 1; background: var(--separator); }
 .related-licks { position: relative; z-index: 1; padding-top: 8px; }
+.lesson-section + .related-licks { margin-top: 16px; }
 .related-licks-list {
-  margin: 0;
+  width: var(--road-content-width);
+  margin: 8px auto 0;
   padding: 0;
   list-style: none;
+  overflow: hidden;
   border: 1px solid var(--separator);
   border-radius: var(--radius-lg);
   background: var(--bg-base);
@@ -248,6 +301,12 @@ button.module-banner {
   transform: translateY(-50%) rotate(45deg);
 }
 .related-licks-row:hover { background: var(--tint-fill); }
+
+.path-end,
+.path-end-next {
+  width: var(--road-content-width);
+  padding: 1rem 0 1.5rem;
+}
 
 .app-tab-bar {
   position: fixed;
@@ -1802,14 +1861,14 @@ button.module-banner {
 
   .path-end,
   .path-end-next {
-    width: 100%;
+    width: var(--road-content-width);
   }
 
   .next-module-path {
     min-height: var(--tap);
-    font: var(--text-headline);
-    font-family: var(--display);
-    padding-inline: 0.85rem;
+    padding: 0.95rem 1rem;
+    font: 700 1.3rem/1.15 var(--display);
+    letter-spacing: 0.02em;
     white-space: normal;
   }
 }

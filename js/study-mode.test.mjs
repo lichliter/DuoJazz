@@ -313,3 +313,15 @@ test("current demo and record playback never use the retired guide-tone setting"
     }
   }
 });
+
+test("previewed licks offer Add to My Rotation above the banner and match road content width", async () => {
+  const appHome = await readFile(new URL("./app-home.js", import.meta.url), "utf8");
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  assert.match(appHome, /rotationAddButton/);
+  assert.match(appHome, /add-to-rotation/);
+  assert.match(appHome, /Add to My Rotation/);
+  assert.match(appHome, /if \(!isInRotation\(module\.id\)\) header\.append\(rotationAddButton\(module\)\);\s*header\.append\(moduleBanner\(module\)\);/);
+  assert.match(hig, /\.lesson-path \{[\s\S]*?--road-content-width:/);
+  assert.match(hig, /\.related-licks-list \{[\s\S]*?width:\s*var\(--road-content-width\)/);
+  assert.match(hig, /\.path-end,\s*\.path-end-next \{[\s\S]*?width:\s*var\(--road-content-width\)/);
+});

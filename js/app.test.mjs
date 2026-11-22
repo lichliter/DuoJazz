@@ -546,3 +546,61 @@ test("practice screen tempo controls save per-lick overrides without altering th
   assert.equal(context.els.sessionTempoReset.hidden, false);
   assert.equal(context.els.sessionTempoReset.disabled, true);
 });
+
+test("addLickToRotation enrolls previewed licks for guests and signed-in accounts while ignoring chord-tones and unknown ids", () => {
+  const guestWrites = [];
+  let guestRenders = 0;
+  const guest = appContext(["rememberModule", "addLickToRotation", "renderStorageNotice"], {
+    MY_LICKS_KEY: "duojazz.myLicks.v1",
+    lickRotation: [],
+    selectedModuleId: "south-of-the-river",
+    deepLinkOverrides: { module: "south-of-the-river", auto: null },
+    writeStoredJson(key, value) { guestWrites.push([key, structuredClone(value)]); return true; },
+    render() { guestRenders += 1; },
+  });
+
+  guest.addLickToRotation("chord-tones");
+  guest.addLickToRotation("not-a-lick");
+  assert.deepEqual([...guest.lickRotation], []);
+  assert.equal(guestWrites.length, 0);
+  assert.equal(guestRenders, 0);
+
+  guest.addLickToRotation("south-of-the-river");
+  assert.deepEqual([...guest.lickRotation], ["south-of-the-river"]);
+  assert.equal(guest.deepLinkOverrides.module, null);
+  assert.equal(guest.selectedModuleId, "south-of-the-river");
+  assert.deepEqual(guestWrites, [
+    ["duojazz.myLicks.v1", ["south-of-the-river"]],
+    ["duojazz.selectedModule.v1", "south-of-the-river"],
+  ]);
+  assert.equal(guestRenders, 1);
+
+  guest.addLickToRotation("south-of-the-river");
+  assert.deepEqual([...guest.lickRotation], ["south-of-the-river"]);
+
+  const cloudCalls = [];
+  let accountRenders = 0;
+  const targetId = sessions.MODULES.find(module => module.id !== "chord-tones").id;
+  const account = appContext(["rememberModule", "addLickToRotation", "renderStorageNotice"], {
+    MY_LICKS_KEY: "duojazz.myLicks.v1",
+    lickRotation: [],
+    selectedModuleId: targetId,
+    deepLinkOverrides: { module: targetId, auto: null },
+    cloudSettings: {
+      userId: "account-a",
+      setLick(id, selected) { cloudCalls.push(["setLick", id, selected]); },
+      set(changes) { cloudCalls.push(["set", changes]); },
+    },
+    render() { accountRenders += 1; },
+  });
+
+  account.addLickToRotation(targetId);
+  assert.deepEqual([...account.lickRotation], [targetId]);
+  assert.equal(account.deepLinkOverrides.module, null);
+  assert.equal(account.selectedModuleId, targetId);
+  assert.deepEqual(structuredClone(cloudCalls), [
+    ["setLick", targetId, true],
+    ["set", { selectedModuleId: targetId }],
+  ]);
+  assert.equal(accountRenders, 1);
+});

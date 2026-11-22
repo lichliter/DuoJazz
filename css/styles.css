@@ -1925,16 +1925,14 @@ input[type="checkbox"] {
 .next-module-path {
   width: 100%;
   min-height: var(--tap);
-  padding: 0.75rem 1rem;
+  padding: 0.95rem 1.35rem;
   border: 0;
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--tint-solid);
   color: var(--tint-on-solid);
-  font: var(--text-headline);
-  font-family: var(--display);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
+  box-shadow: 0 5px 0 #8a3a24;
+  font: 700 clamp(1.25rem, 3.2vw, 1.55rem)/1.15 var(--display);
+  letter-spacing: 0.02em;
   white-space: normal;
   text-align: center;
   text-wrap: balance;
@@ -1949,6 +1947,8 @@ input[type="checkbox"] {
 
 .next-module-path:active {
   background: var(--fill-pressed);
+  box-shadow: 0 2px 0 #8a3a24;
+  transform: translateY(3px);
 }
 
 .sleeve-node:hover .vinyl,
@@ -2399,7 +2399,8 @@ input[type="checkbox"] {
   .sleeve-node:hover .vinyl,
   .sleeve-node:focus-visible .vinyl,
   .sleeve-node:active .vinyl,
-  .wrapup-sleeve:not(.is-upgrade) .vinyl {
+  .wrapup-sleeve:not(.is-upgrade) .vinyl,
+  .next-module-path:active {
     transform: none;
   }
 }

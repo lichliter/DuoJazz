@@ -13,6 +13,8 @@ export function createHomeView({
   keysByLesson,
   requestQuickView,
   nextRotationItem,
+  isInRotation = () => true,
+  addToRotation = () => {},
   openExplore,
   selectModule,
   openSetup,
@@ -138,11 +140,34 @@ export function createHomeView({
     return section;
   }
 
+  function rotationAddButton(module) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "rotation-add-button";
+    button.dataset.testid = "add-to-rotation";
+    const plus = document.createElement("span");
+    plus.className = "rotation-add-plus";
+    plus.setAttribute("aria-hidden", "true");
+    plus.textContent = "+";
+    const label = document.createElement("span");
+    label.textContent = "Add to My Rotation";
+    button.append(plus, label);
+    button.addEventListener("click", () => {
+      addToRotation(module.id);
+      els.lessonList.querySelector(".module-banner")?.focus({ preventScroll: true });
+    });
+    return button;
+  }
+
   function moduleBlock(module, nodes) {
     const wrap = document.createElement("section");
     wrap.className = "module-block is-current";
     wrap.dataset.module = module.id;
-    wrap.append(moduleBanner(module));
+    const header = document.createElement("div");
+    header.className = "module-header";
+    if (!isInRotation(module.id)) header.append(rotationAddButton(module));
+    header.append(moduleBanner(module));
+    wrap.append(header);
     if (module.buildingBlockIds?.length) {
       const blocks = module.buildingBlockIds.map(moduleById);
       wrap.append(relatedLicksSection("building-blocks", "Building blocks",

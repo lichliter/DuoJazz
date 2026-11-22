@@ -264,6 +264,15 @@ function rememberModule(id) {
   renderStorageNotice();
 }
 
+function addLickToRotation(id) {
+  if (id === "chord-tones" || !MODULES.some((module) => module.id === id)) return;
+  lickRotation = [...new Set([...lickRotation, id])];
+  if (cloudSettings.userId) cloudSettings.setLick(id, true);
+  else writeStoredJson(MY_LICKS_KEY, lickRotation);
+  rememberModule(id);
+  render();
+}
+
 function loadPrefs() {
   try {
     const raw = localStorage.getItem(PREFS_KEY) ?? localStorage.getItem(LEGACY_PREFS_KEY) ?? "null";
@@ -1240,6 +1249,8 @@ const {
   keysByLesson,
   requestQuickView,
   nextRotationItem,
+  isInRotation: (id) => rotationLickIds().includes(id),
+  addToRotation: addLickToRotation,
   openExplore: () => libraryPicker.open("licks", { browse: true }),
   selectModule,
   openSetup,
@@ -2355,6 +2366,7 @@ const libraryPicker = setupLibraryPicker({
       if (!selected && selectedModuleId === id) rememberModule("chord-tones");
       if (cloudSettings.userId) cloudSettings.setLick(id, selected);
       else writeStoredJson(MY_LICKS_KEY, lickRotation);
+      if (selected && selectedModuleId === id && deepLinkOverrides.module === id) rememberModule(id);
     } else {
       const charts = practiceUI.getSelected();
       const nextCharts = selected ? [...charts, id] : charts.filter(value => value !== id);
