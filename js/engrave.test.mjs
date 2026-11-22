@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  applyFailedNoteHighlight,
   boxesIntersect,
   capCueText,
   CHORD_FONT_VU,
@@ -593,4 +594,50 @@ test("notation size presets keep four bars per line and scale the staff together
     const staff = staffCssFromPage(verovioOptions(layout, 980, { hasSb: true }).pageWidth, 980);
     assert.ok(Math.abs(staff - PORTRAIT_STAFF_PX * size) < 1.5, `${size} staff ${staff}`);
   }
+});
+
+test("applyFailedNoteHighlight toggles note-failed on target note groups and descendants only", () => {
+  const makeNode = (id, parts = []) => {
+    const classes = new Set();
+    return {
+      id,
+      classList: {
+        add: (c) => classes.add(c),
+        remove: (c) => classes.delete(c),
+        contains: (c) => classes.has(c),
+      },
+      querySelectorAll: () => parts,
+    };
+  };
+  const n1Head = makeNode("n1-head");
+  const n1 = makeNode("n1", [n1Head]);
+  const n2Head = makeNode("n2-head");
+  const n2 = makeNode("n2", [n2Head]);
+  const n3Head = makeNode("n3-head");
+  const n3 = makeNode("n3", [n3Head]);
+  const all = [n1, n1Head, n2, n2Head, n3, n3Head];
+  const byId = { n1, n2, n3 };
+  const svg = {
+    querySelectorAll: (selector) => (selector === ".note-failed" ? all.filter((el) => el.classList.contains("note-failed")) : []),
+    querySelector: (selector) => {
+      const m = /\[id="([^"]+)"\]/.exec(selector);
+      return m ? byId[m[1]] ?? null : null;
+    },
+  };
+
+  applyFailedNoteHighlight(svg, ["n2", "n3"]);
+  assert.equal(n1.classList.contains("note-failed"), false);
+  assert.equal(n2.classList.contains("note-failed"), true);
+  assert.equal(n2Head.classList.contains("note-failed"), true);
+  assert.equal(n3.classList.contains("note-failed"), true);
+  assert.equal(n3Head.classList.contains("note-failed"), true);
+
+  applyFailedNoteHighlight(svg, ["n1"]);
+  assert.equal(n1.classList.contains("note-failed"), true);
+  assert.equal(n1Head.classList.contains("note-failed"), true);
+  assert.equal(n2.classList.contains("note-failed"), false);
+  assert.equal(n2Head.classList.contains("note-failed"), false);
+
+  applyFailedNoteHighlight(svg, []);
+  assert.equal(all.some((el) => el.classList.contains("note-failed")), false);
 });

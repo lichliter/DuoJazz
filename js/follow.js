@@ -15,9 +15,11 @@
  */
 
 import { centsBetween, midiFromHz } from "./grade.js";
-import { spellShownMidi } from "./music.js";
+import { concertMidiToWritten, spellShownMidi } from "./music.js";
 
 export const FOLLOW_CENTS = 50;
+export const SLIGHT_OFF_CENTS = 65;
+export const VERY_OFF_CENTS = 80;
 export const SUSTAIN_MS = 80;
 export const WRONG_MS = 120;
 export const SILENCE_MS = 1000;
@@ -117,6 +119,9 @@ export function createFollower(expected, origin = null, options = null) {
     noise: [],
     wrongMs: 0,
     wrongAnchor: null,
+    wrongSamples: [],
+    briefMatch: null,
+    failure: null,
     octave: options?.octave === "any" ? "any" : "written",
     octaveShift: null,
     pendingShift: null,
@@ -153,12 +158,146 @@ function frameIsVoiced(state, frame) {
   return sure && inBand && amp > gate;
 }
 
+function medianHz(samples, fallback = null) {
+  const valid = Array.isArray(samples)
+    ? samples.filter((value) => typeof value === "number" && Number.isFinite(value) && value > 0)
+    : [];
+  if (!valid.length) return fallback;
+  const sorted = valid.slice().sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function targetMidiForFailure(state) {
+  const expected = state.expected[state.index];
+  if (expected == null) return { targetMidi: null, allowAnyOctave: false };
+  const allowAnyOctave = state.octave === "any" && state.octaveShift == null;
+  const targetMidi = state.octave === "any" && state.octaveShift != null
+    ? expected + state.octaveShift
+    : expected;
+  return { targetMidi, allowAnyOctave };
+}
+
+/** Classify why a voiced pitch missed the target: slight/very sharp or flat, wrong octave, or wrong note. */
+export function classifyPitchFailure(hz, expectedMidi, { allowAnyOctave = false } = {}) {
+  const heard = heardPitch(hz);
+  if (!heard || expectedMidi == null) {
+    return {
+      kind: "wrong-note",
+      cents: null,
+      direction: null,
+      targetMidi: expectedMidi ?? null,
+      heardMidi: null,
+      heardCents: null,
+      heardHz: hz ?? null,
+    };
+  }
+  const targetMidi = allowAnyOctave
+    ? (pitchShiftFor(hz, expectedMidi)?.midi ?? expectedMidi)
+    : expectedMidi;
+  const cents = centsBetween(hz, targetMidi);
+  const wrongOctave = !allowAnyOctave
+    && pitchClassOf(heard.midi) === pitchClassOf(targetMidi)
+    && Math.round(heard.midi) !== Math.round(targetMidi);
+  if (wrongOctave) {
+    return {
+      kind: heard.midi > targetMidi ? "wrong-octave-high" : "wrong-octave-low",
+      cents,
+      direction: null,
+      targetMidi,
+      heardMidi: heard.midi,
+      heardCents: heard.cents,
+      heardHz: hz,
+    };
+  }
+  const abs = Math.abs(cents ?? 0);
+  const direction = (cents ?? 0) < 0 ? "flat" : "sharp";
+  let kind = "wrong-note";
+  if (abs <= SLIGHT_OFF_CENTS + 1e-6) {
+    kind = direction === "flat" ? "slightly-flat" : "slightly-sharp";
+  } else if (abs <= VERY_OFF_CENTS + 1e-6) {
+    kind = direction === "flat" ? "very-flat" : "very-sharp";
+  }
+  return {
+    kind,
+    cents,
+    direction,
+    targetMidi,
+    heardMidi: heard.midi,
+    heardCents: heard.cents,
+    heardHz: hz,
+  };
+}
+
 function finish(state, reason) {
   if (state.ended) return state;
   state.ended = true;
   state.reason = reason;
   state.passed = reason === "matched";
   state.hint = state.passed ? null : hintForIndex(state.index);
+  if (state.passed) {
+    state.failure = null;
+    return state;
+  }
+  if (reason === "timeout") {
+    state.failure = {
+      index: state.index,
+      reason: "timeout",
+      kind: "timeout",
+      cents: null,
+      direction: null,
+      expectedMidi: state.expected[state.index] ?? null,
+      heardMidi: null,
+      heardCents: null,
+      heardHz: null,
+    };
+    return state;
+  }
+  const { targetMidi, allowAnyOctave } = targetMidiForFailure(state);
+  if (!state.armed && !state.sawRelease && state.index > 0) {
+    state.failure = {
+      index: state.index,
+      reason: "silence",
+      kind: "reattack",
+      cents: null,
+      direction: null,
+      expectedMidi: targetMidi,
+      heardMidi: null,
+      heardCents: null,
+      heardHz: null,
+    };
+  } else if (state.briefMatch && state.briefMatch.index === state.index) {
+    state.failure = {
+      index: state.index,
+      reason: "silence",
+      kind: "too-short",
+      cents: state.briefMatch.cents,
+      direction: null,
+      expectedMidi: targetMidi,
+      heardMidi: state.briefMatch.midi,
+      heardCents: state.briefMatch.cents,
+      heardHz: state.briefMatch.hz,
+    };
+  } else if (state.closest && state.closest.index === state.index) {
+    const classified = classifyPitchFailure(state.closest.hz, targetMidi, { allowAnyOctave });
+    state.failure = {
+      index: state.index,
+      reason: "silence",
+      expectedMidi: classified.targetMidi,
+      ...classified,
+    };
+  } else {
+    state.failure = {
+      index: state.index,
+      reason: "silence",
+      kind: "silence",
+      cents: null,
+      direction: null,
+      expectedMidi: targetMidi,
+      heardMidi: null,
+      heardCents: null,
+      heardHz: null,
+    };
+  }
   return state;
 }
 
@@ -238,6 +377,8 @@ function confirm(state, match, frame) {
   state.sawRelease = false;
   state.wrongMs = 0;
   state.wrongAnchor = null;
+  state.wrongSamples = [];
+  state.briefMatch = null;
   if (Math.round(prev) === Math.round(next)) {
     state.armed = false;
     state.releaseAmp = finishedPeak * 0.5;
@@ -253,17 +394,21 @@ function pitchClassOf(midi) {
 
 function failWrong(state, hz) {
   if (state.ended) return state;
-  const heard = heardPitch(hz);
-  const expected = state.expected[state.index];
-  const wrongOctave = heard != null
-    && expected != null
-    && pitchClassOf(heard.midi) === pitchClassOf(expected);
+  const { targetMidi, allowAnyOctave } = targetMidiForFailure(state);
+  const classified = classifyPitchFailure(hz, targetMidi, { allowAnyOctave });
+  const wrongOctave = classified.kind === "wrong-octave-high" || classified.kind === "wrong-octave-low";
   state.ended = true;
   state.reason = "wrong";
   state.passed = false;
   state.hint = wrongOctave
     ? `${hintForIndex(state.index)}, wrong octave`
     : hintForIndex(state.index);
+  state.failure = {
+    index: state.index,
+    reason: "wrong",
+    expectedMidi: classified.targetMidi,
+    ...classified,
+  };
   return state;
 }
 
@@ -288,10 +433,17 @@ function trackWrong(state, frame, prevVoiced) {
     // A scoop or slide keeps moving, so only a steady wrong pitch counts.
     state.wrongAnchor = heard;
     state.wrongMs = 0;
+    state.wrongSamples = [frame.hz];
   } else if (prevVoiced != null) {
     const gap = t - prevVoiced;
-    if (gap > HOLD_GAP_MS) state.wrongMs = 0;
-    else if (gap > 0) state.wrongMs += gap;
+    if (gap > HOLD_GAP_MS) {
+      state.wrongMs = 0;
+      state.wrongSamples = [frame.hz];
+    } else if (gap > 0) {
+      state.wrongMs += gap;
+      if (!state.wrongSamples) state.wrongSamples = [];
+      state.wrongSamples.push(frame.hz);
+    }
   }
   const expectedMidi = state.expected[state.index];
   if (expectedMidi != null) rememberClosest(state, frame, expectedMidi);
@@ -299,7 +451,7 @@ function trackWrong(state, frame, prevVoiced) {
   state.started = true;
   state.lastVoicedT = t;
   if (amp > state.peak) state.peak = amp;
-  if (state.wrongMs >= WRONG_MS) return failWrong(state, frame.hz);
+  if (state.wrongMs >= WRONG_MS) return failWrong(state, medianHz(state.wrongSamples, frame.hz));
   return state;
 }
 
@@ -307,6 +459,7 @@ function hearPrevious(state, frame) {
   const amp = frame.amp ?? 0;
   state.wrongMs = 0;
   state.wrongAnchor = null;
+  state.wrongSamples = [];
   state.sustainMs = 0;
   state.started = true;
   state.lastVoicedT = frame.t;
@@ -356,6 +509,7 @@ export function stepFollower(state, frame) {
       if (!match && expectedMidi != null) return trackWrong(state, frame, prevVoiced);
       state.wrongMs = 0;
       state.wrongAnchor = null;
+      state.wrongSamples = [];
       state.started = true;
       state.lastVoicedT = t;
       if (amp > state.peak) state.peak = amp;
@@ -365,6 +519,7 @@ export function stepFollower(state, frame) {
     state.sustainMs = 0;
     state.wrongMs = 0;
     state.wrongAnchor = null;
+    state.wrongSamples = [];
     state.peak = amp;
     state.started = true;
     state.lastVoicedT = t;
@@ -382,6 +537,7 @@ export function stepFollower(state, frame) {
 
   state.wrongMs = 0;
   state.wrongAnchor = null;
+  state.wrongSamples = [];
   if (prevVoiced != null) {
     const gap = t - prevVoiced;
     if (gap > HOLD_GAP_MS) {
@@ -393,6 +549,13 @@ export function stepFollower(state, frame) {
   if (amp > state.peak) state.peak = amp;
   state.started = true;
   state.lastVoicedT = t;
+  state.briefMatch = {
+    index: state.index,
+    cents: match.cents,
+    midi: match.midi,
+    hz: frame.hz,
+    sustainMs: state.sustainMs,
+  };
   if (state.sustainMs >= SUSTAIN_MS) return confirm(state, match, frame);
   return state;
 }
@@ -456,4 +619,95 @@ export function describeAttempt(state, shownKey = null) {
 export function debugTextForKey(lastDebug, keyId, freshText) {
   if (lastDebug && lastDebug.keyId === keyId && lastDebug.text) return lastDebug.text;
   return freshText;
+}
+
+/**
+ * Format a follower failure into user-facing note location + verdict copy in the player's
+ * written transposition, keeping target note names hidden when staff notes are blurred.
+ */
+export function formatFailureFeedback(
+  input,
+  { displayMode = "concert", shownKey = null, notesVisible = true, expectedLabel = null } = {},
+) {
+  const failure = input?.failure ?? (input?.kind ? input : null);
+  if (!failure) return null;
+  const index = Number.isInteger(failure.index) ? failure.index : 0;
+  const noteOrdinal = hintForIndex(index);
+  const expectedText = notesVisible
+    ? (expectedLabel || (failure.expectedMidi != null
+      ? noteName(concertMidiToWritten(failure.expectedMidi, displayMode), shownKey)
+      : null))
+    : null;
+  const heardText = failure.heardMidi != null
+    ? noteName(concertMidiToWritten(failure.heardMidi, displayMode), shownKey)
+    : null;
+  const centsText = Number.isFinite(failure.cents)
+    ? `${failure.cents >= 0 ? "+" : "−"}${Math.round(Math.abs(failure.cents))}¢`
+    : "";
+  const noteText = failure.kind === "timeout"
+    ? ""
+    : (expectedText ? `${noteOrdinal} · ${expectedText}` : noteOrdinal);
+
+  let tone = "warn";
+  let verdictText = "Try again";
+  switch (failure.kind) {
+    case "slightly-flat":
+      tone = "warn";
+      verdictText = centsText ? `♭ Slightly flat (${centsText})` : "♭ Slightly flat";
+      break;
+    case "very-flat":
+      tone = "error";
+      verdictText = centsText ? `♭ Very flat (${centsText})` : "♭ Very flat";
+      break;
+    case "slightly-sharp":
+      tone = "warn";
+      verdictText = centsText ? `♯ Slightly sharp (${centsText})` : "♯ Slightly sharp";
+      break;
+    case "very-sharp":
+      tone = "error";
+      verdictText = centsText ? `♯ Very sharp (${centsText})` : "♯ Very sharp";
+      break;
+    case "wrong-note":
+      tone = "error";
+      verdictText = heardText ? `Wrong note · heard ${heardText}` : "Wrong note";
+      break;
+    case "wrong-octave-high":
+      tone = "error";
+      verdictText = heardText ? `Octave too high · heard ${heardText}` : "Octave too high";
+      break;
+    case "wrong-octave-low":
+      tone = "error";
+      verdictText = heardText ? `Octave too low · heard ${heardText}` : "Octave too low";
+      break;
+    case "too-short":
+      tone = "warn";
+      verdictText = "Too brief · hold a bit longer";
+      break;
+    case "reattack":
+      tone = "warn";
+      verdictText = "Repeat the note · new attack";
+      break;
+    case "silence":
+      tone = "warn";
+      verdictText = "Not heard";
+      break;
+    case "timeout":
+      tone = "warn";
+      verdictText = "No sound heard";
+      break;
+    default:
+      tone = "warn";
+      verdictText = "Try again";
+      break;
+  }
+
+  const ariaLabel = [noteText, verdictText].filter(Boolean).join(". ");
+  return {
+    index,
+    kind: failure.kind,
+    tone,
+    noteText,
+    verdictText,
+    ariaLabel,
+  };
 }

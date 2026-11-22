@@ -957,6 +957,20 @@ export function applySoundingHighlight(root, ids) {
   }
 }
 
+export function applyFailedNoteHighlight(root, ids) {
+  const svg = root?.querySelector?.("svg") ?? root;
+  if (!svg?.querySelectorAll) return;
+  for (const el of svg.querySelectorAll(".note-failed")) el.classList.remove("note-failed");
+  for (const id of ids ?? []) {
+    const el = svg.querySelector(`[data-id="${id}"], [id="${id}"]`);
+    if (!el) continue;
+    el.classList.add("note-failed");
+    for (const part of el.querySelectorAll(".notehead, .stem, .flag, .accid, .dots, .dot, use, path")) {
+      part.classList.add("note-failed");
+    }
+  }
+}
+
 export function highlightActiveChords(svg, beats, chords = []) {
   if (!svg) return [];
   const harms = [...svg.querySelectorAll(".harm")];

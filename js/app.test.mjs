@@ -6,6 +6,7 @@ import * as sessions from "./session.js";
 import * as medals from "./medals.js";
 import * as followers from "./follow.js";
 import { expectedNotesFor } from "./grade.js";
+import { getKey } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
 import { rapidMicStep, shouldRecordMastery } from "./rapid.js";
 import { parseTabState } from "./tabs.js";
@@ -603,4 +604,124 @@ test("addLickToRotation enrolls previewed licks for guests and signed-in account
     ["set", { selectedModuleId: targetId }],
   ]);
   assert.equal(accountRenders, 1);
+});
+
+test("failed note feedback persists through retry into the next run-through and clears on pass, key change, or leave", () => {
+  let scheduled = null;
+  let listened = 0;
+  let renderedCue = 0;
+  const activeSession = sessions.createSession({ lessonId: "learn-lick", startKeyId: "G" });
+  const context = appContext([
+    "sessionKeyToken",
+    "finishRapid",
+    "releaseMic",
+    "applySession",
+    "notesVisibleInSession",
+    "currentCue",
+  ], {
+    session: activeSession,
+    startGen: 1,
+    finishing: false,
+    rapidPhase: "listening",
+    recordBacking: true,
+    attemptTimer: null,
+    feedbackTimer: null,
+    cue: null,
+    cueSeq: 0,
+    lastRenderedCueSeq: 0,
+    lastSessionSlot: "learn-lick:G",
+    sessionShot: null,
+    lastDebug: null,
+    takeLog: null,
+    debugOn: false,
+    attempt: null,
+    prefs: { ...sessions.defaultPrefs(), auto: true },
+    transport: { stop: noop },
+    monitor: { isLive: () => true, stop: noop, reset: noop, holdSignal: true, onFrame: noop },
+    window: {
+      clearInterval: noop,
+      clearTimeout: noop,
+      setTimeout(fn) { scheduled = fn; return 1; },
+      scrollTo: noop,
+    },
+    closeTakeRecorder: noop,
+    clearMasteryPreview: noop,
+    shownKeyForSession: () => getKey("G"),
+    renderDebug: noop,
+    recordRapidPass: noop,
+    passSchedule: (s, opts) => ({ steps: [{ ms: 2000 }], session: s }),
+    isLastRapidKey: () => false,
+    afterFail: (s, opts) => ({ session: s, autoStart: true, hint: opts.hint }),
+    renderCelebrate: noop,
+    renderCue() { renderedCue += 1; },
+    renderPrimary: noop,
+    finishCelebration: noop,
+    beginListening() { listened += 1; },
+    resetPitchTake: noop,
+    persist: noop,
+    visualPhase: () => context.rapidPhase,
+    RETRY_MS: 900,
+    CELEBRATE_MS: 2000,
+    els: { storageNotice: { textContent: "", hidden: true }, wrapup: { scrollTop: 0 } },
+  });
+
+  const failed = followers.runFollower([57, 55, 50], [
+    ...Array.from({ length: 6 }, (_, i) => ({ t: i * 20, hz: 220, amp: 0.25 })),
+    ...Array.from({ length: 6 }, (_, i) => ({ t: 200 + i * 20, hz: 196, amp: 0.25 })),
+    ...Array.from({ length: 8 }, (_, i) => ({ t: 400 + i * 20, hz: 146.832 * 2 ** (-58 / 1200), amp: 0.25 })),
+  ]);
+
+  context.finishRapid(1, failed);
+  assert.equal(context.rapidPhase, "retry");
+  assert.equal(context.cue?.kind, "retry");
+  assert.equal(context.cue?.failure?.kind, "slightly-flat");
+  assert.equal(context.cue?.failure?.index, 2);
+  assert.equal(context.currentCue()?.seq, 1);
+
+  // After RETRY_MS fires and begins the next run-through, cue stays active!
+  assert.ok(scheduled);
+  scheduled();
+  assert.equal(listened, 1);
+  assert.equal(context.cue?.kind, "retry");
+  assert.equal(context.cue?.failure?.kind, "slightly-flat");
+  assert.equal(context.currentCue()?.seq, 1);
+
+  // A subsequent silent timeout on the same key preserves the existing pitch feedback.
+  const timedOut = followers.tickFollower(followers.createFollower([57, 55, 50], 0), followers.NO_SOUND_MS);
+  context.rapidPhase = "listening";
+  context.finishing = false;
+  context.finishRapid(1, timedOut);
+  assert.equal(context.cue?.seq, 1);
+  assert.equal(context.cue?.failure?.kind, "slightly-flat");
+
+  // Pausing or tapping Hear it on the same key keeps the feedback visible.
+  context.releaseMic("pause");
+  assert.equal(context.cue?.kind, "retry");
+  context.releaseMic("hear");
+  assert.equal(context.cue?.kind, "retry");
+
+  // Leaving clears cue.
+  context.releaseMic("hide");
+  assert.equal(context.cue, null);
+
+  // Moving to the next key in applySession clears cue.
+  context.cue = { kind: "retry", keyToken: "learn-lick:G", seq: 2, failure: failed.failure };
+  const nextKeySession = sessions.advanceKey(activeSession);
+  context.applySession(nextKeySession);
+  assert.equal(context.cue, null);
+  assert.equal(context.lastRenderedCueSeq, 0);
+
+  // Passing clears cue.
+  context.session = activeSession;
+  context.rapidPhase = "listening";
+  context.finishing = false;
+  context.cue = { kind: "retry", keyToken: "learn-lick:G", seq: 3, failure: failed.failure };
+  context.finishRapid(1, { passed: true, expected: [], heard: [] });
+  assert.equal(context.cue, null);
+
+  // A silent timeout with no prior pitch cue still shows timeout feedback.
+  context.rapidPhase = "listening";
+  context.finishing = false;
+  context.finishRapid(1, timedOut);
+  assert.equal(context.cue?.failure?.kind, "timeout");
 });

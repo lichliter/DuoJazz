@@ -988,7 +988,7 @@ button.module-banner {
 
 .session-screen .chart-card {
   --notation-toolbar-gap: 8px;
-  --notation-bottom-extra: 24px;
+  --notation-bottom-extra: 0px;
   flex: 1 1 auto;
   align-self: stretch;
   width: 100%;
@@ -1088,9 +1088,23 @@ button.module-banner {
   align-items: center;
   justify-content: flex-start;
   background: var(--paper);
-  border-radius: 0 0 17px 17px;
-  padding: clamp(16px, 3vh, 32px) 6px calc(clamp(16px, 3vh, 32px) + var(--notation-toolbar-gap) + var(--notation-bottom-extra));
+  border-radius: 0;
+  padding: clamp(16px, 3vh, 32px) 6px clamp(8px, 1.5vh, 14px);
   overflow: visible;
+}
+
+.session-screen .grade-slot {
+  flex: 0 0 auto;
+  height: 54px;
+  min-height: 54px;
+  max-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px 10px;
+  background: var(--paper);
+  border-radius: 0 0 17px 17px;
+  overflow: hidden;
 }
 
 /* Tall staff: the card and the minimum wheel scroll together above the pinned footer. */
@@ -1476,8 +1490,7 @@ button.module-banner {
   align-self: center;
   position: absolute;
   left: 50%;
-  /* Keep the button in place as extra breathing room is added below it. */
-  top: calc(50% - (var(--notation-toolbar-gap) + var(--notation-bottom-extra)) / 2);
+  top: 50%;
   transform: translate(-50%, -50%);
   z-index: 4;
   flex: 0 0 auto;
@@ -1965,16 +1978,57 @@ button.module-banner {
   cursor: pointer;
 }
 
-.grade-line[data-kind="check"],
-.grade-line[data-kind="retry"] {
-  display: flex;
+.session-screen .grade-line {
+  margin: 0;
+  min-height: 0;
+  max-width: 100%;
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1px;
+  padding: 5px 14px;
+  border-radius: 12px;
   text-align: center;
-  min-height: 4.8rem;
-  margin: 0.1rem 0 0.35rem;
-  color: var(--label);
+  line-height: 1.2;
+  color: var(--paper-ink);
+}
+
+.session-screen .grade-line[hidden] {
+  display: none !important;
+}
+
+.session-screen .grade-line[data-kind="retry"][data-tone="warn"] {
+  background: rgba(164, 92, 10, 0.12);
+  border: 1px solid rgba(164, 92, 10, 0.3);
+  color: #7d4506;
+}
+
+.session-screen .grade-line[data-kind="retry"][data-tone="error"] {
+  background: rgba(184, 50, 39, 0.11);
+  border: 1px solid rgba(184, 50, 39, 0.28);
+  color: #8c2219;
+}
+
+.session-screen .grade-line[data-kind="check"] {
+  background: rgba(34, 134, 58, 0.12);
+  border: 1px solid rgba(34, 134, 58, 0.3);
+  color: #1f6b32;
+}
+
+.session-screen .grade-line[data-kind="legacy"] {
+  background: rgba(43, 33, 26, 0.08);
+  border: 1px solid rgba(43, 33, 26, 0.16);
+  color: var(--paper-ink);
+}
+
+.session-screen .grade-line.grade-flash {
+  animation: grade-in 0.22s ease-out both;
+}
+
+@keyframes grade-in {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
 }
 
 .celebrate {
@@ -2031,24 +2085,26 @@ button.module-banner {
   }
 }
 
-.grade-line[data-kind="check"] #grade-main {
-  font-size: clamp(3.4rem, 9vw, 5.6rem);
-  line-height: 0.95;
-  font-weight: 700;
-  color: var(--success);
-}
-
-.grade-line[data-kind="retry"] #grade-main {
-  font-size: clamp(2.1rem, 6vw, 3.6rem);
-  line-height: 1.05;
-  font-weight: 700;
-}
-
-.grade-hint {
-  margin-top: 0.2rem;
-  font-size: clamp(1.2rem, 3vw, 1.7rem);
+.session-screen .grade-hint {
+  margin: 0;
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.2;
   font-weight: 600;
-  color: var(--label-secondary);
+  color: var(--paper-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-screen .grade-line #grade-main {
+  max-width: 100%;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .debug-strip {
@@ -2225,6 +2281,24 @@ button.module-banner {
     padding-block: 0;
   }
 
+  .session-screen .grade-slot {
+    height: 64px;
+    min-height: 64px;
+    max-height: 64px;
+    padding: 0 16px 12px;
+  }
+
+  .session-screen .grade-line {
+    padding: 6px 18px;
+  }
+
+  .session-screen .grade-hint {
+    font-size: 14px;
+  }
+
+  .session-screen .grade-line #grade-main {
+    font-size: 17px;
+  }
 
 }
 
@@ -2235,6 +2309,10 @@ button.module-banner {
   .session-tempo .tempo-step:active:not(:disabled),
   .session-tempo .tempo-readout-btn:active:not(:disabled) {
     transform: none;
+  }
+
+  .session-screen .grade-line.grade-flash {
+    animation: none;
   }
 
   .switch-track,

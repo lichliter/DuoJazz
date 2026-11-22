@@ -11,13 +11,17 @@ import {
   NOISE_RATIO,
   NO_SOUND_MS,
   SILENCE_MS,
+  SLIGHT_OFF_CENTS,
   SUSTAIN_MS,
+  VERY_OFF_CENTS,
   VOICED_MAX_HZ,
   VOICED_MIN_HZ,
+  classifyPitchFailure,
   createFollower,
   octaveModeForLesson,
   debugTextForKey,
   describeAttempt,
+  formatFailureFeedback,
   formatLiveLine,
   matchPitch,
   noteName,
@@ -699,4 +703,176 @@ test("hidden Master notes accept one consistent octave, and shown notes do not",
   ], any);
   assert.equal(stepped.passed, false);
   assert.equal(stepped.hint, "1st note");
+});
+
+test("classifyPitchFailure separates slightly off, very off, wrong octave, and wrong note", () => {
+  assert.equal(SLIGHT_OFF_CENTS, 65);
+  assert.equal(VERY_OFF_CENTS, 80);
+  const target = 62; // D4
+  const atCents = (cents, allowAnyOctave = false) =>
+    classifyPitchFailure(hzFromMidi(target) * 2 ** (cents / 1200), target, { allowAnyOctave });
+
+  assert.equal(atCents(-51).kind, "slightly-flat");
+  assert.equal(atCents(-65).kind, "slightly-flat");
+  assert.equal(atCents(-66).kind, "very-flat");
+  assert.equal(atCents(-80).kind, "very-flat");
+  assert.equal(atCents(51).kind, "slightly-sharp");
+  assert.equal(atCents(65).kind, "slightly-sharp");
+  assert.equal(atCents(66).kind, "very-sharp");
+  assert.equal(atCents(80).kind, "very-sharp");
+
+  const wrongSemiUp = atCents(100);
+  assert.equal(wrongSemiUp.kind, "wrong-note");
+  assert.equal(wrongSemiUp.heardMidi, 63);
+
+  const wrongSemiDown = atCents(-85);
+  assert.equal(wrongSemiDown.kind, "wrong-note");
+  assert.equal(wrongSemiDown.heardMidi, 61);
+
+  assert.equal(atCents(1200).kind, "wrong-octave-high");
+  assert.equal(atCents(1185).kind, "wrong-octave-high");
+  assert.equal(atCents(-1200).kind, "wrong-octave-low");
+  assert.equal(atCents(1185, true).kind, "slightly-flat");
+});
+
+test("follower failure captures steady pitch, short attempts, brief hits, reattacks, silence, and timeout", () => {
+  // Vibrato/drift around +74 cents uses median sample rather than instantaneous last frame.
+  const vibratoFrames = [
+    ...tone(60, 0),
+    { t: 200, hz: hzFromMidi(64) * 2 ** (70 / 1200), amp: 0.25 },
+    { t: 220, hz: hzFromMidi(64) * 2 ** (74 / 1200), amp: 0.25 },
+    { t: 240, hz: hzFromMidi(64) * 2 ** (78 / 1200), amp: 0.25 },
+    { t: 260, hz: hzFromMidi(64) * 2 ** (74 / 1200), amp: 0.25 },
+    { t: 280, hz: hzFromMidi(64) * 2 ** (71 / 1200), amp: 0.25 },
+    { t: 300, hz: hzFromMidi(64) * 2 ** (74 / 1200), amp: 0.25 },
+    { t: 320, hz: hzFromMidi(64) * 2 ** (79 / 1200), amp: 0.25 },
+  ];
+  const sharpFail = play([60, 64, 67], vibratoFrames);
+  assert.equal(sharpFail.ended, true);
+  assert.equal(sharpFail.failure.index, 1);
+  assert.equal(sharpFail.failure.kind, "very-sharp");
+  assert.ok(Math.abs(sharpFail.failure.cents - 74) < 1);
+
+  // Brief wrong pitch (< WRONG_MS) followed by silence uses closest attempt.
+  let briefWrong = play([60, 64], [
+    ...tone(60, 0),
+    ...tone(64, 220, 60, { cents: -58 }),
+  ]);
+  assert.equal(briefWrong.ended, false);
+  briefWrong = tickFollower(briefWrong, briefWrong.lastVoicedT + SILENCE_MS);
+  assert.equal(briefWrong.ended, true);
+  assert.equal(briefWrong.failure.index, 1);
+  assert.equal(briefWrong.failure.kind, "slightly-flat");
+
+  // Brief on-pitch touch (< SUSTAIN_MS) followed by silence reports too-short.
+  let tooBrief = play([60, 64], [
+    ...tone(60, 0),
+    ...tone(64, 220, 40),
+  ]);
+  assert.equal(tooBrief.ended, false);
+  tooBrief = tickFollower(tooBrief, tooBrief.lastVoicedT + SILENCE_MS);
+  assert.equal(tooBrief.ended, true);
+  assert.equal(tooBrief.failure.index, 1);
+  assert.equal(tooBrief.failure.kind, "too-short");
+
+  // Repeated note without new attack followed by silence reports reattack.
+  let heldRepeat = play([60, 60], [...tone(60, 0, 400)]);
+  heldRepeat = tickFollower(heldRepeat, heldRepeat.lastVoicedT + SILENCE_MS);
+  assert.equal(heldRepeat.failure.index, 1);
+  assert.equal(heldRepeat.failure.kind, "reattack");
+
+  // Pure silence after 1st note reports silence on 2nd note.
+  let silentNext = play([60, 64], [...tone(60, 0)]);
+  silentNext = tickFollower(silentNext, silentNext.lastVoicedT + SILENCE_MS);
+  assert.equal(silentNext.failure.index, 1);
+  assert.equal(silentNext.failure.kind, "silence");
+
+  // 8s no-sound timeout reports timeout.
+  const timedOut = tickFollower(createFollower([60, 64], 0), NO_SOUND_MS);
+  assert.equal(timedOut.failure.index, 0);
+  assert.equal(timedOut.failure.kind, "timeout");
+
+  // Hidden Master: 1st note allows any octave, 2nd note enforces committed shift.
+  const masterFirst = play([60, 64], [...tone(74, 0, 160)], { octave: "any" });
+  assert.equal(masterFirst.failure.kind, "wrong-note");
+  assert.equal(masterFirst.failure.heardMidi, 74);
+
+  const masterSecond = play([60, 64], [
+    ...tone(48, 0, 120),
+    ...tone(64, 200, 160),
+  ], { octave: "any" });
+  assert.equal(masterSecond.failure.index, 1);
+  assert.equal(masterSecond.failure.kind, "wrong-octave-high");
+});
+
+test("formatFailureFeedback respects written transposition and hides target note when blurred", () => {
+  const gMinorConcert = displayKey(getKey("G"), "concert", "minor");
+  const gMinorTrumpet = displayKey(getKey("G"), "trumpet", "minor");
+  const gMinorAlto = displayKey(getKey("G"), "alto-sax", "minor");
+
+  // Concert 3rd note D3 (MIDI 50), heard E♭3 (MIDI 51)
+  const wrongState = play([57, 55, 50], [
+    ...tone(57, 0),
+    ...tone(55, 220),
+    ...tone(51, 440, 160),
+  ]);
+  const concert = formatFailureFeedback(wrongState, {
+    displayMode: "concert",
+    shownKey: gMinorConcert,
+    notesVisible: true,
+  });
+  assert.equal(concert.tone, "error");
+  assert.equal(concert.noteText, "3rd note · D3");
+  assert.equal(concert.verdictText, "Wrong note · heard E♭3");
+
+  // Trumpet (+2 semitones): D3 concert -> E3 written; E♭3 concert -> F3 written
+  const trumpet = formatFailureFeedback(wrongState, {
+    displayMode: "trumpet",
+    shownKey: gMinorTrumpet,
+    notesVisible: true,
+  });
+  assert.equal(trumpet.noteText, "3rd note · E3");
+  assert.equal(trumpet.verdictText, "Wrong note · heard F3");
+
+  // Alto sax (+9 semitones): D3 concert -> B3 written; E♭3 concert -> C4 written
+  const alto = formatFailureFeedback(wrongState, {
+    displayMode: "alto-sax",
+    shownKey: gMinorAlto,
+    notesVisible: true,
+  });
+  assert.equal(alto.noteText, "3rd note · B3");
+  assert.equal(alto.verdictText, "Wrong note · heard C4");
+
+  // Master mode with notes blurred hides expected note name, still shows what we heard
+  const hiddenMaster = formatFailureFeedback(wrongState, {
+    displayMode: "concert",
+    shownKey: gMinorConcert,
+    notesVisible: false,
+  });
+  assert.equal(hiddenMaster.noteText, "3rd note");
+  assert.equal(hiddenMaster.verdictText, "Wrong note · heard E♭3");
+
+  // Slightly sharp formatting + expectedLabel override
+  const sharpState = play([57, 55], [
+    ...tone(57, 0),
+    ...tone(55, 220, 160, { cents: 58 }),
+  ]);
+  const sharp = formatFailureFeedback(sharpState, {
+    displayMode: "concert",
+    shownKey: gMinorConcert,
+    notesVisible: true,
+    expectedLabel: "G3",
+  });
+  assert.equal(sharp.tone, "warn");
+  assert.equal(sharp.noteText, "2nd note · G3");
+  assert.equal(sharp.verdictText, "♯ Slightly sharp (+58¢)");
+
+  // Timeout omits note ordinal prefix
+  const timedOut = formatFailureFeedback(tickFollower(createFollower([57], 0), NO_SOUND_MS), {
+    displayMode: "concert",
+    shownKey: gMinorConcert,
+    notesVisible: true,
+  });
+  assert.equal(timedOut.noteText, "");
+  assert.equal(timedOut.verdictText, "No sound heard");
 });

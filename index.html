@@ -16,12 +16,12 @@
   <meta name="theme-color" content="#201712">
   <meta name="apple-mobile-web-app-title" content="DuoJazz">
   <link rel="stylesheet" href="./css/webfonts.css">
-  <link rel="stylesheet" href="./css/tokens.css?v=150">
-  <link rel="stylesheet" href="./css/styles.css?v=187">
-  <link rel="stylesheet" href="./css/hig.css?v=187">
+  <link rel="stylesheet" href="./css/tokens.css?v=190">
+  <link rel="stylesheet" href="./css/styles.css?v=190">
+  <link rel="stylesheet" href="./css/hig.css?v=190">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=187"></script>
+  <script type="module" src="./js/app.js?v=190"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -231,10 +231,6 @@
             <h2 class="session-step" id="card-badge">Play</h2>
             <p class="meter" id="meter" hidden></p>
             <p class="mic-line" id="session-mic" hidden></p>
-            <p class="grade-line" id="grade-line" hidden aria-live="polite">
-              <span id="grade-main"></span>
-              <span class="grade-hint" id="grade-hint" hidden></span>
-            </p>
             <div class="debug-strip" id="debug-strip" data-testid="debug-strip" hidden>
               <p class="debug-live" id="debug-live" data-testid="debug-live"></p>
               <p class="debug-attempt" id="debug-attempt" data-testid="debug-attempt"></p>
@@ -268,6 +264,12 @@
                     <p id="timed-chart-position"></p>
                     <progress id="timed-chart-progress" max="1" value="0" aria-label="Chart progress"></progress>
                   </div>
+                </div>
+                <div class="grade-slot" id="grade-slot" data-testid="grade-slot">
+                  <p class="grade-line" id="grade-line" hidden aria-live="polite">
+                    <span class="grade-hint" id="grade-hint" hidden></span>
+                    <span id="grade-main"></span>
+                  </p>
                 </div>
                 <div class="listen-state" id="listen-state" hidden>
                   <p class="listen-kicker" id="listen-kicker">Listening</p>

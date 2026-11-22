@@ -846,3 +846,24 @@ export function countSystemBreaks(mei) {
 export function countMeasures(mei) {
   return (String(mei).match(/<measure\b/g) ?? []).length;
 }
+
+/**
+ * Group rendered MEI melody note `xml:id`s in logical phrase order, keeping tied
+ * noteheads under one index and skipping slash accompaniment heads.
+ */
+export function meiNoteIdGroups(mei) {
+  const groups = [];
+  for (const match of String(mei ?? "").matchAll(/<note\b([^>]*)>/g)) {
+    const attrs = match[1];
+    if (/\btype="slash"/.test(attrs)) continue;
+    const id = attrs.match(/\bxml:id="([^"]+)"/)?.[1];
+    if (!id) continue;
+    const tie = attrs.match(/\btie="([^"]+)"/)?.[1] ?? "";
+    if ((tie === "t" || tie === "m") && groups.length) {
+      groups[groups.length - 1].push(id);
+    } else {
+      groups.push([id]);
+    }
+  }
+  return groups;
+}

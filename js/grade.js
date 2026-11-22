@@ -5,11 +5,19 @@
 
 import {
   BEATS_PER_BAR,
+  applicationKeyQuality,
+  chordAtEventBeat,
+  chorusChords,
+  concertMidiToWritten,
+  displayKey,
   getKey,
+  learnChords,
   melodyMidiForInterval,
   octaveForApplication,
   spotOctavesFor,
   phraseEvents,
+  spellMelodyMidi,
+  usesFlatsForChord,
   wrapPc,
   beatsToSeconds,
   eventUsesSwing,
@@ -76,6 +84,11 @@ export function expectedNotesFor(session) {
   const events = phraseEvents(lesson.applicationId, isolated);
   const octaveBase = octaveForApplication(lesson.applicationId, key.pc, session.displayMode);
   const octaves = spotOctavesFor(lesson.applicationId, key.pc, session.displayMode);
+  const quality = applicationKeyQuality(lesson.applicationId);
+  const shownKey = displayKey(key, session.displayMode, quality);
+  const chords = isolated
+    ? learnChords(key, session.displayMode, lesson.applicationId)
+    : chorusChords(key, session.displayMode, lesson.applicationId);
   return events.map((event, index) => {
     const swing = eventUsesSwing(event, session.swing);
     const startBeat = swing ? beatsToSeconds(event.beat, session.tempo, swing) * session.tempo / 60 : event.beat;
@@ -84,13 +97,18 @@ export function expectedNotesFor(session) {
       : wrapPc(key.pc + (event.cellTonicInterval ?? 0));
     const interval = event.cellInterval ?? event.interval;
     const oct = octaves[event.spotIndex ?? 0] ?? octaveBase;
+    const midi = melodyMidiForInterval(cellPc, interval, session.melodyRegister, oct);
+    const writtenMidi = concertMidiToWritten(midi, session.displayMode);
+    const chord = chordAtEventBeat(chords, event.beat);
+    const spelled = spellMelodyMidi(writtenMidi, shownKey, event, usesFlatsForChord(shownKey, chord));
     return {
       index,
       number: index + 1,
       startBeat,
       beats: event.beats,
       bar: event.beat < 0 ? 1 : Math.floor((event.beat + 1e-9) / BEATS_PER_BAR) + 1,
-      midi: melodyMidiForInterval(cellPc, interval, session.melodyRegister, oct),
+      midi,
+      shownName: `${spelled.name}${spelled.octave}`,
       spotIndex: event.spotIndex ?? 0,
     };
   });

@@ -26,6 +26,7 @@ import {
   landingMEI,
   meiBeamGroupsCrossBeat3,
   meiDurAttrs,
+  meiNoteIdGroups,
   groupLayerTokens,
   meiHasBowing,
   modelMEI,
@@ -33,6 +34,8 @@ import {
   slashMEI,
   wrapCueLines,
 } from "./mei.js";
+import { expectedNotesFor } from "./grade.js";
+import { createSession } from "./session.js";
 
 function stripTags(xml) {
   return String(xml).replace(/<[^>]+>/g, "");
@@ -633,4 +636,33 @@ test("long cue labels wrap at a word instead of overflowing the next bar", () =>
   const st = landingMEI(getKey("C"), "concert", "tune-st-thomas", "bass", 0, { showCues: true });
   assert.match(st, /Guide tone<lb\/>sequence/);
   assert.doesNotMatch(st, /Get ready<lb\/>/);
+});
+
+test("meiNoteIdGroups maps one group per logical expected note across ties and skips slashes", () => {
+  for (const lessonId of ["learn-lick", "lotus-inspired-learn", "south-of-the-river-learn", "integrate-minor-home"]) {
+    const lesson = LESSONS.find((item) => item.id === lessonId);
+    const session = createSession({ lessonId, startKeyId: "G" });
+    const expected = expectedNotesFor(session);
+    const isolated = lesson.kind === "learn" || lesson.kind === "master";
+    const mei = isolated
+      ? phraseMEI(getKey("G"), session.displayMode, lesson.applicationId, session.clef)
+      : landingMEI(getKey("G"), session.displayMode, lesson.applicationId, session.clef);
+    const groups = meiNoteIdGroups(mei);
+    assert.equal(groups.length, expected.length, `${lessonId} group count`);
+    assert.ok(groups.every((group) => group.length >= 1 && group.every((id) => /^n\d+$/.test(id))));
+  }
+
+  // Tied noteheads share one logical index; slash heads are excluded.
+  const synthetic = `
+    <measure n="1"><staff n="1"><layer n="1">
+      <note xml:id="n1" type="slash" pname="d" oct="3" dur="4"/>
+      <note xml:id="n2" pname="a" oct="3" dur="4"/>
+      <note xml:id="n3" pname="g" oct="3" dur="2" tie="i"/>
+    </layer></staff></measure>
+    <measure n="2"><staff n="1"><layer n="1">
+      <note xml:id="n4" pname="g" oct="3" dur="4" tie="m"/>
+      <note xml:id="n5" pname="g" oct="3" dur="4" tie="t"/>
+      <note xml:id="n6" pname="d" oct="3" dur="2"/>
+    </layer></staff></measure>`;
+  assert.deepEqual(meiNoteIdGroups(synthetic), [["n2"], ["n3", "n4", "n5"], ["n6"]]);
 });

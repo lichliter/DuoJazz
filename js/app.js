@@ -20,8 +20,9 @@ import {
   sessionWheelLayout,
   minWheelDiameter,
 } from "./lesson.js";
-import { chorusStaffMEI, phraseMEI } from "./mei.js";
+import { chorusStaffMEI, meiNoteIdGroups, phraseMEI } from "./mei.js";
 import {
+  applyFailedNoteHighlight,
   applySoundingHighlight,
   compactChordSymbol,
   fillMusicLabel,
@@ -121,7 +122,7 @@ import { setupLibraryPreview } from "./library-preview.js";
 import { transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js";
 import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
-import { createFollower, debugTextForKey, describeAttempt, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js";
+import { createFollower, debugTextForKey, describeAttempt, formatFailureFeedback, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -184,6 +185,7 @@ let lastPlayheadSystem = null;
 let lastTimemap = [];
 let lastPlaybackTimemap = [];
 let lastChordTimings = [];
+let lastNoteIdGroups = [];
 let audioError = "";
 let audioNotice = "";
 let samplesLoading = false;
@@ -195,6 +197,8 @@ let wrapupBanner = null;
 let liveGrade = null;
 let lastSessionSlot = "";
 let cue = null;
+let cueSeq = 0;
+let lastRenderedCueSeq = 0;
 let rapidPhase = "idle";
 let hearDemo = false;
 let attempt = null;
@@ -363,7 +367,10 @@ function releaseMic(reason) {
     demo: reason === "hide" ? false : session.demo,
   };
   rapidPhase = "idle";
-  cue = null;
+  if (reason !== "pause" && reason !== "hear") {
+    cue = null;
+    lastRenderedCueSeq = 0;
+  }
   renderCue();
   renderPrimary();
 }
@@ -374,6 +381,8 @@ function clearGradeLine() {
   if (!els.gradeLine) return;
   els.gradeLine.hidden = true;
   delete els.gradeLine.dataset.kind;
+  delete els.gradeLine.dataset.tone;
+  els.gradeLine.classList.remove("grade-flash");
   const main = document.getElementById("grade-main");
   const hint = document.getElementById("grade-hint");
   if (main) main.textContent = "";
@@ -381,6 +390,7 @@ function clearGradeLine() {
     hint.hidden = true;
     hint.textContent = "";
   }
+  renderFailedNote();
 }
 
 function shownKeyForSession() {
@@ -396,33 +406,113 @@ function visualPhase() {
   return rapidPhase;
 }
 
+function notesVisibleInSession() {
+  if (!session || session.screen !== "session") return false;
+  const lesson = lessonById(session.lessonId);
+  return !(lesson.kind === "master" && !lesson.chartTimed && !notesRevealed);
+}
+
+function demoRetryCue() {
+  const notes = session ? expectedNotesFor(session) : [];
+  const index = notes.length ? Math.min(2, notes.length - 1) : 0;
+  const target = notes[index] ?? null;
+  return {
+    kind: "retry",
+    failure: {
+      index,
+      reason: "wrong",
+      kind: "slightly-flat",
+      cents: -58,
+      expectedMidi: target?.midi ?? null,
+      heardMidi: target?.midi != null ? target.midi - 1 : null,
+    },
+    expectedLabels: notes.map((note) => note.shownName),
+  };
+}
+
 function currentCue() {
-  if (sessionShot === "retry") return { kind: "retry", hint: "3rd note" };
+  if (sessionShot === "retry") return demoRetryCue();
   if (visualPhase() === "celebrate") return null;
+  if (cue && cue.keyToken && session && cue.keyToken !== sessionKeyToken(session)) return null;
   return cue;
+}
+
+function renderFailedNote() {
+  const current = currentCue();
+  const show = Boolean(
+    current?.kind === "retry"
+    && current.failure
+    && current.failure.kind !== "timeout"
+    && notesVisibleInSession(),
+  );
+  const ids = show ? (lastNoteIdGroups[current.failure.index] ?? []) : [];
+  applyFailedNoteHighlight(els.notation, ids);
 }
 
 function renderCue() {
   const line = els.gradeLine;
-  if (!line) return;
+  if (!line) {
+    renderFailedNote();
+    return;
+  }
   const current = currentCue();
   const main = document.getElementById("grade-main");
   const hint = document.getElementById("grade-hint");
   if (!current) {
-    if (liveGrade?.graded) return;
+    if (liveGrade?.graded) {
+      renderFailedNote();
+      return;
+    }
     line.hidden = true;
     delete line.dataset.kind;
+    delete line.dataset.tone;
+    line.classList.remove("grade-flash");
     line.removeAttribute("aria-label");
+    renderFailedNote();
+    return;
+  }
+  if (current.kind === "retry") {
+    const formatted = current.failure
+      ? formatFailureFeedback(current.failure, {
+        displayMode: session?.displayMode ?? "concert",
+        shownKey: shownKeyForSession(),
+        notesVisible: notesVisibleInSession(),
+        expectedLabel: current.expectedLabels?.[current.failure.index] ?? null,
+      })
+      : {
+        tone: "warn",
+        noteText: current.hint ?? "",
+        verdictText: "Try again",
+        ariaLabel: `Try again. ${current.hint ?? ""}`.trim(),
+      };
+    line.hidden = false;
+    line.dataset.kind = "retry";
+    line.dataset.tone = formatted.tone;
+    if (main) fillMusicLabel(main, formatted.verdictText);
+    if (hint) {
+      hint.hidden = !formatted.noteText;
+      fillMusicLabel(hint, formatted.noteText);
+    }
+    line.setAttribute("aria-label", formatted.ariaLabel);
+    if (current.seq && current.seq !== lastRenderedCueSeq) {
+      lastRenderedCueSeq = current.seq;
+      line.classList.remove("grade-flash");
+      void line.offsetWidth;
+      line.classList.add("grade-flash");
+    }
+    renderFailedNote();
     return;
   }
   line.hidden = false;
   line.dataset.kind = current.kind;
+  delete line.dataset.tone;
   if (main) main.textContent = current.kind === "check" ? "✓" : "Try again";
   if (hint) {
     hint.hidden = !current.hint;
     hint.textContent = current.hint ?? "";
   }
   line.setAttribute("aria-label", current.kind === "check" ? "Pass" : `Try again. ${current.hint ?? ""}`.trim());
+  renderFailedNote();
 }
 
 function renderLive(frame) {
@@ -577,16 +667,30 @@ function finishRapid(generation, result) {
   }
   const failed = afterFail(session, { auto, hint: result.hint ?? "1st note" });
   rapidPhase = "retry";
-  cue = { kind: "retry", hint: failed.hint };
+  const keyToken = sessionKeyToken(session);
+  const keepExistingPitchCue = result.reason === "timeout"
+    && cue?.kind === "retry"
+    && cue.keyToken === keyToken
+    && cue.failure
+    && cue.failure.kind !== "timeout";
+  if (!keepExistingPitchCue) {
+    cueSeq += 1;
+    cue = {
+      kind: "retry",
+      keyToken,
+      seq: cueSeq,
+      hint: failed.hint,
+      failure: result.failure ?? null,
+      expectedLabels: session ? expectedNotesFor(session).map((note) => note.shownName) : [],
+    };
+  }
   renderCue();
   renderPrimary();
   if (failed.autoStart) {
     feedbackTimer = window.setTimeout(() => {
       if (token !== startGen) return;
       finishing = false;
-      cue = null;
       rapidPhase = "idle";
-      renderCue();
       if (session?.screen === "session") beginListening();
     }, RETRY_MS);
     return;
@@ -646,6 +750,8 @@ async function beginPracticeLoop() {
 
 async function beginTimedChart() {
   halt();
+  cue = null;
+  lastRenderedCueSeq = 0;
   resetPitchTake();
   const generation = startGen;
   timedRunActive = true;
@@ -692,7 +798,6 @@ async function beginListening() {
   finishing = false;
   clearRapidTimers();
   sessionShot = null;
-  cue = null;
   audioError = "";
   rapidPhase = "listening";
   renderCelebrate();
@@ -1011,6 +1116,8 @@ function startFromSetup() {
 }
 
 function exitSession() {
+  cue = null;
+  lastRenderedCueSeq = 0;
   releaseMic("leave");
   resetPitchTake();
   lastSessionSlot = "";
@@ -1027,12 +1134,17 @@ function sessionKeyToken(value) {
 function applySession(next, { autoStart = false } = {}) {
   const previousScreen = session?.screen;
   clearMasteryPreview();
+  const prevKey = sessionKeyToken(session);
+  const nextKey = sessionKeyToken(next);
+  if (nextKey !== prevKey || next?.screen !== "session") {
+    cue = null;
+    lastRenderedCueSeq = 0;
+  }
   const slot = sessionSlot(next);
   if (slot !== lastSessionSlot) resetPitchTake();
   lastSessionSlot = slot;
-  const prevKey = sessionKeyToken(session);
   session = next;
-  if (sessionKeyToken(session) !== prevKey) {
+  if (nextKey !== prevKey) {
     notesRevealed = false;
     notesPeeked = false;
   }
@@ -1184,6 +1296,7 @@ function goContinue() {
   if (!session || session.screen !== "session") return;
   const plan = skipAhead(session, { auto: prefs.auto !== false });
   cue = null;
+  lastRenderedCueSeq = 0;
   liveGrade = null;
   sessionShot = null;
   halt({ keepMic: Boolean(plan.autoStart) });
@@ -1380,6 +1493,8 @@ function applyMelodyOctave(register) {
   const again = hearDemo;
   const restart = !again && (playback.playing || playback.paused || rapidPhase === "listening");
   halt();
+  cue = null;
+  lastRenderedCueSeq = 0;
   resetPitchTake();
   session = setMelodyRegister(session, melodyRegister);
   prefs = persistLessonMelodyRegister(prefs, session.lessonId, melodyRegister);
@@ -1789,6 +1904,7 @@ function renderNotation() {
     lastTimemap = [];
     lastPlaybackTimemap = [];
     lastChordTimings = [];
+    lastNoteIdGroups = [];
     els.notation.replaceChildren();
     lastPlayheadSystem = null;
     layoutClickWheel();
@@ -1825,11 +1941,13 @@ function renderNotation() {
       showCues: spec.showEntranceCues,
       barsPerLine: layout.barsPerLine,
     });
+  lastNoteIdGroups = meiNoteIdGroups(mei);
   const renderKey = JSON.stringify([session.lessonId, mei, layout, width, spec.memory && !notesRevealed]);
   if (notationRenderKey === renderKey) {
     updatePlaybackTimemap();
     fitNotationInView();
     updatePlayhead();
+    renderFailedNote();
     return;
   }
   notationRenderKey = renderKey;
@@ -1865,6 +1983,7 @@ function renderNotation() {
     if (els.notation.classList.contains("notation-memory")) markFirstMelodyNote(els.notation);
     fitNotationInView();
     updatePlayhead();
+    renderFailedNote();
   }).catch(() => {
     if (gen !== notationGen) return;
     notationRenderKey = null;
@@ -1920,6 +2039,9 @@ function applyInstrument(instrumentId) {
   persist();
   if (session) {
     halt();
+    cue = null;
+    lastRenderedCueSeq = 0;
+    resetPitchTake();
     session = setInstrument(session, instrument.id);
   }
   render();
@@ -2265,22 +2387,38 @@ function showGrade(result) {
   if (result?.graded) {
     els.gradeLine.hidden = false;
     els.gradeLine.dataset.kind = "legacy";
+    delete els.gradeLine.dataset.tone;
+    els.gradeLine.classList.remove("grade-flash");
     const bits = [`${result.percent}%`, result.passed ? "pass" : "not yet"];
     if (result.correction) bits.push(result.correction);
     if (main) main.textContent = bits.join(" · ");
-    if (hint) hint.hidden = true;
+    if (hint) {
+      hint.hidden = true;
+      hint.textContent = "";
+    }
     return;
   }
   if (result?.outcome === "skipped") {
     els.gradeLine.hidden = false;
     els.gradeLine.dataset.kind = "legacy";
+    delete els.gradeLine.dataset.tone;
+    els.gradeLine.classList.remove("grade-flash");
     if (main) main.textContent = "Skipped";
-    if (hint) hint.hidden = true;
+    if (hint) {
+      hint.hidden = true;
+      hint.textContent = "";
+    }
     return;
   }
   els.gradeLine.hidden = true;
   delete els.gradeLine.dataset.kind;
+  delete els.gradeLine.dataset.tone;
+  els.gradeLine.classList.remove("grade-flash");
   if (main) main.textContent = "";
+  if (hint) {
+    hint.hidden = true;
+    hint.textContent = "";
+  }
 }
 
 function restoreStoredGrade() {
@@ -2570,6 +2708,7 @@ els.showNotes?.addEventListener("click", () => {
   }
   renderShowNotes();
   renderNotation();
+  renderCue();
 });
 els.hearIt?.addEventListener("click", () => {
   if (!session || session.screen !== "session") return;
@@ -2825,6 +2964,11 @@ window.__DUOJAZZ__ = {
     monitor.feed(frames);
     return monitor.observations;
   },
+  feedPitchFrames(frames = []) {
+    for (const frame of frames) monitor.onFrame(frame);
+    return { ended: Boolean(attempt?.ended), phase: rapidPhase, cue };
+  },
+  getAttemptState: () => ({ phase: rapidPhase, cue, attemptEnded: Boolean(attempt?.ended) }),
   gradeNow() {
     if (!session) return null;
     return gradeSession(session, monitor.observations);

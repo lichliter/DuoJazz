@@ -1261,6 +1261,12 @@ input[type="checkbox"] {
   margin-top: auto;
 }
 
+.vrv-container svg .note-failed,
+.vrv-container svg .note-failed * {
+  fill: var(--failed-note) !important;
+  stroke: var(--failed-note) !important;
+}
+
 .vrv-container svg .sounding,
 .vrv-container svg .sounding * {
   fill: var(--accent) !important;
