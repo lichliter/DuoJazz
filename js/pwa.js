@@ -1,6 +1,4 @@
 const status = document.getElementById('offline-status');
-const updateButton = document.getElementById('app-update');
-const updateStatus = document.getElementById('app-update-status');
 const headerButton = document.getElementById('header-update');
 const headerStatus = document.getElementById('header-update-status');
 const serviceWorker = navigator.serviceWorker;
@@ -121,46 +119,21 @@ function activateUpdate(worker) {
   });
 }
 
-function setUpdateLabel(label) {
-  updateButton.textContent = label;
-  updateStatus.textContent = label;
-}
-
 function setHeaderStatus(message, visible = false) {
   headerStatus.classList.toggle('sr-only', !visible);
   headerStatus.textContent = message;
 }
 
-async function applyUpdate(event) {
-  const fromHeader = event.currentTarget === headerButton;
-  const report = fromHeader ? message => setHeaderStatus(message, true) : setUpdateLabel;
-  if (updateButton.disabled) return;
-  const ready = !headerButton.hidden;
-  if (!ready && !navigator.onLine) {
-    setUpdateLabel('Offline. Connect to update.');
-    return;
-  }
-
-  updateButton.disabled = true;
+headerButton.addEventListener('click', async () => {
+  if (headerButton.disabled || headerButton.hidden) return;
   headerButton.disabled = true;
+  setHeaderStatus('Updating app…', true);
   try {
-    report(ready ? 'Updating app…' : 'Checking for updates…');
-    if (serviceWorker) {
-      if (!ready) await checkForUpdate();
-      const worker = activeRegistration?.waiting ||
-        (ready ? activeRegistration?.active : activeRegistration?.installing);
-      if (worker) {
-        report('Updating app…');
-        await activateUpdate(worker);
-      }
-    }
+    const worker = activeRegistration?.waiting || activeRegistration?.active;
+    if (worker) await activateUpdate(worker);
     location.reload();
   } catch {
-    updateButton.disabled = false;
     headerButton.disabled = false;
-    report('Update failed. Tap to retry.');
+    setHeaderStatus('Update failed. Tap to retry.', true);
   }
-}
-
-updateButton.addEventListener('click', applyUpdate);
-headerButton.addEventListener('click', applyUpdate);
+});

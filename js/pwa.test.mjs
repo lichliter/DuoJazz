@@ -6,13 +6,11 @@ import { releaseAssets } from '../tools/generate-precache.mjs';
 
 async function pwaHarness({ online = true, failure = false, active = false, waiting = false } = {}) {
   const status = { textContent: '', hidden: true };
-  const updateStatus = { textContent: '' };
-  const button = () => ({
+  const headerButton = {
+    hidden: true,
     disabled: false,
-    addEventListener(_, handler) { this.click = () => handler({ currentTarget: this }); },
-  });
-  const updateButton = button();
-  const headerButton = { ...button(), hidden: true };
+    addEventListener(_, handler) { this.click = handler; },
+  };
   const headerStatus = { textContent: '', classList: { toggle() {} } };
   const events = {};
   const messages = [];
@@ -44,8 +42,6 @@ async function pwaHarness({ online = true, failure = false, active = false, wait
     document: {
       getElementById: id => ({
         'offline-status': status,
-        'app-update': updateButton,
-        'app-update-status': updateStatus,
         'header-update': headerButton,
         'header-update-status': headerStatus,
       })[id],
@@ -55,7 +51,7 @@ async function pwaHarness({ online = true, failure = false, active = false, wait
     addEventListener(name, handler) { events[name] = handler; },
   });
   await new Promise(resolve => setImmediate(resolve));
-  return { status, navigator, events, registration, updateButton, updateStatus, headerButton, headerStatus, messages, worker,
+  return { status, navigator, events, registration, headerButton, headerStatus, messages, worker,
     updateListeners: () => updateListeners,
     updates: () => updates,
     reloads: () => reloads,
@@ -109,24 +105,6 @@ test('registration failures persist until a successful reconnect', async () => {
   assert.equal(app.updates(), 3);
 });
 
-test('Update app activates an installed release before reloading', async () => {
-  const app = await pwaHarness({ active: true });
-  const updating = app.updateButton.click();
-  assert.equal(app.updateButton.textContent, 'Checking for updates…');
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(app.updates(), 0);
-  assert.equal(app.updateButton.disabled, true);
-  assert.equal(app.updateButton.textContent, 'Updating app…');
-  assert.deepEqual(app.messages, []);
-  app.state('installed');
-  assert.deepEqual(app.messages, ['ACTIVATE_UPDATE']);
-  assert.equal(app.reloads(), 0);
-  app.navigator.serviceWorker.controller = app.worker;
-  app.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
-  await updating;
-  assert.equal(app.reloads(), 1);
-});
-
 test('header shows staged updates and can apply one offline without another check', async () => {
   const app = await pwaHarness({ active: true, online: false });
   assert.equal(app.headerButton.hidden, true);
@@ -137,8 +115,10 @@ test('header shows staged updates and can apply one offline without another chec
 
   const updating = app.headerButton.click();
   assert.equal(app.headerStatus.textContent, 'Updating app…');
+  assert.equal(app.headerButton.disabled, true);
   assert.equal(app.updates(), 0);
   assert.deepEqual(app.messages, ['ACTIVATE_UPDATE']);
+  assert.equal(app.reloads(), 0);
   app.navigator.serviceWorker.controller = app.worker;
   app.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
   await updating;
@@ -159,20 +139,12 @@ test('header sees an already waiting update and offers a reload after another ta
   assert.equal(app.reloads(), 1);
 });
 
-test('an unsuccessful app update leaves the current page available for retry', async () => {
-  const app = await pwaHarness({ online: false, active: true });
-  await app.updateButton.click();
-  assert.equal(app.updateButton.textContent, 'Offline. Connect to update.');
-  assert.equal(app.updateStatus.textContent, app.updateButton.textContent);
-  assert.equal(app.updates(), 0);
-
-  app.navigator.onLine = true;
-  const updating = app.updateButton.click();
-  await new Promise(resolve => setImmediate(resolve));
-  app.state('redundant');
-  await updating;
-  assert.equal(app.updateButton.textContent, 'Update failed. Tap to retry.');
-  assert.equal(app.updateButton.disabled, false);
+test('an unsuccessful header update leaves the current page available for retry', async () => {
+  const app = await pwaHarness({ active: true, waiting: true });
+  app.worker.postMessage = () => { throw new Error('Activation failed'); };
+  await app.headerButton.click();
+  assert.equal(app.headerStatus.textContent, 'Update failed. Tap to retry.');
+  assert.equal(app.headerButton.disabled, false);
   assert.equal(app.reloads(), 0);
 });
 

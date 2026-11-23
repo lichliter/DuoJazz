@@ -1,4 +1,4 @@
-/* A release is installed atomically. Settings can activate a waiting update. */
+/* A release is installed atomically and can be activated from the header. */
 importScripts('./precache.js');
 const PREFIX = `duojazz-app:${self.registration.scope}:`;
 const CACHE = PREFIX + PRECACHE_VERSION;
