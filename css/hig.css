@@ -892,6 +892,7 @@ button.module-banner {
 .session-screen {
   --screen-margin: var(--margin-regular);
   --session-control: var(--tap);
+  --play-goal: 160px;
   --title-gutter: 16px;
   position: relative;
   background: var(--bg);
@@ -1492,7 +1493,7 @@ button.module-banner {
 
 .session-transport .play-round {
   flex: 0 0 auto;
-  --play-size: 54cqmin;
+  --play-size: clamp(var(--tap), 54cqmin, var(--play-goal));
   z-index: 1;
   box-shadow: 0 0 0 3px var(--bg);
 }
@@ -1535,8 +1536,6 @@ button.module-banner {
 .play-round {
   width: var(--play-size);
   height: var(--play-size);
-  min-width: 0;
-  min-height: 0;
   background: var(--tint-solid);
   color: var(--tint-on-solid);
   position: relative;
@@ -2653,27 +2652,9 @@ button.module-banner {
   margin-top: 0.25rem;
 }
 
-@media (max-width: 520px) {
+@media (width < 600px) {
   .session-screen {
-    --play-goal: 180px;
-  }
-}
-
-@media (min-width: 900px) and (max-width: 1180px) and (min-height: 1200px) {
-  .session-screen {
-    --play-goal: 42vmin;
-  }
-}
-
-@media (min-width: 1180px) and (min-height: 900px) and (max-height: 1199px) {
-  .session-screen {
-    --play-goal: 240px;
-  }
-}
-
-@media (max-height: 800px) {
-  .session-screen {
-    --play-goal: 168px;
+    --play-goal: 120px;
   }
 }
 

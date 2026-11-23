@@ -787,14 +787,14 @@ test("staff card fits one, two, and four systems without reserving blank rows", 
 });
 
 test("the click wheel shrinks for a content-sized card and floors before the page scrolls", () => {
-  assert.equal(minWheelCenterPx(1024), 156);
-  assert.equal(minWheelCenterPx(1366), 156);
-  assert.equal(minWheelCenterPx(390), 84);
+  assert.equal(minWheelCenterPx(1024), 120);
+  assert.equal(minWheelCenterPx(1366), 120);
+  assert.equal(minWheelCenterPx(390), 72);
   const ipadWheel = minWheelDiameter(1024);
   const phoneWheel = minWheelDiameter(390);
-  assert.ok(ipadWheel * 0.54 >= 156);
-  assert.ok(phoneWheel * 0.54 >= 84);
-  assert.ok(phoneWheel * 0.54 < 96);
+  assert.ok(ipadWheel * 0.54 >= 120);
+  assert.ok(phoneWheel * 0.54 >= 72);
+  assert.ok(phoneWheel * 0.54 < 73);
   assert.ok(ipadWheel > phoneWheel);
 
   const card = staffCardContentHeight(withSystemGap(
@@ -809,7 +809,7 @@ test("the click wheel shrinks for a content-sized card and floors before the pag
     widthFit: 960,
     minDiameter: ipadWheel,
   });
-  const room = Math.floor(980 - 12 - card - 60);
+  const room = Math.floor(980 - 12 - card - 40);
   assert.equal(fit.scroll, false);
   assert.equal(fit.pageScroll, false);
   assert.equal(fit.diameter, Math.min(960, room));
@@ -830,7 +830,7 @@ test("the click wheel shrinks for a content-sized card and floors before the pag
   assert.equal(widthCapped.cardHeight, card);
 
   const tight = sessionWheelLayout({
-    space: 440,
+    space: 420,
     cardHeight: card,
     chrome: 80,
     margin: 16,
@@ -843,14 +843,14 @@ test("the click wheel shrinks for a content-sized card and floors before the pag
   assert.equal(tight.cardHeight, card);
 
   const between = sessionWheelLayout({
-    space: 448,
+    space: 432,
     cardHeight: 200,
     chrome: 20,
     margin: 16,
     widthFit: 340,
     minDiameter: phoneWheel,
   });
-  assert.equal(Math.floor(448 - 20 - 200 - 48), 180);
+  assert.equal(Math.floor(432 - 20 - 200 - 32), 180);
   assert.ok(180 < Math.ceil(96 / 0.42));
   assert.ok(180 >= phoneWheel);
   assert.equal(between.pageScroll, false);
@@ -859,7 +859,7 @@ test("the click wheel shrinks for a content-sized card and floors before the pag
   assert.equal(between.diameter, 180);
 
   const tooTall = sessionWheelLayout({
-    space: 400,
+    space: 376,
     cardHeight: 200,
     chrome: 20,
     margin: 16,

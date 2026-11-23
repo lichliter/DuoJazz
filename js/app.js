@@ -1867,10 +1867,9 @@ function layoutClickWheel() {
   const svg = els.notation?.querySelector("svg");
   // Measure the card-to-footer slot with the wheel collapsed and the card
   // unpinned, so a previous engraving cannot shrink the slot.
-  delete screen.dataset.columnScroll;
-  delete screen.dataset.pageScroll;
   const scroller = screen.querySelector(".session-body");
   const keptScroll = scroller ? scroller.scrollTop : 0;
+  delete screen.dataset.columnScroll;
   if (scroller) scroller.scrollTop = 0;
   clearStaffCardBox(wrap);
   wheel.style.width = "0px";

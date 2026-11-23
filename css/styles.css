@@ -1027,7 +1027,6 @@ input[type="checkbox"] {
 }
 
 .session-screen {
-  --play-goal: 200px;
   overflow: hidden;
   padding-bottom: 0;
 }
