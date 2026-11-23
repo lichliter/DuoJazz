@@ -194,11 +194,13 @@ export function buildPracticeCatalog({ modules, tunes, licks, fragments, applica
     moduleGroupCounts.set(module.id, groupCount + 1);
     const sleeve = ["oxblood", "amber", "teal"][groupCount % 3];
     const seenChoiceKeys = new Set();
-    const register = (id, form, spots, key, chart, variant) => {
+    const learnedPitches = lick.elements.filter((element) => element.type === "note").map((note) => note.interval);
+    const register = (id, form, spots, key, chart, variant, showLickReference) => {
       applications.push({
         id, lickId: module.id, formId: form.id, label: definition.label,
         cellTonicInterval: spots[0].anchorInterval, phraseStartBar: spots[0].bar,
         spots, leadIn: [], resolve: [], copyKind: "place",
+        showLickReference,
         workbookApplicationId: group.id, workbookVariantId: variant.id,
       });
       const offset = form.excerptStartBar ?? 1;
@@ -216,10 +218,13 @@ export function buildPracticeCatalog({ modules, tunes, licks, fragments, applica
     };
     const moduleSources = sourcesByModule.get(module.id) ?? [];
     for (const [index, variant] of definition.variants.entries()) {
+      const pitches = variant.elements.filter((element) => element.type === "note").map((note) => note.interval);
+      // The anchor represents the learned reference root when the variant reuses its pitches.
+      const showLickReference = pitches.length > 0 && pitches.every((pitch, i) => pitch === learnedPitches[i]);
       const exampleId = `${prefix}-example-${variant.id}`;
       const form = exampleForm(`${exampleId}-form`, definition, variant, lick.keyQuality);
       forms[form.id] = form;
-      register(exampleId, form, [{ bar: 1, beatOffset: 0, anchorInterval: 0, fragment: "full", elements: variant.elements, pickupBeats: variant.pickupBeats, pickup: variant.pickupBeats > 0, variantId: variant.id }], lick.defaultKeyId, null, variant);
+      register(exampleId, form, [{ bar: 1, beatOffset: 0, anchorInterval: 0, fragment: "full", elements: variant.elements, pickupBeats: variant.pickupBeats, pickup: variant.pickupBeats > 0, variantId: variant.id }], lick.defaultKeyId, null, variant, showLickReference);
       group.variants.push({ id: variant.id, label: variant.label, page: variant.page ?? definition.page, exampleLessonId: exampleId });
       // Prefer the lick's existing excerpt where it satisfies the complete rule.
       const visitSource = (source) => {
@@ -229,7 +234,7 @@ export function buildPracticeCatalog({ modules, tunes, licks, fragments, applica
         if (!spots.length) return;
         seenChoiceKeys.add(choiceKey);
         const id = `${prefix}-${source.chart.id}${index ? `--${variant.id}` : ""}`;
-        group.choices.push(register(id, source.form, spots, source.key, source.chart, variant));
+        group.choices.push(register(id, source.form, spots, source.key, source.chart, variant, showLickReference));
       };
       for (const source of moduleSources) visitSource(source);
       for (const source of sources) {

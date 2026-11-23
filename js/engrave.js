@@ -412,16 +412,17 @@ function restyleHarms(svg, chordVU) {
 }
 
 function restyleDirs(svg, cueVU) {
-  const paint = (el) => {
+  const paint = (el, size) => {
     el.setAttribute("font-family", "Source Sans 3, sans-serif");
     el.setAttribute("font-weight", "400");
     el.setAttribute("font-style", "italic");
-    el.setAttribute("font-size", `${cueVU}px`);
+    el.setAttribute("font-size", `${size}px`);
     el.setAttribute("fill", INK);
   };
   for (const dir of svg.querySelectorAll(".dir")) {
-    if (isSvgText(dir)) paint(dir);
-    for (const el of dir.querySelectorAll("text, tspan")) paint(el);
+    const size = dir.classList.contains("lick-reference") ? CHORD_FONT_VU : cueVU;
+    if (isSvgText(dir)) paint(dir, size);
+    for (const el of dir.querySelectorAll("text, tspan")) paint(el, size);
   }
 }
 
@@ -1137,11 +1138,6 @@ function firstLickNote(measure) {
   return null;
 }
 
-function firstLickHead(measure) {
-  const note = firstLickNote(measure);
-  return note?.querySelector(".notehead") ?? note;
-}
-
 /** Lowest ink at or below the staff that shares the cue's horizontal span. */
 function inkFloor(measure, x0, x1, staffBottom) {
   let floor = staffBottom;
@@ -1209,17 +1205,20 @@ export function expandedViewBox(viewBox, { top = 0, bottom = 0 } = {}) {
   };
 }
 
-/** Park each HERE below the first lick note's beam, stems, and tuplet numeral. */
+/** Park entrance labels below the lick's beams, stems, and tuplet numerals. */
 export function layoutCueLabels(svg) {
   if (!svg?.querySelectorAll) return;
-  for (const cue of svg.querySelectorAll(".dir.cue")) {
+  const placedBySystem = new Map();
+  for (const cue of svg.querySelectorAll(".dir.cue, .dir.lick-reference")) {
     const measure = cue.closest(".measure");
     const lines = staffLineScreenCenters(measure?.querySelector(".staff"));
     if (lines.length < 2) continue;
     const staffTop = lines[0];
     const staffBottom = lines[lines.length - 1];
     const staffH = staffBottom - staffTop;
-    const head = firstLickHead(measure);
+    const noteId = cue.id.match(/^lick-reference-(n\d+)$/)?.[1];
+    const note = noteId ? measure.querySelector(`[id="${noteId}"]`) : firstLickNote(measure);
+    const head = note?.querySelector(".notehead") ?? note;
     const headBox = screenBox(head);
     const text = cue.querySelector("text") ?? cue;
     const cueBox = screenBox(text) ?? screenBox(cue);
@@ -1233,7 +1232,14 @@ export function layoutCueLabels(svg) {
     let left = noteCenter - cueBox.width / 2;
     if (Number.isFinite(minLeft)) left = Math.max(minLeft, left);
     if (Number.isFinite(maxRight)) left = Math.min(left, maxRight - cueBox.width);
-    const inkBottom = inkFloor(measure, left, left + cueBox.width, staffBottom);
+    const system = measure.closest(".system");
+    const placed = placedBySystem.get(system) ?? [];
+    let inkBottom = inkFloor(measure, left, left + cueBox.width, staffBottom);
+    for (const previous of placed) {
+      if (previous.right + 2 > left && previous.left - 2 < left + cueBox.width) {
+        inkBottom = Math.max(inkBottom, previous.bottom);
+      }
+    }
     const gap = Math.max(6, staffH * 0.1);
     const move = cueJustBelowStaff(cueBox, staffBottom, noteCenter, {
       gap,
@@ -1253,7 +1259,11 @@ export function layoutCueLabels(svg) {
       }
     }
     const delta = screenDeltaToLocal(cue, move.dx, move.dy);
-    if (delta) translateSvg(cue, delta.dx, delta.dy);
+    if (delta) {
+      translateSvg(cue, delta.dx, delta.dy);
+      placed.push({ left: move.left, right: move.left + cueBox.width, bottom: move.top + cueBox.height });
+      placedBySystem.set(system, placed);
+    }
   }
 }
 
@@ -1280,7 +1290,7 @@ export function padViewBoxToInk(svg, { topPad = 8, bottomPad = 8 } = {}) {
   const ink = inkUserBounds(svg);
   let overflowTop = ink ? vb.y - ink.y : 0;
   let overflowBottom = ink ? (ink.y + ink.height) - (vb.y + vb.height) : 0;
-  for (const el of svg.querySelectorAll(".harm, .dir.cue")) {
+  for (const el of svg.querySelectorAll(".harm, .dir.cue, .dir.lick-reference")) {
     const box = screenBox(el.querySelector("text") ?? el);
     if (!box) continue;
     overflowTop = Math.max(overflowTop, (rect.top - box.top) * userPerPx);

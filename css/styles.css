@@ -581,6 +581,11 @@ input[type="checkbox"] {
   font-style: italic;
 }
 
+.paper .dir.lick-reference text,
+.paper .dir.lick-reference tspan {
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
   .transport {
     gap: 0.35rem 0.85rem;

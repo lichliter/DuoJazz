@@ -64,6 +64,27 @@ function clefShape(mei) {
   return String(mei).match(/clef\.shape="([^"]+)"/)?.[1];
 }
 
+test("integration reference roots follow each lick entrance and the written key", () => {
+  const applicationId = "practice-south-of-the-river-opening-dominant-sus-autumn-leaves";
+  const key = getKey("G");
+  const concert = landingMEI(key, "trombone", applicationId);
+  const written = modelMEI(key, "trumpet", applicationId);
+  const measures = [...concert.matchAll(/<measure n="(\d+)"[^>]*>(.*?)<\/measure>/g)];
+  const placements = measures.filter(([, , content]) => content.includes('type="lick-reference"'));
+
+  assert.deepEqual(placements.map(([_, bar, content]) => [bar, harms(content), dirs(content)]), [
+    ["2", ["F7"], ["Think E♭"]],
+    ["6", ["D7"], ["Think C"]],
+  ]);
+  for (const [, , content] of placements) {
+    const firstNoteId = content.match(/<note\b[^>]*\bxml:id="([^"]+)"/)[1];
+    assert.ok(content.includes(`startid="#${firstNoteId}"`));
+  }
+  assert.deepEqual(dirs(written), ["Think F", "Think D"]);
+  assert.deepEqual(dirs(slashMEI(key, "trombone", applicationId)), []);
+  assert.deepEqual(dirs(phraseMEI(key, "trombone", "south-of-the-river-opening-learn")), []);
+});
+
 test("phrase MEI is bass clef with the Learn chord and the cell pitches", () => {
   const mei = phraseMEI(getKey("G"), "concert", "minor-home");
   assert.equal(clefShape(mei), "F");

@@ -8,6 +8,7 @@ import {
   DEFAULT_APPLICATION_ID,
   DEFAULT_CLEF,
   DEFAULT_MELODY_REGISTER,
+  applicationById,
   applicationKeyQuality,
   chordSymbolName,
   chordAtEventBeat,
@@ -159,6 +160,11 @@ function articAttr(item) {
 
 function noteXml(item, ctx, beats, tie = "") {
   const id = nextId(ctx, "n");
+  const lickCue = ctx.lickCues?.get(item);
+  if (lickCue) {
+    ctx.lickCues.delete(item);
+    ctx.measureLickCues.push(`<dir xml:id="lick-reference-${id}" type="lick-reference" place="below" staff="1" startid="#${id}">${esc(lickCue)}</dir>`);
+  }
   const pitch = notePitchAttrs(item, ctx);
   const artic = articAttr(item);
   const accid = pitch.accid ? ` accid="${pitch.accid}"` : "";
@@ -529,6 +535,7 @@ function measureXml({
   const dirs = [];
   if (section) dirs.push(sectionXml(ctx, section));
   if (cue) dirs.push(dirXml(ctx, cue, "1"));
+  if (ctx.measureLickCues) dirs.push(...ctx.measureLickCues.splice(0));
   const right = rightBar === "end" ? ' right="end"' : "";
   const meter = metcon ? "" : ' metcon="false"';
   const grid = metcon ? beatGridLayer() : "";
@@ -594,6 +601,17 @@ function renderFormMei({
   const slashRests = mode === "landing" || mode === "slash";
   const slashAll = mode === "slash";
   const measures = [];
+  if (!isolated && (mode === "landing" || mode === "model") && applicationById(applicationId).showLickReference) {
+    ctx.lickCues = new Map();
+    ctx.measureLickCues = [];
+    const seen = new Set();
+    for (const item of items) {
+      if (item.type !== "note" || item.role !== "phrase" || seen.has(item.spotIndex)) continue;
+      seen.add(item.spotIndex);
+      const root = chordSymbolName(concertKey, item.cellTonicInterval, null, displayMode, ctx.quality);
+      ctx.lickCues.set(item, `Think ${root}`);
+    }
+  }
 
   const pickupNotes = mode === "chords"
     ? []
