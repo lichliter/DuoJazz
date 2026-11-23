@@ -40,7 +40,15 @@ export function renderChartGrid(host, grid) {
           const symbol = document.createElement("span");
           symbol.className = "chord-symbol";
           symbol.dataset.chordIndex = chordIndex++;
-          fillMusicLabel(symbol, compactChordSymbol(chord.name));
+          const label = compactChordSymbol(chord.name);
+          fillMusicLabel(symbol, label);
+          const parts = /^([A-G])(.+)$/u.exec(label);
+          if (parts) {
+            const suffix = document.createElement("span");
+            suffix.className = "chart-chord-suffix";
+            suffix.textContent = parts[2];
+            symbol.replaceChildren(parts[1], suffix);
+          }
           chords.append(symbol);
         }
         cell.append(chords);

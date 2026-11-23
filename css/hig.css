@@ -421,6 +421,7 @@ button.module-banner {
 }
 
 .ireal-grid {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -481,10 +482,12 @@ button.module-banner {
 
 .ireal-chords {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.15rem 0.45rem;
+  align-items: baseline;
+  gap: 0.35em;
   letter-spacing: 0;
 }
+
+.chart-chord-suffix { font-size: 0.75em; }
 
 #chart-learn-grid {
   border-radius: 0 0 17px 17px;
@@ -499,7 +502,24 @@ button.module-banner {
   font-size: 0.95rem;
 }
 
-#chart-learn-grid .ireal-chords { gap: 0.15rem 0.25rem; }
+@container (max-width: 420px) {
+  .ireal-bar,
+  #chart-learn-grid .ireal-bar {
+    padding-inline: 0.2rem;
+    font-size: clamp(0.75rem, 3.8cqi, 1rem);
+  }
+
+  .ireal-chords { gap: 0.28em; }
+}
+
+@container (max-width: 335px) {
+  .ireal-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .ireal-bar:nth-child(2) { border-right: 0; }
+  .ireal-bar:nth-child(n + 3) {
+    border-top: 1px solid color-mix(in srgb, var(--paper-ink) 16%, transparent);
+  }
+}
 
 #chart-learn-grid .ireal-bar:has([aria-current="step"]) {
   background: color-mix(in srgb, var(--tint-solid) 18%, var(--paper));
