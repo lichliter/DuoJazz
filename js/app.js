@@ -1795,6 +1795,7 @@ function updatePlayhead(snap = transport.snapshot()) {
   applySoundingHighlight(svg, soundingIdsAt(lastPlaybackTimemap, beats));
   if (snap.inCountIn) return;
   highlightActiveChords(svg, beats, lastChordTimings);
+  if (lessonById(session.lessonId).chartPractice) return;
   const view = sessionPresentation(session);
   const barsOnStaff = lastNotationLayout?.barsPerLine
     ?? (view.audioStage === "learn" ? 2 : 4);
@@ -1878,8 +1879,6 @@ function layoutClickWheel() {
       staffSystemMetricsFromBoxes(boxes, svg.getBoundingClientRect().height),
       staffPx,
     );
-  } else if (els.showNotes?.offsetHeight) {
-    metrics = staffSystemMetricsFromBoxes([], els.showNotes.offsetHeight);
   } else {
     const answer = card.querySelector(".hidden-answer");
     const contentHeight = answer && !answer.hidden ? answer.offsetHeight : 160;
@@ -1956,10 +1955,11 @@ function renderNotation() {
   if (!session || session.screen !== "session") return;
   const view = sessionPresentation(session);
   const lesson = lessonById(session.lessonId);
-  const hideStaff = Boolean(view.hideStaff || (lesson.chartPractice && !notesRevealed));
+  const hideStaff = Boolean(view.hideStaff);
+  const concealNotes = !hideStaff && !notesVisibleInSession();
   const paperWrap = els.notation.closest(".paper-wrap");
   document.getElementById('timed-chart-panel').hidden = !lesson.chartTimed;
-  els.hiddenAnswer.hidden = !hideStaff || lesson.chartTimed || lesson.chartPractice;
+  els.hiddenAnswer.hidden = !hideStaff || lesson.chartTimed;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
   fillListenState();
   els.notation.hidden = hideStaff;
@@ -1967,7 +1967,8 @@ function renderNotation() {
   const spec = sessionEngraveSpec(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
   els.notation.classList.toggle("notation-memory", Boolean(spec.memory && !notesRevealed));
-  paperWrap.classList.toggle("notes-hidden", !hideStaff && !notesVisibleInSession());
+  paperWrap.classList.toggle("notes-hidden", concealNotes && !lesson.chartPractice);
+  els.notation.classList.toggle("notes-concealed", concealNotes && Boolean(lesson.chartPractice));
   if (hideStaff) {
     notationGen += 1;
     notationRenderKey = null;

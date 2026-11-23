@@ -1554,14 +1554,8 @@ button.module-banner {
   box-shadow: none;
 }
 
-.session-screen .paper-wrap:has(> #notation[hidden] + .notes-toggle:not([hidden])) {
-  justify-content: center;
-  padding-block: 8px;
-}
-
-#notation[hidden] + .notes-toggle {
-  position: static;
-  transform: none;
+.session-screen .paper.notes-concealed {
+  visibility: hidden;
 }
 
 .session-screen .paper-wrap.notes-hidden .paper {
