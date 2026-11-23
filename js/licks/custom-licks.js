@@ -33,10 +33,10 @@ const southOpening = [
   N(22, 0.25, { swing: false, diatonicStep: 13 }),
 ];
 
-// Same concert pitches as southOpening, rooted on the relative major tonic (B♭ in G minor).
+// Same concert pitches as southOpening, rooted on its opening arpeggio (Fmaj7 in G minor).
 const southOpeningMajor = southOpening.map((element) => (
   element.type === "note"
-    ? { ...element, interval: element.interval - 3, diatonicStep: element.diatonicStep - 2 }
+    ? { ...element, interval: element.interval - 10, diatonicStep: element.diatonicStep - 6 }
     : element
 ));
 
@@ -82,7 +82,7 @@ const southBlocks = [
     keyQuality: "major",
     defaultKeyId: "Bb",
     context: "Major · Half-time practice",
-    referenceInterval: -5, // Think of the first major-seventh arpeggio.
+    showLickReference: true,
     elements: halfTimeOpeningMajor,
     bars: [southMajorTonicBar],
     summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
@@ -94,7 +94,7 @@ const southBlocks = [
           description: "Outline Vmaj7 (♯11–5–7–9) into Imaj7 (7–1–3–5) for a bright Lydian upper structure that lands on the tonic arpeggio.",
           source: `${southSource} · Sextuplet Run Lydian practice`,
           exampleTitle: "Major tonic vamp",
-          pattern: [{ root: 0, family: "major", beats: 4, qualities: southLydianMajorQualities, quality: "major7" }],
+          pattern: [{ root: 5, family: "major", beats: 4, qualities: southLydianMajorQualities, quality: "major7" }],
           elements,
         },
         {
@@ -103,7 +103,7 @@ const southBlocks = [
           description: "Play ♭VIImaj7 (6–♭7–9–11) into ♭IIImaj7 (9–♭3–5–♭7) — two third-inversion major-seventh arpeggios a fourth apart for a pure Dorian sound.",
           source: `${southSource} · Sextuplet Run practice`,
           exampleTitle: "Minor tonic vamp",
-          pattern: [{ root: 9, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
+          pattern: [{ root: 2, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
           elements,
         },
         {
@@ -112,7 +112,7 @@ const southBlocks = [
           description: "Play IVmaj7 (3–4–13–1) into ♭VIImaj7 (13–♭7–9–11) for a Mixolydian or sus upper structure.",
           source: `${southSource} · Sextuplet Run dominant practice`,
           exampleTitle: "Dominant sus vamp",
-          pattern: [{ root: 2, family: "dominant", beats: 4, qualities: ["dominant7", "dominant9", "dominant7sus"], quality: "dominant7sus" }],
+          pattern: [{ root: 7, family: "dominant", beats: 4, qualities: ["dominant7", "dominant9", "dominant7sus"], quality: "dominant7sus" }],
           elements,
         },
         {
@@ -121,7 +121,7 @@ const southBlocks = [
           description: "Outline Imaj7 (7–1–3–5) into IVmaj7 (3–4–6–1) over a major tonic, landing back on the root.",
           source: `${southSource} · Sextuplet Run major practice`,
           exampleTitle: "Major tonic vamp",
-          pattern: [{ root: 7, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
+          pattern: [{ root: 0, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
           elements,
         },
       ];
@@ -170,7 +170,7 @@ function southBlockEntry({
   keyQuality = "minor",
   defaultKeyId = "G",
   context = "Minor · Half-time practice",
-  referenceInterval,
+  showLickReference = false,
   elements,
   bars,
   summary,
@@ -181,7 +181,7 @@ function southBlockEntry({
   const learnId = `${id}-learn`;
   return {
     lick: {
-      id, name, shortName: name, elements, referenceInterval,
+      id, name, shortName: name, elements,
       source: southSource, octave: -2, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality, defaultKeyId,
     },
     learnForm: {
@@ -191,6 +191,7 @@ function southBlockEntry({
     learnApplication: {
       id: learnId, lickId: id, formId: learnId, label: "Learn the lick",
       cellTonicInterval: 0, phraseStartBar: 1, leadIn: [], resolve: [], copyKind: "learn",
+      showLickReference,
     },
     module: {
       id, lickId: id, name, blockBeats, compositeId: southId,

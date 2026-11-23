@@ -601,15 +601,15 @@ function renderFormMei({
   const slashRests = mode === "landing" || mode === "slash";
   const slashAll = mode === "slash";
   const measures = [];
-  const { lickReferenceOffset } = applicationById(applicationId);
-  if (!isolated && (mode === "landing" || mode === "model") && lickReferenceOffset != null) {
+  const { showLickReference } = applicationById(applicationId);
+  if (showLickReference && (mode === "phrase" || (!isolated && (mode === "landing" || mode === "model")))) {
     ctx.lickCues = new Map();
     ctx.measureLickCues = [];
     const seen = new Set();
     for (const item of items) {
       if (item.type !== "note" || item.role !== "phrase" || seen.has(item.spotIndex)) continue;
       seen.add(item.spotIndex);
-      const root = chordSymbolName(concertKey, item.cellTonicInterval + lickReferenceOffset, null, displayMode, ctx.quality);
+      const root = chordSymbolName(concertKey, item.cellTonicInterval, null, displayMode, ctx.quality);
       ctx.lickCues.set(item, `Think ${root}`);
     }
   }

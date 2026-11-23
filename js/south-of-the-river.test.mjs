@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { MODULES, PRACTICE_CATALOG, applicationById, formById, spotsFor, lickById, learnBeatsFor } from './registry.js';
-import { getKey, phraseNotes, phraseABC, phraseMeasureCount, phraseTimeline, scheduleChorus, chorusChords, beamGroupsCrossBeat3, swingRatio } from './music.js';
-import { TWELVE_KEY_IDS, createSession, jumpToCard, defaultPrefs, demoAudioConfig, recordBackingConfig, relativeMajorId } from './session.js';
+import { KEYS, getKey, phraseNotes, phraseABC, phraseMeasureCount, phraseTimeline, scheduleChorus, chorusChords, beamGroupsCrossBeat3, swingRatio } from './music.js';
+import { TWELVE_KEY_IDS, createSession, jumpToCard, defaultPrefs, demoAudioConfig, recordBackingConfig } from './session.js';
 import { expectedNotesFor, gradeSession, synthTrack, hzFromMidi } from './grade.js';
 import { runFollower, octaveModeForLesson } from './follow.js';
 import { livePlaybackEvents } from './sound-band.js';
@@ -104,7 +104,7 @@ test('South of the River building blocks preserve the half-time phrase across ke
     assert.deepEqual(chorusChords(getKey(block.defaultKeyId), 'concert', applicationId).map(c => [c.name, c.durationBeats]), block.chords);
     for (const keyId of TWELVE_KEY_IDS) for (const displayMode of ['trombone', 'trumpet']) {
       const key = getKey(keyId);
-      const blockKey = getKey(block.keyQuality === 'major' ? relativeMajorId(keyId) : keyId);
+      const blockKey = block.keyQuality === 'major' ? KEYS.find(candidate => candidate.pc === (key.pc + 10) % 12) : key;
       const full = phraseNotes(key, displayMode, appId).slice(block.from, block.to);
       const notes = phraseNotes(blockKey, displayMode, applicationId);
       const octaveDifference = notes[0].concertMidi - full[0].concertMidi;
@@ -153,7 +153,7 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
       nearList(model.slice(0, block.to - block.from).map(event => event.durationBeats), durations.slice(block.from, block.to));
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(event => event.type !== 'melody'));
     }
-    assert.equal(chorusChords(getKey(block.defaultKeyId), 'concert', group.exampleLessonId)[0].name, 'Gm7');
+    assert.equal(chorusChords(getKey(block.defaultKeyId), 'concert', group.exampleLessonId)[0].name, block.keyQuality === 'major' ? 'Cm7' : 'Gm7');
     const [variant] = PRACTICE_CATALOG.definitions.find(definition => definition.lickId === block.id && definition.id === 'minor-home').variants;
     const root = variant.pattern[0].root;
     const form = (quality, durationBeats) => ({ bars: [{ chords: [{ intervalFromTonic: root, quality, durationBeats }] }] });
@@ -165,6 +165,10 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
     assert.equal(startsOnBeatOne('minor7', block.offset === 0 ? 3.5 : 5.5), false);
   }
   const openingApps = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river-opening');
+  assert.deepEqual(
+    phraseNotes(getKey('Bb'), 'trombone', 'south-of-the-river-opening-learn').map(note => note.concertName),
+    ['A2', 'B♭2', 'D3', 'F3', 'D3', 'E♭3', 'G3', 'B♭3'],
+  );
   assert.deepEqual(openingApps.map(g => g.id), [
     'south-of-the-river-opening:lydian-major',
     'south-of-the-river-opening:minor-home',
@@ -173,7 +177,7 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
   ]);
   assert.deepEqual(openingApps.map(group =>
     chorusChords(getKey('Bb'), 'concert', group.exampleLessonId)[0].name
-  ), ['B♭maj7', 'Gm7', 'C7sus', 'Fmaj7']);
+  ), ['E♭maj7', 'Cm7', 'F7sus', 'B♭maj7']);
   assert.ok(openingApps[0].choices.some(c => c.chartId === 'autumn-leaves'));
   assert.ok(openingApps[1].choices.some(c => c.chartId === 'so-what'));
   assert.ok(openingApps[2].choices.some(c => c.chartId === 'blue-bossa'));

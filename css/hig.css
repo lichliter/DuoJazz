@@ -1511,6 +1511,10 @@ button.module-banner {
   -webkit-filter: blur(14px);
 }
 
+.session-screen .paper-wrap.notes-hidden .lick-reference {
+  visibility: hidden;
+}
+
 .session-screen .paper-wrap.notes-hidden::before {
   content: "";
   position: absolute;

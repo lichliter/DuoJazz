@@ -82,7 +82,7 @@ test("integration reference roots follow each lick entrance and the written key"
   }
   assert.deepEqual(dirs(written), ["Think C", "Think A"]);
   assert.deepEqual(dirs(slashMEI(key, "trombone", applicationId)), []);
-  assert.deepEqual(dirs(phraseMEI(key, "trombone", "south-of-the-river-opening-learn")), []);
+  assert.deepEqual(dirs(phraseMEI(getKey("Bb"), "trombone", "south-of-the-river-opening-learn")), ["Think B♭"]);
 });
 
 test("phrase MEI is bass clef with the Learn chord and the cell pitches", () => {
