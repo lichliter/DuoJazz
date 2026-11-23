@@ -1130,6 +1130,10 @@ button.module-banner {
   overflow: hidden;
 }
 
+.session-screen .grade-slot:has(+ #chart-learn-grid:not([hidden])) {
+  border-radius: 0;
+}
+
 /* Tall staff: the card and the minimum wheel scroll together above the pinned footer. */
 .session-screen[data-column-scroll="true"] {
   height: 100%;
