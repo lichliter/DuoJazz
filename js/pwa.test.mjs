@@ -88,9 +88,11 @@ test('registration failures persist until a successful reconnect', async () => {
 test('Update app activates an installed release before reloading', async () => {
   const app = await pwaHarness({ active: true });
   const updating = app.updateButton.click();
+  assert.equal(app.updateButton.textContent, 'Checking for updates…');
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(app.updates(), 1);
   assert.equal(app.updateButton.disabled, true);
+  assert.equal(app.updateButton.textContent, 'Updating app…');
   assert.deepEqual(app.messages, []);
   app.state('installed');
   assert.deepEqual(app.messages, ['ACTIVATE_UPDATE']);
@@ -104,7 +106,8 @@ test('Update app activates an installed release before reloading', async () => {
 test('an unsuccessful app update leaves the current page available for retry', async () => {
   const app = await pwaHarness({ online: false, active: true });
   await app.updateButton.click();
-  assert.match(app.updateStatus.textContent, /Connect to the internet/);
+  assert.equal(app.updateButton.textContent, 'Offline. Connect to update.');
+  assert.equal(app.updateStatus.textContent, app.updateButton.textContent);
   assert.equal(app.updates(), 0);
 
   app.navigator.onLine = true;
@@ -112,7 +115,7 @@ test('an unsuccessful app update leaves the current page available for retry', a
   await new Promise(resolve => setImmediate(resolve));
   app.state('redundant');
   await updating;
-  assert.match(app.updateStatus.textContent, /Try again/);
+  assert.equal(app.updateButton.textContent, 'Update failed. Tap to retry.');
   assert.equal(app.updateButton.disabled, false);
   assert.equal(app.reloads(), 0);
 });

@@ -77,14 +77,19 @@ function activateUpdate(worker) {
   });
 }
 
+function setUpdateLabel(label) {
+  updateButton.textContent = label;
+  updateStatus.textContent = label;
+}
+
 updateButton.addEventListener('click', async () => {
   if (!navigator.onLine) {
-    updateStatus.textContent = 'Connect to the internet to update the app.';
+    setUpdateLabel('Offline. Connect to update.');
     return;
   }
 
   updateButton.disabled = true;
-  updateStatus.textContent = 'Checking for updates…';
+  setUpdateLabel('Checking for updates…');
   try {
     if ('serviceWorker' in navigator) {
       await registrationAttempt;
@@ -93,13 +98,13 @@ updateButton.addEventListener('click', async () => {
       await activeRegistration.update();
       const worker = activeRegistration.installing || activeRegistration.waiting;
       if (worker) {
-        updateStatus.textContent = 'Updating app…';
+        setUpdateLabel('Updating app…');
         await activateUpdate(worker);
       }
     }
     location.reload();
   } catch {
-    updateStatus.textContent = 'Could not update the app. Try again.';
+    setUpdateLabel('Update failed. Tap to retry.');
     updateButton.disabled = false;
   }
 });

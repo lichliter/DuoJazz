@@ -11,6 +11,7 @@ Skills in `.agents/skills/`:
 - Plain HTML, CSS, and JavaScript ES modules; no framework, bundler, or npm dependencies.
 - Product behavior lives in `js/`, styling in `css/`, and the main entry point is `index.html`.
 - Keep UI copy functional. Add text only when it identifies a control, orients the player, or gives them information they need to act. Skip taglines, generic encouragement, and explanatory subtext that repeats what the controls or feedback already communicate.
+- Keep surrounding controls in place when status or feedback changes. Update the initiating control’s label or reserve space for a message so showing or hiding temporary text does not shift the layout.
 - Keep imports and asset URLs relative so the app can run from a static server or a deployment subdirectory.
 - Preserve existing localStorage keys and schemas unless a migration is explicitly part of the task.
 - Preserve concert/written-pitch handling, instrument transposition, and microphone grading behavior when changing music or audio code.
