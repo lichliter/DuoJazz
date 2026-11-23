@@ -149,10 +149,10 @@ await withAppUrl(async (appUrl) => {
     await a.page.locator('#continue-btn').waitFor({ state: 'visible' });
     await a.page.evaluate(() => { while (window.__DUOJAZZ__.getSession()?.screen === 'session') window.__DUOJAZZ__.skipCard(); });
     await a.page.locator('#screen-wrapup').waitFor({ state: 'visible' });
-    assert.match(await a.page.locator('#wrapup-detail').textContent(), /^0 of \d+ chords passed$/);
-    await a.page.locator('#again-key').click();
-    assert.equal(await a.page.evaluate(() => window.__DUOJAZZ__.getSession().sequenceIndex), 0);
-    await a.page.locator('#session-exit').click();
+    assert.equal(await a.page.locator('#wrapup-heading').textContent(), 'Lesson complete');
+    assert.match(await a.page.locator('#wrapup-grade-detail').textContent(), /^0 of \d+ chords passed$/);
+    await a.page.locator('#wrapup-close').click();
+    assert.equal(await a.page.locator('#screen-charts').isVisible(), true);
     assert.equal(await a.page.locator('#chart-tree .sleeve-node').nth(1).getAttribute('data-complete'), 'false');
     results.push('PASS: chart Learn/Practice use horn grading, advance in chord order, and hide Practice notes');
     assert.deepEqual(a.errors, []);

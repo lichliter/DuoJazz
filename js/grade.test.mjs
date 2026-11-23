@@ -195,8 +195,16 @@ test("skipping a graded card is Skipped and never a pass", () => {
       { cardId: "play", ...skipped, correction: "1st note didn't speak", graded: true, passed: false, percent: 0, outcome: "missed" },
     ],
   });
+  assert.equal(copy.heading, "Lesson complete");
+  assert.equal(copy.kicker, "Learn");
+  assert.equal(copy.grade.percent, 0);
+  assert.equal(copy.grade.label, "0 of 12 keys passed");
   assert.equal(copy.results[0].summary, "0% · miss · 1st note didn't speak");
   assert.equal(copy.results[0].passed, false);
+  assert.equal(copy.missed.length, 12);
+  assert.equal(copy.missed[0].status, "failed");
+  assert.equal(copy.missed[0].detail, "1st note didn't speak");
+  assert.equal(copy.missed[1].status, "skipped");
 });
 
 test("medal thresholds are bronze 1, silver 6, gold 12", () => {
@@ -269,6 +277,8 @@ test("wrap-up copy surfaces score, pass, and the one correction", () => {
   assert.equal(copy.results[0].percent, 50);
   assert.equal(copy.results[0].correction, "Bar 1 · 3rd note a little flat");
   assert.equal(copy.results[0].summary, "50% · miss · Bar 1 · 3rd note a little flat");
+  assert.equal(copy.missed[0].label, "G minor");
+  assert.equal(copy.missed[0].detail, "Bar 1 · 3rd note a little flat");
 });
 
 test("trombone G minor Lesson 1 is graded in the written bass octave", () => {

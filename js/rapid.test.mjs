@@ -420,6 +420,19 @@ test("the skip control keeps the mic when Auto will listen again", async () => {
   assert.doesNotMatch(fn, /Skipped/);
 });
 
+test("afterPass records peeked Master keys separately and skipAhead records failed keys after a retry", () => {
+  const master = createSession({ lessonId: "master-lick", keyMode: "fourths", startKeyId: "G" });
+  const peeked = afterPass(master, { auto: false, notesShown: true });
+  assert.equal(peeked.session.keyMarks[0], "peeked");
+  assert.equal(keyCycleStates(peeked.session)[0], "failed");
+
+  const clean = afterPass(master, { auto: false, notesShown: false });
+  assert.equal(clean.session.keyMarks[0], "passed");
+
+  const failedSkip = skipAhead(cycle(), { auto: false, failed: true });
+  assert.equal(failedSkip.session.keyMarks[0], "failed");
+});
+
 test("mastery is recorded only for a Master the lick pass with notes hidden", () => {
   const master = createSession({ lessonId: "master-lick", keyMode: "fourths", startKeyId: "G" });
   const learn = createSession({ lessonId: "learn-lick", keyMode: "one", startKeyId: "G" });

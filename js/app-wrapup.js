@@ -1,83 +1,155 @@
 import { fillMusicLabel } from "./engrave.js";
-import { displayMedal, lessonPassedKeys, moduleMastery } from "./medals.js";
+import { lessonPassedKeys } from "./medals.js";
 import { lessonById, moduleForLesson } from "./registry.js";
-import { lessonVinylTier, wrapupCopy } from "./session.js";
+import { isPracticeLesson, lessonVinylTier, wrapupCopy } from "./session.js";
 
-function resultLabel(row) {
-  return row.summary ?? (row.outcome === "completed" ? "Completed" : row.outcome);
+const TIER_RANK = { black: 0, bronze: 1, silver: 2, gold: 3 };
+
+/** Compute the current vinyl tier for any active session (sequence, timed, or key-based). */
+export function sessionVinylTier(session, mastery) {
+  if (!session) return "black";
+  if (session.sequence) {
+    const passed = session.sequence.filter((item) => (
+      mastery?.lessons?.[item.lessonId]?.passedKeys?.includes(item.keyId)
+    )).length;
+    if (passed >= session.sequence.length && session.sequence.length > 0) return "gold";
+    return passed > 0 ? "bronze" : "black";
+  }
+  const lesson = lessonById(session.lessonId);
+  return lessonVinylTier(lesson, lessonPassedKeys(mastery, lesson.id).length);
 }
 
-/** Create the session wrap-up summary and medal renderer. */
+function sleeveNumber(lesson, session, module) {
+  if (lesson.chartTimed) return "03";
+  if (session.sequence) return lesson.kind === "learn" ? "01" : "02";
+  if (isPracticeLesson(lesson)) return "Integrate";
+  const gradedIndex = module.lessons.filter((item) => !isPracticeLesson(item)).findIndex((item) => item.id === lesson.id);
+  return String(Math.max(0, gradedIndex) + 1).padStart(2, "0");
+}
+
+function sleeveCoverTitle(lesson, session) {
+  if (lesson.chartTimed) return "Master";
+  if (session.sequence) return lesson.kind === "learn" ? "Learn" : "Practice";
+  if (lesson.kind === "learn") return "Learn";
+  if (lesson.kind === "master") return "Master";
+  return lesson.coverTitle;
+}
+
+/** Create the lesson summary (wrap-up) screen renderer. */
 export function createWrapupView({
   els,
   getSession,
   getWrapupBanner,
   shownMastery,
-  isTimedChart,
-  nextRotationAfterSession,
+  getNextLesson,
 }) {
   function renderWrapup() {
     const session = getSession();
     const wrapupBanner = getWrapupBanner();
     const copy = wrapupCopy(session);
     const lesson = lessonById(session.lessonId);
+    const module = moduleForLesson(lesson.id);
     els.shell.dataset.sleeve = lesson.sleeve;
+
     if (els.wrapupKicker) els.wrapupKicker.textContent = copy.kicker;
-    fillMusicLabel(els.wrapupHeading, copy.heading);
-    els.wrapupDetail.textContent = copy.detail;
+    if (els.wrapupHeading) els.wrapupHeading.textContent = copy.heading;
+    if (els.wrapupDetail) fillMusicLabel(els.wrapupDetail, copy.detail);
+
     if (els.wrapupSleeve) {
+      const tier = sessionVinylTier(session, shownMastery());
+      const upgraded = Boolean(wrapupBanner?.upgraded)
+        || (session.startVinylTier != null && TIER_RANK[tier] > TIER_RANK[session.startVinylTier]);
       els.wrapupSleeve.hidden = false;
       els.wrapupSleeve.dataset.sleeve = lesson.sleeve;
-      els.wrapupSleeve.classList.toggle("is-upgrade", Boolean(wrapupBanner?.upgraded));
+      els.wrapupSleeve.classList.toggle("is-upgrade", upgraded);
       const wrapVinyl = els.wrapupSleeve.querySelector(".vinyl");
-      if (wrapVinyl) {
-        wrapVinyl.dataset.tier = session.sequence
-          ? (session.sequence.every((item) => shownMastery().lessons[item.lessonId]?.passedKeys.includes(item.keyId)) ? "gold" : "black")
-          : lessonVinylTier(lesson, lessonPassedKeys(shownMastery(), lesson.id).length);
-      }
+      if (wrapVinyl) wrapVinyl.dataset.tier = tier;
     }
     if (els.wrapupSleeveNum) {
-      const module = moduleForLesson(lesson.id);
-      els.wrapupSleeveNum.textContent = lesson.chartTimed
-        ? "03"
-        : session.sequence
-          ? (lesson.kind === "learn" ? "01" : "02")
-          : String(module.lessons.findIndex((item) => item.id === lesson.id) + 1).padStart(2, "0");
+      els.wrapupSleeveNum.textContent = sleeveNumber(lesson, session, module);
     }
-    if (els.wrapupSleeveTitle) els.wrapupSleeveTitle.textContent = lesson.coverTitle;
-    els.resultList.replaceChildren(
-      ...copy.results.map((row) => {
-        const item = document.createElement("li");
-        const label = document.createElement("span");
-        label.textContent = row.label;
-        const outcome = document.createElement("span");
-        outcome.className = "outcome";
-        outcome.textContent = resultLabel(row);
-        item.append(label, outcome);
-        return item;
-      }),
-    );
-    const moduleStats = moduleMastery(shownMastery(), moduleForLesson(lesson.id).id);
-    const count = moduleStats.masteredKeys.length;
-    document.getElementById("wrapup-medal-panel").hidden = Boolean(session.sequence || isTimedChart());
-    if (els.wrapupMedalMark) {
-      els.wrapupMedalMark.hidden = Boolean(session.sequence || isTimedChart());
-      els.wrapupMedalMark.textContent = wrapupBanner?.upgraded
-        ? `Medal up · ${displayMedal(moduleStats.medal)}`
-        : (count ? displayMedal(moduleStats.medal) : "Medal");
+    if (els.wrapupSleeveTitle) {
+      els.wrapupSleeveTitle.textContent = sleeveCoverTitle(lesson, session);
     }
-    if (els.wrapupMedal) {
-      els.wrapupMedal.hidden = Boolean(session.sequence || isTimedChart());
-      els.wrapupMedal.textContent = wrapupBanner?.upgraded
-        ? `${displayMedal(moduleStats.medal)} unlocked`
-        : (count ? `${count} of 12 keys mastered` : "No medal yet for this module");
+
+    const grade = copy.grade ?? { percent: null, label: "", perfect: false, segments: null };
+    if (els.wrapupGrade) {
+      els.wrapupGrade.dataset.perfect = String(Boolean(grade.perfect));
+      els.wrapupGrade.dataset.zero = String(grade.percent === 0);
     }
-    els.nextKey.hidden = !copy.nextKeyLabel;
-    if (copy.nextKeyLabel) fillMusicLabel(els.nextKey, copy.nextKeyLabel);
-    const nextModule = nextRotationAfterSession(session);
-    if (els.nextModule) {
-      els.nextModule.hidden = !nextModule;
-      if (nextModule) els.nextModule.textContent = nextModule.label;
+    if (els.wrapupGradeScore) {
+      els.wrapupGradeScore.textContent = grade.percent === null ? "—" : `${grade.percent}%`;
+    }
+    if (els.wrapupGradeDetail) {
+      els.wrapupGradeDetail.textContent = grade.label;
+    }
+    if (els.wrapupGradeBar) {
+      if (Array.isArray(grade.segments) && grade.segments.length) {
+        els.wrapupGradeBar.hidden = false;
+        els.wrapupGradeBar.dataset.kind = "segments";
+        els.wrapupGradeBar.replaceChildren(
+          ...grade.segments.map((state) => {
+            const seg = document.createElement("span");
+            seg.className = "wrapup-seg";
+            seg.dataset.state = state;
+            return seg;
+          }),
+        );
+      } else if (grade.percent !== null) {
+        els.wrapupGradeBar.hidden = false;
+        els.wrapupGradeBar.dataset.kind = "meter";
+        const fill = document.createElement("span");
+        fill.className = "wrapup-meter-fill";
+        fill.style.width = `${Math.max(0, Math.min(100, grade.percent))}%`;
+        els.wrapupGradeBar.replaceChildren(fill);
+      } else {
+        els.wrapupGradeBar.hidden = true;
+        delete els.wrapupGradeBar.dataset.kind;
+        els.wrapupGradeBar.replaceChildren();
+      }
+    }
+
+    const missed = copy.missed ?? [];
+    const hasMissed = missed.length > 0;
+    if (els.wrapupMissed) els.wrapupMissed.hidden = !hasMissed;
+    if (els.wrapupMissedTitle) els.wrapupMissedTitle.textContent = copy.missedTitle ?? "";
+    if (els.wrapupMissedCount) els.wrapupMissedCount.textContent = hasMissed ? String(missed.length) : "";
+    if (els.resultList) {
+      if (hasMissed) {
+        const statuses = new Set(missed.map((item) => item.status));
+        const showStatusTag = statuses.size > 1 || statuses.has("peeked") || Boolean(lesson.chartTimed);
+        els.resultList.replaceChildren(
+          ...missed.map((item) => {
+            const li = document.createElement("li");
+            li.dataset.status = item.status;
+            const dot = document.createElement("span");
+            dot.className = "missed-dot";
+            dot.setAttribute("aria-hidden", "true");
+            const key = document.createElement("span");
+            key.className = "missed-key";
+            fillMusicLabel(key, item.label);
+            li.append(dot, key);
+            if (showStatusTag || item.detail) {
+              const tag = document.createElement("span");
+              tag.className = "missed-tag";
+              tag.textContent = item.detail && !lesson.chartTimed ? item.detail : item.statusLabel;
+              li.append(tag);
+            }
+            return li;
+          }),
+        );
+      } else {
+        els.resultList.replaceChildren();
+      }
+    }
+
+    const next = getNextLesson ? getNextLesson(session) : null;
+    if (els.wrapupNext) {
+      els.wrapupNext.hidden = !next;
+      if (next) fillMusicLabel(els.wrapupNext, next.label);
+    }
+    if (els.wrapupClose) {
+      els.wrapupClose.hidden = false;
     }
   }
 

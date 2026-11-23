@@ -237,8 +237,6 @@ export function fillMusicLabel(el, text) {
     || el.classList?.contains("key-btn")
     || el.id === "session-key"
     || el.id === "chart-heading-meta"
-    || el.id === "next-key"
-    || el.id === "wrapup-heading"
     || el.id === "celebrate-key"
     || el.id === "key-order-preview"
     || (typeof el.closest === "function" && el.closest("#chart-keys, #setup-keys"));

@@ -55,8 +55,6 @@ import {
   keyOrdinal,
   completeCard,
   handlePlaybackEnded,
-  repeatKey,
-  advanceKey,
   jumpToCard,
   jumpToWrapup,
   markLessonStarted,
@@ -91,7 +89,7 @@ import {
   resetModuleTempo,
   stepTapTempo,
   persistLessonTempo,
-  isLastVisibleLesson,
+  wrapupNextLesson,
   lessonSessionPlan,
   sessionCreateArgs,
   isCyclingLesson,
@@ -139,14 +137,12 @@ import {
 } from "./rapid.js";
 import {
   emptyMastery,
-  displayMedal,
   loadMastery,
   saveMastery,
   recordQuizPass,
   recordLearnPass,
   lessonPassedKeys,
   normalizeMastery,
-  moduleMastery,
 } from "./medals.js";
 import { PitchMonitor, micCopy } from "./pitch.js";
 import {
@@ -165,7 +161,7 @@ import { closeSheet, initDialogInteractions } from "./dialogs.js";
 import { collectElements } from "./app-dom.js";
 import { createHomeView } from "./app-home.js";
 import { createChartsView } from "./app-charts.js";
-import { createWrapupView } from "./app-wrapup.js";
+import { createWrapupView, sessionVinylTier } from "./app-wrapup.js";
 
 initDialogInteractions();
 
@@ -237,9 +233,11 @@ function nextRotationItem(id) {
   return next ? { id: next.id, label: `Next: ${next.name}` } : { label: "Explore licks" };
 }
 
-function nextRotationAfterSession(target) {
-  if (!target || lessonById(target.lessonId).chartId || !isLastVisibleLesson(target.lessonId)) return null;
-  return nextRotationItem(moduleForLesson(target.lessonId).id);
+function nextLessonAfterSession(target) {
+  return wrapupNextLesson(target, {
+    rotationLickIds: rotationLickIds(),
+    rotationChartIds: practiceUI.getSelected(),
+  });
 }
 
 let timedRunActive = false;
@@ -655,7 +653,7 @@ function finishRapid(generation, result) {
   if (passed) {
     rapidPhase = "celebrate";
     cue = null;
-    const plan = passSchedule(session, { auto });
+    const plan = passSchedule(session, { auto, notesShown: notesPeeked });
     renderCelebrate();
     renderCue();
     renderPrimary();
@@ -878,6 +876,7 @@ function finishCelebration(generation, { arm = false, pause = false } = {}) {
     auto: arm && prefs.auto !== false,
     skip: !pause,
     pause,
+    notesShown: notesPeeked,
   });
   rapidPhase = "settling";
   if (feedbackTimer) window.clearTimeout(feedbackTimer);
@@ -1054,6 +1053,7 @@ function startLesson(lessonId, options = {}) {
     guideTones: prefs.guideTones,
   });
   if (options.sequence) { next.sequence = options.sequence; next.sequenceIndex = 0; }
+  next.startVinylTier = sessionVinylTier(next, mastery);
   applySession(next);
 }
 
@@ -1294,7 +1294,8 @@ function gradeCurrentCard() {
 
 function goContinue() {
   if (!session || session.screen !== "session") return;
-  const plan = skipAhead(session, { auto: prefs.auto !== false });
+  const failed = cue?.kind === "retry" && cue.keyToken === sessionKeyToken(session);
+  const plan = skipAhead(session, { auto: prefs.auto !== false, failed });
   cue = null;
   lastRenderedCueSeq = 0;
   liveGrade = null;
@@ -2159,8 +2160,7 @@ const { renderWrapup } = createWrapupView({
   getSession: () => session,
   getWrapupBanner: () => wrapupBanner,
   shownMastery,
-  isTimedChart,
-  nextRotationAfterSession,
+  getNextLesson: nextLessonAfterSession,
 });
 
 function rotationChart() {
@@ -2192,7 +2192,7 @@ function startChartTones(kind) {
   startLesson(sequence[0].lessonId, { sequence, keyId: sequence[0].keyId });
 }
 
-const { renderChartDetail, renderCharts } = createChartsView({
+const { openChartApplications, renderChartDetail, renderCharts } = createChartsView({
   els,
   getPrefs: () => prefs,
   getRotationLicks: () => lickRotation,
@@ -2273,6 +2273,7 @@ function applyDeepLink() {
   }
   if (params.get("demo") === "grades" || params.get("demo") === "medal") {
     let next = emptyMastery();
+    next = recordQuizPass(next, "learn-lick", "G");
     next = recordQuizPass(next, "master-lick", "G");
     next = recordQuizPass(next, "integrate-minor-home", "G");
     wrapupBanner = next;
@@ -2323,30 +2324,35 @@ function applyDeepLink() {
       session = { ...session, listenStage: "echo" };
     }
     if (screen === "wrapup" && params.get("demo") === "grades") {
+      const count = session.keyQueue?.length ?? 1;
+      const keyMarks = Array.from({ length: count }, (_, index) => {
+        if (index === 3) return "failed";
+        if (index === 7) return "skipped";
+        return "passed";
+      });
       session = {
         ...session,
-        cardResults: session.cards.map((cardId) => (
-          cardId === "learn"
-            ? { cardId, outcome: "completed", graded: false }
-            : {
-              cardId,
-              outcome: "passed",
-              graded: true,
-              passed: true,
-              percent: cardId === "quiz" ? 100 : 83,
-              correction: cardId === "play" ? "Bar 1 · 3rd note a little flat" : null,
-            }
-        )),
+        keyMarks,
+        cardResults: [
+          {
+            cardId: "play",
+            outcome: "passed",
+            graded: true,
+            passed: true,
+            percent: 100,
+            correction: null,
+          },
+        ],
       };
     }
     if (screen === "wrapup" && params.get("demo") === "skipped") {
+      const count = session.keyQueue?.length ?? 1;
       session = {
         ...session,
-        cardResults: session.cards.map((cardId) => (
-          cardId === "learn"
-            ? { cardId, outcome: "completed" }
-            : { cardId, outcome: "skipped", graded: false, passed: false }
-        )),
+        keyMarks: Array.from({ length: count }, () => "skipped"),
+        cardResults: [
+          { cardId: "play", outcome: "skipped", graded: false, passed: false },
+        ],
       };
     }
     lastSessionSlot = sessionSlot(session);
@@ -2724,26 +2730,58 @@ els.hearIt?.addEventListener("click", () => {
   playHearDemo();
 });
 els.continueBtn.addEventListener("click", goContinue);
-els.nextModule?.addEventListener("click", () => {
+els.wrapupNext?.addEventListener("click", () => {
   if (!session) return;
-  const link = nextRotationAfterSession(session);
-  if (!link) return;
+  const next = nextLessonAfterSession(session);
+  if (!next) return;
   halt();
-  if (link.id) rememberModule(link.id);
+  if (next.kind === "lesson") {
+    if (next.moduleId) rememberModule(next.moduleId);
+    startLesson(next.lessonId);
+    return;
+  }
+  if (next.kind === "application") {
+    if (next.moduleId) rememberModule(next.moduleId);
+    exitSession();
+    requestAnimationFrame(() => {
+      document.getElementById(`section-${next.moduleId}-integrate`)?.scrollIntoView({ behavior: "instant", block: "start" });
+    });
+    practiceUI.openApplication(next.applicationId);
+    return;
+  }
+  if (next.kind === "chart-tones") {
+    if (next.chartId && next.chartId !== currentChart().id) {
+      nav = { tab: "charts", tune: next.chartId };
+      lastChartTune = next.chartId;
+      chartKeySelection = null;
+      writeTabUrl(false);
+      if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
+    }
+    startChartTones(next.mode);
+    return;
+  }
+  if (next.kind === "chart-integration") {
+    if (next.chartId) {
+      nav = { tab: "charts", tune: next.chartId };
+      lastChartTune = next.chartId;
+      writeTabUrl(false);
+    }
+    exitSession();
+    requestAnimationFrame(() => {
+      document.getElementById(`section-chart-${next.chartId}-integrate`)?.scrollIntoView({ behavior: "instant", block: "start" });
+    });
+    openChartApplications(next.moduleId);
+    return;
+  }
+  if (next.kind === "explore-charts") {
+    exitSession();
+    libraryPicker.open("charts", { browse: true });
+    return;
+  }
   exitSession();
-  if (!link.id) libraryPicker.open("licks", { browse: true });
+  libraryPicker.open("licks", { browse: true });
 });
-els.nextKey.addEventListener("click", () => {
-  if (!session) return;
-  halt();
-  applySession(advanceKey(session));
-});
-els.againKey.addEventListener("click", () => {
-  if (!session) return;
-  halt();
-  applySession(repeatKey(session));
-});
-els.doneSession.addEventListener("click", exitSession);
+els.wrapupClose?.addEventListener("click", exitSession);
 
 function applyTempoDelta(delta) {
   prefs.tempo = clampTempo(prefs.tempo + delta, prefs.tempo);
@@ -2825,7 +2863,12 @@ for (const [id, key] of [
 
 document.addEventListener("keydown", (event) => {
   if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
-  if (session?.screen !== "session" || anyDialogOpen()) return;
+  if (anyDialogOpen()) return;
+  if (event.key === "Escape" && (session?.screen === "session" || session?.screen === "wrapup")) {
+    exitSession();
+    return;
+  }
+  if (session?.screen !== "session") return;
   const target = event.target;
   if (target?.isContentEditable || target?.closest?.('button, a, input, textarea, select, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"], [role="slider"], [role="switch"], [role="checkbox"], [role="radio"], [role="textbox"], [role="combobox"], [role="listbox"], [role="menuitem"], [role="tab"]')) return;
   if (event.code === "Space") {
@@ -2844,9 +2887,6 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "ArrowRight") {
     event.preventDefault();
     navigateCard(1);
-  }
-  if (event.key === "Escape" && session) {
-    exitSession();
   }
 });
 

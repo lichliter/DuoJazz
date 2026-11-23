@@ -54,8 +54,12 @@ test('timed grading rewards accurate timing, reports silence, and gives an overa
   assert.equal(partial.passed, true);
   const done = completeCard(session, partial);
   assert.equal(done.screen, 'wrapup');
-  assert.equal(wrapupCopy(done).heading, `${partial.percent}%`);
-  assert.equal(wrapupCopy(done).results.length, recordBackingConfig(session).lengthBeats / 4);
+  const summary = wrapupCopy(done);
+  assert.equal(summary.heading, 'Lesson complete');
+  assert.equal(summary.kicker, 'Master');
+  assert.equal(summary.grade.percent, partial.percent);
+  assert.equal(summary.results.length, recordBackingConfig(session).lengthBeats / 4);
+  assert.ok(summary.missed.length >= 1);
   assert.equal(wrapupNextModule(done), null);
 });
 

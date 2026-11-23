@@ -278,7 +278,8 @@ test("the module banner uses a chevron and Lesson 2 names the key above the staf
   assert.match(appHome, /banner-chevron/);
   assert.match(appHome, /d="M5\.5 9 12 16l6\.5-7"/);
   assert.doesNotMatch(appUi, /M9 5\.5 16 12l-7 6\.5/);
-  assert.match(appWrapup, /of 12 keys mastered/);
+  assert.doesNotMatch(appWrapup, /wrapup-medal-panel|of 12 keys mastered/);
+  assert.match(appWrapup, /sessionVinylTier/);
   assert.doesNotMatch(appUi, /medal-badge/);
   assert.match(styles, /\.banner-chevron/);
   assert.match(index, /id="session-module"/);

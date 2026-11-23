@@ -132,7 +132,9 @@ test("home uses the record road and a shared library sheet; session keeps the ro
   assert.doesNotMatch(index, /data-testid="tab-licks"/);
   assert.doesNotMatch(index, /data-testid="tab-charts"/);
   assert.doesNotMatch(index, /data-testid="tab-settings"/);
-  assert.match(index, /id="next-module"/);
+  assert.match(index, /id="wrapup-next"/);
+  assert.match(index, /id="wrapup-close"/);
+  assert.doesNotMatch(index, /id="again-key"|id="done-session"|id="next-key"|id="next-module"|id="wrapup-medal-panel"/);
   assert.match(index, /id="instrument-list"/);
   assert.doesNotMatch(index, /class="settings-gear"/);
   assert.doesNotMatch(index, /id="settings-summary-btn"/);

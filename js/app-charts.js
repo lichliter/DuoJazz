@@ -208,6 +208,7 @@ export function createChartsView({
   }
 
   return {
+    openChartApplications,
     renderChartDetail,
     renderCharts,
   };

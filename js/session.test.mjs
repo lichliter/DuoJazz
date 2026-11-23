@@ -51,6 +51,7 @@ import {
   sessionAudioConfig,
   sessionCue,
   wrapupCopy,
+  wrapupNextLesson,
   listenStateCopy,
   chromaticOrder,
   fourthsOrder,
@@ -471,23 +472,25 @@ test("Master engraves the lick; blur is CSS, not hidden ink", () => {
   assert.equal(master.keyQueue.length, 12);
 });
 
-test("wrap-up lists per-card completion and names the next key", () => {
+test("wrap-up reports Lesson complete, mode kicker, and grade out of all keys", () => {
   const session = jumpToWrapup(createSession({
     lessonId: "learn-lick",
     keyMode: "fourths",
     startKeyId: "G",
   }));
   const copy = wrapupCopy(session);
-  assert.equal(copy.results.length, 1);
-  assert.equal(copy.results[0].label, "Play it");
-  assert.equal(copy.heading, "G minor");
-  assert.equal(copy.kicker, "Key complete");
-  assert.equal(copy.detail, "Learn the lick");
-  assert.equal(copy.nextKeyName, "C minor");
-  assert.equal(copy.nextKeyLabel, "Next key · C minor");
+  assert.equal(copy.results.length, 12);
+  assert.equal(copy.results[0].label, "G minor");
+  assert.equal(copy.heading, "Lesson complete");
+  assert.equal(copy.kicker, "Learn");
+  assert.equal(copy.detail, "Cry Me a River");
+  assert.equal(copy.grade.percent, 100);
+  assert.equal(copy.grade.label, "12 of 12 keys passed");
+  assert.equal(copy.missed.length, 0);
   const one = wrapupCopy(jumpToWrapup(createSession({ lessonId: "integrate-minor-home", keyMode: "one" })));
-  assert.equal(one.nextKeyName, null);
-  assert.equal(one.nextKeyLabel, null);
+  assert.equal(one.kicker, "Integrate");
+  assert.equal(one.heading, "Lesson complete");
+  assert.equal(one.grade.label, "1 of 1 key passed");
 });
 
 test("the single card does not use the old Listen or Quiz feedback stages", () => {
@@ -674,12 +677,16 @@ test("a graded card with no take is Skipped and is not a pass", () => {
   assert.deepEqual(skipResult(play), { outcome: "skipped", graded: false, passed: false });
   assert.equal(cardResultLabel(skipResult(play)), "Skipped");
   const wrapped = wrapupCopy({
-    ...jumpToWrapup(play),
+    ...play,
+    screen: "wrapup",
+    keyMarks: ["skipped"],
     cardResults: [
       { cardId: "play", outcome: "skipped", graded: false, passed: false },
     ],
   });
-  assert.equal(wrapped.results.find((row) => row.cardId === "play")?.summary, "Skipped");
+  assert.equal(wrapped.results[0]?.summary, "Skipped");
+  assert.equal(wrapped.missed[0]?.status, "skipped");
+  assert.equal(wrapped.grade.percent, 0);
   assert.equal(cardResultLabel({ graded: true, passed: false, percent: 0, correction: "1st note didn't speak", outcome: "missed" }), "0% · miss · 1st note didn't speak");
 });
 
@@ -1041,4 +1048,128 @@ test("per-module tempo overrides apply across a lick's Learn, Master, and Integr
   assert.equal(tap.tempo, null);
   tap = stepTapTempo(tap.taps, 5250);
   assert.equal(tap.tempo, 80);
+});
+
+test("wrapupCopy computes grade across all keys, custom subsets, failed/skipped/peeked keys, and instrument transposition", () => {
+  const master = createSession({
+    lessonId: "master-lick",
+    keyMode: "fourths",
+    startKeyId: "G",
+    instrumentId: "trumpet",
+    displayMode: "trumpet",
+  });
+  const keyMarks = Array.from({ length: 12 }, (_, i) => {
+    if (i === 1) return "failed";
+    if (i === 4) return "skipped";
+    if (i === 7) return "peeked";
+    return "passed";
+  });
+  const mixed = wrapupCopy({ ...master, screen: "wrapup", keyMarks });
+  assert.equal(mixed.kicker, "Master");
+  assert.equal(mixed.heading, "Lesson complete");
+  assert.equal(mixed.detail, "Cry Me a River");
+  assert.equal(mixed.grade.percent, 75);
+  assert.equal(mixed.grade.passed, 9);
+  assert.equal(mixed.grade.total, 12);
+  assert.equal(mixed.grade.label, "9 of 12 keys passed");
+  assert.equal(mixed.grade.segments.length, 12);
+  assert.equal(mixed.grade.segments[1], "failed");
+  assert.equal(mixed.grade.segments[4], "skipped");
+  assert.equal(mixed.grade.segments[7], "failed");
+  assert.equal(mixed.missedTitle, "Failed & skipped keys");
+  assert.equal(mixed.missed.length, 3);
+  assert.deepEqual(mixed.missed.map((item) => item.status), ["failed", "skipped", "peeked"]);
+  // Trumpet is Bb (+2 semitones): concert C minor (index 1) -> D minor; concert Eb minor (index 4) -> F minor.
+  assert.equal(mixed.missed[0].label, "D minor");
+  assert.equal(mixed.missed[1].label, "F minor");
+  assert.equal(mixed.missed[2].statusLabel, "Notes shown");
+
+  const subset = createSession({
+    lessonId: "learn-lick",
+    keyMode: "fourths",
+    majorKeyId: "Bb",
+    keyIds: ["Bb", "Eb", "Ab"],
+  });
+  const subsetCopy = wrapupCopy({ ...subset, screen: "wrapup", keyMarks: ["passed", "skipped", "passed"] });
+  assert.equal(subsetCopy.grade.total, 3);
+  assert.equal(subsetCopy.grade.passed, 2);
+  assert.equal(subsetCopy.grade.percent, 67);
+  assert.equal(subsetCopy.grade.label, "2 of 3 keys passed");
+  assert.equal(subsetCopy.missedTitle, "Skipped keys");
+  assert.equal(subsetCopy.missed.length, 1);
+
+  const toneCopy = wrapupCopy({
+    ...createSession({ lessonId: "tones-major7-learn", keyMode: "fourths", majorKeyId: "C", keyIds: ["C", "F"] }),
+    screen: "wrapup",
+    keyMarks: ["passed", "failed"],
+  });
+  assert.equal(toneCopy.detail, "Chord Tones · Major 7");
+  assert.equal(toneCopy.missedTitle, "Failed keys");
+  assert.equal(toneCopy.missed[0].label, "F△7");
+});
+
+test("wrapupNextLesson routes Learn -> Master -> Integrate (not next lick), plus Chord Tones and Charts", () => {
+  const rotation = ["chord-tones", "cmar", "emr"];
+  const learnNext = wrapupNextLesson(createSession({ lessonId: "learn-lick" }), { rotationLickIds: rotation });
+  assert.equal(learnNext.kind, "lesson");
+  assert.equal(learnNext.lessonId, "master-lick");
+  assert.equal(learnNext.label, "Next lesson · Master");
+
+  // Mastering a lick offers its integrations, not the next lick in rotation.
+  const masterNext = wrapupNextLesson(createSession({ lessonId: "master-lick" }), { rotationLickIds: rotation });
+  assert.equal(masterNext.kind, "application");
+  assert.equal(masterNext.moduleId, "cmar");
+  assert.equal(masterNext.applicationId, "cmar:minor-home");
+  assert.equal(masterNext.label, "Next lesson · Integrate: Minor home");
+
+  const integrateNext = wrapupNextLesson(createSession({ lessonId: "integrate-minor-home" }), { rotationLickIds: rotation });
+  assert.equal(integrateNext.kind, "application");
+  assert.equal(integrateNext.applicationId, "cmar:minor-fifth");
+  assert.equal(integrateNext.label, "Next lesson · Integrate: Minor from the fifth");
+
+  const lastIntegrate = wrapupNextLesson(createSession({ lessonId: "practice-cmar-halfdim-example-original" }), { rotationLickIds: rotation });
+  assert.equal(lastIntegrate.kind, "lesson");
+  assert.equal(lastIntegrate.moduleId, "emr");
+  assert.equal(lastIntegrate.lessonId, "emr-learn");
+  assert.equal(lastIntegrate.label, "Next lesson · Embellished Minor Resolution");
+
+  const emptyAfter = wrapupNextLesson(createSession({ lessonId: "emr-learn" }), { rotationLickIds: ["chord-tones", "emr"] });
+  assert.equal(emptyAfter.lessonId, "emr-master");
+  const afterEmrIntegrate = wrapupNextLesson(createSession({ lessonId: "practice-emr-major-resolution-example-root" }), { rotationLickIds: ["chord-tones", "emr"] });
+  assert.equal(afterEmrIntegrate.kind, "explore-licks");
+  assert.equal(afterEmrIntegrate.label, "Explore licks");
+
+  const tone1 = wrapupNextLesson(createSession({ lessonId: "tones-major7-learn" }), { rotationLickIds: rotation });
+  assert.equal(tone1.kind, "lesson");
+  assert.equal(tone1.lessonId, "tones-major7-master");
+  assert.equal(tone1.label, "Next lesson · Master Major 7");
+
+  const toneLast = wrapupNextLesson(createSession({ lessonId: "tones-halfdim7-master" }), { rotationLickIds: rotation });
+  assert.equal(toneLast.kind, "lesson");
+  assert.equal(toneLast.lessonId, "learn-lick");
+  assert.equal(toneLast.label, "Next lesson · Cry Me a River");
+
+  const chartLearn = wrapupNextLesson({ ...createSession({ lessonId: "tones-chart-autumn-leaves-0-learn" }), sequence: [{ lessonId: "tones-chart-autumn-leaves-0-learn", keyId: "C" }] }, { rotationLickIds: rotation, rotationChartIds: ["autumn-leaves", "blue-bossa"] });
+  assert.equal(chartLearn.kind, "chart-tones");
+  assert.equal(chartLearn.mode, "practice");
+  assert.equal(chartLearn.label, "Next lesson · Practice");
+
+  const chartPractice = wrapupNextLesson({ ...createSession({ lessonId: "tones-chart-autumn-leaves-0-master" }), sequence: [{ lessonId: "tones-chart-autumn-leaves-0-master", keyId: "C" }] }, { rotationLickIds: rotation, rotationChartIds: ["autumn-leaves", "blue-bossa"] });
+  assert.equal(chartPractice.kind, "chart-tones");
+  assert.equal(chartPractice.mode, "master");
+  assert.equal(chartPractice.label, "Next lesson · Master");
+
+  const chartMasterWithLick = wrapupNextLesson(createSession({ lessonId: "tones-chart-autumn-leaves-timed-master" }), { rotationLickIds: ["chord-tones", "cmar"], rotationChartIds: ["autumn-leaves", "blue-bossa"] });
+  assert.equal(chartMasterWithLick.kind, "chart-integration");
+  assert.equal(chartMasterWithLick.moduleId, "cmar");
+  assert.equal(chartMasterWithLick.label, "Next lesson · Integrate: Cry Me a River");
+
+  const chartMasterNextChart = wrapupNextLesson(createSession({ lessonId: "tones-chart-autumn-leaves-timed-master" }), { rotationLickIds: ["chord-tones"], rotationChartIds: ["autumn-leaves", "blue-bossa"] });
+  assert.equal(chartMasterNextChart.kind, "chart-tones");
+  assert.equal(chartMasterNextChart.chartId, "blue-bossa");
+  assert.equal(chartMasterNextChart.label, "Next lesson · Blue Bossa");
+
+  const chartMasterExplore = wrapupNextLesson(createSession({ lessonId: "tones-chart-autumn-leaves-timed-master" }), { rotationLickIds: ["chord-tones"], rotationChartIds: ["autumn-leaves"] });
+  assert.equal(chartMasterExplore.kind, "explore-charts");
+  assert.equal(chartMasterExplore.label, "Explore charts");
 });

@@ -101,8 +101,14 @@ test('chart passes and skips advance to the next chord; only the final chord ope
   session = afterPass(session).session;
   assert.equal(session.screen, 'wrapup');
   assert.deepEqual(session.sequenceMarks, ['passed', 'skipped', 'passed']);
-  assert.equal(wrapupCopy(session).detail, '2 of 3 chords passed');
-  assert.deepEqual(wrapupCopy(session).results.map(row => row.summary), ['Passed', 'Skipped', 'Passed']);
+  const summary = wrapupCopy(session);
+  assert.equal(summary.heading, 'Lesson complete');
+  assert.equal(summary.kicker, 'Practice');
+  assert.equal(summary.grade.label, '2 of 3 chords passed');
+  assert.equal(summary.grade.percent, 67);
+  assert.equal(summary.missed.length, 1);
+  assert.equal(summary.missed[0].status, 'skipped');
+  assert.deepEqual(summary.results.map(row => row.summary), ['Passed', 'Skipped', 'Passed']);
   assert.equal(wrapupNextModule(session), null);
   const again = repeatKey(session);
   assert.equal(again.sequenceIndex, 0);

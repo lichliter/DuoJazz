@@ -24,6 +24,8 @@ import {
   LESSONS,
   MODULES,
   CHART_MODULES,
+  CHART_LIBRARY,
+  PRACTICE_CATALOG,
   TUNE_SECTION,
   TUNE_LESSONS,
   lessonById as registryLesson,
@@ -789,13 +791,15 @@ export function keyOrdinal(session) {
   };
 }
 
-/** Remember a pass or skip on the current key of this cycle. */
+/** Remember a pass, skip, fail, or peeked pass on the current key of this cycle. */
 export function markKeyOutcome(session, outcome) {
   if (!session) return session;
   const total = session.keyQueue?.length ?? 0;
   const marks = Array.isArray(session.keyMarks) ? session.keyMarks.slice(0, total) : [];
   while (marks.length < total) marks.push(null);
-  const status = outcome === "skipped" ? "skipped" : "passed";
+  const status = outcome === "skipped" || outcome === "failed" || outcome === "peeked"
+    ? outcome
+    : "passed";
   if (session.keyIndex >= 0 && session.keyIndex < total) marks[session.keyIndex] = status;
   if (session.sequence) {
     const sequenceMarks = [...(session.sequenceMarks ?? [])];
@@ -807,7 +811,7 @@ export function markKeyOutcome(session, outcome) {
 
 /**
  * One state per key in the current cycle.
- * The key on screen is current. Earlier keys are passed or skipped.
+ * The key on screen is current. Earlier keys are passed, failed, or skipped.
  * The rest are upcoming. A new lap starts empty.
  */
 export function keyCycleStates(session) {
@@ -818,7 +822,8 @@ export function keyCycleStates(session) {
   return Array.from({ length: total }, (_, index) => {
     if (onSession && index === session.keyIndex) return "current";
     const mark = marks[index];
-    if (mark === "passed" || mark === "skipped") return mark;
+    if (mark === "passed" || mark === "skipped" || mark === "failed") return mark;
+    if (mark === "peeked") return "failed";
     return "upcoming";
   });
 }
@@ -1084,6 +1089,14 @@ export function homeNextModule(module, _lessonKeys = {}) {
   return nextModuleTarget(module);
 }
 
+function outcomeFromCardResult(result = {}) {
+  if (result.outcome === "skipped") return "skipped";
+  if (result.outcome === "peeked") return "peeked";
+  if (result.outcome === "failed" || result.outcome === "missed") return "failed";
+  if (result.graded && result.passed === false) return "failed";
+  return "passed";
+}
+
 export function completeCard(session, result = {}) {
   const cardId = currentCard(session);
   const cardResults = [
@@ -1099,8 +1112,11 @@ export function completeCard(session, result = {}) {
       cardResults,
     };
   }
+  const marked = !lessonById(session.lessonId).chartTimed && session.keyMarks?.[session.keyIndex] == null
+    ? markKeyOutcome(session, outcomeFromCardResult(result))
+    : session;
   return {
-    ...session,
+    ...marked,
     screen: "wrapup",
     listenStage: "hear",
     cardResults,
@@ -1118,18 +1134,19 @@ export function handlePlaybackEnded(session, result = {}, rng = Math.random) {
   if (session.demo) {
     return { session: { ...session, demo: false }, autoStart: false };
   }
+  const marked = markKeyOutcome(session, outcomeFromCardResult(result));
   const recorded = {
-    ...session,
+    ...marked,
     demo: false,
     cardResults: [
       {
-        cardId: currentCard(session),
+        cardId: currentCard(marked),
         outcome: result.outcome ?? "completed",
         ...result,
       },
     ],
   };
-  const moreKeys = session.keyMode !== "one" && session.keyIndex + 1 < session.keyQueue.length;
+  const moreKeys = recorded.keyMode !== "one" && recorded.keyIndex + 1 < recorded.keyQueue.length;
   if (moreKeys) {
     return { session: advanceKey(recorded, rng), autoStart: true };
   }
@@ -1137,20 +1154,24 @@ export function handlePlaybackEnded(session, result = {}, rng = Math.random) {
 }
 
 /**
- * Skip this key. The result is Skipped, never a pass.
+ * Skip this key (or advance after a failed attempt). Never records a pass.
  * Another key in the cycle opens immediately. The last key, and a one-key
- * session, open wrap-up with that skip recorded.
+ * session, open wrap-up with that outcome recorded.
  */
-export function skipCard(session) {
+export function skipCard(session, outcome = "skipped") {
   if (!session) return session;
-  const marked = markKeyOutcome(session, "skipped");
+  const mark = outcome === "failed" ? "failed" : "skipped";
+  const marked = markKeyOutcome(session, mark);
   const cardId = currentCard(marked);
+  const row = mark === "failed"
+    ? { cardId, outcome: "failed", graded: true, passed: false }
+    : { cardId, ...skipResult(marked) };
   const recorded = {
     ...marked,
     demo: false,
     cardResults: [
-      ...marked.cardResults.filter((row) => row.cardId !== cardId),
-      { cardId, ...skipResult(marked) },
+      ...marked.cardResults.filter((item) => item.cardId !== cardId),
+      row,
     ],
   };
   const moreKeys = session.sequence
@@ -1390,11 +1411,21 @@ export function jumpToCard(session, cardId) {
 }
 
 export function jumpToWrapup(session) {
+  const keyCount = session.keyQueue?.length ?? 1;
+  const hasKeyMarks = Array.isArray(session.keyMarks) && session.keyMarks.length >= keyCount;
+  const keyMarks = hasKeyMarks ? session.keyMarks : Array.from({ length: keyCount }, () => "passed");
+  const sequenceMarks = session.sequence
+    ? (Array.isArray(session.sequenceMarks) && session.sequenceMarks.length >= session.sequence.length
+      ? session.sequenceMarks
+      : Array.from({ length: session.sequence.length }, () => "passed"))
+    : session.sequenceMarks;
   return {
     ...session,
     screen: "wrapup",
     cardIndex: Math.max(0, session.cards.length - 1),
     cardResults: session.cards.map((cardId) => ({ cardId, outcome: "completed" })),
+    keyMarks,
+    ...(sequenceMarks !== undefined ? { sequenceMarks } : {}),
   };
 }
 
@@ -1622,57 +1653,353 @@ export function listenStateCopy(session) {
   };
 }
 
+function wrapupModeLabel(lesson, session) {
+  if (lesson.chartTimed) return "Master";
+  if (session?.sequence) return lesson.kind === "learn" ? "Learn" : "Practice";
+  if (lesson.kind === "learn") return "Learn";
+  if (lesson.kind === "master") return "Master";
+  if (lesson.kind === "integrate") return "Integrate";
+  return lesson.coverTitle ?? "Practice";
+}
+
+function wrapupLessonSubtitle(lesson) {
+  const module = moduleForLesson(lesson.id);
+  if (lesson.chordTones && !lesson.chartId) return `${module.name} · ${lesson.qualityTitle}`;
+  if (lesson.chartId) return module.name;
+  if (lesson.kind === "integrate" && lesson.coverTitle && lesson.coverTitle !== module.name) {
+    return `${module.name} · ${lesson.coverTitle}`;
+  }
+  return module.name;
+}
+
+function keyLabelForSession(session, keyId) {
+  const lesson = lessonById(session.lessonId);
+  if (lesson.chordTones && !lesson.chartId) {
+    return chordSymbolName(getKey(keyId), 0, lesson.chordQuality, session.displayMode, sessionKeyQuality(session));
+  }
+  return displayKeyName(keyId, session.displayMode, sessionKeyQuality(session));
+}
+
+function missedSectionTitle(missed, unitNoun) {
+  if (!missed.length) return "";
+  if (unitNoun === "bars") return "Missed bars";
+  const hasFailed = missed.some((item) => item.status === "failed" || item.status === "peeked");
+  const hasSkipped = missed.some((item) => item.status === "skipped");
+  if (hasFailed && hasSkipped) return `Failed & skipped ${unitNoun}`;
+  if (hasFailed) return `Failed ${unitNoun}`;
+  return `Skipped ${unitNoun}`;
+}
+
+function statusDisplayLabel(status) {
+  if (status === "passed") return "Passed";
+  if (status === "peeked") return "Notes shown";
+  if (status === "failed") return "Failed";
+  return "Skipped";
+}
+
+/** Next lesson CTA on the summary screen across licks, chord tones, and charts. */
+export function wrapupNextLesson(session, { rotationLickIds = [], rotationChartIds = [] } = {}) {
+  if (!session) return null;
+  const lesson = lessonById(session.lessonId);
+  const module = moduleForLesson(lesson.id);
+
+  if (lesson.chartId) {
+    if (lesson.chartTimed) {
+      const matchingLick = MODULES.find((item) => (
+        item.id !== "chord-tones"
+        && rotationLickIds.includes(item.id)
+        && PRACTICE_CATALOG.groups.some((group) => (
+          group.moduleId === item.id && group.choices.some((choice) => choice.chartId === lesson.chartId)
+        ))
+      ));
+      if (matchingLick) {
+        return {
+          kind: "chart-integration",
+          chartId: lesson.chartId,
+          moduleId: matchingLick.id,
+          label: `Next lesson · Integrate: ${matchingLick.name}`,
+        };
+      }
+      const chartIdx = rotationChartIds.indexOf(lesson.chartId);
+      const nextChartId = chartIdx >= 0 ? rotationChartIds[chartIdx + 1] : null;
+      const nextChart = nextChartId ? CHART_LIBRARY.find((item) => item.id === nextChartId) : null;
+      if (nextChart) {
+        return {
+          kind: "chart-tones",
+          mode: "learn",
+          chartId: nextChart.id,
+          label: `Next lesson · ${nextChart.title}`,
+        };
+      }
+      return { kind: "explore-charts", label: "Explore charts" };
+    }
+    if (lesson.kind === "learn") {
+      return { kind: "chart-tones", mode: "practice", chartId: lesson.chartId, label: "Next lesson · Practice" };
+    }
+    return { kind: "chart-tones", mode: "master", chartId: lesson.chartId, label: "Next lesson · Master" };
+  }
+
+  if (module.id === "chord-tones") {
+    const index = module.lessons.findIndex((item) => item.id === lesson.id);
+    if (index >= 0 && index + 1 < module.lessons.length) {
+      const next = module.lessons[index + 1];
+      return {
+        kind: "lesson",
+        lessonId: next.id,
+        moduleId: module.id,
+        label: `Next lesson · ${next.coverTitle}`,
+      };
+    }
+  } else {
+    const groups = PRACTICE_CATALOG.groups.filter((group) => group.moduleId === module.id);
+    if (lesson.kind === "learn") {
+      const master = module.lessons.find((item) => item.kind === "master");
+      if (master) {
+        return {
+          kind: "lesson",
+          lessonId: master.id,
+          moduleId: module.id,
+          label: "Next lesson · Master",
+        };
+      }
+    }
+    if (lesson.kind === "master" && groups.length) {
+      return {
+        kind: "application",
+        applicationId: groups[0].id,
+        moduleId: module.id,
+        label: `Next lesson · Integrate: ${groups[0].label}`,
+      };
+    }
+    if (lesson.kind === "integrate") {
+      const groupIndex = groups.findIndex((group) => (
+        group.id === lesson.practiceApplicationId
+        || group.id === `${module.id}:${lesson.applicationId}`
+        || group.choices.some((choice) => choice.lessonId === lesson.id)
+        || group.variants.some((variant) => variant.exampleLessonId === lesson.id)
+      ));
+      if (groupIndex >= 0 && groupIndex + 1 < groups.length) {
+        return {
+          kind: "application",
+          applicationId: groups[groupIndex + 1].id,
+          moduleId: module.id,
+          label: `Next lesson · Integrate: ${groups[groupIndex + 1].label}`,
+        };
+      }
+    }
+  }
+
+  const lickIdx = rotationLickIds.indexOf(module.id);
+  const nextModuleId = lickIdx >= 0 ? rotationLickIds[lickIdx + 1] : null;
+  const nextModule = nextModuleId ? MODULES.find((item) => item.id === nextModuleId) : null;
+  if (nextModule) {
+    const firstLesson = nextModule.lessons.find((item) => item.kind === "learn") ?? nextModule.lessons[0];
+    if (firstLesson) {
+      return {
+        kind: "lesson",
+        lessonId: firstLesson.id,
+        moduleId: nextModule.id,
+        label: `Next lesson · ${nextModule.name}`,
+      };
+    }
+  }
+  return { kind: "explore-licks", label: "Explore licks" };
+}
+
 export function wrapupCopy(session) {
-  if (lessonById(session.lessonId).chartTimed) {
-    const grade = session.cardResults.find(row => row.graded);
-    const bars = [...new Set(grade?.notes?.map(note => note.bar) ?? [])];
+  const lesson = lessonById(session.lessonId);
+  const kicker = wrapupModeLabel(lesson, session);
+  const detail = wrapupLessonSubtitle(lesson);
+
+  if (lesson.chartTimed) {
+    const gradeRow = session.cardResults.find((row) => row.graded);
+    const bars = [...new Set(gradeRow?.notes?.map((note) => note.bar) ?? [])];
+    const results = bars.map((bar) => {
+      const notes = gradeRow.notes.filter((note) => note.bar === bar);
+      const passedNotes = notes.filter((note) => note.passed).length;
+      const passed = notes.length > 0 && passedNotes === notes.length;
+      return {
+        cardId: String(bar),
+        label: `Bar ${bar}`,
+        passed,
+        status: passed ? "passed" : "failed",
+        summary: `${passedNotes}/${notes.length} notes in time`,
+        detail: `${passedNotes}/${notes.length}`,
+      };
+    });
+    const missed = results
+      .filter((row) => !row.passed)
+      .map((row) => ({
+        id: row.cardId,
+        label: row.label,
+        status: "failed",
+        statusLabel: row.detail,
+        detail: row.summary,
+      }));
     return {
-      kicker: grade ? (grade.passed ? 'Master · Passed' : 'Master · Keep practicing') : 'Master · Not completed',
-      heading: grade ? `${grade.percent}%` : 'Run ended',
-      detail: grade ? `${grade.passedCount} of ${grade.total} notes in time · ${moduleForLesson(session.lessonId).name}` : 'Finish a full run to receive a grade.',
-      nextKeyName: null, nextKeyLabel: null,
-      results: bars.map(bar => {
-        const notes = grade.notes.filter(note => note.bar === bar);
-        return { cardId: String(bar), label: `Bar ${bar}`, summary: `${notes.filter(note => note.passed).length}/${notes.length} notes in time` };
-      }),
+      kicker,
+      heading: "Lesson complete",
+      detail,
+      grade: gradeRow
+        ? {
+          percent: gradeRow.percent,
+          passed: gradeRow.passedCount,
+          total: gradeRow.total,
+          unit: "notes in time",
+          label: `${gradeRow.passedCount} of ${gradeRow.total} notes in time`,
+          perfect: gradeRow.percent === 100,
+          passedLesson: Boolean(gradeRow.passed),
+          segments: null,
+        }
+        : {
+          percent: null,
+          passed: 0,
+          total: 0,
+          unit: "notes in time",
+          label: "Finish a full run to receive a grade.",
+          perfect: false,
+          passedLesson: false,
+          segments: null,
+        },
+      missedTitle: missedSectionTitle(missed, "bars"),
+      missed,
+      nextKeyName: null,
+      nextKeyLabel: null,
+      results,
     };
   }
+
   if (session.sequence) {
-    const passed = session.sequenceMarks?.filter(mark => mark === 'passed').length ?? 0;
-    return {
-      kicker: 'Chart practice', heading: moduleForLesson(session.lessonId).name,
-      detail: `${passed} of ${session.sequence.length} chords passed`,
-      nextKeyName: null, nextKeyLabel: null,
-      results: session.sequence.map((item, index) => ({
+    const results = session.sequence.map((item, index) => {
+      const mark = session.sequenceMarks?.[index];
+      const status = mark === "passed" || mark === "failed" || mark === "peeked" ? mark : "skipped";
+      return {
         cardId: item.lessonId,
         label: `${lessonById(item.lessonId).context} · ${sessionScreenTitle({ ...session, lessonId: item.lessonId, keyQueue: [item.keyId], keyIndex: 0 })}`,
-        summary: session.sequenceMarks?.[index] === 'passed' ? 'Passed' : 'Skipped',
-      })),
+        status,
+        passed: status === "passed",
+        summary: statusDisplayLabel(status),
+      };
+    });
+    const passedCount = results.filter((row) => row.passed).length;
+    const total = results.length;
+    const percent = total ? Math.round((passedCount / total) * 100) : 0;
+    const missed = results
+      .filter((row) => !row.passed)
+      .map((row, index) => ({
+        id: `${row.cardId}-${index}`,
+        label: row.label,
+        status: row.status,
+        statusLabel: row.summary,
+        detail: null,
+      }));
+    return {
+      kicker,
+      heading: "Lesson complete",
+      detail,
+      grade: {
+        percent,
+        passed: passedCount,
+        total,
+        unit: total === 1 ? "chord" : "chords",
+        label: `${passedCount} of ${total} ${total === 1 ? "chord" : "chords"} passed`,
+        perfect: total > 0 && passedCount === total,
+        passedLesson: total > 0 && passedCount === total,
+        segments: null,
+      },
+      missedTitle: missedSectionTitle(missed, "chords"),
+      missed,
+      nextKeyName: null,
+      nextKeyLabel: null,
+      results,
     };
   }
-  const keyName = displayKeyName(currentKeyId(session), session.displayMode, sessionKeyQuality(session));
-  const nextId = peekNextKeyId(session);
+
+  const keys = session.keyQueue?.length ? session.keyQueue : [currentKeyId(session)];
+  const marks = Array.isArray(session.keyMarks) ? session.keyMarks : [];
+  const cardRow = session.cardResults.find((item) => item.cardId === "play") ?? session.cardResults[0] ?? null;
+
+  const results = keys.map((keyId, index) => {
+    const mark = marks[index];
+    let status;
+    if (mark === "passed" || mark === "skipped" || mark === "failed" || mark === "peeked") {
+      status = mark;
+    } else if (index === session.keyIndex && cardRow) {
+      if (cardRow.outcome === "skipped") status = "skipped";
+      else if (cardRow.outcome === "peeked") status = "peeked";
+      else if (cardRow.outcome === "failed" || cardRow.outcome === "missed" || (cardRow.graded && cardRow.passed === false)) {
+        status = "failed";
+      } else if (cardRow.outcome === "passed" || cardRow.outcome === "completed" || cardRow.passed) {
+        status = "passed";
+      } else {
+        status = "skipped";
+      }
+    } else {
+      status = "skipped";
+    }
+
+    const rowCorrection = index === session.keyIndex && status === "failed" ? (cardRow?.correction ?? null) : null;
+    const rowPercent = index === session.keyIndex && cardRow?.graded && typeof cardRow.percent === "number"
+      ? cardRow.percent
+      : null;
+    const gradedMiss = index === session.keyIndex && cardRow?.graded && status === "failed";
+    const summary = gradedMiss
+      ? [
+        `${rowPercent ?? 0}%`,
+        "miss",
+        rowCorrection,
+      ].filter(Boolean).join(" · ")
+      : statusDisplayLabel(status);
+
+    return {
+      cardId: keys.length === 1 ? "play" : `${keyId}-${index}`,
+      keyId,
+      label: keyLabelForSession(session, keyId),
+      outcome: status === "passed" ? "passed" : status,
+      status,
+      percent: rowPercent,
+      passed: status === "passed",
+      graded: Boolean(gradedMiss || (index === session.keyIndex && cardRow?.graded)),
+      correction: rowCorrection,
+      detail: rowCorrection,
+      summary,
+    };
+  });
+
+  const passedCount = results.filter((row) => row.passed).length;
+  const total = results.length;
+  const percent = total ? Math.round((passedCount / total) * 100) : 0;
+  const unit = total === 1 ? "key" : "keys";
+  const missed = results
+    .filter((row) => !row.passed)
+    .map((row, index) => ({
+      id: `${row.keyId}-${index}`,
+      keyId: row.keyId,
+      label: row.label,
+      status: row.status,
+      statusLabel: statusDisplayLabel(row.status),
+      detail: row.detail,
+    }));
+
   return {
-    kicker: "Key complete",
-    heading: keyName,
-    detail: lessonById(session.lessonId).title,
-    nextKeyName: nextId ? displayKeyName(nextId, session.displayMode, sessionKeyQuality(session)) : (hasNextKey(session) ? "Next lap" : null),
-    nextKeyLabel: nextId
-      ? `Next key · ${displayKeyName(nextId, session.displayMode, sessionKeyQuality(session))}`
-      : (hasNextKey(session) ? "Next lap" : null),
-    results: session.cards.map((cardId) => {
-      const row = session.cardResults.find((item) => item.cardId === cardId) ?? { outcome: "completed" };
-      const result = {
-        cardId,
-        label: cardLabel(cardId, session.lessonId),
-        outcome: row.outcome ?? "completed",
-        percent: typeof row.percent === "number" ? row.percent : null,
-        passed: Boolean(row.passed),
-        graded: Boolean(row.graded),
-        correction: row.correction ?? null,
-      };
-      return { ...result, summary: cardResultLabel(result) };
-    }),
+    kicker,
+    heading: "Lesson complete",
+    detail,
+    grade: {
+      percent,
+      passed: passedCount,
+      total,
+      unit,
+      label: `${passedCount} of ${total} ${unit} passed`,
+      perfect: total > 0 && passedCount === total,
+      passedLesson: total > 0 && passedCount === total,
+      segments: total > 1 ? results.map((row) => (row.status === "peeked" ? "failed" : row.status)) : null,
+    },
+    missedTitle: missedSectionTitle(missed, "keys"),
+    missed,
+    nextKeyName: null,
+    nextKeyLabel: null,
+    results,
   };
 }
 

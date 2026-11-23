@@ -12,6 +12,7 @@ import { rapidMicStep, shouldRecordMastery } from "./rapid.js";
 import { parseTabState } from "./tabs.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { CHART_LIBRARY } from "./registry.js";
+import { sessionVinylTier } from "./app-wrapup.js";
 
 const source = await readFile(new URL("./app.js", import.meta.url), "utf8");
 const noop = () => {};
@@ -25,6 +26,7 @@ function appContext(names, overrides = {}) {
     instrumentOrDefault,
     rapidMicStep,
     shouldRecordMastery,
+    sessionVinylTier,
     parseTabState,
     storageWarning,
     writeStoredJson,
@@ -393,6 +395,10 @@ test("shortcuts are inactive outside sessions and ignore modified or repeated ke
     context.handler(keyEvent({ [property]: true }));
   }
   assert.deepEqual(actions, []);
+
+  const wrapup = keyboardContext("wrapup");
+  wrapup.context.handler(keyEvent({ code: "Escape", key: "Escape" }));
+  assert.deepEqual(wrapup.actions, ["exit"]);
 });
 
 test("closing a lesson restores the module page scroll position", () => {

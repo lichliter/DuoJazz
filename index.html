@@ -17,11 +17,11 @@
   <meta name="apple-mobile-web-app-title" content="DuoJazz">
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
-  <link rel="stylesheet" href="./css/styles.css?v=190">
-  <link rel="stylesheet" href="./css/hig.css?v=190">
+  <link rel="stylesheet" href="./css/styles.css?v=194">
+  <link rel="stylesheet" href="./css/hig.css?v=194">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=192"></script>
+  <script type="module" src="./js/app.js?v=194"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -312,30 +312,41 @@
         </button>
       </section>
 
-      <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Key wrap-up">
-        <p class="kicker" id="wrapup-kicker">Key complete</p>
-        <h1 id="wrapup-heading">G minor</h1>
-        <p class="help" id="wrapup-detail"></p>
-        <div class="wrapup-sleeve" id="wrapup-sleeve" data-testid="wrapup-sleeve" hidden>
-          <div class="sleeve-stage" aria-hidden="true">
-            <span class="vinyl" data-tier="black"><span class="vinyl-label"></span></span>
-            <span class="sleeve">
-              <span class="sleeve-deco"></span>
-              <span class="sleeve-num" id="wrapup-sleeve-num">01</span>
-              <span class="sleeve-title" id="wrapup-sleeve-title">Learn the lick</span>
-            </span>
+      <section class="screen wrapup-screen" id="screen-wrapup" data-testid="screen-wrapup" aria-label="Lesson summary">
+        <div class="wrapup-inner">
+          <header class="wrapup-header">
+            <p class="kicker wrapup-kicker" id="wrapup-kicker">Learn</p>
+            <h1 id="wrapup-heading">Lesson complete</h1>
+            <p class="help wrapup-detail" id="wrapup-detail"></p>
+          </header>
+          <div class="wrapup-sleeve" id="wrapup-sleeve" data-testid="wrapup-sleeve" hidden>
+            <div class="sleeve-stage" aria-hidden="true">
+              <span class="vinyl" data-tier="black"><span class="vinyl-label"></span></span>
+              <span class="sleeve">
+                <span class="sleeve-deco"></span>
+                <span class="sleeve-num" id="wrapup-sleeve-num">01</span>
+                <span class="sleeve-title" id="wrapup-sleeve-title">Learn</span>
+              </span>
+            </div>
           </div>
-        </div>
-        <ul class="result-list" id="result-list"></ul>
-        <section class="medal-panel wrapup-medal" id="wrapup-medal-panel" aria-label="Medal progress">
-          <p class="medal-mark" id="wrapup-medal-mark">Medal</p>
-          <p class="medal-copy" id="wrapup-medal"></p>
-        </section>
-        <div class="wrapup-actions">
-          <button type="button" class="play" id="next-module" data-testid="next-module" hidden>Next module</button>
-          <button type="button" class="play" id="next-key">Next key</button>
-          <button type="button" class="chip" id="again-key">Again</button>
-          <button type="button" class="text-link" id="done-session">Done</button>
+          <section class="wrapup-grade" id="wrapup-grade" data-testid="wrapup-grade" aria-label="Lesson grade">
+            <div class="wrapup-grade-head">
+              <p class="wrapup-grade-score" id="wrapup-grade-score">100%</p>
+              <p class="wrapup-grade-detail" id="wrapup-grade-detail">12 of 12 keys passed</p>
+            </div>
+            <div class="wrapup-grade-bar" id="wrapup-grade-bar" aria-hidden="true"></div>
+          </section>
+          <section class="wrapup-missed" id="wrapup-missed" data-testid="wrapup-missed" aria-labelledby="wrapup-missed-title" hidden>
+            <div class="wrapup-missed-head">
+              <h2 class="wrapup-missed-title" id="wrapup-missed-title">Failed &amp; skipped keys</h2>
+              <span class="wrapup-missed-count" id="wrapup-missed-count"></span>
+            </div>
+            <ul class="result-list wrapup-missed-list" id="result-list"></ul>
+          </section>
+          <div class="wrapup-actions">
+            <button type="button" class="play wrapup-next" id="wrapup-next" data-testid="wrapup-next">Next lesson</button>
+            <button type="button" class="wrapup-close" id="wrapup-close" data-testid="wrapup-close">Close</button>
+          </div>
         </div>
       </section>
     </main>

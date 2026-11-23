@@ -38,9 +38,10 @@ function passedRow(session) {
  * After the check mark. The last key opens wrap-up.
  * Otherwise the next key is armed, and Auto listens again.
  */
-export function afterPass(session, { auto = true } = {}) {
+export function afterPass(session, { auto = true, notesShown = false } = {}) {
   if (!session) return { session, autoStart: false, phase: "idle", keyId: null };
-  const marked = markKeyOutcome(session, "passed");
+  const outcome = notesShown && lessonById(session.lessonId).kind === "master" ? "peeked" : "passed";
+  const marked = markKeyOutcome(session, outcome);
   if (isLastRapidKey(marked)) {
     return {
       session: {
@@ -69,9 +70,9 @@ export function afterPass(session, { auto = true } = {}) {
  * listening starts after the read beat when Auto is on.
  * skip drops the celebration wait. pause advances and does not listen.
  */
-export function passSchedule(session, { auto = true, skip = false, pause = false } = {}) {
+export function passSchedule(session, { auto = true, skip = false, pause = false, notesShown = false } = {}) {
   const passedKeyId = session ? currentKeyId(session) : null;
-  const advanced = afterPass(session, { auto: false });
+  const advanced = afterPass(session, { auto: false, notesShown });
   const last = advanced.session?.screen === "wrapup";
   const arm = Boolean(auto) && !pause && !last;
   const steps = [
@@ -120,11 +121,11 @@ export function afterFail(session, { auto = true, hint = "1st note" } = {}) {
 /**
  * Skip the current key with no result screen in between.
  * Auto listens on the next key. Auto off leaves that key idle.
- * The last key opens wrap-up. The result is always Skipped, never mastery.
+ * The last key opens wrap-up. The result is Skipped (or Failed after a miss), never mastery.
  */
-export function skipAhead(session, { auto = true } = {}) {
+export function skipAhead(session, { auto = true, failed = false } = {}) {
   const result = session ? skipResult(session) : null;
-  const next = skipCard(session);
+  const next = skipCard(session, failed ? "failed" : "skipped");
   const onSession = next?.screen === "session";
   const arm = Boolean(auto && onSession);
   return {

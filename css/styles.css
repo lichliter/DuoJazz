@@ -987,40 +987,6 @@ input[type="checkbox"] {
   color: var(--text);
 }
 
-.medal-slot {
-  min-height: 1.1em;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 0.78rem;
-}
-
-.medal-panel {
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.85rem 1rem;
-  background: var(--surface);
-  min-height: 4.4rem;
-  overflow: visible;
-}
-
-.medal-mark {
-  margin: 0;
-  font-family: Oswald, "Arial Narrow", sans-serif;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-  font-size: 1.05rem;
-}
-
-.medal-copy {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
 .listen-state {
   position: relative;
   z-index: 2;
@@ -1306,65 +1272,6 @@ input[type="checkbox"] {
   color: var(--accent);
 }
 
-.wrapup-screen {
-  gap: 0.9rem;
-  padding-bottom: 1.5rem;
-  width: min(42rem, 100%);
-  margin-inline: auto;
-}
-
-.wrapup-screen h1 {
-  max-width: none;
-  font-size: clamp(2.2rem, 5.4vw, 3.6rem);
-}
-
-.result-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.45rem;
-}
-
-.result-list li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 3.4rem;
-  align-items: center;
-  padding: 0.7rem 1.05rem;
-  font-size: 1.08rem;
-}
-
-.result-list .outcome {
-  color: var(--accent);
-  font-weight: 700;
-  text-align: right;
-}
-
-.wrapup-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.55rem;
-  margin-top: 0.75rem;
-}
-
-.wrapup-actions .play {
-  width: 100%;
-  grid-column: 1 / -1;
-  min-height: 3.4rem;
-  font-size: 1.15rem;
-  white-space: normal;
-  line-height: 1.25;
-}
-
-.wrapup-actions .chip,
-.wrapup-actions .text-link {
-  width: 100%;
-  justify-self: stretch;
-  text-align: center;
-}
-
 .setup-form .setup-actions {
   display: grid;
   gap: 0.35rem;
@@ -1408,15 +1315,6 @@ input[type="checkbox"] {
 @media (max-width: 720px) {
   .key-strip {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .medal-panel {
-    min-height: 0;
-    padding: 0.7rem 0.85rem;
-  }
-
-  .medal-copy {
-    font-size: 0.88rem;
   }
 
   .key-strip-wrap .panel-label {
@@ -1471,19 +1369,6 @@ input[type="checkbox"] {
   #screen-home .kicker,
   #screen-home .panel-label {
     font-size: 0.86rem;
-  }
-
-  .medal-panel {
-    min-height: 5.4rem;
-    padding: 1.05rem 1.15rem;
-  }
-
-  .medal-mark {
-    font-size: 1.35rem;
-  }
-
-  .medal-copy {
-    font-size: 1.08rem;
   }
 
   .key-strip {
@@ -1554,26 +1439,6 @@ input[type="checkbox"] {
 
   .listen-detail {
     font-size: 1.18rem;
-  }
-
-  .wrapup-screen {
-    gap: 1.15rem;
-    padding-top: 1.5rem;
-  }
-
-  .wrapup-screen h1 {
-    font-size: clamp(3rem, 6vw, 4.1rem);
-  }
-
-  .result-list li {
-    min-height: 3.8rem;
-    font-size: 1.2rem;
-    padding: 0.85rem 1.2rem;
-  }
-
-  .wrapup-actions .play {
-    min-height: 3.7rem;
-    font-size: 1.28rem;
   }
 }
 
@@ -2132,31 +1997,6 @@ input[type="checkbox"] {
   font-size: 1.2rem;
 }
 
-.wrapup-sleeve {
-  display: grid;
-  justify-items: center;
-  margin: 0.2rem 0 0.3rem;
-}
-
-.wrapup-sleeve .sleeve-stage {
-  transform: scale(0.92);
-  transform-origin: center top;
-}
-
-.wrapup-sleeve.is-upgrade .vinyl {
-  animation: vinyl-spin 1.4s ease-out;
-}
-
-.wrapup-sleeve:not(.is-upgrade) .vinyl {
-  transform: translateX(16px);
-}
-
-@keyframes vinyl-spin {
-  0% { transform: translateX(0) rotate(0deg); }
-  55% { transform: translateX(22px) rotate(220deg); }
-  100% { transform: translateX(18px) rotate(360deg); }
-}
-
 @media (max-width: 720px) {
   .path-rail {
     display: none;
@@ -2405,7 +2245,6 @@ input[type="checkbox"] {
   .sleeve-node:hover .vinyl,
   .sleeve-node:focus-visible .vinyl,
   .sleeve-node:active .vinyl,
-  .wrapup-sleeve:not(.is-upgrade) .vinyl,
   .next-module-path:active {
     transform: none;
   }
