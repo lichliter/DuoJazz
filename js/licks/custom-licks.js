@@ -33,6 +33,13 @@ const southOpening = [
   N(22, 0.25, { swing: false, diatonicStep: 13 }),
 ];
 
+// Same concert pitches as southOpening, rooted on the relative major tonic (B♭ in G minor).
+const southOpeningMajor = southOpening.map((element) => (
+  element.type === "note"
+    ? { ...element, interval: element.interval - 3, diatonicStep: element.diatonicStep - 2 }
+    : element
+));
+
 // Original beats 3–4 and the B♭ landing on the following downbeat.
 const southLanding = [
   N(19, 0.25, { swing: false, diatonicStep: 11 }),
@@ -56,8 +63,10 @@ function halfTime(elements) {
 }
 
 const halfTimeOpening = halfTime(southOpening);
+const halfTimeOpeningMajor = halfTime(southOpeningMajor);
 const halfTimeLanding = [...halfTime(southLanding), R(2)];
 const southTonicBar = bar([chord(0, "minor7")]);
+const southMajorTonicBar = bar([chord(0, "major7")]);
 const southLandingBar = bar([chord(5, "minor7")]);
 
 const southMinorQualities = ["minor7", "minor11", "minor"];
@@ -70,20 +79,31 @@ const southBlocks = [
     id: `${southId}-opening`,
     name: "Sextuplet Run",
     blockBeats: "Bar 1",
-    originalElements: [...southOpening, R(2)],
-    elements: halfTimeOpening,
-    bars: [southTonicBar],
+    keyQuality: "major",
+    defaultKeyId: "Bb",
+    context: "Major · Half-time practice",
+    originalElements: [...southOpeningMajor, R(2)],
+    elements: halfTimeOpeningMajor,
+    bars: [southMajorTonicBar],
     summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
-    minorHomeDescription: "Play ♭VIImaj7 (6–♭7–9–11) into ♭IIImaj7 (9–♭3–5–♭7) — two third-inversion major-seventh arpeggios a fourth apart for a pure Dorian sound.",
-    extraPracticeDefinitions(originalElements) {
+    practiceDefinitions(originalElements) {
       return [
         {
           id: "lydian-major",
-          label: "Lydian major",
+          label: "Major home (Lydian)",
           description: "Outline Vmaj7 (♯11–5–7–9) into Imaj7 (7–1–3–5) for a bright Lydian upper structure that lands on the tonic arpeggio.",
           source: `${southSource} · Sextuplet Run Lydian practice`,
-          exampleTitle: "Lydian major vamp",
-          pattern: [{ root: 3, family: "major", beats: 4, qualities: southLydianMajorQualities, quality: "major7b5" }],
+          exampleTitle: "Major tonic vamp",
+          pattern: [{ root: 0, family: "major", beats: 4, qualities: southLydianMajorQualities, quality: "major7" }],
+          elements: originalElements,
+        },
+        {
+          id: "minor-home",
+          label: "Relative minor (Dorian)",
+          description: "Play ♭VIImaj7 (6–♭7–9–11) into ♭IIImaj7 (9–♭3–5–♭7) — two third-inversion major-seventh arpeggios a fourth apart for a pure Dorian sound.",
+          source: `${southSource} · Sextuplet Run practice`,
+          exampleTitle: "Minor tonic vamp",
+          pattern: [{ root: 9, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
           elements: originalElements,
         },
         {
@@ -92,7 +112,7 @@ const southBlocks = [
           description: "Play IVmaj7 (3–4–13–1) into ♭VIImaj7 (13–♭7–9–11) for a Mixolydian or sus upper structure.",
           source: `${southSource} · Sextuplet Run dominant practice`,
           exampleTitle: "Dominant sus vamp",
-          pattern: [{ root: 5, family: "dominant", beats: 4, qualities: ["dominant7", "dominant9", "dominant7sus"], quality: "dominant7sus" }],
+          pattern: [{ root: 2, family: "dominant", beats: 4, qualities: ["dominant7", "dominant9", "dominant7sus"], quality: "dominant7sus" }],
           elements: originalElements,
         },
         {
@@ -101,7 +121,7 @@ const southBlocks = [
           description: "Outline Imaj7 (7–1–3–5) into IVmaj7 (3–4–6–1) over a major tonic, landing back on the root.",
           source: `${southSource} · Sextuplet Run major practice`,
           exampleTitle: "Major tonic vamp",
-          pattern: [{ root: 10, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
+          pattern: [{ root: 7, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
           elements: originalElements,
         },
       ];
@@ -144,15 +164,29 @@ const southBlocks = [
   },
 ];
 
-function southBlockEntry({ id, name, blockBeats, originalElements, elements, bars, summary, minorHomeDescription, extraPracticeDefinitions }) {
+function southBlockEntry({
+  id,
+  name,
+  blockBeats,
+  keyQuality = "minor",
+  defaultKeyId = "G",
+  context = "Minor · Half-time practice",
+  originalElements,
+  elements,
+  bars,
+  summary,
+  minorHomeDescription,
+  extraPracticeDefinitions,
+  practiceDefinitions,
+}) {
   const learnId = `${id}-learn`;
   return {
     lick: {
       id, name, shortName: name, elements,
-      source: southSource, octave: -2, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality: "minor", defaultKeyId: "G",
+      source: southSource, octave: -2, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality, defaultKeyId,
     },
     learnForm: {
-      id: learnId, title: name, shortTitle: name, keyQuality: "minor",
+      id: learnId, title: name, shortTitle: name, keyQuality,
       bars,
     },
     learnApplication: {
@@ -163,11 +197,11 @@ function southBlockEntry({ id, name, blockBeats, originalElements, elements, bar
       id, lickId: id, name, blockBeats, compositeId: southId,
       lessons: [{
         id: learnId, kind: "learn", applicationId: learnId, title: "Learn the lick", coverTitle: "Learn the lick",
-        summary, context: "Minor · Half-time practice", defaultKeyId: "G",
+        summary, context, defaultKeyId,
       }],
     },
     practiceDefinitions() {
-      const extras = (extraPracticeDefinitions?.(originalElements) ?? []).map((def) => ({
+      const toVariantDef = (def) => ({
         lickId: id,
         id: def.id,
         label: def.label,
@@ -181,7 +215,11 @@ function southBlockEntry({ id, name, blockBeats, originalElements, elements, bar
           pickupBeats: 0,
           pattern: def.pattern,
         }],
-      }));
+      });
+      if (practiceDefinitions) {
+        return practiceDefinitions(originalElements).map(toVariantDef);
+      }
+      const extras = (extraPracticeDefinitions?.(originalElements) ?? []).map(toVariantDef);
       return [{
         lickId: id,
         id: "minor-home",

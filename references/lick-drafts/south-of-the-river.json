@@ -77,8 +77,8 @@
       "id": "south-of-the-river-opening",
       "name": "Sextuplet Run",
       "sourceBeats": "Bar 1 beats 1–2, including the sextuplet entrance rest",
-      "learnHarmony": "Gm7 for one bar",
-      "applications": ["minor-home", "lydian-major", "dominant-sus", "major-home"],
+      "learnHarmony": "B♭maj7 for one bar (relative major of Gm7; same concert notes E–F–A–C, A–B♭–D–F)",
+      "applications": ["lydian-major", "minor-home", "dominant-sus", "major-home"],
       "endRestBeats": 0
     },
     {

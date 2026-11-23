@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { MODULES, PRACTICE_CATALOG, applicationById, formById, spotsFor, lickById, learnBeatsFor } from './registry.js';
 import { getKey, phraseNotes, phraseABC, phraseMeasureCount, phraseTimeline, scheduleChorus, chorusChords, beamGroupsCrossBeat3, swingRatio } from './music.js';
-import { TWELVE_KEY_IDS, createSession, jumpToCard, defaultPrefs, demoAudioConfig, recordBackingConfig } from './session.js';
+import { TWELVE_KEY_IDS, createSession, jumpToCard, defaultPrefs, demoAudioConfig, recordBackingConfig, relativeMajorId } from './session.js';
 import { expectedNotesFor, gradeSession, synthTrack, hzFromMidi } from './grade.js';
 import { runFollower, octaveModeForLesson } from './follow.js';
 import { livePlaybackEvents } from './sound-band.js';
@@ -22,8 +22,8 @@ const starts = originalStarts.map(beat => beat * 2);
 const contour = [0, 1, 5, 8, 5, 6, 10, 13, 10, 11, 15, 18, 22, 21, 20, 19, 18];
 const groups = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river');
 const blocks = [
-  { id: 'south-of-the-river-opening', from: 0, to: 8, offset: 0, length: 4, rests: [[0, 2 / 3]], chords: [['Gm7', 4]] },
-  { id: 'south-of-the-river-climb-and-landing', from: 8, to: 17, offset: 4, length: 8, rests: [[6, 2]], chords: [['Gm7', 4], ['Cm7', 4]] },
+  { id: 'south-of-the-river-opening', from: 0, to: 8, offset: 0, length: 4, rests: [[0, 2 / 3]], defaultKeyId: 'Bb', keyQuality: 'major', chords: [['B♭maj7', 4]] },
+  { id: 'south-of-the-river-climb-and-landing', from: 8, to: 17, offset: 4, length: 8, rests: [[6, 2]], defaultKeyId: 'G', keyQuality: 'minor', chords: [['Gm7', 4], ['Cm7', 4]] },
 ];
 
 const nearList = (actual, expected) => {
@@ -101,18 +101,23 @@ test('South of the River building blocks preserve the half-time phrase across ke
     const rests = phraseTimeline(applicationId).filter(event => event.type === 'rest');
     nearList(rests.map(event => event.beat), block.rests.map(([beat]) => beat));
     nearList(rests.map(event => event.beats), block.rests.map(([, beats]) => beats));
-    assert.deepEqual(chorusChords(getKey('G'), 'concert', applicationId).map(c => [c.name, c.durationBeats]), block.chords);
+    assert.deepEqual(chorusChords(getKey(block.defaultKeyId), 'concert', applicationId).map(c => [c.name, c.durationBeats]), block.chords);
     for (const keyId of TWELVE_KEY_IDS) for (const displayMode of ['trombone', 'trumpet']) {
       const key = getKey(keyId);
+      const blockKey = getKey(block.keyQuality === 'major' ? relativeMajorId(keyId) : keyId);
       const full = phraseNotes(key, displayMode, appId).slice(block.from, block.to);
-      const notes = phraseNotes(key, displayMode, applicationId);
+      const notes = phraseNotes(blockKey, displayMode, applicationId);
       const octaveDifference = notes[0].concertMidi - full[0].concertMidi;
       assert.equal(octaveDifference % 12 || 0, 0);
       assert.deepEqual(notes.map(n => n.concertMidi), full.map(n => n.concertMidi + octaveDifference));
-      for (const note of notes) assert.equal(note.shownMidi - note.concertMidi, displayMode === 'trumpet' ? 2 : 0);
-      assert.equal((phraseMEI(key, displayMode, applicationId).match(/<note\b/g) ?? []).length, notes.length);
-      assert.equal(beamGroupsCrossBeat3(phraseABC(key, displayMode, applicationId)), false);
-      const config = { concertKey: key, displayMode, applicationId, stage: 'learn', includeModel: true };
+      for (const note of notes) {
+        assert.equal(note.shownMidi - note.concertMidi, displayMode === 'trumpet' ? 2 : 0);
+        assert.doesNotMatch(note.shownName, /[𝄪𝄫]/u, `${blockKey.id} ${displayMode} ${note.shownName}`);
+        assert.doesNotMatch(note.concertName, /[𝄪𝄫]/u, `${blockKey.id} ${displayMode} ${note.concertName}`);
+      }
+      assert.equal((phraseMEI(blockKey, displayMode, applicationId).match(/<note\b/g) ?? []).length, notes.length);
+      assert.equal(beamGroupsCrossBeat3(phraseABC(blockKey, displayMode, applicationId)), false);
+      const config = { concertKey: blockKey, displayMode, applicationId, stage: 'learn', includeModel: true };
       const events = scheduleChorus(config);
       const model = events.filter(event => event.type === 'melody');
       nearList(model.map(event => event.beat), blockStarts);
@@ -123,7 +128,7 @@ test('South of the River building blocks preserve the half-time phrase across ke
       assert.deepEqual(raised.filter(event => event.type !== 'melody'), events.filter(event => event.type !== 'melody'));
     }
     for (const lesson of module.lessons) {
-      const session = jumpToCard(createSession({ lessonId: lesson.id, startKeyId: 'G' }), 'play');
+      const session = jumpToCard(createSession({ lessonId: lesson.id, startKeyId: block.defaultKeyId }), 'play');
       const notes = expectedNotesFor(session);
       nearList(notes.map(n => n.startBeat), swungStartsAt(session.tempo).slice(block.from, block.to).map(beat => beat - block.offset));
       nearList(expectedNotesFor({ ...session, swing: false }).map(n => n.startBeat), blockStarts);
@@ -148,11 +153,12 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
       nearList(model.slice(0, block.to - block.from).map(event => event.durationBeats), originalDurations.slice(block.from, block.to));
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(event => event.type !== 'melody'));
     }
-    assert.equal(chorusChords(getKey('G'), 'concert', group.exampleLessonId)[0].name, 'Gm7');
-    const [variant] = PRACTICE_CATALOG.definitions.find(definition => definition.lickId === block.id).variants;
+    assert.equal(chorusChords(getKey(block.defaultKeyId), 'concert', group.exampleLessonId)[0].name, 'Gm7');
+    const [variant] = PRACTICE_CATALOG.definitions.find(definition => definition.lickId === block.id && definition.id === 'minor-home').variants;
+    const root = variant.pattern[0].root;
     const form = (quality, durationBeats) => ({ bars: [{ chords: [
-      { intervalFromTonic: 0, quality, durationBeats },
-      { intervalFromTonic: 5, quality: 'minor7', durationBeats: 4 - durationBeats },
+      { intervalFromTonic: root, quality, durationBeats },
+      { intervalFromTonic: (root + 5) % 12, quality: 'minor7', durationBeats: 4 - durationBeats },
     ] }] });
     const startsOnBeatOne = (quality, duration) =>
       matchApplication(form(quality, duration), variant).some(spot => spot.beatOffset === 0);
@@ -163,12 +169,16 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
   }
   const openingApps = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river-opening');
   assert.deepEqual(openingApps.map(g => g.id), [
-    'south-of-the-river-opening:minor-home',
     'south-of-the-river-opening:lydian-major',
+    'south-of-the-river-opening:minor-home',
     'south-of-the-river-opening:dominant-sus',
     'south-of-the-river-opening:major-home',
   ]);
-  assert.ok(openingApps[1].choices.some(c => c.chartId === 'autumn-leaves'));
+  assert.deepEqual(openingApps.map(group =>
+    chorusChords(getKey('Bb'), 'concert', group.exampleLessonId)[0].name
+  ), ['B♭maj7', 'Gm7', 'C7sus', 'Fmaj7']);
+  assert.ok(openingApps[0].choices.some(c => c.chartId === 'autumn-leaves'));
+  assert.ok(openingApps[1].choices.some(c => c.chartId === 'so-what'));
   assert.ok(openingApps[2].choices.some(c => c.chartId === 'blue-bossa'));
   assert.ok(openingApps[3].choices.some(c => c.chartId === 'autumn-leaves'));
   const landingApps = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river-climb-and-landing');
