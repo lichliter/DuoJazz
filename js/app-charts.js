@@ -82,11 +82,13 @@ export function createChartsView({
 
   function openChartApplications(moduleId) {
     const chart = currentChart();
+    const matches = chartApplications(chart.id, moduleId);
+    if (!matches.length) return;
+
     const module = moduleById(moduleId);
     const dialog = document.getElementById("chart-applications");
     document.getElementById("chart-applications-title").textContent = module.name;
     document.getElementById("chart-applications-description").textContent = `Applications in ${chart.title}`;
-    const matches = chartApplications(chart.id, moduleId);
     const list = document.getElementById("chart-applications-list");
     list.replaceChildren(...matches.map(({ group, choice }) => {
       const button = document.createElement("button");
@@ -107,12 +109,6 @@ export function createChartsView({
       };
       return button;
     }));
-    if (!matches.length) {
-      const empty = document.createElement("p");
-      empty.className = "help";
-      empty.textContent = "No supported applications of this lick match this chart. Try another lick or chart from My Rotation.";
-      list.append(empty);
-    }
     dialog.showModal();
   }
 
@@ -179,8 +175,10 @@ export function createChartsView({
     favoritesHeader.append(heading, manage);
     integrate.append(favoritesHeader);
     const favorites = MODULES.filter((module) => lickRotation.includes(module.id) && module.id !== "chord-tones");
-    for (const [index, module] of favorites.entries()) {
-      const matches = chartApplications(tune.id, module.id);
+    const matchingFavorites = favorites
+      .map((module) => ({ module, matches: chartApplications(tune.id, module.id) }))
+      .filter(({ matches }) => matches.length > 0);
+    for (const [index, { module, matches }] of matchingFavorites.entries()) {
       const node = {
         id: `chart-favorite-${module.id}`,
         title: module.name,
@@ -195,10 +193,12 @@ export function createChartsView({
       };
       integrate.append(sleeveButton(node));
     }
-    if (!favorites.length) {
+    if (!matchingFavorites.length) {
       const empty = document.createElement("p");
       empty.className = "help library-empty";
-      empty.textContent = "Add licks to My Rotation to practice them on this chart.";
+      empty.textContent = favorites.length
+        ? "No licks in My Rotation match this chart."
+        : "Add licks to My Rotation to practice them on this chart.";
       integrate.append(empty);
     }
     block.append(practice, integrate);
