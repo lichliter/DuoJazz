@@ -212,9 +212,12 @@ let sealToken = 0;
 let liveAt = 0;
 const debugOn = new URLSearchParams(location.search).get("debug") === "1";
 const SELECTED_MODULE_KEY = "duojazz.selectedModule.v1";
+const LAST_ROTATION_KEY = "duojazz.lastRotation.v1";
 let selectedModuleId = loadSelectedModule();
 const deepLinkOverrides = { module: null, auto: null };
-let nav = parseTabState(typeof location === "undefined" ? "" : location.search);
+let nav = parseTabState(location.search);
+const launchParams = new URLSearchParams(location.search);
+let hasLaunchLink = ["tab", "screen", "module", "sheet"].some(name => launchParams.has(name));
 let lastChartTune = nav.tune;
 let chartKeySelection = null;
 let lickRotation = loadMyLicks(MODULES);
@@ -1053,6 +1056,32 @@ function writeTabUrl(replace) {
   history[method]({ nav }, "", url);
 }
 
+function lastRotationKey() {
+  return cloudSettings.userId ? `${LAST_ROTATION_KEY}:${cloudSettings.userId}` : LAST_ROTATION_KEY;
+}
+
+function restoreLastRotation() {
+  if (hasLaunchLink) return;
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(lastRotationKey()));
+  } catch {
+    // Open the default rotation when browser storage is unavailable.
+  }
+  nav = saved?.tab === "charts"
+    ? { tab: "charts", tune: CHART_LIBRARY.some(chart => chart.id === saved.tune) ? saved.tune : null }
+    : { tab: "licks", tune: null };
+  lastChartTune = nav.tune;
+  chartKeySelection = null;
+  writeTabUrl(true);
+}
+
+function rememberRotation() {
+  if (nav.tab !== "charts" && nav.tab !== "licks") return;
+  hasLaunchLink = false;
+  writeStoredJson(lastRotationKey(), nav);
+}
+
 function selectTab(tab, { tune = undefined, replace = false } = {}) {
   if (tab === "settings") {
     openSettings();
@@ -1070,6 +1099,7 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
   } else {
     nav = { tab, tune: null };
   }
+  rememberRotation();
   writeTabUrl(replace);
   render();
   restoreTabScroll();
@@ -2746,6 +2776,7 @@ window.addEventListener("popstate", () => {
   nav = parseTabState(location.search);
   if (nav.tune !== previousChart) chartKeySelection = null;
   if (nav.tab === "charts") lastChartTune = nav.tune;
+  rememberRotation();
   render();
 });
 els.sessionExit.addEventListener("click", exitSession);
@@ -2833,6 +2864,7 @@ els.wrapupNext?.addEventListener("click", () => {
       nav = { tab: "charts", tune: next.chartId };
       lastChartTune = next.chartId;
       chartKeySelection = null;
+      rememberRotation();
       writeTabUrl(false);
       if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
     }
@@ -2843,6 +2875,7 @@ els.wrapupNext?.addEventListener("click", () => {
     if (next.chartId) {
       nav = { tab: "charts", tune: next.chartId };
       lastChartTune = next.chartId;
+      rememberRotation();
       writeTabUrl(false);
     }
     exitSession();
@@ -3120,6 +3153,7 @@ void initAccount({
   onSettings: applyAccountSettings,
   onSettingsAccount(id) {
     cloudSettings.activate(id, id ? guestLegacySettings() : {});
+    restoreLastRotation();
     if (id) applyAccountSettings();
     else applyGuestSettings();
   },

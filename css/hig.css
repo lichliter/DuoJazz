@@ -1509,7 +1509,6 @@ button.module-banner {
   color: var(--label);
 }
 
-#library-browse,
 .lick-tools .transport-icon,
 .session-octave .octave-btn,
 .session-footer .transport-icon {
@@ -2900,7 +2899,19 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .library-action:hover { background: var(--fill); }
 .library-action-primary { background: var(--tint); color: var(--tint-contrast, #221711); border-color: transparent; font-weight: 700; }
 .library-action-primary:hover { background: color-mix(in srgb, var(--tint), white 12%); }
-#library-browse { align-self: stretch; width: 54px; padding: 0; font-size: 24px; font-weight: 700; line-height: 1; }
+#library-browse {
+  align-self: stretch;
+  width: 54px;
+  padding: 0;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+@media (hover: hover) {
+  #library-browse:hover { background: color-mix(in srgb, var(--bg-secondary), var(--label) 8%); }
+}
 .library-picker-row .module-sheet-row:focus-visible,
 .library-remove:focus-visible { outline: 2px solid var(--tint); outline-offset: -3px; }
 

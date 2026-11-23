@@ -60,6 +60,7 @@ function appContext(names, overrides = {}) {
     els: { storageNotice: { textContent: "", hidden: true } },
     render: noop,
     halt: noop,
+    rememberRotation: noop,
     writeTabUrl: noop,
     openSettings: noop,
     ...overrides,
@@ -74,6 +75,54 @@ function appContext(names, overrides = {}) {
 }
 
 const progressFunctions = ["shownMastery", "clearMasteryPreview", "applyDeepLink", "recordRapidPass", "recordPassIfNeeded", "renderStorageNotice"];
+
+test("a fresh launch restores the last opened chart or lick for the active viewer", () => {
+  const stored = new Map();
+  const localStorage = {
+    getItem: key => stored.get(key) ?? null,
+    setItem: (key, value) => stored.set(key, value),
+  };
+  const context = appContext(["lastRotationKey", "restoreLastRotation", "rememberRotation", "selectTab"], {
+    LAST_ROTATION_KEY: "duojazz.lastRotation.v1",
+    CHART_LIBRARY,
+    localStorage,
+    writeStoredJson: (key, value) => writeStoredJson(key, value, localStorage),
+    practiceUI: { getSelected: () => CHART_LIBRARY.map(chart => chart.id) },
+    nav: { tab: "licks", tune: null },
+    lastChartTune: null,
+    chartKeySelection: null,
+    hasLaunchLink: false,
+    saveTabScroll: noop, restoreTabScroll: noop,
+  });
+  context.selectTab("charts", { tune: "four" });
+  context.nav = { tab: "licks", tune: null };
+  context.restoreLastRotation();
+  assert.equal(context.nav.tab, "charts");
+  assert.equal(context.nav.tune, "four");
+
+  context.cloudSettings = { userId: "account-a", set: noop };
+  context.restoreLastRotation();
+  assert.equal(context.nav.tab, "licks");
+  context.selectTab("charts", { tune: "blue-bossa" });
+  context.nav = { tab: "licks", tune: null };
+  context.restoreLastRotation();
+  assert.equal(context.nav.tune, "blue-bossa");
+
+  context.hasLaunchLink = true;
+  context.nav = { tab: "charts", tune: "autumn-leaves" };
+  context.restoreLastRotation();
+  assert.equal(context.nav.tune, "autumn-leaves");
+
+  context.selectTab("licks");
+  context.nav = { tab: "charts", tune: "autumn-leaves" };
+  context.restoreLastRotation();
+  assert.equal(context.nav.tab, "licks");
+  assert.equal(context.nav.tune, null);
+
+  context.cloudSettings = { userId: null };
+  context.restoreLastRotation();
+  assert.equal(context.nav.tune, "four");
+});
 
 test('saving a chart switch cannot render the previous chart or carry its key into Four', () => {
   const rendered = [], saved = [];
