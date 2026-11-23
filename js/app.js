@@ -416,7 +416,7 @@ function visualPhase() {
 function notesVisibleInSession() {
   if (!session || session.screen !== "session") return false;
   const lesson = lessonById(session.lessonId);
-  if (lesson.chartPractice || lesson.chartTimed) return false;
+  if (lesson.chartTimed) return false;
   return lesson.kind !== "master" || notesRevealed;
 }
 
@@ -959,7 +959,7 @@ function finishCelebration(generation, { arm = false, pause = false } = {}) {
 function renderShowNotes() {
   if (!els.showNotes) return;
   const lesson = session?.screen === "session" ? lessonById(session.lessonId) : null;
-  const show = lesson?.kind === "master" && !lesson.chartPractice && !lesson.chartTimed
+  const show = lesson?.kind === "master" && !lesson.chartTimed
     && !session.demo && !notesRevealed;
   els.showNotes.hidden = !show;
   els.showNotes.textContent = "Show notes";
@@ -1856,8 +1856,7 @@ function layoutClickWheel() {
   const space = footerTop() - card.getBoundingClientRect().top;
   const cardStyle = getComputedStyle(card);
   const wrapStyle = getComputedStyle(wrap);
-  const wrapPadY = wrap.hidden ? 0
-    : (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
+  const wrapPadY = (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
   let chrome = (parseFloat(cardStyle.paddingTop) || 0) + (parseFloat(cardStyle.paddingBottom) || 0)
     + (parseFloat(cardStyle.borderTopWidth) || 0) + (parseFloat(cardStyle.borderBottomWidth) || 0)
     + wrapPadY;
@@ -1870,9 +1869,7 @@ function layoutClickWheel() {
   }
   const notationShown = Boolean(svg) && !els.notation?.hidden;
   let metrics;
-  if (wrap.hidden) {
-    metrics = staffSystemMetricsFromBoxes();
-  } else if (notationShown) {
+  if (notationShown) {
     const boxes = [...svg.querySelectorAll(".system")].map((el) => el.getBoundingClientRect());
     const staffPx = fiveLineStaffHeightCss(svg.querySelector(".staff"))
       || lastNotationLayout?.minStaffPx
@@ -1881,6 +1878,8 @@ function layoutClickWheel() {
       staffSystemMetricsFromBoxes(boxes, svg.getBoundingClientRect().height),
       staffPx,
     );
+  } else if (els.showNotes?.offsetHeight) {
+    metrics = staffSystemMetricsFromBoxes([], els.showNotes.offsetHeight);
   } else {
     const answer = card.querySelector(".hidden-answer");
     const contentHeight = answer && !answer.hidden ? answer.offsetHeight : 160;
@@ -1957,11 +1956,10 @@ function renderNotation() {
   if (!session || session.screen !== "session") return;
   const view = sessionPresentation(session);
   const lesson = lessonById(session.lessonId);
-  const hideStaff = Boolean(view.hideStaff);
+  const hideStaff = Boolean(view.hideStaff || (lesson.chartPractice && !notesRevealed));
   const paperWrap = els.notation.closest(".paper-wrap");
-  paperWrap.hidden = Boolean(lesson.chartPractice);
   document.getElementById('timed-chart-panel').hidden = !lesson.chartTimed;
-  els.hiddenAnswer.hidden = !hideStaff || lesson.chartTimed;
+  els.hiddenAnswer.hidden = !hideStaff || lesson.chartTimed || lesson.chartPractice;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
   fillListenState();
   els.notation.hidden = hideStaff;
@@ -2309,6 +2307,7 @@ function render(snap = transport.snapshot()) {
     renderSessionTempo();
     renderSessionOctave();
     renderSessionChart();
+    renderShowNotes();
     renderNotation();
     renderPrimary();
     renderMeter(snap);
@@ -2318,7 +2317,6 @@ function render(snap = transport.snapshot()) {
     renderCelebrate();
     renderDebug();
     renderAuto();
-    renderShowNotes();
     renderHearIt();
   } else if (els.celebrate) {
     els.celebrate.hidden = true;

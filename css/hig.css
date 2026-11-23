@@ -1554,6 +1554,16 @@ button.module-banner {
   box-shadow: none;
 }
 
+.session-screen .paper-wrap:has(> #notation[hidden] + .notes-toggle:not([hidden])) {
+  justify-content: center;
+  padding-block: 8px;
+}
+
+#notation[hidden] + .notes-toggle {
+  position: static;
+  transform: none;
+}
+
 .session-screen .paper-wrap.notes-hidden .paper {
   filter: blur(14px);
   -webkit-filter: blur(14px);

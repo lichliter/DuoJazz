@@ -1489,8 +1489,8 @@ export function sessionPresentation(session) {
     return {
       ...view,
       looping: false,
-      hideStaff: Boolean(lesson.chartPractice),
-      showPhraseNotation: !lesson.chartPractice,
+      hideStaff: false,
+      showPhraseNotation: true,
       showChordsOnly: false,
       showModelNotation: false,
       showLandingNotation: false,
