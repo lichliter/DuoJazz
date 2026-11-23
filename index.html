@@ -18,11 +18,11 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=204">
-  <link rel="stylesheet" href="./css/hig.css?v=227">
+  <link rel="stylesheet" href="./css/hig.css?v=230">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
   <script type="module" src="./js/app.js?v=228"></script>
-  <script type="module" src="./js/pwa.js?v=222"></script>
+  <script type="module" src="./js/pwa.js?v=230"></script>
 </head>
 <body>
   <p id="offline-status" class="offline-status" role="status" hidden></p>
@@ -92,6 +92,12 @@
         <img class="logo" src="./icons/icon-512.png?v=dj-record-6" alt="DuoJazz" width="40" height="40">
       </div>
       <div class="masthead-actions">
+        <button type="button" id="header-update" class="header-update" aria-label="Update available. Update and reload" title="Update and reload DuoJazz" hidden>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/>
+          </svg>
+        </button>
+        <p id="header-update-status" class="header-update-status sr-only" role="status"></p>
         <button type="button" id="account-chip" class="account-chip" aria-haspopup="dialog" aria-controls="settings-modal">
           <span id="account-avatar" class="account-avatar" aria-hidden="true"></span>
         </button>

@@ -1,48 +1,92 @@
 const status = document.getElementById('offline-status');
 const updateButton = document.getElementById('app-update');
 const updateStatus = document.getElementById('app-update-status');
+const headerButton = document.getElementById('header-update');
+const headerStatus = document.getElementById('header-update-status');
+const serviceWorker = navigator.serviceWorker;
+
 function show(message = '') {
   status.textContent = message;
   status.hidden = !message;
 }
 const setupError = 'Offline setup could not finish. Reconnect and reload to try again.';
 let activeRegistration = null;
-let registrationAttempt;
-function watchInstallation() {
-  const worker = activeRegistration.installing;
-  if (!worker) return;
-  worker.addEventListener('statechange', () => {
-    if (worker.state === 'installed' || worker.state === 'activated') {
-      show();
-    } else if (worker.state === 'redundant') {
-      show(setupError);
-    }
-  });
+let updateCheck;
+let pageController = serviceWorker?.controller;
+const watchedWorkers = new WeakSet();
+
+function syncUpdateIndicator() {
+  const controller = serviceWorker.controller;
+  pageController ??= controller;
+  const available = Boolean(controller && (activeRegistration?.waiting || controller !== pageController));
+  if (headerButton.hidden === !available) return;
+  headerButton.hidden = !available;
+  if (!headerButton.disabled) setHeaderStatus(available ? 'App update available.' : '');
 }
 
-async function registerWorker() {
-  try {
-    if (activeRegistration) {
-      if (activeRegistration.active && !activeRegistration.installing) show();
-      await activeRegistration.update();
-    } else {
-      activeRegistration = await navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' });
+function watchInstallation() {
+  const registration = activeRegistration;
+  const worker = registration?.installing;
+  if (!worker || watchedWorkers.has(worker)) return;
+  watchedWorkers.add(worker);
+  function onStateChange() {
+    if (worker.state === 'installed' || worker.state === 'activated') {
+      show();
+    } else if (worker.state === 'redundant' && !registration.active && activeRegistration === registration) {
+      activeRegistration = null;
+      show(setupError);
+    }
+    if (worker.state === 'activated' || worker.state === 'redundant') {
+      worker.removeEventListener('statechange', onStateChange);
+    }
+    syncUpdateIndicator();
+  }
+  worker.addEventListener('statechange', onStateChange);
+}
+
+async function checkForUpdate() {
+  if (updateCheck) return updateCheck;
+  updateCheck = (async () => {
+    if (!activeRegistration) {
+      activeRegistration = await serviceWorker.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' });
       activeRegistration.addEventListener('updatefound', watchInstallation);
-      if (activeRegistration.active && !activeRegistration.installing) show();
     }
     watchInstallation();
-  } catch {
-    show(setupError);
+    syncUpdateIndicator();
+    if (!activeRegistration.installing) {
+      if (activeRegistration.active) show();
+      if (navigator.onLine) await activeRegistration.update();
+      watchInstallation();
+      syncUpdateIndicator();
+    }
+  })();
+  try {
+    await updateCheck;
+  } finally {
+    updateCheck = null;
   }
 }
 
-if ('serviceWorker' in navigator) {
-  registrationAttempt = registerWorker();
-  addEventListener('online', () => (registrationAttempt = registerWorker()));
+async function refreshUpdateAvailability() {
+  try {
+    await checkForUpdate();
+  } catch {
+    if (!activeRegistration?.active) show(setupError);
+  }
+}
+
+if (serviceWorker) {
+  serviceWorker.addEventListener('controllerchange', syncUpdateIndicator);
+  refreshUpdateAvailability();
+  addEventListener('online', refreshUpdateAvailability);
+  function checkWhileVisible() {
+    if (document.visibilityState === 'visible' && navigator.onLine) refreshUpdateAvailability();
+  }
+  document.addEventListener('visibilitychange', checkWhileVisible);
+  setInterval(checkWhileVisible, 5 * 60_000);
 }
 
 function activateUpdate(worker) {
-  const serviceWorker = navigator.serviceWorker;
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => finish(new Error('App update timed out')), 60_000);
 
@@ -82,29 +126,41 @@ function setUpdateLabel(label) {
   updateStatus.textContent = label;
 }
 
-updateButton.addEventListener('click', async () => {
-  if (!navigator.onLine) {
+function setHeaderStatus(message, visible = false) {
+  headerStatus.classList.toggle('sr-only', !visible);
+  headerStatus.textContent = message;
+}
+
+async function applyUpdate(event) {
+  const fromHeader = event.currentTarget === headerButton;
+  const report = fromHeader ? message => setHeaderStatus(message, true) : setUpdateLabel;
+  if (updateButton.disabled) return;
+  const ready = !headerButton.hidden;
+  if (!ready && !navigator.onLine) {
     setUpdateLabel('Offline. Connect to update.');
     return;
   }
 
   updateButton.disabled = true;
-  setUpdateLabel('Checking for updates…');
+  headerButton.disabled = true;
   try {
-    if ('serviceWorker' in navigator) {
-      await registrationAttempt;
-      if (!activeRegistration) await registerWorker();
-      if (!activeRegistration) throw new Error('Service worker registration unavailable');
-      await activeRegistration.update();
-      const worker = activeRegistration.installing || activeRegistration.waiting;
+    report(ready ? 'Updating app…' : 'Checking for updates…');
+    if (serviceWorker) {
+      if (!ready) await checkForUpdate();
+      const worker = activeRegistration?.waiting ||
+        (ready ? activeRegistration?.active : activeRegistration?.installing);
       if (worker) {
-        setUpdateLabel('Updating app…');
+        report('Updating app…');
         await activateUpdate(worker);
       }
     }
     location.reload();
   } catch {
-    setUpdateLabel('Update failed. Tap to retry.');
     updateButton.disabled = false;
+    headerButton.disabled = false;
+    report('Update failed. Tap to retry.');
   }
-});
+}
+
+updateButton.addEventListener('click', applyUpdate);
+headerButton.addEventListener('click', applyUpdate);

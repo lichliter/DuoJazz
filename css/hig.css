@@ -163,9 +163,41 @@ body {
 }
 
 .masthead-actions {
+  position: relative;
   display: flex;
   flex-wrap: nowrap;
   gap: 0;
+}
+
+.header-update {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 1px solid var(--separator);
+  border-radius: 50%;
+  background: var(--tint-fill);
+  color: var(--tint);
+  cursor: pointer;
+}
+
+.header-update[hidden] { display: none; }
+.header-update:disabled { opacity: 0.6; cursor: wait; }
+
+.header-update-status:not(.sr-only) {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  width: max-content;
+  max-width: 240px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--label);
+  font: var(--text-footnote);
 }
 
 .masthead .quiet {

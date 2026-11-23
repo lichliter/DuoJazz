@@ -4,21 +4,28 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { releaseAssets } from '../tools/generate-precache.mjs';
 
-async function pwaHarness({ online = true, failure = false, active = false } = {}) {
+async function pwaHarness({ online = true, failure = false, active = false, waiting = false } = {}) {
   const status = { textContent: '', hidden: true };
   const updateStatus = { textContent: '' };
-  const updateButton = { disabled: false, addEventListener(_, handler) { this.click = handler; } };
+  const button = () => ({
+    disabled: false,
+    addEventListener(_, handler) { this.click = () => handler({ currentTarget: this }); },
+  });
+  const updateButton = button();
+  const headerButton = { ...button(), hidden: true };
+  const headerStatus = { textContent: '', classList: { toggle() {} } };
   const events = {};
   const messages = [];
   const worker = Object.assign(new EventTarget(), {
-    state: 'installing', postMessage(message) { messages.push(message); },
+    state: waiting ? 'installed' : 'installing', postMessage(message) { messages.push(message); },
   });
   let updateListeners = 0;
   let updates = 0;
   let reloads = 0;
   const registration = {
     active: active ? {} : null,
-    installing: worker,
+    installing: waiting ? null : worker,
+    waiting: waiting ? worker : null,
     addEventListener(name) { if (name === 'updatefound') updateListeners += 1; },
     async update() { updates += 1; },
   };
@@ -32,18 +39,36 @@ async function pwaHarness({ online = true, failure = false, active = false } = {
   const source = (await readFile(new URL('./pwa.js', import.meta.url), 'utf8'))
     .replace('import.meta.url', JSON.stringify('https://example.test/DuoJazz/js/pwa.js'));
   vm.runInNewContext(source, {
-    URL, navigator, setTimeout, clearTimeout,
+    URL, navigator, setTimeout, clearTimeout, setInterval() {},
     location: { reload() { reloads += 1; } },
-    document: { getElementById: id => ({ 'offline-status': status, 'app-update': updateButton, 'app-update-status': updateStatus })[id] },
+    document: {
+      getElementById: id => ({
+        'offline-status': status,
+        'app-update': updateButton,
+        'app-update-status': updateStatus,
+        'header-update': headerButton,
+        'header-update-status': headerStatus,
+      })[id],
+      addEventListener(name, handler) { events[name] = handler; },
+      visibilityState: 'visible',
+    },
     addEventListener(name, handler) { events[name] = handler; },
   });
   await new Promise(resolve => setImmediate(resolve));
-  return { status, navigator, events, registration, updateButton, updateStatus, messages, worker,
+  return { status, navigator, events, registration, updateButton, updateStatus, headerButton, headerStatus, messages, worker,
     updateListeners: () => updateListeners,
     updates: () => updates,
     reloads: () => reloads,
     recover() { failure = false; },
-    state(value) { worker.state = value; worker.dispatchEvent(new Event('statechange')); },
+    state(value) {
+      worker.state = value;
+      if (value === 'installed') {
+        registration.installing = null;
+        registration.waiting = worker;
+      }
+      if (value === 'redundant') registration.installing = null;
+      worker.dispatchEvent(new Event('statechange'));
+    },
   };
 }
 
@@ -53,20 +78,19 @@ test('PWA setup, activation and normal offline use stay silent', async () => {
     assert.equal(app.status.hidden, true);
     app.state('installed');
     assert.equal(app.status.hidden, true);
+    assert.equal(app.headerButton.hidden, true);
     app.state('activated');
     assert.equal(app.status.hidden, true);
     assert.equal(app.status.textContent, '');
   }
 });
 
-test('PWA installation and update failures appear and clear after recovery', async () => {
+test('background installation failures only surface before offline setup', async () => {
   for (const active of [true, false]) {
     const app = await pwaHarness({ active });
     app.state('redundant');
-    assert.equal(app.status.hidden, false);
-    assert.match(app.status.textContent, /could not finish/);
-    app.state('activated');
-    assert.equal(app.status.hidden, true);
+    assert.equal(app.status.hidden, active);
+    if (!active) assert.match(app.status.textContent, /could not finish/);
   }
 });
 
@@ -82,7 +106,7 @@ test('registration failures persist until a successful reconnect', async () => {
   await app.events.online();
   await app.events.online();
   assert.equal(app.updateListeners(), 1);
-  assert.equal(app.updates(), 2);
+  assert.equal(app.updates(), 3);
 });
 
 test('Update app activates an installed release before reloading', async () => {
@@ -90,7 +114,7 @@ test('Update app activates an installed release before reloading', async () => {
   const updating = app.updateButton.click();
   assert.equal(app.updateButton.textContent, 'Checking for updates…');
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(app.updates(), 1);
+  assert.equal(app.updates(), 0);
   assert.equal(app.updateButton.disabled, true);
   assert.equal(app.updateButton.textContent, 'Updating app…');
   assert.deepEqual(app.messages, []);
@@ -100,6 +124,38 @@ test('Update app activates an installed release before reloading', async () => {
   app.navigator.serviceWorker.controller = app.worker;
   app.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
   await updating;
+  assert.equal(app.reloads(), 1);
+});
+
+test('header shows staged updates and can apply one offline without another check', async () => {
+  const app = await pwaHarness({ active: true, online: false });
+  assert.equal(app.headerButton.hidden, true);
+  app.state('installed');
+  assert.equal(app.headerButton.hidden, false);
+  assert.equal(app.headerStatus.textContent, 'App update available.');
+  assert.equal(app.reloads(), 0);
+
+  const updating = app.headerButton.click();
+  assert.equal(app.headerStatus.textContent, 'Updating app…');
+  assert.equal(app.updates(), 0);
+  assert.deepEqual(app.messages, ['ACTIVATE_UPDATE']);
+  app.navigator.serviceWorker.controller = app.worker;
+  app.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  await updating;
+  assert.equal(app.reloads(), 1);
+});
+
+test('header sees an already waiting update and offers a reload after another tab activates it', async () => {
+  const app = await pwaHarness({ active: true, waiting: true });
+  assert.equal(app.headerButton.hidden, false);
+  app.registration.waiting = null;
+  app.registration.active = app.worker;
+  app.navigator.serviceWorker.controller = app.worker;
+  app.navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+  assert.equal(app.headerButton.hidden, false);
+  assert.equal(app.reloads(), 0);
+  await app.headerButton.click();
+  assert.deepEqual(app.messages, []);
   assert.equal(app.reloads(), 1);
 });
 
