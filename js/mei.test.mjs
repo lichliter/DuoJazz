@@ -85,6 +85,19 @@ test("integration reference roots follow each lick entrance and the written key"
   assert.deepEqual(dirs(phraseMEI(getKey("Bb"), "trombone", "south-of-the-river-opening-learn")), ["Think B♭"]);
 });
 
+test("Chromatic Landing cues the major arpeggio over the Autumn Leaves ii–V", () => {
+  const applicationId = "practice-south-of-the-river-climb-and-landing-minor-ii-v-autumn-leaves";
+  const concert = landingMEI(getKey("G"), "trombone", applicationId);
+  const firstBar = concert.match(/<measure n="1"[^>]*>(.*?)<\/measure>/)[1];
+  assert.deepEqual(harms(firstBar), ["C-7"]);
+  assert.deepEqual(dirs(firstBar), ["Think A♭"]);
+  const firstNoteId = firstBar.match(/<note\b[^>]*\bxml:id="([^"]+)"/)[1];
+  assert.ok(firstBar.includes(`startid="#${firstNoteId}"`));
+  assert.deepEqual(dirs(landingMEI(getKey("G"), "trumpet", applicationId)), ["Think B♭"]);
+  assert.deepEqual(dirs(landingMEI(getKey("F"), "trombone", applicationId)), ["Think G♭"]);
+  assert.deepEqual(dirs(phraseMEI(getKey("Ab"), "trombone", "south-of-the-river-climb-and-landing-learn")), ["Think A♭"]);
+});
+
 test("phrase MEI is bass clef with the Learn chord and the cell pitches", () => {
   const mei = phraseMEI(getKey("G"), "concert", "minor-home");
   assert.equal(clefShape(mei), "F");

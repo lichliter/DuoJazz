@@ -22,8 +22,8 @@ const starts = originalStarts.map(beat => beat * 2);
 const contour = [0, 1, 5, 8, 5, 6, 10, 13, 10, 11, 15, 18, 22, 21, 20, 19, 18];
 const groups = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river');
 const blocks = [
-  { id: 'south-of-the-river-opening', from: 0, to: 8, offset: 0, length: 4, rests: [[0, 2 / 3]], defaultKeyId: 'Bb', keyQuality: 'major', chords: [['B♭maj7', 4]] },
-  { id: 'south-of-the-river-climb-and-landing', from: 8, to: 17, offset: 4, length: 8, rests: [[6, 2]], defaultKeyId: 'G', keyQuality: 'minor', chords: [['Gm7', 4], ['Cm7', 4]] },
+  { id: 'south-of-the-river-opening', from: 0, to: 8, offset: 0, length: 4, rests: [[0, 2 / 3]], defaultKeyId: 'Bb', rootFromSource: 10, chords: [['B♭maj7', 4]] },
+  { id: 'south-of-the-river-climb-and-landing', from: 8, to: 17, offset: 4, length: 8, rests: [[6, 2]], defaultKeyId: 'Ab', rootFromSource: 8, chords: [['A♭maj7', 4], ['A♭maj7', 4]] },
 ];
 
 const nearList = (actual, expected) => {
@@ -95,6 +95,7 @@ test('South of the River building blocks preserve the half-time phrase across ke
     assert.equal(module.compositeId, 'south-of-the-river');
     assert.deepEqual(module.lessons.map(l => l.kind), ['learn', 'master']);
     const applicationId = module.lessons[0].applicationId;
+    assert.equal(defaultPrefs().lessons[applicationId].startKeyId, block.defaultKeyId);
     const blockStarts = starts.slice(block.from, block.to).map(beat => beat - block.offset);
     const blockDurations = durations.slice(block.from, block.to);
     assert.equal(phraseMeasureCount(applicationId), block.length / 4);
@@ -104,7 +105,7 @@ test('South of the River building blocks preserve the half-time phrase across ke
     assert.deepEqual(chorusChords(getKey(block.defaultKeyId), 'concert', applicationId).map(c => [c.name, c.durationBeats]), block.chords);
     for (const keyId of TWELVE_KEY_IDS) for (const displayMode of ['trombone', 'trumpet']) {
       const key = getKey(keyId);
-      const blockKey = block.keyQuality === 'major' ? KEYS.find(candidate => candidate.pc === (key.pc + 10) % 12) : key;
+      const blockKey = KEYS.find(candidate => candidate.pc === (key.pc + block.rootFromSource) % 12);
       const full = phraseNotes(key, displayMode, appId).slice(block.from, block.to);
       const notes = phraseNotes(blockKey, displayMode, applicationId);
       const octaveDifference = notes[0].concertMidi - full[0].concertMidi;
@@ -153,7 +154,7 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
       nearList(model.slice(0, block.to - block.from).map(event => event.durationBeats), durations.slice(block.from, block.to));
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(event => event.type !== 'melody'));
     }
-    assert.equal(chorusChords(getKey(block.defaultKeyId), 'concert', group.exampleLessonId)[0].name, block.keyQuality === 'major' ? 'Cm7' : 'Gm7');
+    assert.equal(chorusChords(getKey(block.defaultKeyId), 'concert', group.exampleLessonId)[0].name, 'Cm7');
     const [variant] = PRACTICE_CATALOG.definitions.find(definition => definition.lickId === block.id && definition.id === 'minor-home').variants;
     const root = variant.pattern[0].root;
     const form = (quality, durationBeats) => ({ bars: [{ chords: [{ intervalFromTonic: root, quality, durationBeats }] }] });
@@ -190,6 +191,29 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
   ]);
   assert.ok(landingApps[1].choices.some(c => c.chartId === 'tune-up'));
   assert.ok(landingApps[2].choices.some(c => c.chartId === 'take-the-a-train'));
+});
+
+test('Chromatic Landing uses the same A♭ shape in Learn and over Cm7 → F7 in Autumn Leaves', () => {
+  const learnId = 'south-of-the-river-climb-and-landing-learn';
+  const group = PRACTICE_CATALOG.groups.find(item => item.id === 'south-of-the-river-climb-and-landing:minor-ii-v');
+  const choice = group.choices.find(item => item.chartId === 'autumn-leaves');
+  const [variant] = group.variants;
+  const melodyNames = ['G3', 'A♭3', 'C4', 'E♭4', 'G4', 'G♭4', 'F4', 'E4', 'E♭4'];
+  assert.deepEqual(phraseNotes(getKey('Ab'), 'trombone', learnId).map(note => note.concertName), melodyNames);
+
+  const session = createSession({ lessonId: choice.lessonId, instrumentId: 'trombone', swing: false });
+  const config = demoAudioConfig(session);
+  const notes = phraseNotes(config.concertKey, config.displayMode, config.applicationId);
+  const model = livePlaybackEvents(config).filter(event => event.type === 'melody');
+  assert.deepEqual(spotsFor(choice.lessonId).map(spot => [spot.bar, spot.beatOffset]), [[1, 0]]);
+  assert.deepEqual(notes.map(note => note.concertName), melodyNames);
+  assert.deepEqual(model.map(event => event.midi), notes.map(note => note.concertMidi));
+  nearList(model.map(event => event.beat), [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]);
+  nearList(model.map(event => event.durationBeats), durations.slice(8));
+  assert.equal(config.lengthBeats, 32);
+  assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(event => event.type !== 'melody'));
+  assert.deepEqual(chorusChords(config.concertKey, config.displayMode, choice.lessonId).slice(0, 2).map(chord => chord.name), ['Cm7', 'F7']);
+  assert.deepEqual(chorusChords(getKey('Ab'), 'trombone', variant.exampleLessonId).slice(0, 2).map(chord => chord.name), ['Cm7', 'F7']);
 });
 
 test('South of the River notation and model agree in all keys, on both horns, with lead-only octave shifts', () => {

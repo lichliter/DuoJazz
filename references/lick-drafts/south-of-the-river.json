@@ -86,7 +86,8 @@
       "id": "south-of-the-river-climb-and-landing",
       "name": "Chromatic Landing",
       "sourceBeats": "Bar 1 beats 3–4 plus the quarter-note B♭ on bar 2 beat 1",
-      "learnHarmony": "One bar of Gm7 then one bar of Cm7, with the landing on bar 2 beat 1",
+      "learnHarmony": "Two bars of A♭maj7. Play G–A♭–C–E♭–G–G♭–F–E as eighths and land on E♭ as a half note on bar 2 beat 1.",
+      "integrationReference": "Think of the opening major-seventh arpeggio. Over Cm7 → F7 in Autumn Leaves the cue is A♭.",
       "applications": ["minor-home", "minor-ii-v", "major-home"],
       "endRestBeats": 2
     }

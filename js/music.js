@@ -499,14 +499,19 @@ function bestOctaveForNotes(notes, tonicPc, preferred, displayMode) {
   return best;
 }
 
+function preferredLickOctave(lick, tonicPc) {
+  const reference = tonicPc + (lick.octaveReferenceInterval ?? 0);
+  return lick.octave + (wrapPc(reference) - reference) / 12;
+}
+
 export function lickOctaveForKey(lick, keyPc, displayMode) {
-  return bestOctaveForNotes(lickNoteElements(lick), keyPc, lick.octave, displayMode);
+  return bestOctaveForNotes(lickNoteElements(lick), keyPc, preferredLickOctave(lick, keyPc), displayMode);
 }
 
 export function octaveForSpot(lick, concertTonicPc, spot, elements, displayMode) {
   const notes = (elements ?? lick.elements).filter((el) => el.type === "note");
   const tonic = wrapPc(concertTonicPc + (spot.anchorInterval ?? 0));
-  return bestOctaveForNotes(notes, tonic, lick.octave, displayMode);
+  return bestOctaveForNotes(notes, tonic, preferredLickOctave(lick, tonic), displayMode);
 }
 
 export function spotOctavesFor(applicationId, concertTonicPc, displayMode) {
@@ -533,11 +538,12 @@ export function octaveForApplication(applicationId, concertTonicPc, displayMode)
   });
   if (!notes.length) return lick.octave;
   const { floor, ceil } = registerWindow(displayMode);
-  let best = lick.octave;
+  const preferred = preferredLickOctave(lick, notes[0].tonic);
+  let best = preferred;
   let bestScore = Infinity;
-  for (const oct of candidateOctaves(lick.octave)) {
+  for (const oct of candidateOctaves(preferred)) {
     const midis = notes.map((note) => midiForInterval(note.tonic, note.interval, oct));
-    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, lick.octave, floor, ceil);
+    const score = octaveFitScore(Math.min(...midis), Math.max(...midis), oct, preferred, floor, ceil);
     if (score < bestScore) {
       bestScore = score;
       best = oct;
@@ -582,16 +588,20 @@ export function spellShownMidi(midi, shownKey, usesFlats = null) {
   return { name, letter, acc, octave: spelledOctave(midi, acc), pc };
 }
 
+export function lickTonicName(shownKey, event) {
+  const offset = wrapPc(event.cellTonicInterval ?? 0);
+  return offset === 0
+    ? spellPitchInKey(shownKey.pc, shownKey).name
+    : spellingRow(shownKey.pc + offset, event.lickKeyQuality ?? "major").name;
+}
+
 /** Explicit scale steps preserve a phrase's letters, e.g. F♯ → G in G minor. */
 export function spellMelodyMidi(midi, shownKey, event, usesFlats = null) {
   if (!Number.isInteger(event?.diatonicStep) || !Number.isFinite(shownKey?.pc)) {
     return spellShownMidi(midi, shownKey, usesFlats);
   }
-  const offset = wrapPc(event.cellTonicInterval ?? 0);
-  const tonic = offset === 0
-    ? spellPitchInKey(shownKey.pc, shownKey)
-    : { letter: spellingRow(wrapPc(shownKey.pc + offset), event.lickKeyQuality ?? "major").id[0] };
-  const index = LETTERS.indexOf(tonic.letter) + event.diatonicStep;
+  const tonicLetter = lickTonicName(shownKey, event)[0];
+  const index = LETTERS.indexOf(tonicLetter) + event.diatonicStep;
   const letter = LETTERS[((index % 7) + 7) % 7];
   const pc = wrapPc(midi);
   const acc = ((pc - NATURAL_PC[letter] + 18) % 12) - 6;

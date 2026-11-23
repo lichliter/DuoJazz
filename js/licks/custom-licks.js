@@ -53,6 +53,13 @@ const southLanding = [
   N(27, 1, { diatonicStep: 16 }),
 ];
 
+// Same concert pitches as southLanding, rooted on its opening arpeggio (E♭maj7 in G minor).
+const southLandingMajor = southLanding.map((element) => ({
+  ...element,
+  interval: element.interval - 8,
+  ...(Number.isInteger(element.diatonicStep) && { diatonicStep: element.diatonicStep - 5 }),
+}));
+
 function halfTime(elements) {
   return elements.map((element) => ({
     ...element,
@@ -65,6 +72,7 @@ function halfTime(elements) {
 const halfTimeOpening = halfTime(southOpening);
 const halfTimeOpeningMajor = halfTime(southOpeningMajor);
 const halfTimeLanding = [...halfTime(southLanding), R(2)];
+const halfTimeLandingMajor = [...halfTime(southLandingMajor), R(2)];
 const southTonicBar = bar([chord(0, "minor7")]);
 const southMajorTonicBar = bar([chord(0, "major7")]);
 const southLandingBar = bar([chord(5, "minor7")]);
@@ -79,10 +87,7 @@ const southBlocks = [
     id: `${southId}-opening`,
     name: "Sextuplet Run",
     blockBeats: "Bar 1",
-    keyQuality: "major",
     defaultKeyId: "Bb",
-    context: "Major · Half-time practice",
-    showLickReference: true,
     elements: halfTimeOpeningMajor,
     bars: [southMajorTonicBar],
     summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
@@ -131,12 +136,22 @@ const southBlocks = [
     id: `${southId}-climb-and-landing`,
     name: "Chromatic Landing",
     blockBeats: "Bar 2 plus resolution",
-    elements: halfTimeLanding,
-    bars: [southTonicBar, southLandingBar],
-    summary: "Swing the eighths through the climb and chromatic descent, then land on the next downbeat.",
-    minorHomeDescription: "Climb from the fifth, then descend chromatically to the minor third over the same chord.",
-    extraPracticeDefinitions(elements) {
+    defaultKeyId: "Ab",
+    octaveReferenceInterval: -8, // Keep the source register relative to the original minor root.
+    elements: halfTimeLandingMajor,
+    bars: [southMajorTonicBar, southMajorTonicBar],
+    summary: "Climb through the major-seventh arpeggio, then descend chromatically to the fifth on the next downbeat.",
+    practiceDefinitions(elements) {
       return [
+        {
+          id: "minor-home",
+          label: "Minor home",
+          description: "Climb from the fifth of the minor chord, then descend chromatically to its minor third.",
+          source: `${southSource} · Chromatic Landing practice`,
+          exampleTitle: "Minor tonic vamp",
+          pattern: [{ root: 4, family: "minor", beats: 8, qualities: ["minor7", "minor11"], quality: "minor7" }],
+          elements,
+        },
         {
           id: "minor-ii-v",
           label: "ii → V",
@@ -144,18 +159,18 @@ const southBlocks = [
           source: `${southSource} · Chromatic Landing ii–V practice`,
           exampleTitle: "ii → V vamp",
           pattern: [
-            { root: 0, family: "minor", beats: 4, qualities: southMinorQualities, quality: "minor7" },
-            { root: 5, family: "dominant", beats: 4, qualities: southDomQualities, quality: "dominant7" },
+            { root: 4, family: "minor", beats: 4, qualities: southMinorQualities, quality: "minor7" },
+            { root: 9, family: "dominant", beats: 4, qualities: southDomQualities, quality: "dominant7" },
           ],
           elements,
         },
         {
           id: "major-home",
-          label: "Relative major",
+          label: "Major tonic",
           description: "Walk down chromatically from the major third through the flat third and second to land on the tonic root.",
           source: `${southSource} · Chromatic Landing major practice`,
           exampleTitle: "Major tonic vamp",
-          pattern: [{ root: 3, family: "major", beats: 8, qualities: southMajorQualities, quality: "major7" }],
+          pattern: [{ root: 7, family: "major", beats: 8, qualities: southMajorQualities, quality: "major7" }],
           elements,
         },
       ];
@@ -167,22 +182,19 @@ function southBlockEntry({
   id,
   name,
   blockBeats,
-  keyQuality = "minor",
-  defaultKeyId = "G",
-  context = "Minor · Half-time practice",
-  showLickReference = false,
+  defaultKeyId,
+  octaveReferenceInterval,
   elements,
   bars,
   summary,
-  minorHomeDescription,
-  extraPracticeDefinitions,
   practiceDefinitions,
 }) {
   const learnId = `${id}-learn`;
+  const keyQuality = "major";
   return {
     lick: {
       id, name, shortName: name, elements,
-      source: southSource, octave: -2, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality, defaultKeyId,
+      source: southSource, octave: -2, octaveReferenceInterval, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality, defaultKeyId,
     },
     learnForm: {
       id: learnId, title: name, shortTitle: name, keyQuality,
@@ -191,17 +203,17 @@ function southBlockEntry({
     learnApplication: {
       id: learnId, lickId: id, formId: learnId, label: "Learn the lick",
       cellTonicInterval: 0, phraseStartBar: 1, leadIn: [], resolve: [], copyKind: "learn",
-      showLickReference,
+      showLickReference: true,
     },
     module: {
       id, lickId: id, name, blockBeats, compositeId: southId,
       lessons: [{
         id: learnId, kind: "learn", applicationId: learnId, title: "Learn the lick", coverTitle: "Learn the lick",
-        summary, context, defaultKeyId,
+        summary, context: "Major · Half-time practice", defaultKeyId,
       }],
     },
     practiceDefinitions() {
-      const toVariantDef = (def) => ({
+      return practiceDefinitions(elements).map((def) => ({
         lickId: id,
         id: def.id,
         label: def.label,
@@ -215,23 +227,7 @@ function southBlockEntry({
           pickupBeats: 0,
           pattern: def.pattern,
         }],
-      });
-      if (practiceDefinitions) {
-        return practiceDefinitions(elements).map(toVariantDef);
-      }
-      const extras = (extraPracticeDefinitions?.(elements) ?? []).map(toVariantDef);
-      return [{
-        lickId: id,
-        id: "minor-home",
-        label: "Minor home",
-        description: minorHomeDescription,
-        source: `${southSource} · ${name} practice`,
-        exampleTitle: "Minor tonic vamp",
-        variants: [{
-          id: "original", label: "Half-time", elements, pickupBeats: 0,
-          pattern: [{ root: 0, family: "minor", beats: 8, qualities: ["minor7", "minor11"], quality: "minor7" }],
-        }],
-      }, ...extras];
+      }));
     },
   };
 }

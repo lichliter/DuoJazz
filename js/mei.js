@@ -21,6 +21,7 @@ import {
   keySignatureCount,
   learnBeatsFor,
   learnChords,
+  lickTonicName,
   modelSolo,
   newBarState,
   octaveForApplication,
@@ -609,7 +610,7 @@ function renderFormMei({
     for (const item of items) {
       if (item.type !== "note" || item.role !== "phrase" || seen.has(item.spotIndex)) continue;
       seen.add(item.spotIndex);
-      const root = chordSymbolName(concertKey, item.cellTonicInterval, null, displayMode, ctx.quality);
+      const root = lickTonicName(ctx.shownKey, item);
       ctx.lickCues.set(item, `Think ${root}`);
     }
   }
