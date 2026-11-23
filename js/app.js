@@ -624,7 +624,6 @@ function renderAuto() {
   els.autoToggle.setAttribute("role", "switch");
   els.autoToggle.setAttribute("aria-checked", String(on));
   els.autoToggle.setAttribute("aria-label", "Auto");
-  if (els.chartLearnTiming) els.chartLearnTiming.hidden = !on || !isChartLearn();
 }
 
 function recordRapidPass() {

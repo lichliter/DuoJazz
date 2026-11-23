@@ -1461,7 +1461,7 @@ export const CHART_LIBRARY = PRACTICE_CATALOG.charts.map(chart => {
   const choice = firstChoiceByChartId.get(chart.id);
   const lesson = catalogLessonsById.get(choice?.lessonId);
   const form = lesson && formById(applicationById(lesson.applicationId).formId);
-  return form ? { ...chart, composer: EXCERPT_COMPOSERS[chart.id] ?? chart.composer, key: lesson.defaultKeyId, keyQuality: form.keyQuality, excerpt: true, sections: [{ label: 'Excerpt', bars: form.bars.map(bar => bar.chords ?? bar) }] } : null;
+  return form ? { ...chart, composer: EXCERPT_COMPOSERS[chart.id] ?? chart.composer, key: lesson.defaultKeyId, keyQuality: form.keyQuality, excerpt: true, sections: [{ bars: form.bars.map(bar => bar.chords ?? bar) }] } : null;
 }).filter(Boolean);
 const chartTones = buildChordToneExercises(CHART_LIBRARY);
 export const CHART_MODULES = chartTones.chartModules;
