@@ -2446,9 +2446,6 @@ button.module-banner {
 .note-names-switch {
   flex-shrink: 1;
   min-width: 0;
-}
-
-.note-names-switch:not([hidden]) + .auto-switch {
   margin-inline-end: auto;
 }
 
