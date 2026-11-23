@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CHART_LIBRARY, CHART_MODULES } from './registry.js';
 import { advanceKey, createSession, recordBackingConfig, sessionPresentation, sessionScreenTitle, completeCard, wrapupCopy, wrapupNextModule } from './session.js';
-import { expectedNotesFor, gradeSession, synthTrack } from './grade.js';
+import { chartPassFeedback, expectedNotesFor, gradeSession, synthTrack } from './grade.js';
 import { getKey, beatsToSeconds } from './music.js';
 import { chordToneIntervals } from './chord-tones.js';
 import { emptyMastery, recordQuizPass } from './medals.js';
@@ -86,6 +86,27 @@ test('timed Master grades quiet confident horns and ignores low-confidence noise
   assert.equal(gradeSession(session, quiet).passed, true);
   const noise = synthTrack(notes, { amp: 0.004 }).map(frame => ({ ...frame, confidence: 0.3 }));
   assert.equal(gradeSession(session, noise).percent, 0);
+});
+
+test('chart dings once for each fully correct bar and resumes feedback after a miss', () => {
+  const lesson = CHART_MODULES[0].lessons.find(lesson => lesson.chartTimed);
+  const session = createSession({ lessonId: lesson.id, swing: false });
+  const notes = expectedNotesFor(session).filter(note => note.bar <= 3);
+  const pitched = notes.filter((note, index) => note.bar !== 2 || index % 4 !== 0);
+  const observations = [];
+  const dingBeats = [];
+  const check = chartPassFeedback(notes, session.tempo);
+  for (const frame of synthTrack(pitched)) {
+    observations.push(frame);
+    if (check(frame.beat, observations)) dingBeats.push(frame.beat);
+  }
+  assert.deepEqual(dingBeats, [1, 3].map(bar => notes.filter(note => note.bar === bar).at(-1).startBeat));
+
+  const firstBar = notes.filter(note => note.bar === 1);
+  const lastBeat = firstBar.at(-1).startBeat;
+  const learnCheck = chartPassFeedback(firstBar, session.tempo, { writtenOctave: true });
+  assert.equal(learnCheck(lastBeat, synthTrack(firstBar, { octave: 1 })), false);
+  assert.equal(learnCheck(lastBeat, synthTrack(firstBar)), true);
 });
 
 test('chart tier follows the selected key and sequence advancement preserves its starting tier', () => {

@@ -93,7 +93,8 @@ class PitchProcessor extends AudioWorkletProcessor {
           hz = pitch.hz;
           confidence = pitch.confidence;
         }
-        this.port.postMessage({ hz, amp, rms: amp, confidence });
+        const audioTime = (currentFrame + i - this.buffer.length / 2) / sampleRate;
+        this.port.postMessage({ hz, amp, rms: amp, confidence, audioTime });
         this.buffer.copyWithin(0, this.hop);
         this.offset = this.buffer.length - this.hop;
       }

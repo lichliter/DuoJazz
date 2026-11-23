@@ -261,6 +261,31 @@ test("loop lookahead schedules anticipated pickups before the next downbeat", as
   transport.stop();
 });
 
+test("consecutive practice segments share a downbeat without another count-in", async () => {
+  const { transport, context, frame } = await setup();
+  const config = { tempo: 120, swing: false, looping: false, lengthBeats: 4 };
+  const started = [];
+  let ended = 0;
+  transport.onEnded = () => { ended += 1; };
+  await transport.start({ ...config, events: [] }, {
+    nextSegment: () => started.length === 0 ? {
+      config: { ...config, events: [{ type: "click", beat: 0 }] },
+      onStart: () => started.push(transport.currentBeats()),
+    } : null,
+  });
+  const boundary = transport.startedAt + 2;
+  const before = context.created.length;
+  frame(boundary - 0.06);
+  assert.deepEqual(started, []);
+  almost(context.created.slice(before).find((node) => node.startAt !== undefined).startAt, boundary);
+  frame(boundary);
+  assert.deepEqual(started, [0]);
+  assert.equal(transport.snapshot().inCountIn, false);
+  frame(boundary + 2);
+  assert.equal(ended, 1);
+  assert.equal(transport.playing, false);
+});
+
 for (const TransportClass of [Transport, BandTransport]) {
   test(`${TransportClass.name} maps note endpoints for swing, straight, tuplets, and count-in`, async () => {
     const { transport, context } = await setup(TransportClass);

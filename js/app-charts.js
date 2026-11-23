@@ -6,6 +6,51 @@ import { getKey } from "./music.js";
 import { CHART_MODULES, MODULES, PRACTICE_CATALOG, lessonById, moduleById } from "./registry.js";
 import { moduleRoadNodes } from "./session.js";
 
+export function renderChartGrid(host, grid) {
+  let chordIndex = 0;
+  host.replaceChildren(
+    ...grid.rows.map((row) => {
+      const line = document.createElement("div");
+      line.className = "ireal-row";
+      for (const bar of row.bars) {
+        const cell = document.createElement("div");
+        cell.className = "ireal-bar";
+        cell.dataset.bar = bar.number;
+        if (bar.sectionLabel) {
+          const mark = document.createElement("span");
+          mark.className = "ireal-section";
+          mark.textContent = bar.sectionLabel;
+          cell.append(mark);
+        }
+        if (bar.repeatStart) {
+          const mark = document.createElement("span");
+          mark.className = "ireal-repeat start";
+          mark.textContent = "|:";
+          cell.append(mark);
+        }
+        if (bar.repeatEnd) {
+          const mark = document.createElement("span");
+          mark.className = "ireal-repeat end";
+          mark.textContent = ":|";
+          cell.append(mark);
+        }
+        const chords = document.createElement("div");
+        chords.className = "ireal-chords";
+        for (const chord of bar.chords) {
+          const symbol = document.createElement("span");
+          symbol.className = "chord-symbol";
+          symbol.dataset.chordIndex = chordIndex++;
+          fillMusicLabel(symbol, compactChordSymbol(chord.name));
+          chords.append(symbol);
+        }
+        cell.append(chords);
+        line.append(cell);
+      }
+      return line;
+    }),
+  );
+}
+
 /** Create the charts detail view and lick-application picker modal controller. */
 export function createChartsView({
   els,
@@ -160,47 +205,7 @@ export function createChartsView({
       return option;
     }));
     els.chartKeys.value = chartConcertKeyId;
-    if (els.chartGrid) {
-      els.chartGrid.replaceChildren(
-        ...grid.rows.map((row) => {
-          const line = document.createElement("div");
-          line.className = "ireal-row";
-          for (const bar of row.bars) {
-            const cell = document.createElement("div");
-            cell.className = "ireal-bar";
-            if (bar.sectionLabel) {
-              const mark = document.createElement("span");
-              mark.className = "ireal-section";
-              mark.textContent = bar.sectionLabel;
-              cell.append(mark);
-            }
-            if (bar.repeatStart) {
-              const mark = document.createElement("span");
-              mark.className = "ireal-repeat start";
-              mark.textContent = "|:";
-              cell.append(mark);
-            }
-            if (bar.repeatEnd) {
-              const mark = document.createElement("span");
-              mark.className = "ireal-repeat end";
-              mark.textContent = ":|";
-              cell.append(mark);
-            }
-            const chords = document.createElement("div");
-            chords.className = "ireal-chords";
-            for (const chord of bar.chords) {
-              const symbol = document.createElement("span");
-              symbol.className = "chord-symbol";
-              fillMusicLabel(symbol, compactChordSymbol(chord.name));
-              chords.append(symbol);
-            }
-            cell.append(chords);
-            line.append(cell);
-          }
-          return line;
-        }),
-      );
-    }
+    if (els.chartGrid) renderChartGrid(els.chartGrid, grid);
   }
 
   function renderCharts() {

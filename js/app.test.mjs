@@ -5,7 +5,7 @@ import vm from "node:vm";
 import * as sessions from "./session.js";
 import * as medals from "./medals.js";
 import * as followers from "./follow.js";
-import { expectedNotesFor } from "./grade.js";
+import { chartPassFeedback, expectedNotesFor } from "./grade.js";
 import { getKey } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
 import {
@@ -33,6 +33,7 @@ function appContext(names, overrides = {}) {
     ...sessions,
     ...medals,
     ...followers,
+    chartPassFeedback,
     expectedNotesFor,
     instrumentOrDefault,
     rapidMicStep,
@@ -63,7 +64,7 @@ function appContext(names, overrides = {}) {
     openSettings: noop,
     ...overrides,
   });
-  for (const name of ["isTimedChart", ...names]) {
+  for (const name of ["isTimedChart", "isChartLearn", ...names]) {
     const match = new RegExp(`^(?:async )?function ${name}\\(`, "m").exec(source);
     assert.ok(match, `Actual app function ${name} exists`);
     const end = source.indexOf("\n}", match.index) + 2;

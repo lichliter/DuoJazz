@@ -3,15 +3,23 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('./pitch-worklet.js', import.meta.url), 'utf8');
-function processor(sampleRate = 48000) {
+function processor(sampleRate = 48000, currentFrame = 0) {
   let Processor;
   vm.runInNewContext(source, {
     sampleRate,
+    currentFrame,
     AudioWorkletProcessor: class { constructor() { this.port = { postMessage() {} }; } },
     registerProcessor(_, value) { Processor = value; },
   });
   return new Processor();
 }
+test('worklet timestamps the center of the pitch window on the audio clock', () => {
+  const worklet = processor(48000, 48000);
+  let frame;
+  worklet.port.postMessage = value => { frame = value; };
+  worklet.process([[new Float32Array(2048)]]);
+  assert.equal(frame.audioTime, (48000 + 1024) / 48000);
+});
 test('stopped microphone worklets release their processing lifetime', () => {
   const worklet = processor();
   assert.equal(worklet.process([]), true);

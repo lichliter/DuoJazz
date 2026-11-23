@@ -60,6 +60,7 @@ export class Transport {
     this.melodyKind = "piano";
     this.sampleRequest = 0;
     this.scheduledChorus = 0;
+    this.continuation = null;
   }
 
   async ensure() {
@@ -186,6 +187,7 @@ export class Transport {
 
   stop({ fromEnd = false } = {}) {
     this.epoch += 1;
+    this.continuation = null;
     this.stopAllNodes();
     this.playing = false;
     this.paused = false;
@@ -199,15 +201,16 @@ export class Transport {
     if (!this.playing) return;
     this.pausedBeats = this.currentBeats();
     this.epoch += 1;
+    this.continuation = null;
     this.stopAllNodes();
     this.playing = false;
     this.paused = true;
     this.onUpdate(this.snapshot());
   }
 
-  currentBeats() {
+  currentBeats(audioTime = this.ctx?.currentTime) {
     if (!this.playing || !this.ctx) return this.paused ? this.pausedBeats : 0;
-    const elapsed = this.ctx.currentTime - this.startedAt;
+    const elapsed = audioTime - this.startedAt;
     const beats = elapsed / (60 / this.tempo);
     if (this.looping && this.chorusLengthBeats > 0 && elapsed >= 0) {
       const lengthSeconds = beatsToSeconds(this.chorusLengthBeats, this.tempo, false);
@@ -248,6 +251,12 @@ export class Transport {
     this.trackSource(osc, env);
     osc.start(time);
     osc.stop(time + duration + 0.05);
+  }
+
+  playSuccessDing() {
+    if (this.ctx?.state !== "running") return;
+    // Keep the cue above the microphone's accepted pitch range.
+    this.tone(this.ctx.currentTime, 2093, 0.17, { gain: 0.15, attack: 0.003 });
   }
 
   playBuffer(buffer, time, { bus, gain = 0.2, duration = 0.5, playbackRate = 1, attack = 0.002, release = 0.07 } = {}) {
@@ -432,6 +441,10 @@ export class Transport {
 
   tick(epoch) {
     if (epoch !== this.epoch || !this.playing) return;
+    if (this.continuation) {
+      this.scheduleContinuation();
+      if (epoch !== this.epoch || !this.playing) return;
+    }
     const beats = this.currentBeats();
     this.performanceBeats = beats;
     const lengthSeconds = beatsToSeconds(this.chorusLengthBeats, this.tempo, false);
@@ -462,6 +475,30 @@ export class Transport {
     this.raf = window.requestAnimationFrame(() => this.tick(epoch));
   }
 
+  scheduleContinuation() {
+    const run = this.continuation;
+    const boundary = this.startedAt + beatsToSeconds(this.chorusLengthBeats, this.tempo, false);
+    const remaining = boundary - this.ctx.currentTime;
+    if (remaining > 0.08) return;
+    if (run.pending === undefined) {
+      run.pending = run.select() ?? null;
+      if (run.pending) {
+        // Schedule the downbeat ahead of time, while the playhead still tracks the current segment.
+        const length = this.chorusLengthBeats;
+        this.armChorus(run.pending.config, { countIn: false, fromBeat: 0, origin: boundary });
+        run.pending.lengthBeats = this.chorusLengthBeats;
+        this.chorusLengthBeats = length;
+      }
+    }
+    if (remaining > 0 || !run.pending) return;
+    const next = run.pending;
+    run.pending = undefined;
+    this.startedAt = boundary;
+    this.chorusLengthBeats = next.lengthBeats;
+    this.lastConfig = next.config;
+    next.onStart();
+  }
+
   armChorus(config, { countIn, fromBeat, origin = this.startedAt }) {
     const sampled = this.samplesReady();
     const source = config.events ?? livePlaybackEvents(config, { sampled });
@@ -471,7 +508,7 @@ export class Transport {
     this.chorusLengthBeats = config.lengthBeats ?? (config.stage === "learn" ? 8 : 32);
   }
 
-  async start(config, { resume = false, countIn: withCountIn = true } = {}) {
+  async start(config, { resume = false, countIn: withCountIn = true, nextSegment = null } = {}) {
     const generation = this.epoch;
     await this.ensure();
     if (this.epoch !== generation) return;
@@ -481,6 +518,8 @@ export class Transport {
     this.tempo = config.tempo;
     this.swing = config.swing;
     this.looping = config.looping;
+    // Adjacent segments share the same tempo and mix. The selector returns null to end playback.
+    this.continuation = nextSegment ? { select: nextSegment, pending: undefined } : null;
     this.cueGain = config.cueGain ?? 1;
     if (typeof config.duckBacking === "boolean") this.applyMix(config.duckBacking);
     this.playing = true;

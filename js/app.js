@@ -119,13 +119,14 @@ import { setupLibraryPicker } from "./library-ui.js";
 import { setupLibraryPreview } from "./library-preview.js";
 import { transposeToneKey } from "./chord-tones.js";
 import { setupPracticeUI } from "./practice-ui.js";
-import { GRADED_CARDS, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
+import { GRADED_CARDS, chartPassFeedback, expectedNotesFor, finishCard, gradeSession, hasPitchTake } from "./grade.js";
 import { createFollower, debugTextForKey, describeAttempt, formatFailureFeedback, formatLiveLine, octaveModeForLesson, stepFollower, tickFollower } from "./follow.js";
 import {
   CELEBRATE_MS,
   READ_MS,
   RETRY_MS,
   afterFail,
+  afterPass,
   isLastRapidKey,
   passSchedule,
   hearDemoGesture,
@@ -160,7 +161,7 @@ import { createCloudSettings, PREFERENCE_NAMES } from "./cloud-settings.js";
 import { closeSheet, initDialogInteractions } from "./dialogs.js";
 import { collectElements } from "./app-dom.js";
 import { createHomeView } from "./app-home.js";
-import { createChartsView } from "./app-charts.js";
+import { createChartsView, renderChartGrid } from "./app-charts.js";
 import { createWrapupView, sessionVinylTier } from "./app-wrapup.js";
 
 initDialogInteractions();
@@ -241,8 +242,15 @@ function nextLessonAfterSession(target) {
 }
 
 let timedRunActive = false;
+let chartLearnAdvance = null;
 function isTimedChart() {
   return Boolean(session && lessonById(session.lessonId).chartTimed);
+}
+
+function isChartLearn() {
+  if (!session) return false;
+  const lesson = lessonById(session.lessonId);
+  return Boolean(lesson.chartId && lesson.kind === "learn");
 }
 const tabScroll = { licks: 0, charts: 0, settings: 0 };
 
@@ -328,6 +336,7 @@ function halt({ keepMic = false } = {}) {
   hearDemo = false;
   recordBacking = false;
   timedRunActive = false;
+  chartLearnAdvance = null;
   finishing = false;
   samplesLoading = false;
   clearRapidTimers();
@@ -615,6 +624,7 @@ function renderAuto() {
   els.autoToggle.setAttribute("role", "switch");
   els.autoToggle.setAttribute("aria-checked", String(on));
   els.autoToggle.setAttribute("aria-label", "Auto");
+  if (els.chartLearnTiming) els.chartLearnTiming.hidden = !on || !isChartLearn();
 }
 
 function recordRapidPass() {
@@ -651,6 +661,13 @@ function finishRapid(generation, result) {
   const auto = prefs.auto !== false;
   const token = startGen;
   if (passed) {
+    if (isChartLearn()) {
+      const next = afterPass(session, { auto });
+      halt({ keepMic: next.autoStart });
+      applySession(next.session, { autoStart: next.autoStart });
+      transport.playSuccessDing();
+      return;
+    }
     rapidPhase = "celebrate";
     cue = null;
     const plan = passSchedule(session, { auto, notesShown: notesPeeked });
@@ -752,8 +769,10 @@ async function beginTimedChart() {
   lastRenderedCueSeq = 0;
   resetPitchTake();
   const generation = startGen;
+  const learn = isChartLearn();
   timedRunActive = true;
-  rapidPhase = 'listening';
+  rapidPhase = "listening";
+  sessionShot = null;
   render();
   try {
     await transport.ensure();
@@ -763,10 +782,45 @@ async function beginTimedChart() {
     await monitor.start(transport.ctx, { processing: false });
     if (generation !== startGen || !timedRunActive) return;
     if (!monitor.isLive()) throw new Error('Microphone unavailable');
-    // Arm the microphone before starting the count-in. The chart never waits for notes.
-    monitor.reset();
-    monitor.holdSignal = false;
-    await transport.start(recordBackingConfig(session), { resume: false });
+    // Keep the same microphone and audio clock across the whole run.
+    let passed = false;
+    function watchSegment() {
+      passed = false;
+      monitor.reset();
+      const check = chartPassFeedback(expectedNotesFor(session), session.tempo, { writtenOctave: learn });
+      monitor.onFrame = (frame) => {
+        if (!transport.playing || !check(frame.beat, monitor.observations)) return;
+        passed = true;
+        transport.playSuccessDing();
+      };
+    }
+    watchSegment();
+    const config = { ...recordBackingConfig(session), looping: false };
+    await transport.start(config, {
+      nextSegment: learn ? () => {
+        const next = passed ? afterPass(session, { auto: prefs.auto !== false }) : null;
+        if (next && !next.autoStart) {
+          chartLearnAdvance = next.session;
+          return null;
+        }
+        const target = next?.session ?? session;
+        return {
+          config: { ...recordBackingConfig(target), looping: false },
+          onStart() {
+            if (next) {
+              recordRapidPass();
+              applySession(target);
+              if (prefs.auto === false) {
+                halt();
+                renderPrimary();
+                return;
+              }
+            }
+            watchSegment();
+          },
+        };
+      } : null,
+    });
   } catch {
     if (generation !== startGen) return;
     halt();
@@ -788,8 +842,8 @@ function renderTimedPosition(snap = transport.snapshot()) {
 
 async function beginListening() {
   if (!session || session.screen !== "session" || session.demo) return;
-  if (isTimedChart()) return beginTimedChart();
   clearMasteryPreview();
+  if (isTimedChart() || (isChartLearn() && prefs.auto !== false)) return beginTimedChart();
   if (isPracticeLesson(session.lessonId)) return beginPracticeLoop();
   const generation = startGen + 1;
   startGen = generation;
@@ -972,7 +1026,7 @@ monitor.onState = state => {
   if (state === "interrupted") { halt(); renderPrimary(); }
   renderMic();
 };
-monitor.beatClock = () => transport.snapshot().beats;
+monitor.beatClock = (audioTime) => transport.currentBeats(timedRunActive ? audioTime : undefined);
 
 function screenName() {
   if (session?.screen === "session") return "session";
@@ -1661,6 +1715,24 @@ function renderSessionChrome() {
   if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden) && Boolean(els.continueBtn?.hidden);
 }
 
+function renderLearnChart() {
+  const host = els.chartLearnGrid;
+  const lesson = lessonById(session.lessonId);
+  host.hidden = !isChartLearn();
+  if (host.hidden) return;
+
+  const chart = CHART_LIBRARY.find(({ id }) => id === lesson.chartId);
+  const transposition = getKey(currentKeyId(session)).pc - getKey(lesson.defaultKeyId).pc;
+  const concertKeyId = transposeToneKey(chart.key, transposition);
+  const gridKey = [chart.id, concertKeyId, session.instrumentId].join(":");
+  if (host.dataset.chartKey !== gridKey) {
+    renderChartGrid(host, chartGrid(chart, { concertKeyId, instrumentId: session.instrumentId }));
+    host.dataset.chartKey = gridKey;
+  }
+  host.querySelector('[aria-current="step"]')?.removeAttribute("aria-current");
+  host.querySelector(`[data-chord-index="${lesson.chordIndex}"]`)?.setAttribute("aria-current", "step");
+}
+
 function chordTimingsFor(target) {
   if (!target) return [];
   const lesson = lessonById(target.lessonId);
@@ -2237,6 +2309,7 @@ function render(snap = transport.snapshot()) {
     renderSessionChrome();
     renderSessionTempo();
     renderSessionOctave();
+    renderLearnChart();
     renderNotation();
     renderPrimary();
     renderMeter(snap);
@@ -2448,6 +2521,13 @@ function handleTransportEnded() {
     const done = completeCard(session, result);
     halt();
     applySession(done);
+    return;
+  }
+  if (timedRunActive && chartLearnAdvance) {
+    const next = chartLearnAdvance;
+    recordRapidPass();
+    halt();
+    applySession(next);
     return;
   }
   if (recordBacking) {

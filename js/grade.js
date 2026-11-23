@@ -258,6 +258,40 @@ export function gradePerformance({ expected, observations, tempo, passThreshold 
   };
 }
 
+/** Report each fully correct bar once, as soon as its final note is heard in time. */
+export function chartPassFeedback(expected, tempo, { writtenOctave = false } = {}) {
+  const byBar = new Map();
+  for (const note of expected) {
+    if (!byBar.has(note.bar)) byBar.set(note.bar, []);
+    byBar.get(note.bar).push(note);
+  }
+  const bars = [...byBar.values()];
+  let index = 0;
+  return (beat, observations) => {
+    while (index < bars.length) {
+      const notes = bars[index];
+      const last = notes.at(-1);
+      const window = Math.min(timingWindowBeats(tempo), last.beats * 0.45);
+      if (beat < last.startBeat - window) return false;
+      if (beat > last.startBeat + window) {
+        index += 1;
+        continue;
+      }
+      const from = Math.max(0, notes[0].startBeat - timingWindowBeats(tempo));
+      const result = gradePerformance({
+        expected: notes,
+        observations: observations.filter((frame) => frame.beat >= from),
+        tempo,
+        strictTiming: true,
+      });
+      if (!result.notes.every((note) => note.passed && (!writtenOctave || !note.octaveError))) return false;
+      index += 1;
+      return true;
+    }
+    return false;
+  };
+}
+
 export function gradeSession(session, observations) {
   const card = currentCard(session);
   if (!GRADED_CARDS.has(card)) {

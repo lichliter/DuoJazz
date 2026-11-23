@@ -486,6 +486,30 @@ button.module-banner {
   letter-spacing: 0;
 }
 
+#chart-learn-grid {
+  border-radius: 0 0 17px 17px;
+  border-top: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
+}
+
+#chart-learn-grid[hidden] { display: none; }
+
+#chart-learn-grid .ireal-bar {
+  min-height: 2.4rem;
+  padding: 0.85rem 0.2rem 0.3rem;
+  font-size: 0.95rem;
+}
+
+#chart-learn-grid .ireal-chords { gap: 0.15rem 0.25rem; }
+
+#chart-learn-grid .ireal-bar:has([aria-current="step"]) {
+  background: color-mix(in srgb, var(--tint-solid) 18%, var(--paper));
+}
+
+#chart-learn-grid [aria-current="step"] {
+  text-decoration: underline 2px;
+  text-underline-offset: 0.2em;
+}
+
 .music-label,
 .chord-symbol,
 .chart-row-key,

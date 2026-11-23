@@ -62,6 +62,8 @@ export function collectElements(doc = document) {
     debugAttempt: doc.getElementById("debug-attempt"),
     saveTake: doc.getElementById("save-take"),
     autoToggle: doc.getElementById("auto-toggle"),
+    chartLearnTiming: doc.getElementById("chart-learn-timing"),
+    chartLearnGrid: doc.getElementById("chart-learn-grid"),
     celebrate: doc.getElementById("celebrate"),
     celebrateKey: doc.getElementById("celebrate-key"),
     sessionMic: doc.getElementById("session-mic"),

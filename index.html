@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=204">
-  <link rel="stylesheet" href="./css/hig.css?v=207">
+  <link rel="stylesheet" href="./css/hig.css?v=212">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=207"></script>
+  <script type="module" src="./js/app.js?v=212"></script>
   <script type="module" src="./js/pwa.js?v=160"></script>
 </head>
 <body>
@@ -240,6 +240,7 @@
               <header class="session-focus">
                 <h1 class="session-title" id="session-title"></h1>
                 <p class="session-meta" id="session-key" hidden></p>
+                <p class="session-meta" id="chart-learn-timing" hidden>Play on the beat. A ding cues the next downbeat.</p>
               </header>
               <section class="chart-card" id="music-surface" aria-label="Music">
                 <div class="lick-tools" data-testid="lick-tools">
@@ -260,7 +261,7 @@
                   <p class="hidden-answer" id="hidden-answer" hidden>No notation on this card. Use your ears.</p>
                   <div id="timed-chart-panel" class="timed-chart-panel" hidden>
                     <p class="timed-chart-heading">Play the changes from memory</p>
-                    <p>Four chord tones per change. Keep going with the band. Your grade appears at the end.</p>
+                    <p>Play four chord tones per change. A ding confirms a correct bar. Keep going with the band.</p>
                     <p id="timed-chart-position"></p>
                     <progress id="timed-chart-progress" max="1" value="0" aria-label="Chart progress"></progress>
                   </div>
@@ -271,6 +272,7 @@
                     <span id="grade-main"></span>
                   </p>
                 </div>
+                <div class="ireal-grid" id="chart-learn-grid" role="group" aria-label="Full chart" hidden></div>
                 <div class="listen-state" id="listen-state" hidden>
                   <p class="listen-kicker" id="listen-kicker">Listening</p>
                   <p class="listen-detail" id="listen-detail">Grading feedback will appear here.</p>
