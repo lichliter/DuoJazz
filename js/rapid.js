@@ -106,12 +106,13 @@ export function passSchedule(session, { auto = true, skip = false, pause = false
   };
 }
 
-/** Fail stays on this key. Auto listens again; otherwise wait for Play. */
-export function afterFail(session, { auto = true, hint = "1st note" } = {}) {
+/** Fail stays on this key and keeps looping until the player passes or stops recording. */
+export function afterFail(session, { hint = "1st note" } = {}) {
+  const active = Boolean(session);
   return {
     session: session ? { ...session, screen: "session", demo: false } : session,
-    autoStart: Boolean(auto),
-    phase: auto ? "listening" : "idle",
+    autoStart: active,
+    phase: active ? "listening" : "idle",
     hint,
     keyId: session ? currentKeyId(session) : null,
     keyIndex: session?.keyIndex ?? 0,

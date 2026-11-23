@@ -659,11 +659,11 @@ function finishRapid(generation, result) {
     renderPrimary();
     const wait = plan.steps[0]?.ms ?? CELEBRATE_MS;
     feedbackTimer = window.setTimeout(() => {
-      finishCelebration(token, { arm: auto });
+      finishCelebration(token, { arm: true });
     }, wait);
     return;
   }
-  const failed = afterFail(session, { auto, hint: result.hint ?? "1st note" });
+  const failed = afterFail(session, { hint: result.hint ?? "1st note" });
   rapidPhase = "retry";
   const keyToken = sessionKeyToken(session);
   const keepExistingPitchCue = result.reason === "timeout"
@@ -881,11 +881,11 @@ function finishCelebration(generation, { arm = false, pause = false } = {}) {
   rapidPhase = "settling";
   if (feedbackTimer) window.clearTimeout(feedbackTimer);
   feedbackTimer = null;
-  if (pause) releaseMic("pause");
-  finishing = false;
-  cue = null;
   const reveal = plan.steps.find((step) => step.phase === "reveal");
   const listen = plan.autoStart && plan.session?.screen === "session";
+  if (pause || !listen) releaseMic("pause");
+  finishing = false;
+  cue = null;
   rapidPhase = listen ? "reveal" : "idle";
   if (plan.session) applySession(plan.session, { autoStart: false });
   else renderCelebrate();
@@ -1258,7 +1258,7 @@ function runPrimary() {
     return;
   }
   if (rapidPhase === "settling") return;
-  if (rapidPhase === "listening") {
+  if (rapidPhase === "listening" || rapidPhase === "retry" || rapidPhase === "reveal") {
     sessionShot = null;
     if (isTimedChart()) { halt(); resetPitchTake(); render(); return; }
     releaseMic("pause");
@@ -1492,7 +1492,7 @@ function applyMelodyOctave(register) {
   const melodyRegister = register <= -1 ? -1 : register >= 1 ? 1 : 0;
   if (melodyRegister === session.melodyRegister) return;
   const again = hearDemo;
-  const restart = !again && (playback.playing || playback.paused || rapidPhase === "listening");
+  const restart = !again && (playback.playing || playback.paused || (rapidPhase === "listening" || rapidPhase === "retry" || rapidPhase === "reveal"));
   halt();
   cue = null;
   lastRenderedCueSeq = 0;
@@ -1579,7 +1579,7 @@ function applySessionTempo(nextTempo, { keepInput = false } = {}) {
   }
   const modalOpen = Boolean(els.tempoModal?.open);
   const again = !modalOpen && hearDemo;
-  const restart = !modalOpen && !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
+  const restart = !modalOpen && !again && !isTimedChart() && (playback.playing || playback.paused || (rapidPhase === "listening" || rapidPhase === "retry" || rapidPhase === "reveal"));
   halt();
   resetPitchTake();
   prefs = setModuleTempo(prefs, session.lessonId, tempo);
@@ -1628,7 +1628,7 @@ function resetSessionTempo() {
   }
   const modalOpen = Boolean(els.tempoModal?.open);
   const again = !modalOpen && hearDemo;
-  const restart = !modalOpen && !again && !isTimedChart() && (playback.playing || playback.paused || rapidPhase === "listening");
+  const restart = !modalOpen && !again && !isTimedChart() && (playback.playing || playback.paused || (rapidPhase === "listening" || rapidPhase === "retry" || rapidPhase === "reveal"));
   halt();
   resetPitchTake();
   prefs = resetModuleTempo(prefs, session.lessonId);
@@ -2033,7 +2033,7 @@ function renderInstruments() {
 function applyInstrument(instrumentId) {
   const instrument = instrumentOrDefault(instrumentId);
   const again = Boolean(session && hearDemo);
-  const restart = Boolean(session && !again && (playback.playing || playback.paused || rapidPhase === "listening"));
+  const restart = Boolean(session && !again && (playback.playing || playback.paused || (rapidPhase === "listening" || rapidPhase === "retry" || rapidPhase === "reveal")));
   prefs.instrumentId = instrument.id;
   prefs.displayMode = instrument.id;
   prefs.clef = instrument.clef;
@@ -2067,7 +2067,8 @@ function renderPrimary(snap = transport.snapshot()) {
     && (samplesLoading || playback.playing || playback.paused || snap.inCountIn),
   );
   if (!demoLive) {
-    const listening = phase === "listening";
+    const listening = phase === "listening"
+      || (!sessionShot && (rapidPhase === "retry" || rapidPhase === "reveal"));
     const action = isTimedChart()
       ? { id: listening ? "stop" : "start", label: listening ? "Stop run" : "Start Master run" }
       : rapidFireButton({ listening });

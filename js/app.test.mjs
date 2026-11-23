@@ -8,7 +8,18 @@ import * as followers from "./follow.js";
 import { expectedNotesFor } from "./grade.js";
 import { getKey } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
-import { rapidMicStep, shouldRecordMastery } from "./rapid.js";
+import {
+  CELEBRATE_MS,
+  READ_MS,
+  RETRY_MS,
+  afterFail,
+  hearDemoGesture,
+  isLastRapidKey,
+  passSchedule,
+  rapidFireButton,
+  rapidMicStep,
+  shouldRecordMastery,
+} from "./rapid.js";
 import { parseTabState } from "./tabs.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { CHART_LIBRARY } from "./registry.js";
@@ -730,4 +741,287 @@ test("failed note feedback persists through retry into the next run-through and 
   context.finishing = false;
   context.finishRapid(1, timedOut);
   assert.equal(context.cue?.failure?.kind, "timeout");
+});
+
+function rapidUiContext(overrides = {}) {
+  let nextTimerId = 1;
+  const timers = new Map();
+  let micLive = true;
+  let micStops = 0;
+  let listened = 0;
+  const primaryAttrs = new Map();
+  const primaryClasses = new Set();
+  const autoAttrs = new Map();
+  const icon = { hidden: false };
+  const primary = {
+    hidden: false,
+    disabled: false,
+    dataset: {},
+    querySelector: (sel) => (sel === ".play-round-icon" ? icon : null),
+    setAttribute(name, value) { primaryAttrs.set(name, String(value)); },
+    getAttribute(name) { return primaryAttrs.get(name) ?? null; },
+    classList: {
+      add(name) { primaryClasses.add(name); },
+      remove(name) { primaryClasses.delete(name); },
+      toggle(name, on) { if (on) primaryClasses.add(name); else primaryClasses.delete(name); },
+      contains(name) { return primaryClasses.has(name); },
+    },
+  };
+  const autoToggle = {
+    setAttribute(name, value) { autoAttrs.set(name, String(value)); },
+    getAttribute(name) { return autoAttrs.get(name) ?? null; },
+  };
+  const context = appContext([
+    "clearRapidTimers",
+    "halt",
+    "releaseMic",
+    "sessionKeyToken",
+    "visualPhase",
+    "renderAuto",
+    "renderPrimary",
+    "finishRapid",
+    "finishCelebration",
+    "runPrimary",
+    "applySession",
+  ], {
+    CELEBRATE_MS,
+    READ_MS,
+    RETRY_MS,
+    afterFail,
+    passSchedule,
+    isLastRapidKey,
+    rapidFireButton,
+    hearDemoGesture,
+    session: sessions.createSession({ lessonId: "learn-lick", keyMode: "fourths", startKeyId: "G" }),
+    startGen: 1,
+    finishing: false,
+    rapidPhase: "listening",
+    hearDemo: false,
+    samplesLoading: false,
+    playback: { playing: false, paused: false, ended: false },
+    recordBacking: true,
+    attemptTimer: null,
+    feedbackTimer: null,
+    cue: null,
+    cueSeq: 0,
+    lastRenderedCueSeq: 0,
+    lastSessionSlot: "learn-lick:G",
+    sessionShot: null,
+    lastDebug: null,
+    takeLog: null,
+    debugOn: false,
+    attempt: null,
+    audioError: "",
+    prefs: { ...sessions.defaultPrefs(), auto: true },
+    transport: { stop: noop, snapshot: () => ({ playing: false, paused: false, inCountIn: false }) },
+    monitor: {
+      isLive: () => micLive,
+      stop() { micLive = false; micStops += 1; },
+      reset: noop,
+      holdSignal: true,
+      onFrame: noop,
+    },
+    window: {
+      clearInterval: noop,
+      clearTimeout(id) { timers.delete(id); },
+      setTimeout(fn, ms) {
+        const id = nextTimerId++;
+        timers.set(id, { fn, ms });
+        return id;
+      },
+      scrollTo: noop,
+    },
+    closeTakeRecorder: noop,
+    clearMasteryPreview: noop,
+    shownKeyForSession: () => getKey(sessions.currentKeyId(context.session)),
+    renderDebug: noop,
+    recordRapidPass: noop,
+    renderCelebrate: noop,
+    renderCue: noop,
+    renderHearIt: noop,
+    resetPitchTake: noop,
+    persist: noop,
+    render() { context.renderPrimary(); },
+    start: noop,
+    beginListening() {
+      micLive = true;
+      context.rapidPhase = "listening";
+      listened += 1;
+    },
+    els: {
+      storageNotice: { textContent: "", hidden: true },
+      wrapup: { scrollTop: 0 },
+      primary,
+      primaryCount: { hidden: true, textContent: "" },
+      autoToggle,
+      session: { dataset: {} },
+      celebrate: { hidden: true },
+    },
+    ...overrides,
+  });
+
+  return {
+    context,
+    primary,
+    autoAttrs,
+    timers,
+    micLive: () => micLive,
+    micStops: () => micStops,
+    listened: () => listened,
+    flushNextTimer() {
+      const first = timers.entries().next().value;
+      if (!first) return null;
+      const [id, entry] = first;
+      timers.delete(id);
+      entry.fn();
+      return entry;
+    },
+  };
+}
+
+test("Auto OFF still loops on misses and silent timeouts until user stops recording", () => {
+  const ui = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: false },
+  });
+  const { context } = ui;
+
+  // Wrong note miss while Auto is OFF keeps looping on the same key and keeps button in Pause state.
+  const wrong = followers.runFollower([57, 55, 50], [
+    ...Array.from({ length: 8 }, (_, i) => ({ t: i * 20, hz: 246.94, amp: 0.25 })),
+  ]);
+  context.finishRapid(context.startGen, wrong);
+  assert.equal(context.rapidPhase, "retry");
+  assert.equal(sessions.currentKeyId(context.session), "G");
+  assert.equal(ui.micStops(), 0);
+  assert.equal(ui.primary.dataset.action, "pause");
+  assert.equal(ui.primary.dataset.state, "listening");
+  assert.equal(ui.primary.getAttribute("aria-label"), "Pause");
+
+  const retryStep = ui.flushNextTimer();
+  assert.equal(retryStep?.ms, RETRY_MS);
+  assert.equal(ui.listened(), 1);
+  assert.equal(context.rapidPhase, "listening");
+  assert.equal(sessions.currentKeyId(context.session), "G");
+
+  // Silent timeout while Auto is OFF also keeps looping on the same key.
+  const timedOut = followers.tickFollower(followers.createFollower([57, 55, 50], 0), followers.NO_SOUND_MS);
+  context.finishRapid(context.startGen, timedOut);
+  assert.equal(context.rapidPhase, "retry");
+  assert.equal(ui.primary.dataset.action, "pause");
+  assert.equal(ui.primary.dataset.state, "listening");
+  const timeoutStep = ui.flushNextTimer();
+  assert.equal(timeoutStep?.ms, RETRY_MS);
+  assert.equal(ui.listened(), 2);
+  assert.equal(context.rapidPhase, "listening");
+  assert.equal(sessions.currentKeyId(context.session), "G");
+});
+
+test("stopping during retry or reveal cancels the pending timer and releases the mic", () => {
+  // Stopping during retry (with Auto OFF) cancels the loop and returns to Record/idle.
+  const retryUi = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: false },
+  });
+  const wrong = followers.runFollower([57], [
+    ...Array.from({ length: 8 }, (_, i) => ({ t: i * 20, hz: 246.94, amp: 0.25 })),
+  ]);
+  retryUi.context.finishRapid(retryUi.context.startGen, wrong);
+  assert.equal(retryUi.context.rapidPhase, "retry");
+  assert.equal(retryUi.timers.size, 1);
+  const staleRetry = [...retryUi.timers.values()][0].fn;
+
+  retryUi.context.runPrimary();
+  assert.equal(retryUi.timers.size, 0);
+  assert.equal(retryUi.micStops(), 1);
+  assert.equal(retryUi.micLive(), false);
+  assert.equal(retryUi.context.rapidPhase, "idle");
+  assert.equal(retryUi.primary.dataset.action, "record");
+  assert.equal(retryUi.primary.dataset.state, "idle");
+  assert.equal(retryUi.primary.getAttribute("aria-label"), "Record");
+  staleRetry();
+  assert.equal(retryUi.listened(), 0);
+
+  // Stopping during reveal (with Auto ON) cancels the reveal timer and releases the mic.
+  const revealUi = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: true },
+  });
+  revealUi.context.finishRapid(revealUi.context.startGen, { passed: true, expected: [], heard: [] });
+  assert.equal(revealUi.context.rapidPhase, "celebrate");
+  const celebrateStep = revealUi.flushNextTimer();
+  assert.equal(celebrateStep?.ms, CELEBRATE_MS);
+  assert.equal(revealUi.context.rapidPhase, "reveal");
+  assert.equal(sessions.currentKeyId(revealUi.context.session), "C");
+  assert.equal(revealUi.primary.dataset.action, "pause");
+  assert.equal(revealUi.primary.dataset.state, "listening");
+  assert.equal(revealUi.timers.size, 1);
+  const staleReveal = [...revealUi.timers.values()][0].fn;
+
+  revealUi.context.runPrimary();
+  assert.equal(revealUi.timers.size, 0);
+  assert.equal(revealUi.micStops(), 1);
+  assert.equal(revealUi.micLive(), false);
+  assert.equal(revealUi.context.rapidPhase, "idle");
+  assert.equal(revealUi.primary.dataset.action, "record");
+  assert.equal(revealUi.primary.getAttribute("aria-label"), "Record");
+  staleReveal();
+  assert.equal(revealUi.listened(), 0);
+});
+
+test("passing a key honors Auto OFF vs Auto ON, including toggling Auto during celebration", () => {
+  // Auto OFF: pass advances to next key, stops mic, goes idle with Record button.
+  const offUi = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: false },
+  });
+  offUi.context.finishRapid(offUi.context.startGen, { passed: true, expected: [], heard: [] });
+  assert.equal(offUi.context.rapidPhase, "celebrate");
+  offUi.flushNextTimer();
+  assert.equal(sessions.currentKeyId(offUi.context.session), "C");
+  assert.equal(offUi.context.rapidPhase, "idle");
+  assert.equal(offUi.micStops(), 1);
+  assert.equal(offUi.micLive(), false);
+  assert.equal(offUi.listened(), 0);
+  assert.equal(offUi.timers.size, 0);
+  assert.equal(offUi.primary.dataset.action, "record");
+  assert.equal(offUi.primary.getAttribute("aria-label"), "Record");
+
+  // Auto ON: pass advances to next key, keeps mic live, enters reveal, and starts listening after READ_MS.
+  const onUi = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: true },
+  });
+  onUi.context.finishRapid(onUi.context.startGen, { passed: true, expected: [], heard: [] });
+  onUi.flushNextTimer();
+  assert.equal(sessions.currentKeyId(onUi.context.session), "C");
+  assert.equal(onUi.context.rapidPhase, "reveal");
+  assert.equal(onUi.micStops(), 0);
+  assert.equal(onUi.micLive(), true);
+  assert.equal(onUi.primary.dataset.action, "pause");
+  const revealStep = onUi.flushNextTimer();
+  assert.equal(revealStep?.ms, READ_MS);
+  assert.equal(onUi.listened(), 1);
+  assert.equal(onUi.context.rapidPhase, "listening");
+
+  // Toggling Auto OFF -> ON during the 2s celebration starts listening on the next key.
+  const offToOn = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: false },
+  });
+  offToOn.context.finishRapid(offToOn.context.startGen, { passed: true, expected: [], heard: [] });
+  offToOn.context.prefs.auto = true;
+  offToOn.flushNextTimer();
+  assert.equal(sessions.currentKeyId(offToOn.context.session), "C");
+  assert.equal(offToOn.context.rapidPhase, "reveal");
+  assert.equal(offToOn.micStops(), 0);
+  assert.equal(offToOn.flushNextTimer()?.ms, READ_MS);
+  assert.equal(offToOn.listened(), 1);
+
+  // Toggling Auto ON -> OFF during the 2s celebration stops the mic and stays idle on the next key.
+  const onToOff = rapidUiContext({
+    prefs: { ...sessions.defaultPrefs(), auto: true },
+  });
+  onToOff.context.finishRapid(onToOff.context.startGen, { passed: true, expected: [], heard: [] });
+  onToOff.context.prefs.auto = false;
+  onToOff.flushNextTimer();
+  assert.equal(sessions.currentKeyId(onToOff.context.session), "C");
+  assert.equal(onToOff.context.rapidPhase, "idle");
+  assert.equal(onToOff.micStops(), 1);
+  assert.equal(onToOff.listened(), 0);
+  assert.equal(onToOff.primary.dataset.action, "record");
 });

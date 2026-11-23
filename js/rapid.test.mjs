@@ -56,19 +56,28 @@ test("auto off advances after a pass and waits for Play", () => {
   assert.equal(currentKeyId(next.session), "C");
 });
 
-test("a fail re-arms the same key", () => {
+test("a fail re-arms the same key regardless of Auto and only stops for a missing session", () => {
   const session = { ...cycle(), keyIndex: 3 };
   const on = afterFail(session, { auto: true, hint: "3rd note" });
   assert.equal(on.autoStart, true);
+  assert.equal(on.phase, "listening");
   assert.equal(on.keyIndex, 3);
   assert.equal(currentKeyId(on.session), currentKeyId(session));
   assert.equal(on.hint, "3rd note");
   assert.equal(on.session.screen, "session");
 
   const off = afterFail(session, { auto: false, hint: "3rd note" });
-  assert.equal(off.autoStart, false);
-  assert.equal(off.phase, "idle");
+  assert.equal(off.autoStart, true);
+  assert.equal(off.phase, "listening");
   assert.equal(off.keyIndex, 3);
+  assert.equal(currentKeyId(off.session), currentKeyId(session));
+  assert.equal(off.hint, "3rd note");
+  assert.equal(off.session.screen, "session");
+
+  const empty = afterFail(null, { hint: "3rd note" });
+  assert.equal(empty.autoStart, false);
+  assert.equal(empty.phase, "idle");
+  assert.equal(empty.keyId, null);
 });
 
 test("pause keeps the key", () => {
