@@ -892,7 +892,7 @@ button.module-banner {
 .session-screen {
   --screen-margin: var(--margin-regular);
   --session-control: var(--tap);
-  --play-goal: 160px;
+  --play-goal: clamp(180px, 34vw, 280px);
   --title-gutter: 16px;
   position: relative;
   background: var(--bg);
@@ -1238,13 +1238,13 @@ button.module-banner {
 }
 
 .click-wheel {
-  /* Keep the sizing container so the record button stays in place. */
+  /* Give Record a stable width and size its height from the space below the card. */
   container-type: size;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: min(100%, 240px);
-  aspect-ratio: 1;
+  width: 100%;
+  height: 240px;
   margin-top: var(--screen-margin);
   margin-inline: auto;
 }
@@ -1493,7 +1493,8 @@ button.module-banner {
 
 .session-transport .play-round {
   flex: 0 0 auto;
-  --play-size: clamp(var(--tap), 54cqmin, var(--play-goal));
+  --play-width: clamp(var(--tap), 54cqi, var(--play-goal));
+  --play-size: clamp(var(--tap), 54cqb, var(--play-width));
   z-index: 1;
   box-shadow: 0 0 0 3px var(--bg);
 }
@@ -1534,7 +1535,7 @@ button.module-banner {
 }
 
 .play-round {
-  width: var(--play-size);
+  width: var(--play-width);
   height: var(--play-size);
   background: var(--tint-solid);
   color: var(--tint-on-solid);
@@ -2647,12 +2648,6 @@ button.module-banner {
 
 .debug-save {
   margin-top: 0.25rem;
-}
-
-@media (width < 600px) {
-  .session-screen {
-    --play-goal: 120px;
-  }
 }
 
 .session-screen .notation-block {

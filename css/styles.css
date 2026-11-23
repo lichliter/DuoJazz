@@ -1166,7 +1166,7 @@ input[type="checkbox"] {
 
 .play-round {
   border: 0;
-  border-radius: 50%;
+  border-radius: 999px;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -1189,8 +1189,8 @@ input[type="checkbox"] {
 
 .play-round.is-stop .play-round-icon,
 .play-round[data-action="stop"] .play-round-icon {
-  width: 26%;
-  height: 26%;
+  width: calc(var(--play-size) * 0.26);
+  height: calc(var(--play-size) * 0.26);
   border: 0;
   margin: 0;
   background: currentColor;
@@ -1198,8 +1198,8 @@ input[type="checkbox"] {
 }
 
 .play-round[data-action="pause"] .play-round-icon {
-  width: 26%;
-  height: 30%;
+  width: calc(var(--play-size) * 0.26);
+  height: calc(var(--play-size) * 0.3);
   margin: 0;
   border: 0;
   border-radius: 0;

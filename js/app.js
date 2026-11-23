@@ -1872,7 +1872,6 @@ function layoutClickWheel() {
   delete screen.dataset.columnScroll;
   if (scroller) scroller.scrollTop = 0;
   clearStaffCardBox(wrap);
-  wheel.style.width = "0px";
   wheel.style.height = "0px";
   const margin = screenMarginPx(screen);
   const stageStyle = getComputedStyle(stage);
@@ -1927,7 +1926,6 @@ function layoutClickWheel() {
   });
   let diameter = fit.diameter;
   let pageScroll = fit.pageScroll;
-  wheel.style.width = `${diameter}px`;
   wheel.style.height = `${diameter}px`;
   const borderMin = Math.ceil(fit.cardHeight + wrapPadY);
   wrap.style.minHeight = `${borderMin}px`;
@@ -1942,7 +1940,6 @@ function layoutClickWheel() {
   let overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
   if (overflow > 1 && diameter > floor) {
     diameter = Math.max(floor, Math.floor(diameter - overflow));
-    wheel.style.width = `${diameter}px`;
     wheel.style.height = `${diameter}px`;
     overflow = Math.ceil(wheel.getBoundingClientRect().bottom + margin - barTop);
   }

@@ -559,7 +559,7 @@ export function notationCardWidth({
  */
 const SYSTEM_GAP_USER = 72;
 const STAFF_USER_UNITS = 96;
-/** Center button is 54% of its layout container (`54cqmin`). */
+/** Record button height uses 54% of its layout container (`54cqb`). */
 export const WHEEL_CENTER_RATIO = 0.54;
 /** Minimum record button size when vertical space runs out. */
 export const MIN_WHEEL_CENTER_PX = 120;
