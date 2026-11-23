@@ -43,6 +43,7 @@ function appContext(names, overrides = {}) {
     storageWarning,
     writeStoredJson,
     cloudSettings: { userId: null },
+    unsavedChartKeys: new Map(),
     enrollFromProgress: noop,
     structuredClone,
     savedPrefs: sessions.defaultPrefs(),
@@ -90,7 +91,6 @@ test("a fresh launch restores the last opened chart or lick for the active viewe
     practiceUI: { getSelected: () => CHART_LIBRARY.map(chart => chart.id) },
     nav: { tab: "licks", tune: null },
     lastChartTune: null,
-    chartKeySelection: null,
     hasLaunchLink: false,
     saveTabScroll: noop, restoreTabScroll: noop,
   });
@@ -126,11 +126,11 @@ test("a fresh launch restores the last opened chart or lick for the active viewe
 
 test('saving a chart switch cannot render the previous chart or carry its key into Four', () => {
   const rendered = [], saved = [];
-  const context = appContext(['selectTab', 'rotationChart', 'currentChart', 'chartConcertKey'], {
+  const context = appContext(['selectTab', 'rotationChart', 'currentChart', 'chartKeyStorageKey', 'chartConcertKey', 'saveChartConcertKey'], {
     CHART_LIBRARY,
     practiceUI: { getSelected: () => CHART_LIBRARY.map(chart => chart.id) },
     nav: { tab: 'charts', tune: 'blue-bossa' }, lastChartTune: 'blue-bossa',
-    chartKeySelection: { chartId: 'blue-bossa', keyId: 'C' },
+    localStorage: { getItem: key => key.endsWith(':blue-bossa') ? '"D"' : null },
     saveTabScroll: noop, restoreTabScroll: noop,
     cloudSettings: { userId: 'account-a', set(value) { saved.push(value.selectedChartId); context.render(); } },
     render() { rendered.push([context.currentChart().id, context.chartConcertKey()]); },
@@ -141,24 +141,38 @@ test('saving a chart switch cannot render the previous chart or carry its key in
 
   for (const chart of CHART_LIBRARY.filter(chart => chart.id !== 'four')) {
     rendered.length = 0;
-    context.chartKeySelection = { chartId: context.currentChart().id, keyId: 'C' };
     context.selectTab('charts', { tune: chart.id });
-    assert.deepEqual(rendered, [[chart.id, chart.key], [chart.id, chart.key]]);
+    const key = chart.id === 'blue-bossa' ? 'D' : chart.key;
+    assert.deepEqual(rendered, [[chart.id, key], [chart.id, key]]);
   }
 });
 
-test('a chosen key survives rerendering its chart but never applies to another chart', () => {
-  const context = appContext(['selectTab', 'rotationChart', 'currentChart', 'chartConcertKey'], {
+test('chart key overrides survive reload, stay scoped to the viewer and chart, and can be reset', () => {
+  const stored = new Map();
+  const localStorage = {
+    getItem: key => stored.get(key) ?? null,
+    setItem: (key, value) => stored.set(key, value),
+  };
+  const overrides = {
+    getKey, localStorage,
+    writeStoredJson: (key, value) => writeStoredJson(key, value, localStorage),
     CHART_LIBRARY,
     practiceUI: { getSelected: () => CHART_LIBRARY.map(chart => chart.id) },
     nav: { tab: 'charts', tune: 'four' }, lastChartTune: 'four',
-    chartKeySelection: { chartId: 'four', keyId: 'D' },
     saveTabScroll: noop, restoreTabScroll: noop,
-    cloudSettings: { userId: 'account-a', set() { context.render(); } },
-  });
-  context.selectTab('charts', { tune: 'four' });
+    cloudSettings: { userId: 'account-a', set: noop },
+  };
+  const functions = ['selectTab', 'rotationChart', 'currentChart', 'chartKeyStorageKey', 'chartConcertKey', 'saveChartConcertKey'];
+  const first = appContext(functions, overrides);
+  first.saveChartConcertKey(first.currentChart(), 'D');
+  const context = appContext(functions, overrides);
   assert.equal(context.chartConcertKey(), 'D');
   assert.equal(context.chartConcertKey(CHART_LIBRARY.find(chart => chart.id === 'blue-bossa')), 'C');
+  context.cloudSettings = { userId: null };
+  assert.equal(context.chartConcertKey(), 'Eb');
+  context.cloudSettings = overrides.cloudSettings;
+  context.saveChartConcertKey(context.currentChart(), 'Eb');
+  assert.equal(appContext(functions, overrides).chartConcertKey(), 'Eb');
   // A saved chart selection can also change while the Licks page is open.
   context.nav = { tab: 'licks', tune: null };
   context.lastChartTune = 'autumn-leaves';

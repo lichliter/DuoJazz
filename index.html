@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=204">
-  <link rel="stylesheet" href="./css/hig.css?v=224">
+  <link rel="stylesheet" href="./css/hig.css?v=225">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=224"></script>
+  <script type="module" src="./js/app.js?v=225"></script>
   <script type="module" src="./js/pwa.js?v=222"></script>
 </head>
 <body>
@@ -221,6 +221,19 @@
         </form>
       </dialog>
 
+      <dialog id="chart-key-modal" class="form-sheet tempo-modal" aria-labelledby="chart-key-title">
+        <form method="dialog" class="sheet-form">
+          <header class="sheet-toolbar">
+            <h2 id="chart-key-title">Chart key</h2>
+            <button type="submit" class="dismiss-button" aria-label="Close chart key">×</button>
+          </header>
+          <div class="chart-key-modal-body">
+            <div class="chart-key-options" id="chart-key-options" role="group" aria-labelledby="chart-key-title"></div>
+            <button type="button" class="text-link tempo-reset-btn" id="chart-key-reset">Reset to original key</button>
+          </div>
+        </form>
+      </dialog>
+
       <section class="screen session-screen" id="screen-session" data-testid="screen-session" aria-label="Practice session">
         <header class="session-top">
           <button type="button" class="session-back" id="session-exit">← Back</button>
@@ -253,7 +266,13 @@
                       <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>
                     </svg>
                   </button>
-                  <div class="session-tempo" id="session-tempo" data-testid="session-tempo" role="group" aria-label="Tempo"></div>
+                  <div class="session-toolbar-settings">
+                    <div class="session-tempo" id="session-tempo" data-testid="session-tempo" role="group" aria-label="Tempo"></div>
+                    <button type="button" class="tempo-readout-btn chart-key-readout" id="session-chart-key" aria-haspopup="dialog" aria-controls="chart-key-modal" hidden>
+                      <span class="tempo-bpm-value"></span>
+                      <span class="tempo-bpm-unit">key</span>
+                    </button>
+                  </div>
                   <div class="session-octave" id="session-octave" role="group" aria-label="Melody octave"></div>
                 </div>
                 <div class="paper-wrap">

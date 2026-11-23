@@ -1231,16 +1231,22 @@ button.module-banner {
   line-height: 1;
 }
 
+.session-toolbar-settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
 .session-tempo {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
   flex: 0 0 auto;
-  margin-right: auto;
   font-variant-numeric: tabular-nums;
 }
 
-.session-tempo .tempo-readout-btn {
+.session-toolbar-settings .tempo-readout-btn {
   position: relative;
   height: var(--tap);
   min-height: var(--tap);
@@ -1259,21 +1265,70 @@ button.module-banner {
   cursor: pointer;
 }
 
-.session-tempo .tempo-readout-btn:active:not(:disabled) {
+.session-toolbar-settings .tempo-readout-btn:active:not(:disabled) {
   transform: scale(0.96);
   filter: brightness(0.94);
 }
 
-.session-tempo .tempo-bpm-value {
+.session-toolbar-settings .tempo-bpm-value {
   font: 700 15px/1.05 var(--font);
   color: var(--label);
 }
 
-.session-tempo .tempo-bpm-unit {
+.session-toolbar-settings .tempo-bpm-unit {
   font: 500 10px/1 var(--font);
   color: var(--label-secondary);
   text-transform: lowercase;
   letter-spacing: 0.02em;
+}
+
+.session-toolbar-settings .chart-key-readout {
+  width: 52px;
+  min-width: var(--tap);
+  padding-inline: 5px;
+}
+
+@media (max-width: 360px) {
+  .lick-tools:has(.chart-key-readout:not([hidden])) {
+    gap: 4px;
+    padding-inline: 8px;
+  }
+
+  .session-toolbar-settings:has(.chart-key-readout:not([hidden])),
+  .lick-tools:has(.chart-key-readout:not([hidden])) .session-octave {
+    gap: 4px;
+  }
+
+  .session-toolbar-settings:has(.chart-key-readout:not([hidden])) .session-tempo .tempo-readout-btn {
+    min-width: 56px;
+    padding-inline: 8px;
+  }
+}
+
+.chart-key-modal-body {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.chart-key-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.chart-key-options .chip {
+  min-height: var(--tap);
+  padding: 0 4px;
+  background: var(--fill);
+  font: var(--text-headline);
+}
+
+.chart-key-options .chip[aria-pressed="true"] {
+  background: var(--tint-solid);
+  color: var(--tint-on-solid);
 }
 
 .tempo-modal {
@@ -2639,7 +2694,7 @@ button.module-banner {
     font-size: 28px;
   }
 
-  .session-screen .session-tempo .tempo-readout-btn {
+  .session-screen .session-toolbar-settings .tempo-readout-btn {
     height: var(--session-control);
     min-height: var(--session-control);
     min-width: 96px;
@@ -2647,11 +2702,17 @@ button.module-banner {
     gap: 2px;
   }
 
-  .session-screen .session-tempo .tempo-bpm-value {
+  .session-screen .session-toolbar-settings .chart-key-readout {
+    width: var(--session-control);
+    min-width: var(--session-control);
+    padding-inline: 10px;
+  }
+
+  .session-screen .session-toolbar-settings .tempo-bpm-value {
     font-size: 23px;
   }
 
-  .session-screen .session-tempo .tempo-bpm-unit {
+  .session-screen .session-toolbar-settings .tempo-bpm-unit {
     font-size: 13px;
   }
 
@@ -2736,7 +2797,7 @@ button.module-banner {
   .transport-icon:active,
   .session-octave .octave-btn:active:not(:disabled),
   .session-tempo .tempo-step:active:not(:disabled),
-  .session-tempo .tempo-readout-btn:active:not(:disabled) {
+  .session-toolbar-settings .tempo-readout-btn:active:not(:disabled) {
     transform: none;
   }
 

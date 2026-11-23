@@ -219,7 +219,7 @@ let nav = parseTabState(location.search);
 const launchParams = new URLSearchParams(location.search);
 let hasLaunchLink = ["tab", "screen", "module", "sheet"].some(name => launchParams.has(name));
 let lastChartTune = nav.tune;
-let chartKeySelection = null;
+const unsavedChartKeys = new Map();
 let lickRotation = loadMyLicks(MODULES);
 const ROTATION_IMPORTED_KEY = "duojazz.rotationImported.v1";
 let guestRotationImported = false;
@@ -1072,7 +1072,6 @@ function restoreLastRotation() {
     ? { tab: "charts", tune: CHART_LIBRARY.some(chart => chart.id === saved.tune) ? saved.tune : null }
     : { tab: "licks", tune: null };
   lastChartTune = nav.tune;
-  chartKeySelection = null;
   writeTabUrl(true);
 }
 
@@ -1089,7 +1088,6 @@ function selectTab(tab, { tune = undefined, replace = false } = {}) {
   }
   saveTabScroll();
   if (tab === "charts") {
-    if (tune !== undefined && tune !== lastChartTune) chartKeySelection = null;
     if (tune !== undefined) lastChartTune = tune;
     const rotation = practiceUI.getSelected();
     if (!rotation.includes(lastChartTune)) lastChartTune = rotation[0] ?? null;
@@ -1414,6 +1412,7 @@ function anyDialogOpen() {
     || els.leaveConfirm?.open
     || els.settingsModal?.open
     || els.tempoModal?.open
+    || els.chartKeyModal.open
     || els.chartSheet?.open
     || document.getElementById("chart-applications")?.open
     || document.getElementById("application-charts")?.open,
@@ -1747,8 +1746,7 @@ function renderSessionChart() {
   if (host.hidden) return;
 
   const chart = CHART_LIBRARY.find(({ id }) => id === lesson.chartId);
-  const transposition = getKey(currentKeyId(session)).pc - getKey(lesson.defaultKeyId).pc;
-  const concertKeyId = transposeToneKey(chart.key, transposition);
+  const concertKeyId = sessionChartConcertKey(chart, lesson);
   const gridKey = [chart.id, concertKeyId, session.instrumentId].join(":");
   if (host.dataset.chartKey !== gridKey) {
     renderChartGrid(host, chartGrid(chart, { concertKeyId, instrumentId: session.instrumentId }));
@@ -2274,12 +2272,88 @@ function currentChart() {
   return rotationChart() ?? CHART_LIBRARY[0];
 }
 
-function chartConcertKey(chart = currentChart()) {
-  return chartKeySelection?.chartId === chart.id ? chartKeySelection.keyId : chart.key;
+function chartKeyStorageKey(chart) {
+  return `duojazz.chartKey.v1:${cloudSettings.userId ?? "guest"}:${chart.id}`;
 }
 
-function startChartTones(kind) {
-  const chart = currentChart();
+function chartConcertKey(chart = currentChart()) {
+  const storageKey = chartKeyStorageKey(chart);
+  let saved = unsavedChartKeys.get(storageKey);
+  if (saved === undefined) {
+    try {
+      saved = JSON.parse(localStorage.getItem(storageKey));
+    } catch {
+      // The source key is still available when storage is blocked or invalid.
+    }
+  }
+  return TWELVE_KEY_IDS.includes(saved) ? saved : chart.key;
+}
+
+function saveChartConcertKey(chart, keyId) {
+  if (!TWELVE_KEY_IDS.includes(keyId)) return;
+  const storageKey = chartKeyStorageKey(chart);
+  const override = getKey(keyId).pc === getKey(chart.key).pc ? null : keyId;
+  if (writeStoredJson(storageKey, override)) unsavedChartKeys.delete(storageKey);
+  else unsavedChartKeys.set(storageKey, override);
+}
+
+function sessionChartConcertKey(chart, lesson) {
+  const delta = getKey(currentKeyId(session)).pc - getKey(lesson.defaultKeyId).pc;
+  return transposeToneKey(chart.key, delta);
+}
+
+function renderSessionChartKey() {
+  const lesson = lessonById(session.lessonId);
+  const chart = CHART_LIBRARY.find(({ id }) => id === lesson.chartId);
+  const button = els.sessionChartKey;
+  button.hidden = !chart;
+  if (!chart) return;
+  const keyId = sessionChartConcertKey(chart, lesson);
+  const label = displayKey(getKey(keyId), session.instrumentId, chart.keyQuality).shortName;
+  fillMusicLabel(button.firstElementChild, label);
+  button.setAttribute("aria-label", `Change chart key, ${label}`);
+}
+
+function openChartKeyModal() {
+  if (session?.screen !== "session") return;
+  const lesson = lessonById(session.lessonId);
+  const chart = CHART_LIBRARY.find(({ id }) => id === lesson.chartId);
+  if (!chart) return;
+  halt();
+  resetPitchTake();
+  render();
+  const current = sessionChartConcertKey(chart, lesson);
+  els.chartKeyOptions.replaceChildren(...chartKeyChoices(chart.keyQuality, session.instrumentId).map(({ id, label }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip";
+    fillMusicLabel(button, label);
+    button.setAttribute("aria-pressed", String(id === current));
+    button.addEventListener("click", () => applySessionChartKey(chart, id));
+    return button;
+  }));
+  els.chartKeyReset.disabled = getKey(current).pc === getKey(chart.key).pc
+    && getKey(chartConcertKey(chart)).pc === getKey(chart.key).pc;
+  els.chartKeyReset.onclick = () => applySessionChartKey(chart, transposeToneKey(chart.key, 0));
+  els.chartKeyModal.showModal();
+  els.chartKeyOptions.querySelector('[aria-pressed="true"]')?.focus({ preventScroll: true });
+}
+
+function applySessionChartKey(chart, keyId) {
+  if (els.chartKeyModal.dataset.closing || session?.screen !== "session") return;
+  const lesson = lessonById(session.lessonId);
+  if (lesson.chartId !== chart.id) return;
+  saveChartConcertKey(chart, keyId);
+  if (getKey(keyId).pc !== getKey(sessionChartConcertKey(chart, lesson)).pc) {
+    const mode = lesson.chartTimed ? "master" : lesson.chartPractice ? "practice" : "learn";
+    startChartTones(mode, chart);
+  } else {
+    renderStorageNotice();
+  }
+  closeSheet(els.chartKeyModal);
+}
+
+function startChartTones(kind, chart = currentChart()) {
   const delta = getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc;
   const parent = CHART_MODULES.find(module => module.id === `chart-${chart.id}`);
   if (kind === 'master') {
@@ -2336,6 +2410,7 @@ function render(snap = transport.snapshot()) {
   if (screen === "session") {
     renderSessionChrome();
     renderSessionTempo();
+    renderSessionChartKey();
     renderSessionOctave();
     renderSessionChart();
     renderShowNotes();
@@ -2595,7 +2670,7 @@ const libraryPicker = setupLibraryPicker({
   modules: MODULES, charts: CHART_LIBRARY,
   ...setupLibraryPreview(() => prefs),
   chartKeyLabel: chart => {
-    const key = displayKey(getKey(chart.key), prefs.instrumentId, chart.keyQuality);
+    const key = displayKey(getKey(chartConcertKey(chart)), prefs.instrumentId, chart.keyQuality);
     return `${key.shortName} ${chart.keyQuality === "major" ? "major" : "minor"}`;
   },
   getProgress: type => {
@@ -2760,8 +2835,9 @@ document.getElementById('view-chart').addEventListener('click', () => {
   els.chartSheet.querySelector('.chart-sheet-body').scrollTop = 0;
 });
 els.chartKeys.addEventListener('change', () => {
-  chartKeySelection = { chartId: currentChart().id, keyId: els.chartKeys.value };
+  saveChartConcertKey(currentChart(), els.chartKeys.value);
   renderChartDetail();
+  renderStorageNotice();
 });
 els.chartSheet.querySelector('[data-close]').addEventListener('click', () => closeSheet(els.chartSheet));
 els.chartSheet.addEventListener('click', event => {
@@ -2772,9 +2848,7 @@ els.chartSheet.addEventListener('click', event => {
 
 els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
 window.addEventListener("popstate", () => {
-  const previousChart = nav.tune;
   nav = parseTabState(location.search);
-  if (nav.tune !== previousChart) chartKeySelection = null;
   if (nav.tab === "charts") lastChartTune = nav.tune;
   rememberRotation();
   render();
@@ -2863,7 +2937,6 @@ els.wrapupNext?.addEventListener("click", () => {
     if (next.chartId && next.chartId !== currentChart().id) {
       nav = { tab: "charts", tune: next.chartId };
       lastChartTune = next.chartId;
-      chartKeySelection = null;
       rememberRotation();
       writeTabUrl(false);
       if (cloudSettings.userId) cloudSettings.set({ selectedChartId: lastChartTune });
@@ -2912,6 +2985,10 @@ function applyTempoDelta(delta) {
 }
 els.tempoDown?.addEventListener("click", () => applyTempoDelta(-4));
 els.tempoUp?.addEventListener("click", () => applyTempoDelta(4));
+els.sessionChartKey.addEventListener("click", openChartKeyModal);
+els.chartKeyModal.addEventListener("close", () => {
+  if (!els.shell.hidden && session?.screen === "session") els.sessionChartKey.focus({ preventScroll: true });
+});
 els.sessionTempoDown?.addEventListener("click", () => {
   if (!session) return;
   tempoTaps = [];
