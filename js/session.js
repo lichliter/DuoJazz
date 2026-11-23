@@ -1377,7 +1377,13 @@ export function advanceKey(session, rng = Math.random) {
   if (session.sequence && session.sequenceIndex + 1 < session.sequence.length) {
     const sequenceIndex = session.sequenceIndex + 1;
     const item = session.sequence[sequenceIndex];
-    return { ...createSession({ ...session, lessonId: item.lessonId, startKeyId: item.keyId, keyMode: 'one', majorKeyId: null }), sequence: session.sequence, sequenceMarks: session.sequenceMarks, sequenceIndex };
+    return {
+      ...createSession({ ...session, lessonId: item.lessonId, startKeyId: item.keyId, keyMode: "one", majorKeyId: null }),
+      sequence: session.sequence,
+      sequenceMarks: session.sequenceMarks,
+      sequenceIndex,
+      startVinylTier: session.startVinylTier,
+    };
   }
   if (session.keyMode === "one") return repeatKey(session);
   if (session.keyIndex + 1 < session.keyQueue.length) {

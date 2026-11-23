@@ -1655,7 +1655,7 @@ function renderSessionChrome() {
   const autoHost = els.autoToggle?.closest(".auto-switch");
   if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId) || isTimedChart();
   if (els.sessionOctave) els.sessionOctave.hidden = isTimedChart();
-  if (els.continueBtn) els.continueBtn.hidden = !cycling && !session.sequence;
+  if (els.continueBtn) els.continueBtn.hidden = !isCyclingLesson(lessonById(session.lessonId)) && !session.sequence;
   renderKeyCycle();
   const footer = els.session?.querySelector('.session-footer');
   if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden) && Boolean(els.continueBtn?.hidden);

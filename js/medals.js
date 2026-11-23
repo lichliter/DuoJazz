@@ -5,7 +5,7 @@
  * Progress is monotonic.
  */
 
-import { LESSONS, TWELVE_KEY_IDS, normalizeKeyId, moduleForLesson, MODULES } from "./session.js";
+import { LESSONS, TWELVE_KEY_IDS, relativeMajorId, normalizeKeyId, moduleForLesson, MODULES } from "./session.js";
 import { writeStoredJson } from "./storage.js";
 
 export const MASTERY_KEY = "duojazz-mastery-v1";
@@ -15,6 +15,21 @@ export function setMasteryAccount(userId) {
 }
 
 const VALID_KEY_SET = new Set(TWELVE_KEY_IDS);
+// Progress predating the major-key Sextuplet Run used relative-minor tonics.
+// Keep lesson URLs stable and distinguish new records at the storage boundary.
+const SEXTUPLET_LESSONS = ["south-of-the-river-opening-learn", "south-of-the-river-opening-master"];
+export function storedProgressLessonId(id) {
+  return SEXTUPLET_LESSONS.includes(id) ? id + ":major" : id;
+}
+
+export function readProgressKey(storedId, key) {
+  for (const id of SEXTUPLET_LESSONS) {
+    if (storedId === id && VALID_KEY_SET.has(key)) return [id, relativeMajorId(key)];
+    if (storedId === storedProgressLessonId(id)) return [id, key];
+  }
+  return [storedId, key];
+}
+
 const MODULE_MASTER_IDS = new Map(
   MODULES.map((module) => [
     module.id,
@@ -81,6 +96,14 @@ export function normalizeMastery(raw) {
   if (rawLessons && typeof rawLessons === "object") {
     for (const lesson of LESSONS) {
       const entry = rawLessons[lesson.id];
+      if (raw.schema === 2 && SEXTUPLET_LESSONS.includes(lesson.id)) {
+        const major = rawLessons[storedProgressLessonId(lesson.id)];
+        for (const kind of ["passedKeys", "learnedKeys"]) {
+          const migrated = validKeys(entry?.[kind]).map(relativeMajorId);
+          base.lessons[lesson.id][kind] = [...new Set([...migrated, ...validKeys(major?.[kind])])];
+        }
+        continue;
+      }
       if (!entry) continue;
       if (Array.isArray(entry.passedKeys) && entry.passedKeys.length) {
         base.lessons[lesson.id].passedKeys = [...new Set(validKeys(entry.passedKeys))];
@@ -166,7 +189,7 @@ export function compactMastery(mastery) {
     const passed = Array.isArray(lesson?.passedKeys) ? lesson.passedKeys : [];
     const learned = Array.isArray(lesson?.learnedKeys) ? lesson.learnedKeys : [];
     if (passed.length || learned.length) {
-      lessons[id] = { passedKeys: passed, learnedKeys: learned };
+      lessons[storedProgressLessonId(id)] = { passedKeys: passed, learnedKeys: learned };
     }
   }
   const modules = {};
@@ -310,7 +333,8 @@ export function readMasteryFromStorage(key = activeMasteryKey, storage = undefin
       try {
         const row = JSON.parse(target.getItem(entry));
         if (!Array.isArray(row) || row.length !== 3) continue;
-        const [id, kind, pitch] = row;
+        const [storedId, kind, keyId] = row;
+        const [id, pitch] = readProgressKey(storedId, keyId);
         if ((kind === "passedKeys" || kind === "learnedKeys") && Object.hasOwn(next.lessons, id) && VALID_KEY_SET.has(pitch)) {
           if (!next.lessons[id][kind].includes(pitch)) next.lessons[id][kind].push(pitch);
         }
@@ -350,7 +374,7 @@ export function saveMastery(mastery) {
     if (!lesson.passedKeys.length && !lesson.learnedKeys.length) continue;
     for (const kind of ["passedKeys", "learnedKeys"]) {
       for (const pitch of lesson[kind]) {
-        const row = [id, kind, pitch];
+        const row = [storedProgressLessonId(id), kind, pitch];
         const serialized = JSON.stringify(row);
         const key = `${activeMasteryKey}:earned:${encodeURIComponent(serialized)}`;
         try { if (localStorage.getItem(key) === serialized) continue; } catch {}

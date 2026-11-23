@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { MY_CHARTS_KEY } from "./practice-catalog.js";
 import { chartGrid, chartKeyChoices } from "./charts.js";
 import { chorusChords, getKey } from "./music.js";
 import { compactChordSymbol } from "./engrave.js";
@@ -178,6 +179,9 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
     client = connect(page.webSocketDebuggerUrl);
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    await client.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `localStorage.setItem(${JSON.stringify(MY_CHARTS_KEY)}, JSON.stringify(["blue-bossa", "recordame"]));`,
+    });
     const base = `http://127.0.0.1:${port}`;
     const pages = [
       {
@@ -227,7 +231,14 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
         let ready = false;
         while (Date.now() - started < 40000) {
           const state = await client.send("Runtime.evaluate", {
-            expression: `document.readyState === "complete" && !document.querySelector("#account-signin")?.disabled && ${spec.ready}`,
+            expression: `(() => {
+              if (document.readyState !== "complete") return false;
+              if (document.querySelector("#app-shell")?.hidden) {
+                document.querySelector("#account-view-guest")?.click();
+                return false;
+              }
+              return ${spec.ready};
+            })()`,
             returnByValue: true,
           });
           if (state.result?.value) {
@@ -237,16 +248,9 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
           await new Promise((resolve) => setTimeout(resolve, 250));
         }
         assert.equal(ready, true, `${spec.name} at ${viewport.width}x${viewport.height} did not render`);
-        // This test measures notation geometry, independently of account access.
-        // Reveal the rendered fixture in the test browser only; no auth bypass is
-        // included in application code and no production account is required.
-        await client.send("Runtime.evaluate", {
-          expression: `document.querySelector("#app-shell").hidden = false;
-            document.querySelector("#app-shell").inert = false;
-            document.querySelector("#login-screen").hidden = true;
-            if (new URL(location.href).searchParams.get("tab") === "charts") document.querySelector("#view-chart").click();`,
-          returnByValue: true,
-        });
+        if (spec.expectChords) {
+          await client.send("Runtime.evaluate", { expression: 'document.querySelector("#view-chart").click()' });
+        }
         await client.send("Runtime.evaluate", {
           expression: `Promise.all([document.fonts.load('400 16px "DuoJazz Music"'), document.fonts.load('700 16px "DuoJazz Music"'), document.fonts.ready])`,
           awaitPromise: true,

@@ -1,7 +1,7 @@
 import { fillMusicLabel } from "./engrave.js";
 import { lessonPassedKeys } from "./medals.js";
 import { lessonById, moduleForLesson } from "./registry.js";
-import { isPracticeLesson, lessonVinylTier, wrapupCopy } from "./session.js";
+import { currentKeyId, isPracticeLesson, lessonVinylTier, wrapupCopy } from "./session.js";
 
 const TIER_RANK = { black: 0, bronze: 1, silver: 2, gold: 3 };
 
@@ -16,7 +16,9 @@ export function sessionVinylTier(session, mastery) {
     return passed > 0 ? "bronze" : "black";
   }
   const lesson = lessonById(session.lessonId);
-  return lessonVinylTier(lesson, lessonPassedKeys(mastery, lesson.id).length);
+  const passed = lessonPassedKeys(mastery, lesson.id);
+  if (lesson.chartTimed) return passed.includes(currentKeyId(session)) ? "gold" : "black";
+  return lessonVinylTier(lesson, passed.length);
 }
 
 function sleeveNumber(lesson, session, module) {

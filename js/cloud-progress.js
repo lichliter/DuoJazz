@@ -1,4 +1,4 @@
-import { normalizeMastery, canonicalMastery, readMasteryFromStorage, MASTERY_KEY } from "./medals.js";
+import { normalizeMastery, canonicalMastery, readMasteryFromStorage, readProgressKey, storedProgressLessonId, MASTERY_KEY } from "./medals.js";
 
 export const GUEST_OWNER_KEY = "duojazz.guestProgressOwner.v1";
 
@@ -20,14 +20,15 @@ export function claimGuestProgress(userId, storage = undefined) {
 export function progressRows(mastery, userId) {
   return Object.entries(normalizeMastery(mastery).lessons).flatMap(([lesson_id, lesson]) =>
     ["passedKeys", "learnedKeys"].flatMap(kind => lesson[kind].map(key_id =>
-      ({ user_id: userId, lesson_id, key_id, kind }))));
+      ({ user_id: userId, lesson_id: storedProgressLessonId(lesson_id), key_id, kind }))));
 }
 
 export function mergeProgress(mastery, rows) {
   const next = normalizeMastery(mastery);
   for (const row of Array.isArray(rows) ? rows : []) {
     if (!row || typeof row !== 'object') continue;
-    const { lesson_id, key_id, kind } = row;
+    const { kind } = row;
+    const [lesson_id, key_id] = readProgressKey(row.lesson_id, row.key_id);
     const keys = next.lessons[lesson_id]?.[kind];
     if (["passedKeys", "learnedKeys"].includes(kind) && Array.isArray(keys) && !keys.includes(key_id)) keys.push(key_id);
   }

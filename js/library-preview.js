@@ -4,7 +4,7 @@ import { notationLayout } from './lesson.js';
 import { phraseMEI } from './mei.js';
 import { getKey } from './music.js';
 import { lessonById } from './registry.js';
-import { createSession, demoAudioConfig, sessionEngraveSpec } from './session.js';
+import { createSession, demoAudioConfig, lessonTempo, sessionEngraveSpec } from './session.js';
 
 function previewSession(module, prefs) {
   const lesson = module.lessons.find(item => item.kind === 'learn');
@@ -12,7 +12,7 @@ function previewSession(module, prefs) {
     lessonId: lesson.id,
     startKeyId: lesson.defaultKeyId,
     instrumentId: prefs.instrumentId,
-    tempo: prefs.lessons[lesson.id]?.tempo ?? prefs.tempo,
+    tempo: lessonTempo(prefs, lesson.id),
     swing: prefs.swing,
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
   });

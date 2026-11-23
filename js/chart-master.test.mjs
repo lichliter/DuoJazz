@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CHART_LIBRARY, CHART_MODULES } from './registry.js';
-import { createSession, recordBackingConfig, sessionPresentation, sessionScreenTitle, completeCard, wrapupCopy, wrapupNextModule } from './session.js';
+import { advanceKey, createSession, recordBackingConfig, sessionPresentation, sessionScreenTitle, completeCard, wrapupCopy, wrapupNextModule } from './session.js';
 import { expectedNotesFor, gradeSession, synthTrack } from './grade.js';
 import { getKey, beatsToSeconds } from './music.js';
 import { chordToneIntervals } from './chord-tones.js';
 import { emptyMastery, recordQuizPass } from './medals.js';
+import { sessionVinylTier } from './app-wrapup.js';
 import { INSTRUMENTS } from './instruments.js';
 
 test('timed charts cover every change at its actual duration and keep the full backing form', () => {
@@ -85,4 +86,21 @@ test('timed Master grades quiet confident horns and ignores low-confidence noise
   assert.equal(gradeSession(session, quiet).passed, true);
   const noise = synthTrack(notes, { amp: 0.004 }).map(frame => ({ ...frame, confidence: 0.3 }));
   assert.equal(gradeSession(session, noise).percent, 0);
+});
+
+test('chart tier follows the selected key and sequence advancement preserves its starting tier', () => {
+  const lessons = CHART_MODULES[0].lessons;
+  const timed = lessons.find(lesson => lesson.chartTimed);
+  const progress = recordQuizPass(emptyMastery(), timed.id, 'C');
+  for (const [startKeyId, tier] of [['C', 'gold'], ['D', 'black']]) {
+    assert.equal(sessionVinylTier(createSession({ lessonId: timed.id, startKeyId }), progress), tier);
+  }
+  const sequence = lessons.filter(lesson => lesson.kind === 'learn')
+    .map(lesson => ({ lessonId: lesson.id, keyId: lesson.defaultKeyId }));
+  let session = { ...createSession({ lessonId: sequence[0].lessonId, startKeyId: sequence[0].keyId }),
+    sequence, sequenceIndex: 0, startVinylTier: 'bronze' };
+  for (let i = 1; i < sequence.length; i++) {
+    session = advanceKey(session);
+    assert.equal(session.startVinylTier, 'bronze');
+  }
 });

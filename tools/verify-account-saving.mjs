@@ -72,11 +72,37 @@ await withAppUrl(async (appUrl) => {
     await c.page.locator('#settings-close').click();
     await c.page.locator('#lesson-list .module-banner').click();
     await c.page.locator('[data-library-tab=charts]').click();
-    await c.page.getByLabel('Options for Autumn Leaves', { exact: true }).click();
+    await c.page.getByTestId('quick-view-chart-autumn-leaves').press('ArrowLeft');
     await c.page.screenshot({ path: 'artifacts/fixed-account-favorites.png' });
     await c.page.getByRole('button', { name: 'Remove Autumn Leaves', exact: true }).click();
     await poll(() => cloud.rows.get('test-account-a:chart:autumn-leaves')?.value === false);
     findings.push('PASS: rotation additions and removals persist through the account');
+    // Hold the first user's response until the second user earns the same key.
+    const race = await device(browser, appUrl);
+    let releaseUpload;
+    const held = new Promise(resolve => { releaseUpload = resolve; });
+    let uploadStarted = false;
+    await race.page.route('**/test-cloud/practice_progress', async route => {
+      const batch = route.request().postDataJSON().batch ?? [];
+      if (batch.some(row => row.user_id === 'test-account-a' && row.key_id === 'F')) {
+        uploadStarted = true;
+        await held;
+      }
+      await route.fallback();
+    });
+    try {
+      await earn(race.page, 'F');
+      await poll(() => uploadStarted);
+      await race.page.evaluate(() => window.testSwitchAccount('test-account-b'));
+      await race.page.waitForFunction(() => document.querySelector('#account-name').textContent === 'test-account-b');
+      await earn(race.page, 'F');
+    } finally {
+      releaseUpload();
+    }
+    await poll(() => cloud.progress.has('test-account-b:master-lick:F:passedKeys'));
+    assert.deepEqual(race.errors, []);
+    await race.context.close();
+    findings.push('PASS: an outstanding upload cannot suppress the next account’s pass');
     assert.deepEqual(a.errors, []);
     assert.deepEqual(c.errors, []);
     console.log(JSON.stringify(findings, null, 2));

@@ -179,6 +179,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
                 onConflict: "user_id,lesson_id,key_id,kind", ignoreDuplicates: true,
               });
               if (error) throw error;
+              if (version !== generation) return false;
               for (const row of chunk) syncedProgressKeys.add(progressKey(row));
             }
             if (version !== generation) return false;

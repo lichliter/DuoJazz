@@ -166,3 +166,42 @@ test('guest progress migration includes earned-key journal entries even when sna
   const claimed = claimGuestProgress('user-j', storage);
   assert.deepEqual(claimed, [{ user_id: 'user-j', lesson_id: 'master-lick', key_id: 'F', kind: 'passedKeys' }]);
 });
+
+test('Sextuplet Run upgrades minor-key snapshots, journals and remote rows exactly once', () => {
+  const learn = 'south-of-the-river-opening-learn';
+  const master = 'south-of-the-river-opening-master';
+  const account = 'duojazz-mastery-v1:sextuplet';
+  const snapshot = { schema: 2, lessons: { [learn]: { passedKeys: ['G'] } } };
+  const journal = [master, 'learnedKeys', 'C'];
+  const values = new Map([
+    [account, JSON.stringify(snapshot)],
+    [account + ':earned:' + encodeURIComponent(JSON.stringify(journal)), JSON.stringify(journal)],
+  ]);
+  const storage = {
+    get length() { return values.size; }, key: i => [...values.keys()][i],
+    getItem: key => values.get(key), setItem: (key, value) => values.set(key, value),
+  };
+  const original = globalThis.localStorage;
+  globalThis.localStorage = storage;
+  try {
+    setMasteryAccount('sextuplet');
+    const remote = [
+      { lesson_id: master, kind: 'passedKeys', key_id: 'G' },
+      { lesson_id: master, kind: 'passedKeys', key_id: 'invalid' },
+    ];
+    const current = recordQuizPass(mergeProgress(loadMastery(), remote), master, 'G');
+    saveMastery(current);
+    const restored = loadMastery();
+    assert.deepEqual(restored.lessons[learn].passedKeys, ['Bb']);
+    assert.deepEqual(restored.lessons[master], { passedKeys: ['Bb', 'G'], learnedKeys: ['Eb'] });
+    assert.deepEqual(restored.modules['south-of-the-river-opening'].masteredKeys.sort(), ['Bb', 'G']);
+    const uploaded = progressRows(restored, 'sextuplet');
+    assert.ok(uploaded.every(row => row.lesson_id.endsWith(':major')));
+    const fresh = mergeProgress(emptyMastery(), [...uploaded, ...remote, ...uploaded]);
+    assert.deepEqual(fresh.lessons[master], restored.lessons[master]);
+    assert.deepEqual(fresh.lessons[learn], restored.lessons[learn]);
+  } finally {
+    globalThis.localStorage = original;
+    setMasteryAccount(null);
+  }
+});
