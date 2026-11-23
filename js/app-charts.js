@@ -1,4 +1,3 @@
-import { chartGrid, chartKeyChoices } from "./charts.js";
 import { transposeToneKey } from "./chord-tones.js";
 import { closeSheet } from "./dialogs.js";
 import { compactChordSymbol, fillMusicLabel } from "./engrave.js";
@@ -61,7 +60,6 @@ export function renderChartGrid(host, grid) {
 
 /** Create the charts detail view and lick-application picker modal controller. */
 export function createChartsView({
-  els,
   getPrefs,
   getRotationLicks,
   currentChart,
@@ -112,7 +110,7 @@ export function createChartsView({
     dialog.showModal();
   }
 
-  function renderChartDetail() {
+  function renderCharts() {
     const tune = currentChart();
     const prefs = getPrefs();
     const lickRotation = getRotationLicks();
@@ -146,7 +144,7 @@ export function createChartsView({
     });
     const block = document.createElement("section");
     block.className = "module-block is-current";
-    block.append(moduleBanner({ ...parent, chart: true }), document.getElementById("view-chart"));
+    block.append(moduleBanner({ ...parent, chart: true }));
     const practice = document.createElement("section");
     practice.className = "lesson-section";
     const practiceHeading = document.createElement("h3");
@@ -204,25 +202,10 @@ export function createChartsView({
     block.append(practice, integrate);
     document.getElementById("chart-tree").replaceChildren(block);
     requestAnimationFrame(paintPathTrail);
-    const grid = chartGrid(tune, { instrumentId: prefs.instrumentId, concertKeyId: chartConcertKeyId });
-    document.getElementById("chart-heading-title").textContent = tune.title;
-    els.chartKeys.replaceChildren(...chartKeyChoices(tune.keyQuality, prefs.instrumentId).map((choice) => {
-      const option = document.createElement("option");
-      option.value = choice.id;
-      option.textContent = choice.label;
-      return option;
-    }));
-    els.chartKeys.value = chartConcertKeyId;
-    if (els.chartGrid) renderChartGrid(els.chartGrid, grid);
-  }
-
-  function renderCharts() {
-    renderChartDetail();
   }
 
   return {
     openChartApplications,
-    renderChartDetail,
     renderCharts,
   };
 }

@@ -1413,7 +1413,6 @@ function anyDialogOpen() {
     || els.settingsModal?.open
     || els.tempoModal?.open
     || els.chartKeyModal.open
-    || els.chartSheet?.open
     || document.getElementById("chart-applications")?.open
     || document.getElementById("application-charts")?.open,
   );
@@ -1724,11 +1723,8 @@ function renderSessionChrome() {
   const practice = isPracticeLesson(session.lessonId);
   if (els.sessionModule) els.sessionModule.textContent = moduleForLesson(session.lessonId).name;
   if (els.sessionTitle) fillMusicLabel(els.sessionTitle, sessionScreenTitle(session));
-  els.sessionKey.hidden = !practice && !session.sequence && !isTimedChart();
-  fillMusicLabel(els.sessionKey, session.sequence
-    ? `${lessonById(session.lessonId).context} · ${session.sequenceIndex + 1}/${session.sequence.length}`
-    : isTimedChart() ? `Master · ${session.tempo} bpm · from memory`
-    : applicationById(lessonById(session.lessonId).applicationId).label);
+  els.sessionKey.hidden = !practice;
+  fillMusicLabel(els.sessionKey, practice ? applicationById(lessonById(session.lessonId).applicationId).label : "");
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
   if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId) || isTimedChart();
@@ -2367,8 +2363,7 @@ function startChartTones(kind, chart = currentChart()) {
   startLesson(sequence[0].lessonId, { sequence, keyId: sequence[0].keyId });
 }
 
-const { openChartApplications, renderChartDetail, renderCharts } = createChartsView({
-  els,
+const { openChartApplications, renderCharts } = createChartsView({
   getPrefs: () => prefs,
   getRotationLicks: () => lickRotation,
   currentChart,
@@ -2830,21 +2825,6 @@ els.settingsModal?.addEventListener("click", (event) => {
   if (!inside) closeSettings();
 });
 document.querySelector('#chart-applications [data-close]').addEventListener('click', () => closeSheet(document.getElementById('chart-applications')));
-document.getElementById('view-chart').addEventListener('click', () => {
-  els.chartSheet.showModal();
-  els.chartSheet.querySelector('.chart-sheet-body').scrollTop = 0;
-});
-els.chartKeys.addEventListener('change', () => {
-  saveChartConcertKey(currentChart(), els.chartKeys.value);
-  renderChartDetail();
-  renderStorageNotice();
-});
-els.chartSheet.querySelector('[data-close]').addEventListener('click', () => closeSheet(els.chartSheet));
-els.chartSheet.addEventListener('click', event => {
-  if (event.target !== els.chartSheet) return;
-  const rect = els.chartSheet.getBoundingClientRect();
-  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeSheet(els.chartSheet);
-});
 
 els.settingsForm?.addEventListener("submit", (event) => event.preventDefault());
 window.addEventListener("popstate", () => {

@@ -239,7 +239,7 @@ export function fillMusicLabel(el, text) {
     || el.id === "chart-heading-meta"
     || el.id === "celebrate-key"
     || el.id === "key-order-preview"
-    || (typeof el.closest === "function" && el.closest("#chart-keys, #setup-keys"));
+    || (typeof el.closest === "function" && el.closest("#setup-keys"));
   el.classList?.toggle("music-label", Boolean(surface) || ACCIDENTAL.test(value));
 }
 

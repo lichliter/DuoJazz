@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MY_CHARTS_KEY } from "./practice-catalog.js";
-import { chartGrid, chartKeyChoices } from "./charts.js";
+import { chartGrid } from "./charts.js";
 import { chorusChords, getKey } from "./music.js";
 import { compactChordSymbol } from "./engrave.js";
+import { startStaticServer } from "../tools/dev-server.mjs";
 import { findChromium } from "../tools/lib/browser-harness.mjs";
 
 function chromeBin() {
@@ -60,7 +61,7 @@ const MEASURE = `(() => {
           groups.set(host, chars);
         }
         const text = node.textContent ?? "";
-        const fontSize = parseFloat(style.fontSize) || 16;
+        const fontSize = parseFloat(getComputedStyle(node.parentElement).fontSize) || 16;
         for (let i = 0; i < text.length; i += 1) {
           const rect = rectOf(node, i);
           if (!rect || (rect.width === 0 && rect.height === 0)) continue;
@@ -85,6 +86,7 @@ const MEASURE = `(() => {
           gapPx: Math.round(gapPx * 100) / 100,
           gapEm: Math.round((gapPx / fontSize) * 1000) / 1000,
           dTopEm: Math.round(((item.rect.top - neighbor.rect.top) / fontSize) * 1000) / 1000,
+          mixedSizes: item.fontSize !== neighbor.fontSize,
           dBotEm: Math.round(((item.rect.bottom - neighbor.rect.bottom) / fontSize) * 1000) / 1000,
           space: space.test(neighbor.ch),
           chord: item.chord,
@@ -93,11 +95,10 @@ const MEASURE = `(() => {
       }
     });
   }
-  const sample = document.querySelector(".chord-symbol, #chart-keys .music-label, .harm");
+  const sample = document.querySelector(".chord-symbol, .harm");
   return {
     fontReady: document.fonts.check('700 16px "DuoJazz Music"') && document.fonts.check('400 16px "DuoJazz Music"'),
     family: sample ? getComputedStyle(sample).fontFamily : "",
-    chips: [...document.querySelectorAll("#chart-keys option")].map((el) => el.textContent),
     chords: [...document.querySelectorAll(".chord-symbol")].map((el) => el.textContent),
     harms: [...document.querySelectorAll(".harm")].map((el) => (el.textContent ?? "").replace(/\\s+/g, "")),
     sessionKey: document.querySelector("#session-key")?.textContent ?? "",
@@ -135,29 +136,24 @@ function connect(wsUrl) {
   return { send, close: () => ws.close() };
 }
 
-async function waitForJson(url) {
+async function waitForChromeTargets(profile) {
   const started = Date.now();
   while (Date.now() - started < 15000) {
     try {
-      const response = await fetch(url);
+      const [port] = (await readFile(join(profile, "DevToolsActivePort"), "utf8")).split("\n");
+      const response = await fetch(`http://127.0.0.1:${port}/json/list`);
       if (response.ok) return response.json();
     } catch {
       // Chrome is still booting.
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(`No Chrome debugging target at ${url}`);
+  throw new Error("Chrome did not expose debugging targets");
 }
 
 test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chrome is not available", timeout: 180000 }, async () => {
-  const port = 8766;
-  const debugPort = 9344;
-  const root = new URL("..", import.meta.url);
   const profile = await mkdtemp(join(tmpdir(), "duojazz-gap-"));
-  const server = spawn("python3", ["-m", "http.server", String(port), "--bind", "127.0.0.1"], {
-    cwd: root,
-    stdio: "ignore",
-  });
+  const server = await startStaticServer({ host: "127.0.0.1", port: 0, liveReload: false });
   const chrome = spawn(chromeBin(), [
     "--headless=new",
     "--disable-gpu",
@@ -165,7 +161,7 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
     "--disable-dev-shm-usage",
     "--hide-scrollbars",
     `--user-data-dir=${profile}`,
-    `--remote-debugging-port=${debugPort}`,
+    "--remote-debugging-port=0",
     "--remote-allow-origins=*",
     "about:blank",
   ], { stdio: "ignore" });
@@ -173,7 +169,7 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
   if (shots) mkdirSync(shots, { recursive: true });
   let client;
   try {
-    const targets = await waitForJson(`http://127.0.0.1:${debugPort}/json/list`);
+    const targets = await waitForChromeTargets(profile);
     const page = targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl);
     assert.ok(page, "Chrome did not expose a page target");
     client = connect(page.webSocketDebuggerUrl);
@@ -182,21 +178,18 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
     await client.send("Page.addScriptToEvaluateOnNewDocument", {
       source: `localStorage.setItem(${JSON.stringify(MY_CHARTS_KEY)}, JSON.stringify(["blue-bossa", "recordame"]));`,
     });
-    const base = `http://127.0.0.1:${port}`;
     const pages = [
       {
         name: "blue-bossa-chart",
         path: "/?tab=charts&tune=blue-bossa",
-        ready: `document.querySelector("#chart-heading-title")?.textContent === "Blue Bossa" && document.querySelectorAll("#chart-keys option").length === 12 && document.querySelectorAll(".chord-symbol").length > 0`,
+        ready: `document.querySelector("#session-module")?.textContent === "Blue Bossa" && document.querySelector("#session-chart-grid .chord-symbol") !== null`,
         shot: true,
-        expectChips: chartKeyChoices("minor").map((choice) => choice.label),
         expectChords: chartGrid("blue-bossa").rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
       },
       {
         name: "recordame-chart",
         path: "/?tab=charts&tune=recordame",
-        ready: `document.querySelector("#chart-heading-title")?.textContent === "Recordame" && document.querySelectorAll("#chart-keys option").length === 12 && document.querySelectorAll(".chord-symbol").length > 0`,
-        expectChips: chartKeyChoices("minor").map((choice) => choice.label),
+        ready: `document.querySelector("#session-module")?.textContent === "Recordame" && document.querySelector("#session-chart-grid .chord-symbol") !== null`,
         expectChords: chartGrid("recordame").rows.flatMap((row) => row.bars.flatMap((bar) => bar.chords.map((chord) => chord.name))),
       },
       {
@@ -226,7 +219,8 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
         mobile: viewport.width < 700,
       });
       for (const spec of pages) {
-        await client.send("Page.navigate", { url: `${base}${spec.path}` });
+        const navigation = await client.send("Page.navigate", { url: new URL(spec.path, server.url).href });
+        assert.equal(navigation.errorText, undefined, spec.name);
         const started = Date.now();
         let ready = false;
         while (Date.now() - started < 40000) {
@@ -236,6 +230,9 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
               if (document.querySelector("#app-shell")?.hidden) {
                 document.querySelector("#account-view-guest")?.click();
                 return false;
+              }
+              if (${Boolean(spec.expectChords)} && document.querySelector("#app-shell")?.dataset.screen === "home") {
+                document.querySelector("#chart-tree .sleeve-node")?.click();
               }
               return ${spec.ready};
             })()`,
@@ -248,9 +245,6 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
           await new Promise((resolve) => setTimeout(resolve, 250));
         }
         assert.equal(ready, true, `${spec.name} at ${viewport.width}x${viewport.height} did not render`);
-        if (spec.expectChords) {
-          await client.send("Runtime.evaluate", { expression: 'document.querySelector("#view-chart").click()' });
-        }
         await client.send("Runtime.evaluate", {
           expression: `Promise.all([document.fonts.load('400 16px "DuoJazz Music"'), document.fonts.load('700 16px "DuoJazz Music"'), document.fonts.ready])`,
           awaitPromise: true,
@@ -264,7 +258,6 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
         const value = measured.result.value;
         assert.equal(value.fontReady, true, `${spec.name} DuoJazz Music did not load`);
         assert.match(value.family, /DuoJazz Music/, `${spec.name} computed family ${value.family}`);
-        if (spec.expectChips) assert.deepEqual(value.chips, spec.expectChips, spec.name);
         if (spec.expectChords) {
           assert.equal(sameCounts(value.chords, spec.expectChords), true, `${spec.name} chords ${value.chords.join(" | ")}`);
         }
@@ -279,7 +272,8 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
           gaps.push({ ...gap, page: spec.name, viewport: `${viewport.width}x${viewport.height}` });
           assert.equal(gap.gapPx >= -0.75, true, `${spec.name} ${gap.sample} ${gap.pair} overlaps by ${gap.gapPx}px`);
           assert.equal(gap.gapEm <= 0.15, true, `${spec.name} ${gap.sample} ${gap.pair} gap ${gap.gapEm}em`);
-          assert.equal(Math.abs(gap.dTopEm) <= 0.15, true, `${spec.name} ${gap.sample} ${gap.pair} vertical ${gap.dTopEm}em`);
+          const verticalGap = gap.mixedSizes ? gap.dBotEm : gap.dTopEm;
+          assert.equal(Math.abs(verticalGap) <= 0.15, true, `${spec.name} ${gap.sample} ${gap.pair} vertical ${verticalGap}em`);
           if (gap.chord) assert.equal(gap.space, false, `${spec.name} chord ${gap.sample} has a space beside ${gap.pair}`);
         }
         if (shots && spec.shot) {
@@ -296,6 +290,6 @@ test("rendered accidentals keep a 0 to 0.15em gap", { skip: !chromeBin() && "Chr
   } finally {
     client?.close();
     chrome.kill("SIGTERM");
-    server.kill("SIGTERM");
+    await server.close();
   }
 });
