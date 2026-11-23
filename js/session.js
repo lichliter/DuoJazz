@@ -843,6 +843,7 @@ export function createSession({
   guideTones = true,
   studyMode = "learn",
   keyIds = null,
+  passedKeys = [],
   rng = Math.random,
 } = {}) {
   const lesson = lessonById(lessonId);
@@ -851,9 +852,12 @@ export function createSession({
   const resolvedMode = cycling ? cycleModeId(keyMode) : keyModeById(keyMode).id;
   const useMajor = Boolean(majorKeyId) && (lesson.kind === "learn" || lesson.kind === "master");
   const subset = cycling && Array.isArray(keyIds) ? keyIds : null;
-  const keyQueue = useMajor
+  const activeKeyQueue = useMajor
     ? lickKeyQueue(resolvedMode, majorKeyId, applicationKeyQuality(lesson.applicationId), rng, subset)
     : subset ? selectedMajorQueue(resolvedMode, startKeyId, subset, rng) : buildKeyQueue(resolvedMode, startKeyId, rng);
+  // Saved passes use concert tonics, so filter after mapping the active major keys.
+  const pendingKeys = cycling ? activeKeyQueue.filter((id) => !passedKeys.includes(id)) : [];
+  const keyQueue = pendingKeys.length ? pendingKeys : activeKeyQueue;
   const resolvedStart = normalizeKeyId(keyQueue[0] ?? startKeyId);
   const instrument = instrumentOrDefault(instrumentId);
   return {

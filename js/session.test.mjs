@@ -907,6 +907,38 @@ test("next-module link follows last lesson wrap-up and completed module home", (
   assert.equal(wrapBookEnd.id, lastEmpty.id);
 });
 
+test("cycles prioritize unpassed concert tonics within the active set", () => {
+  const custom = {
+    ...defaultPrefs(),
+    allKeys: false,
+    keyMode: "fourths",
+    startKeyId: "Bb",
+    selectedKeyIds: ["Bb", "F", "Eb"],
+  };
+  const learn = sessionCreateArgs("learn-lick", custom);
+  const remaining = createSession({ ...learn, passedKeys: ["G", "Bb"] });
+  assert.deepEqual(remaining.keyQueue, ["C", "D"]);
+  assert.equal(remaining.startKeyId, "C");
+  assert.deepEqual(createSession({ ...learn, passedKeys: ["G", "D", "C"] }).keyQueue, ["G", "C", "D"]);
+
+  const master = sessionCreateArgs("gts-master", custom);
+  const single = createSession({ ...master, passedKeys: ["Bb", "F"] });
+  assert.deepEqual(single.keyQueue, ["Eb"]);
+  assert.equal(skipCard(single).screen, "wrapup");
+
+  for (const keyMode of ["fourths", "chromatic", "random"]) {
+    const plan = sessionCreateArgs("master-lick", { ...defaultPrefs(), keyMode });
+    const active = createSession({ ...plan, rng: () => 0 }).keyQueue;
+    const passedKeys = active.slice(0, 4);
+    assert.deepEqual(createSession({ ...plan, passedKeys, rng: () => 0 }).keyQueue, active.slice(4));
+    assert.deepEqual(createSession({ ...plan, passedKeys: active, rng: () => 0 }).keyQueue, active);
+  }
+
+  const chartLesson = LESSONS.find((lesson) => lesson.chartId && lesson.kind === "learn");
+  const chart = sessionCreateArgs(chartLesson.id, custom);
+  assert.deepEqual(createSession({ ...chart, passedKeys: [chart.startKeyId] }).keyQueue, [chart.startKeyId]);
+});
+
 test("all-keys stays the full cycle and a custom set follows the starting key", () => {
   const prefs = defaultPrefs();
   assert.equal(prefs.allKeys, true);

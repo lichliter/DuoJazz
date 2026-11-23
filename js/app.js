@@ -1037,14 +1037,13 @@ function startLesson(lessonId, options = {}) {
   setupLessonId = lesson.id;
   const plan = { ...lessonSessionPlan(lesson.id, prefs), ...(options.keyId ? { startKeyId: options.keyId, majorKeyId: null } : {}) };
   halt();
-  prefs = markLessonStarted(prefs, lesson.id, plan.startKeyId);
-  persist();
   const next = createSession({
     lessonId: lesson.id,
     keyMode: plan.keyMode,
     startKeyId: plan.startKeyId,
     majorKeyId: plan.majorKeyId,
     keyIds: plan.keyIds,
+    passedKeys: lessonPassedKeys(mastery, lesson.id),
     tempo: lessonTempo(prefs, lesson.id),
     melodyRegister: prefs.lessons[lesson.id]?.melodyRegister ?? 0,
     instrumentId: prefs.instrumentId,
@@ -1052,6 +1051,7 @@ function startLesson(lessonId, options = {}) {
     metronome: prefs.metronome,
     guideTones: prefs.guideTones,
   });
+  prefs = markLessonStarted(prefs, lesson.id, next.startKeyId);
   if (options.sequence) { next.sequence = options.sequence; next.sequenceIndex = 0; }
   next.startVinylTier = sessionVinylTier(next, mastery);
   applySession(next);
@@ -2954,6 +2954,7 @@ window.__DUOJAZZ__ = {
       metronome: prefs.metronome,
       guideTones: prefs.guideTones,
       tempo: lessonTempo(prefs, lessonId),
+      passedKeys: lessonPassedKeys(mastery, planned.lessonId),
       ...options,
       ...planned,
     }));
