@@ -150,22 +150,19 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
       const session = createSession({ lessonId });
       const config = demoAudioConfig(session);
       const model = livePlaybackEvents(config).filter(event => event.type === 'melody');
-      nearList(model.slice(0, block.to - block.from).map(event => event.durationBeats), originalDurations.slice(block.from, block.to));
+      nearList(model.slice(0, block.to - block.from).map(event => event.durationBeats), durations.slice(block.from, block.to));
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(event => event.type !== 'melody'));
     }
     assert.equal(chorusChords(getKey(block.defaultKeyId), 'concert', group.exampleLessonId)[0].name, 'Gm7');
     const [variant] = PRACTICE_CATALOG.definitions.find(definition => definition.lickId === block.id && definition.id === 'minor-home').variants;
     const root = variant.pattern[0].root;
-    const form = (quality, durationBeats) => ({ bars: [{ chords: [
-      { intervalFromTonic: root, quality, durationBeats },
-      { intervalFromTonic: (root + 5) % 12, quality: 'minor7', durationBeats: 4 - durationBeats },
-    ] }] });
+    const form = (quality, durationBeats) => ({ bars: [{ chords: [{ intervalFromTonic: root, quality, durationBeats }] }] });
     const startsOnBeatOne = (quality, duration) =>
       matchApplication(form(quality, duration), variant).some(spot => spot.beatOffset === 0);
-    assert.equal(startsOnBeatOne('minor7', 3), true);
+    assert.equal(startsOnBeatOne('minor7', block.offset === 0 ? 4 : 6), true);
     assert.equal(startsOnBeatOne('minor7', 1.5), false);
-    assert.equal(startsOnBeatOne('minormaj7', 3), false);
-    assert.equal(startsOnBeatOne('minor7', 2), block.offset === 0);
+    assert.equal(startsOnBeatOne('minormaj7', block.offset === 0 ? 4 : 6), false);
+    assert.equal(startsOnBeatOne('minor7', block.offset === 0 ? 3.5 : 5.5), false);
   }
   const openingApps = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river-opening');
   assert.deepEqual(openingApps.map(g => g.id), [
@@ -187,8 +184,8 @@ test('Both building blocks have a Minor home vamp and extra applications matchin
     'south-of-the-river-climb-and-landing:minor-ii-v',
     'south-of-the-river-climb-and-landing:major-home',
   ]);
-  assert.ok(landingApps[1].choices.some(c => c.chartId === 'oleo'));
-  assert.ok(landingApps[2].choices.some(c => c.chartId === 'autumn-leaves'));
+  assert.ok(landingApps[1].choices.some(c => c.chartId === 'tune-up'));
+  assert.ok(landingApps[2].choices.some(c => c.chartId === 'take-the-a-train'));
 });
 
 test('South of the River notation and model agree in all keys, on both horns, with lead-only octave shifts', () => {
@@ -242,37 +239,40 @@ test('South of the River Learn and Master grade the 17-note phrase and reject wr
 test('South of the River integrations have valid vamps, real charts, and matching audio/notation', () => {
   assert.deepEqual(groups.map(g => g.label), ['Minor i → iv', 'Minor home', 'Major I → IV', 'Minor ii → V']);
   const expected = {
-    'south-of-the-river:minor-i-iv': { chords: ['Gm7', 'Cm7'], chartId: 'blue-bossa', bar: 2, anchor: 0 },
-    'south-of-the-river:minor-home': { chords: ['Gm7', 'Gm7'], chartId: 'so-what', bar: 1, anchor: 0 },
-    'south-of-the-river:major-i-iv': { chords: ['B♭maj7', 'E♭maj7'], chartId: 'autumn-leaves', bar: 3, anchor: 0 },
-    'south-of-the-river:minor-ii-v': { chords: ['Gm7', 'C7'], chartId: 'tune-up', bar: 5, anchor: 0 },
+    'south-of-the-river:minor-i-iv': { chords: ['Gm7', 'Gm7', 'Cm7'], chartId: 'blue-bossa', bar: 1, anchor: 0 },
+    'south-of-the-river:minor-home': { chords: ['Gm7', 'Gm7', 'Gm7'], chartId: 'so-what', bar: 1, anchor: 0 },
+    'south-of-the-river:major-i-iv': { chords: ['B♭maj7', 'B♭maj7', 'E♭maj7'] },
+    'south-of-the-river:minor-ii-v': { chords: ['Gm7', 'Gm7', 'C7'] },
   };
   for (const group of groups) {
     const spec = expected[group.id];
     const form = formById(applicationById(group.exampleLessonId).formId);
     assert.equal(form.bars.length, 8);
-    assert.deepEqual(chorusChords(getKey('G'), 'concert', group.exampleLessonId).slice(0, 2).map(c => c.name), spec.chords);
+    assert.deepEqual(chorusChords(getKey('G'), 'concert', group.exampleLessonId).slice(0, 3).map(c => c.name), spec.chords);
     assert.doesNotMatch(form.source + form.title, /Workbook|undefined/);
     const choice = group.choices.find(c => c.chartId === spec.chartId);
-    assert.ok(choice, `${group.id} ${spec.chartId}`);
-    assert.ok(spotsFor(choice.lessonId).some(s => s.bar === spec.bar && ((s.anchorInterval % 12) + 12) % 12 === spec.anchor));
-    for (const lessonId of [group.exampleLessonId, choice.lessonId]) {
+    if (spec.chartId) {
+      assert.ok(choice, `${group.id} ${spec.chartId}`);
+      assert.ok(spotsFor(choice.lessonId).some(s => s.bar === spec.bar && ((s.anchorInterval % 12) + 12) % 12 === spec.anchor));
+    } else {
+      assert.equal(group.choices.length, 0);
+    }
+    for (const lessonId of [group.exampleLessonId, ...group.choices.map(c => c.lessonId)]) {
       const session = createSession({ lessonId, startKeyId: 'G', swing: false });
       const config = demoAudioConfig(session);
       const model = livePlaybackEvents(config).filter(e => e.type === 'melody');
       const notes = phraseNotes(config.concertKey, config.displayMode, config.applicationId, config.melodyRegister);
       assert.deepEqual(model.map(e => e.midi), notes.map(n => n.concertMidi));
       nearList(model.map(e => e.beat), notes.map(n => n.startBeat));
-      nearList(model.slice(0, originalDurations.length).map(e => e.durationBeats), originalDurations);
-      assert.ok(model.slice(0, -1).filter(e => e.durationBeats < 1).every(e => e.swing === false));
+      nearList(model.slice(0, durations.length).map(e => e.durationBeats), durations);
+      assert.ok(model.slice(0, durations.length).filter(e => e.durationBeats === 0.5).every(e => e.swing === true));
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(e => e.type !== 'melody'));
       const mei = chorusStaffMEI({ concertKey: getKey('G'), displayMode: 'concert', applicationId: config.applicationId, mode: 'landing' });
       assert.doesNotMatch(mei, /accid="(?:ss|ff)"/);
     }
   }
-  const leavesChoice = groups.find(g => g.id === 'south-of-the-river:major-i-iv').choices.find(c => c.chartId === 'autumn-leaves');
   assert.deepEqual(
-    phraseNotes(getKey('G'), 'concert', leavesChoice.lessonId).map(n => n.concertName),
+    phraseNotes(getKey('G'), 'concert', groups.find(g => g.id === 'south-of-the-river:major-i-iv').exampleLessonId).map(n => n.concertName),
     ['E3', 'F3', 'A3', 'C4', 'A3', 'B♭3', 'D4', 'F4', 'D4', 'E♭4', 'G4', 'B♭4', 'D5', 'D♭5', 'C5', 'B4', 'B♭4'],
   );
 });
@@ -285,19 +285,22 @@ test('South of the River matching rejects short durations, wrong roots, and conf
   const chord = (root, quality, durationBeats = 4) => ({ intervalFromTonic: root, quality, durationBeats });
   const form = (...bars) => ({ bars: bars.map(chords => ({ chords })) });
 
-  assert.equal(matchApplication(form([chord(0, 'minor7')], [chord(5, 'minor7')]), minorIIv).length, 1);
-  assert.equal(matchApplication(form([chord(0, 'minor7')]), minorIIv).length, 0);
-  assert.equal(matchApplication(form([chord(0, 'minor7')], [chord(7, 'minor7')]), minorIIv).length, 0);
-  assert.equal(matchApplication(form([chord(0, 'minormaj7')], [chord(5, 'minor7')]), minorIIv).length, 0);
-  assert.equal(matchApplication(form([chord(0, 'minor6')], [chord(5, 'minor7')]), minorIIv).length, 0);
+  const minor = [chord(0, 'minor7')];
+  const major = [chord(0, 'major7')];
+  assert.equal(matchApplication(form(minor, minor, [chord(5, 'minor7')]), minorIIv).length, 1);
+  assert.equal(matchApplication(form(minor, [chord(5, 'minor7')]), minorIIv).length, 0);
+  assert.equal(matchApplication(form(minor, minor, [chord(7, 'minor7')]), minorIIv).length, 0);
+  assert.equal(matchApplication(form(minor, minor, [chord(5, 'minor7', 1), chord(7, 'minor7', 3)]), minorIIv).length, 0);
+  assert.equal(matchApplication(form([chord(0, 'minormaj7')], minor, [chord(5, 'minor7')]), minorIIv).length, 0);
+  assert.equal(matchApplication(form([chord(0, 'minor6')], minor, [chord(5, 'minor7')]), minorIIv).length, 0);
 
-  assert.equal(matchApplication(form([chord(0, 'minor7')], [chord(0, 'minor7')]), minorHome).length, 1);
-  assert.equal(matchApplication(form([chord(0, 'minor7')]), minorHome).length, 0);
-  assert.equal(matchApplication(form([chord(0, 'minorb6')], [chord(0, 'minorb6')]), minorHome).length, 0);
+  assert.equal(matchApplication(form(minor, minor, minor), minorHome).length, 1);
+  assert.equal(matchApplication(form(minor, minor), minorHome).length, 0);
+  assert.equal(matchApplication(form(minor, minor, [chord(0, 'minorb6')]), minorHome).length, 0);
 
-  assert.equal(matchApplication(form([chord(0, 'major7')], [chord(5, 'major7')]), majorIIv).length, 1);
-  assert.equal(matchApplication(form([chord(0, 'major7b5')], [chord(5, 'major7')]), majorIIv).length, 0);
-  assert.equal(matchApplication(form([chord(0, 'major7')]), majorIIv).length, 0);
+  assert.equal(matchApplication(form(major, major, [chord(5, 'major7')]), majorIIv).length, 1);
+  assert.equal(matchApplication(form(major, [chord(0, 'major7b5')], [chord(5, 'major7')]), majorIIv).length, 0);
+  assert.equal(matchApplication(form(major, major), majorIIv).length, 0);
 });
 
 test('Verovio 6.3.0 renders South of the River MEI cleanly with sextuplet bracket and rest', async () => {

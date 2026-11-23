@@ -53,23 +53,23 @@
   "applications": [
     {
       "id": "minor-i-iv",
-      "pattern": "Two bars moving from i7 to iv7; example uses Gm7 then Cm7.",
-      "matching": "minor7, minor11, or minor for 4 beats on i followed by 4 beats on iv."
+      "pattern": "Two bars of i7 then one bar of iv7; example uses Gm7 then Cm7.",
+      "matching": "minor7, minor11, or minor for 8 beats on i followed by at least 2 beats on iv."
     },
     {
       "id": "minor-home",
-      "pattern": "Two full bars over static minor seventh; example uses Gm7.",
-      "matching": "minor7, minor11, or minor for 8 continuous beats."
+      "pattern": "Three bars over static minor seventh; example uses Gm7.",
+      "matching": "minor7, minor11, or minor for at least 10 continuous beats."
     },
     {
       "id": "major-i-iv",
       "pattern": "Same shapes shifted to the relative major I → IV (B♭maj7 → E♭maj7 in G minor).",
-      "matching": "Major7 or major6 for 4 beats on I followed by 4 beats on IV."
+      "matching": "Major7 or major6 for 8 beats on I followed by at least 2 beats on IV."
     },
     {
       "id": "minor-ii-v",
-      "pattern": "Two bars moving from ii7 to V7 (Gm7 → C7 in G minor), landing on the flat seventh guide tone of V7.",
-      "matching": "minor7, minor11, or minor for 4 beats on ii followed by 4 beats on V dominant."
+      "pattern": "Two bars of ii7 then one bar of V7 (Gm7 → C7 in G minor), landing on the flat seventh guide tone of V7.",
+      "matching": "minor7, minor11, or minor for 8 beats on ii followed by at least 2 beats on V dominant."
     }
   ],
   "buildingBlocks": [
@@ -91,7 +91,7 @@
     }
   ],
   "halfTimePractice": {
-    "appliesTo": "Learn and Master for the full phrase and both building blocks. Integrate uses the original rhythm and chart placements.",
+    "appliesTo": "Learn, Master, and Integrate for the full phrase and both building blocks. Integrate chart placements require enough compatible harmony to sustain the half-time phrase.",
     "durationMultiplier": 2,
     "entrance": "The opening rest and E–F–A–C form an evenly spaced eighth-note sextuplet across beats 1–2. The eighths from beat 3 follow the Swing eighths setting.",
     "learnHarmony": "Two bars of Gm7 then one of Cm7. Half-note B♭ lands on bar 3 beat 1.",

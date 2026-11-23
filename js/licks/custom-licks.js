@@ -82,11 +82,10 @@ const southBlocks = [
     keyQuality: "major",
     defaultKeyId: "Bb",
     context: "Major · Half-time practice",
-    originalElements: [...southOpeningMajor, R(2)],
     elements: halfTimeOpeningMajor,
     bars: [southMajorTonicBar],
     summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
-    practiceDefinitions(originalElements) {
+    practiceDefinitions(elements) {
       return [
         {
           id: "lydian-major",
@@ -95,7 +94,7 @@ const southBlocks = [
           source: `${southSource} · Sextuplet Run Lydian practice`,
           exampleTitle: "Major tonic vamp",
           pattern: [{ root: 0, family: "major", beats: 4, qualities: southLydianMajorQualities, quality: "major7" }],
-          elements: originalElements,
+          elements,
         },
         {
           id: "minor-home",
@@ -104,7 +103,7 @@ const southBlocks = [
           source: `${southSource} · Sextuplet Run practice`,
           exampleTitle: "Minor tonic vamp",
           pattern: [{ root: 9, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
-          elements: originalElements,
+          elements,
         },
         {
           id: "dominant-sus",
@@ -113,7 +112,7 @@ const southBlocks = [
           source: `${southSource} · Sextuplet Run dominant practice`,
           exampleTitle: "Dominant sus vamp",
           pattern: [{ root: 2, family: "dominant", beats: 4, qualities: ["dominant7", "dominant9", "dominant7sus"], quality: "dominant7sus" }],
-          elements: originalElements,
+          elements,
         },
         {
           id: "major-home",
@@ -122,7 +121,7 @@ const southBlocks = [
           source: `${southSource} · Sextuplet Run major practice`,
           exampleTitle: "Major tonic vamp",
           pattern: [{ root: 7, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
-          elements: originalElements,
+          elements,
         },
       ];
     },
@@ -131,24 +130,23 @@ const southBlocks = [
     id: `${southId}-climb-and-landing`,
     name: "Chromatic Landing",
     blockBeats: "Bar 2 plus resolution",
-    originalElements: [...southLanding, R(1)],
     elements: halfTimeLanding,
     bars: [southTonicBar, southLandingBar],
     summary: "Swing the eighths through the climb and chromatic descent, then land on the next downbeat.",
     minorHomeDescription: "Climb from the fifth, then descend chromatically to the minor third over the same chord.",
-    extraPracticeDefinitions(originalElements) {
+    extraPracticeDefinitions(elements) {
       return [
         {
           id: "minor-ii-v",
-          label: "Half-bar ii → V",
-          description: "Climb over two beats of ii7, walk down chromatically, and land on the flat seventh guide tone of V7.",
+          label: "ii → V",
+          description: "Climb and walk down chromatically over ii7, then land on the flat seventh guide tone of V7.",
           source: `${southSource} · Chromatic Landing ii–V practice`,
-          exampleTitle: "Half-bar ii → V vamp",
+          exampleTitle: "ii → V vamp",
           pattern: [
-            { root: 0, family: "minor", beats: 2, qualities: southMinorQualities, quality: "minor7" },
-            { root: 5, family: "dominant", beats: 2, qualities: southDomQualities, quality: "dominant7" },
+            { root: 0, family: "minor", beats: 4, qualities: southMinorQualities, quality: "minor7" },
+            { root: 5, family: "dominant", beats: 4, qualities: southDomQualities, quality: "dominant7" },
           ],
-          elements: originalElements,
+          elements,
         },
         {
           id: "major-home",
@@ -156,8 +154,8 @@ const southBlocks = [
           description: "Walk down chromatically from the major third through the flat third and second to land on the tonic root.",
           source: `${southSource} · Chromatic Landing major practice`,
           exampleTitle: "Major tonic vamp",
-          pattern: [{ root: 3, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
-          elements: originalElements,
+          pattern: [{ root: 3, family: "major", beats: 8, qualities: southMajorQualities, quality: "major7" }],
+          elements,
         },
       ];
     },
@@ -171,7 +169,6 @@ function southBlockEntry({
   keyQuality = "minor",
   defaultKeyId = "G",
   context = "Minor · Half-time practice",
-  originalElements,
   elements,
   bars,
   summary,
@@ -210,16 +207,16 @@ function southBlockEntry({
         exampleTitle: def.exampleTitle,
         variants: [{
           id: "original",
-          label: "Original",
+          label: "Half-time",
           elements: def.elements,
           pickupBeats: 0,
           pattern: def.pattern,
         }],
       });
       if (practiceDefinitions) {
-        return practiceDefinitions(originalElements).map(toVariantDef);
+        return practiceDefinitions(elements).map(toVariantDef);
       }
-      const extras = (extraPracticeDefinitions?.(originalElements) ?? []).map(toVariantDef);
+      const extras = (extraPracticeDefinitions?.(elements) ?? []).map(toVariantDef);
       return [{
         lickId: id,
         id: "minor-home",
@@ -228,8 +225,8 @@ function southBlockEntry({
         source: `${southSource} · ${name} practice`,
         exampleTitle: "Minor tonic vamp",
         variants: [{
-          id: "original", label: "Original", elements: originalElements, pickupBeats: 0,
-          pattern: [{ root: 0, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
+          id: "original", label: "Half-time", elements, pickupBeats: 0,
+          pattern: [{ root: 0, family: "minor", beats: 8, qualities: ["minor7", "minor11"], quality: "minor7" }],
         }],
       }, ...extras];
     },
@@ -562,10 +559,10 @@ export const CUSTOM_LICKS = [
     },
     practiceDefinitions() {
       const source = southSource;
-      const elements = [...southOpening, ...southLanding, R(3)];
+      const elements = [...halfTimeOpening, ...halfTimeLanding];
       const variant = (pattern) => ({
         id: "original",
-        label: "Original",
+        label: "Half-time",
         pattern,
         elements,
         pickupBeats: 0,
@@ -581,7 +578,7 @@ export const CUSTOM_LICKS = [
           source: `${source} · minor i → iv practice`,
           exampleTitle: "Minor i → iv vamp",
           variants: [variant([
-            { root: 0, family: "minor", beats: 4, qualities: minorQualities, quality: "minor7" },
+            { root: 0, family: "minor", beats: 8, qualities: minorQualities, quality: "minor7" },
             { root: 5, family: "minor", beats: 4, qualities: minorQualities, quality: "minor7" },
           ])],
         },
@@ -589,11 +586,11 @@ export const CUSTOM_LICKS = [
           lickId: "south-of-the-river",
           id: "minor-home",
           label: "Minor home",
-          description: "Stay over two bars of static minor seventh, starting the descent on the fifth and resolving on the minor third.",
+          description: "Stay over three bars of static minor seventh, starting the descent on the fifth and resolving on the minor third.",
           source: `${source} · static minor practice`,
           exampleTitle: "Minor tonic vamp",
           variants: [variant([
-            { root: 0, family: "minor", beats: 8, qualities: minorQualities, quality: "minor7" },
+            { root: 0, family: "minor", beats: 12, qualities: minorQualities, quality: "minor7" },
           ])],
         },
         {
@@ -604,7 +601,7 @@ export const CUSTOM_LICKS = [
           source: `${source} · major I → IV practice`,
           exampleTitle: "Major I → IV vamp",
           variants: [variant([
-            { root: 3, family: "major", beats: 4, qualities: majorQualities, quality: "major7" },
+            { root: 3, family: "major", beats: 8, qualities: majorQualities, quality: "major7" },
             { root: 8, family: "major", beats: 4, qualities: majorQualities, quality: "major7" },
           ])],
         },
@@ -616,7 +613,7 @@ export const CUSTOM_LICKS = [
           source: `${source} · ii–V practice`,
           exampleTitle: "Minor ii → V vamp",
           variants: [variant([
-            { root: 0, family: "minor", beats: 4, qualities: minorQualities, quality: "minor7" },
+            { root: 0, family: "minor", beats: 8, qualities: minorQualities, quality: "minor7" },
             { root: 5, family: "dominant", beats: 4, qualities: southDomQualities, quality: "dominant7" },
           ])],
         },
