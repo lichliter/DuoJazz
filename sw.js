@@ -1,4 +1,4 @@
-/* A release is installed atomically. Updates wait for old tabs to close. */
+/* A release is installed atomically. Settings can activate a waiting update. */
 importScripts('./precache.js');
 const PREFIX = `duojazz-app:${self.registration.scope}:`;
 const CACHE = PREFIX + PRECACHE_VERSION;
@@ -8,6 +8,9 @@ self.addEventListener('install', event => {
     const cache = await caches.open(CACHE);
     await cache.addAll([...urls].map(url => new Request(url, { cache: 'reload' })));
   })());
+});
+self.addEventListener('message', event => {
+  if (event.data === 'ACTIVATE_UPDATE') event.waitUntil(self.skipWaiting());
 });
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
