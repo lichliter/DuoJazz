@@ -2450,6 +2450,10 @@ button.module-banner {
   margin-inline-end: auto;
 }
 
+.auto-switch:not([hidden]) + .note-names-switch {
+  margin-inline-start: 8px;
+}
+
 .auto-toggle {
   width: 51px;
   min-width: 51px;
