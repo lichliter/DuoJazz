@@ -93,15 +93,31 @@ test("chart selection survives reload and safely handles malformed or blocked st
   assert.deepEqual(loadMyCharts(charts, { getItem: () => { throw Error("blocked"); } }), []);
 });
 
-test("Minor Rise and Return has playable chart integration and a correctly attributed vamp", () => {
-  const group = PRACTICE_CATALOG.groups.find(item => item.moduleId === 'minor-rise-return');
+test("Minor Rise and Return has playable chart integrations and correctly attributed vamps", () => {
+  const groups = PRACTICE_CATALOG.groups.filter(item => item.moduleId === 'minor-rise-return');
+  assert.deepEqual(groups.map(g => g.id), [
+    'minor-rise-return:minor-home',
+    'minor-rise-return:altered-dominant',
+    'minor-rise-return:dominant-13',
+    'minor-rise-return:halfdim',
+    'minor-rise-return:lydian-major',
+    'minor-rise-return:major-color',
+    'minor-rise-return:minor-fifth',
+  ]);
+  const group = groups[0];
   assert.equal(group.label, 'Minor home');
   assert.ok(group.choices.some(choice => choice.chartId === 'blue-bossa'));
+  assert.ok(groups[2].choices.some(choice => choice.chartId === 'cry-me-a-river'));
+  for (const item of groups) {
+    assert.ok(item.choices.length > 0, item.id);
+    const example = lessonById(item.exampleLessonId);
+    const form = formById(applicationById(example.applicationId).formId);
+    assert.equal(form.bars.length, 8);
+    assert.doesNotMatch(example.context + form.source, /Workbook|undefined/);
+  }
   const example = lessonById(group.exampleLessonId);
   const form = formById(applicationById(example.applicationId).formId);
-  assert.equal(form.bars.length, 8);
   assert.equal(form.title, 'Minor vamp');
-  assert.doesNotMatch(example.context + form.source, /Workbook|undefined/);
   const events = phraseEvents(example.applicationId);
   assert.deepEqual(events.map(note => note.interval), [0, 2, 3, 5, 2, 0]);
   assert.ok(events.every(note => note.beats === 0.5));

@@ -52,9 +52,11 @@ export function matchesAt(timeline, variant, start, anchor, needed = variantSoun
       const pos = start + cursor;
       while (ti < timeline.length && timeline[ti].end <= pos + 1e-6) ti += 1;
       const actual = ti < timeline.length && timeline[ti].beat <= pos + 1e-6 ? timeline[ti] : null;
-      if (!actual || chordFamily(actual.quality) !== expected.family
-        || (expected.qualities && !expected.qualities.includes(actual.quality))
-        || pc(actual.intervalFromTonic) !== pc(anchor + expected.root)) return false;
+      if (!actual) return false;
+      const qualityOk = expected.qualities
+        ? expected.qualities.includes(actual.quality)
+        : chordFamily(actual.quality) === expected.family;
+      if (!qualityOk || pc(actual.intervalFromTonic) !== pc(anchor + expected.root)) return false;
       cursor = Math.min(end, actual.end - start);
     }
     position += expected.beats;
@@ -71,8 +73,13 @@ export function matchApplication(form, variant) {
   for (const [index, event] of timeline.entries()) {
     const previous = timeline[index - 1];
     // A chord held over another bar is one opportunity, not a new entrance.
-    if (variant.pattern.length === 1 && previous && pc(previous.intervalFromTonic) === pc(event.intervalFromTonic)
-      && chordFamily(previous.quality) === chordFamily(event.quality)) continue;
+    const firstChord = variant.pattern[0];
+    const sameAsPrevious = previous
+      && pc(previous.intervalFromTonic) === pc(event.intervalFromTonic)
+      && (firstChord.qualities
+        ? firstChord.qualities.includes(previous.quality) && firstChord.qualities.includes(event.quality)
+        : chordFamily(previous.quality) === chordFamily(event.quality));
+    if (variant.pattern.length === 1 && sameAsPrevious) continue;
     if (event.beat - variant.pickupBeats < lastEnd - 1e-6) continue;
     const anchor = event.intervalFromTonic - variant.pattern[0].root;
     if (!matchesAt(timeline, variant, event.beat, anchor, needed, index)) continue;

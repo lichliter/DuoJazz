@@ -2,7 +2,7 @@
 
 This audit covers both pages for each of the thirty licks in the [bass-clef workbook](essential-jazz-vocabulary-bass-clef.pdf): printed pages 1–60. PDF page numbers are four higher.
 
-The catalog contains 117 application contexts and 204 selectable versions. Applications describe a harmonic use; versions capture starting degrees, quality changes, partial cells, or demonstrated timing. The continuation pages are part of the inventory, not merely the introductory diagrams.
+The workbook catalog contains 118 application contexts and 205 selectable workbook versions (`js/workbook-applications.js`), alongside additional non-workbook jazz superimpositions and cadence placements in `js/extended-applications.js`. Applications describe a harmonic use; versions capture starting degrees, quality changes, partial cells, or demonstrated timing. The continuation pages are part of the inventory, not merely the introductory diagrams.
 
 These are interval-based, workbook-guided practice versions. They retain the vocabulary cells and their harmonic relationships; they do not reproduce every composed connecting phrase, rhythmic ornament, or arbitrary permutation on the example pages. Where a passage combines cells, the app uses the chosen cell alone.
 
@@ -12,7 +12,7 @@ Long patterns are not silently played across an incompatible change. A shorter b
 
 | Lick | Pages reviewed | Applications | Versions |
 | --- | --- | --- | --- |
-| 1. Cry Me a River | 1–2 | Minor home; Minor from the fifth; Major color; Lydian major; Lydian dominant; Altered dominant | 6 |
+| 1. Cry Me a River | 1–2 | Minor home; Minor from the fifth; Major color; Lydian major; Dominant 13 / sus; Altered dominant | 6 |
 | 2. Embellished Minor Resolution | 3–4 | Resolve to minor; Resolve to major | 8 |
 | 3. Guide Tone Sequence | 5–6 | ii–V–I resolution; Chained ii–V cells | 4 |
 | 4. Bird Opening | 7–8 | Dominant opening; Dominant first half; Dominant second half; Major second half; Major first half; Minor first half; Lydian dominant opening | 7 |
@@ -26,7 +26,7 @@ Long patterns are not silently played across an incompatible change. A shorter b
 | 12. Embellished Triad | 23–24 | Major triad; Minor triad colors; Dominant flat-nine color; Lydian dominant triad | 5 |
 | 13. Classic Bebop Cell | 25–26 | Dominant chord; Minor ii chord; Major arrival; Lydian major; Altered dominant; Half-diminished ii; Minor arrival; Dominant flat-nine color | 8 |
 | 14. John Coltrane Diminished Pattern | 27–28 | Diminished dominant pattern; Diminished chord; Diminished ii–V pattern | 18 |
-| 15. Turning Diminished Pattern | 29–30 | Diminished dominant turns; Diminished ii–V turns | 5 |
+| 15. Turning Diminished Pattern | 29–30 | Diminished dominant turns; Diminished ii–V turns | 6 |
 | 16. Sandwich Enclosure | 31–32 | ii–V enclosure; Half-diminished ii–V; Other dominant targets; Major targets; Minor targets | 11 |
 | 17. Minor Passage | 33–34 | Minor passage; Major passage; Lydian major; Half-diminished color; Altered dominant; Minor ii–V passage | 7 |
 | 18. Sonny Stitt Resolution | 35–36 | Major resolution | 1 |
@@ -38,7 +38,7 @@ Long patterns are not silently played across an incompatible change. A shorter b
 | 24. Altered Enclosure | 47–48 | Altered resolution; Diatonic major enclosure; Diatonic minor enclosure; Half-diminished enclosure | 5 |
 | 25. Fun Enclosure | 49–50 | Major enclosure; Minor enclosure; Dominant enclosure; ii–V enclosure | 5 |
 | 26. Bread and Butter | 51–52 | Major home; Minor seventh; Dominant seventh | 3 |
-| 27. Lydian Grip | 53–54 | Lydian major; Dominant thirteen color; Altered dominant; Half-diminished color; Dominant flat-nine color; Minor chord color | 7 |
+| 27. Lydian Grip | 53–54 | Lydian major; Dominant thirteen color; Altered dominant; Half-diminished color; Dominant flat-nine color; Minor chord color; Dominant flat-thirteen color | 7 |
 | 28. Bird's Chromatic Frenzy | 55–56 | Major ii–V–I; Half-diminished sequence; Minor ii–V–i | 3 |
 | 29. Diminished Stairsteps | 57–58 | Diminished chord; Minor-seven ii–V; Half-diminished ii–V; Extended dominant pattern | 4 |
 | 30. Nine to Nine Resolution | 59–60 | Nine to nine; Dominant to major | 2 |
@@ -55,8 +55,10 @@ Long patterns are not silently played across an incompatible change. A shorter b
 
 ## Implementation and checks
 
-- `js/workbook-applications.js` holds the musical definitions, source pages, exact interval variants, and harmony patterns.
-- `js/practice-catalog.js` matches complete sounding windows and generates application/variant lessons plus reference exercise forms. Exercise harmony uses the relevant dominant alterations.
+- `js/workbook-applications.js` holds the workbook musical definitions, source pages, exact interval variants, and harmony patterns.
+- `js/extended-applications.js` holds non-workbook jazz superimpositions and cadence placements (half-diminished, altered-dominant, melodic-minor, tritone-sub `♭II7`, and backdoor `♭VII7` contexts), cleanly separated from workbook page counts.
+- `js/practice-catalog.js` matches complete sounding windows with explicit chord-quality allowlists (`qualities`) where needed and generates application/variant lessons plus reference exercise forms.
+- Corrections applied: fixed `gts` note 5 (`N(1)` so VI7 outlines 3–♭9–1–♭7), aligned `jcdp:ii-v` and `tdp:ii-v` to root 2/7 (`ii–V` of the home key, adding `halfdim-ii` to `tdp:ii-v`), labeled `cmar:lydian-dominant` accurately as `Dominant 13 / sus` (admitting `dominant7sus`), and separated `lg:dominant-flat-thirteen` from `lg:dominant-flat-nine`.
 - Explicit spot elements and beat offsets are shared by notation and playback. Pickup notes keep their negative onsets. Existing Learn/Master content, settings keys, and grading behavior stay intact.
 - `js/workbook-applications.test.mjs` checks all thirty inventories, independent note fixtures, continuation contexts, negative harmony cases, every example version, notation/audio agreement, and half-bar/pickup timing.
 - The engraving suite round-trips every lesson through all keys, instruments, and notation modes. Browser review checks every module’s application inventory and representative chart, version, and no-match flows.

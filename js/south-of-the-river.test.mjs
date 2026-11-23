@@ -135,7 +135,7 @@ test('South of the River building blocks preserve the half-time phrase across ke
   }
 });
 
-test('Both building blocks have a Minor home vamp and match charts through their last sounding note', () => {
+test('Both building blocks have a Minor home vamp and extra applications matching charts cleanly', () => {
   for (const block of blocks) {
     const group = PRACTICE_CATALOG.groups.find(item => item.id === `${block.id}:minor-home`);
     const choice = group.choices.find(item => item.chartId === 'so-what');
@@ -161,6 +161,24 @@ test('Both building blocks have a Minor home vamp and match charts through their
     assert.equal(startsOnBeatOne('minormaj7', 3), false);
     assert.equal(startsOnBeatOne('minor7', 2), block.offset === 0);
   }
+  const openingApps = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river-opening');
+  assert.deepEqual(openingApps.map(g => g.id), [
+    'south-of-the-river-opening:minor-home',
+    'south-of-the-river-opening:lydian-major',
+    'south-of-the-river-opening:dominant-sus',
+    'south-of-the-river-opening:major-home',
+  ]);
+  assert.ok(openingApps[1].choices.some(c => c.chartId === 'autumn-leaves'));
+  assert.ok(openingApps[2].choices.some(c => c.chartId === 'blue-bossa'));
+  assert.ok(openingApps[3].choices.some(c => c.chartId === 'autumn-leaves'));
+  const landingApps = PRACTICE_CATALOG.groups.filter(g => g.moduleId === 'south-of-the-river-climb-and-landing');
+  assert.deepEqual(landingApps.map(g => g.id), [
+    'south-of-the-river-climb-and-landing:minor-home',
+    'south-of-the-river-climb-and-landing:minor-ii-v',
+    'south-of-the-river-climb-and-landing:major-home',
+  ]);
+  assert.ok(landingApps[1].choices.some(c => c.chartId === 'oleo'));
+  assert.ok(landingApps[2].choices.some(c => c.chartId === 'autumn-leaves'));
 });
 
 test('South of the River notation and model agree in all keys, on both horns, with lead-only octave shifts', () => {
@@ -212,11 +230,12 @@ test('South of the River Learn and Master grade the 17-note phrase and reject wr
 });
 
 test('South of the River integrations have valid vamps, real charts, and matching audio/notation', () => {
-  assert.deepEqual(groups.map(g => g.label), ['Minor i → iv', 'Minor home', 'Major I → IV']);
+  assert.deepEqual(groups.map(g => g.label), ['Minor i → iv', 'Minor home', 'Major I → IV', 'Minor ii → V']);
   const expected = {
     'south-of-the-river:minor-i-iv': { chords: ['Gm7', 'Cm7'], chartId: 'blue-bossa', bar: 2, anchor: 0 },
     'south-of-the-river:minor-home': { chords: ['Gm7', 'Gm7'], chartId: 'so-what', bar: 1, anchor: 0 },
     'south-of-the-river:major-i-iv': { chords: ['B♭maj7', 'E♭maj7'], chartId: 'autumn-leaves', bar: 3, anchor: 0 },
+    'south-of-the-river:minor-ii-v': { chords: ['Gm7', 'C7'], chartId: 'tune-up', bar: 5, anchor: 0 },
   };
   for (const group of groups) {
     const spec = expected[group.id];

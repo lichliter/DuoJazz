@@ -27,6 +27,7 @@ import {
 import { buildPracticeCatalog } from "./practice-catalog.js";
 import { buildChordToneExercises } from "./chord-tones.js";
 import { CUSTOM_LICKS } from "./licks/custom-licks.js";
+import { extendedApplicationDefinitions } from "./extended-applications.js";
 
 export { TUNES };
 
@@ -622,7 +623,7 @@ export const LICKS = [
     defaultKeyId: "G",
     elements: [
       N(7, 0.5), N(6, 0.5), N(4, 0.5), N(2, 0.5),
-      N(-1, 0.5), N(10, 0.5), N(9, 0.5), N(7, 0.5),
+      N(1, 0.5), N(10, 0.5), N(9, 0.5), N(7, 0.5),
       N(5, 0.5), N(4, 0.5), N(2, 0.5), N(0, 0.5),
       N(-1, 0.5), N(8, 0.5), N(7, 0.5), N(5, 0.5),
       N(4, 2),
@@ -1423,7 +1424,10 @@ applicationIndex = new Map(ALL_APPLICATIONS.map((app) => [app.id, app]));
 
 export const PRACTICE_CATALOG = buildPracticeCatalog({
   modules: MODULES, tunes: TUNES, licks: LICKS, fragments: FRAGMENTS, applicationById, formById,
-  additionalDefinitions: CUSTOM_LICKS.flatMap((entry) => entry.practiceDefinitions(entry.lick)),
+  additionalDefinitions: [
+    ...extendedApplicationDefinitions(LICKS, FRAGMENTS),
+    ...CUSTOM_LICKS.flatMap((entry) => entry.practiceDefinitions(entry.lick)),
+  ],
 });
 Object.assign(FORMS, PRACTICE_CATALOG.forms);
 ALL_APPLICATIONS.push(...PRACTICE_CATALOG.applications);

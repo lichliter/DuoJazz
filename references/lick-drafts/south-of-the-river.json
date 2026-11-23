@@ -65,6 +65,11 @@
       "id": "major-i-iv",
       "pattern": "Same shapes shifted to the relative major I → IV (B♭maj7 → E♭maj7 in G minor).",
       "matching": "Major7 or major6 for 4 beats on I followed by 4 beats on IV."
+    },
+    {
+      "id": "minor-ii-v",
+      "pattern": "Two bars moving from ii7 to V7 (Gm7 → C7 in G minor), landing on the flat seventh guide tone of V7.",
+      "matching": "minor7, minor11, or minor for 4 beats on ii followed by 4 beats on V dominant."
     }
   ],
   "buildingBlocks": [
@@ -73,6 +78,7 @@
       "name": "Sextuplet Run",
       "sourceBeats": "Bar 1 beats 1–2, including the sextuplet entrance rest",
       "learnHarmony": "Gm7 for one bar",
+      "applications": ["minor-home", "lydian-major", "dominant-sus", "major-home"],
       "endRestBeats": 0
     },
     {
@@ -80,6 +86,7 @@
       "name": "Chromatic Landing",
       "sourceBeats": "Bar 1 beats 3–4 plus the quarter-note B♭ on bar 2 beat 1",
       "learnHarmony": "One bar of Gm7 then one bar of Cm7, with the landing on bar 2 beat 1",
+      "applications": ["minor-home", "minor-ii-v", "major-home"],
       "endRestBeats": 2
     }
   ],

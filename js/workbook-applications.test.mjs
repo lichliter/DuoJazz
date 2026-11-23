@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { LICKS, MODULES, PRACTICE_CATALOG, applicationById, lessonById, formById } from "./registry.js";
+import { LICKS, MODULES, PRACTICE_CATALOG, applicationById, lessonById, formById, spotsFor } from "./registry.js";
 import { matchApplication, variantSoundEnd } from "./practice-catalog.js";
 import { phraseEvents, phraseNotes, getKey } from "./music.js";
 import { createSession, demoAudioConfig } from "./session.js";
@@ -11,14 +11,14 @@ const group = (id) => PRACTICE_CATALOG.groups.find((item) => item.id === id);
 const pitches = (variant) => variant.elements.filter((el) => el.type === "note").map((el) => el.interval);
 
 test("all thirty teaching pages have an explicit, sourced application inventory", () => {
-  const counts = [6, 2, 2, 7, 7, 3, 3, 2, 4, 1, 6, 4, 8, 3, 2, 5, 6, 1, 2, 3, 1, 6, 7, 4, 4, 3, 6, 3, 4, 2];
+  const counts = [6, 2, 2, 7, 7, 3, 3, 2, 4, 1, 6, 4, 8, 3, 2, 5, 6, 1, 2, 3, 1, 6, 7, 4, 4, 3, 7, 3, 4, 2];
   for (const [index, module] of MODULES.slice(1, 31).entries()) {
-    const definitions = PRACTICE_CATALOG.definitions.filter((item) => item.lickId === module.id);
+    const definitions = PRACTICE_CATALOG.definitions.filter((item) => item.lickId === module.id && item.page != null);
     assert.equal(definitions.length, counts[index], module.id);
     assert.ok(definitions.every((item) => [index * 2 + 1, index * 2 + 2].includes(item.page)), module.id);
   }
-  assert.equal(PRACTICE_CATALOG.groups.filter(g => g.page != null).length, 117);
-  assert.equal(PRACTICE_CATALOG.groups.filter(g => g.page != null).reduce((n, g) => n + g.variants.length, 0), 204);
+  assert.equal(PRACTICE_CATALOG.groups.filter(g => g.page != null).length, 118);
+  assert.equal(PRACTICE_CATALOG.groups.filter(g => g.page != null).reduce((n, g) => n + g.variants.length, 0), 205);
   assert.equal(new Set(PRACTICE_CATALOG.lessons.map((item) => item.id)).size, PRACTICE_CATALOG.lessons.length);
 });
 
@@ -89,7 +89,7 @@ test("matcher requires the whole harmonic window, rejects short holds and wrong 
   assert.deepEqual(matchApplication(longIi, acvl).map((spot) => spot.bar), [2]);
 });
 
-test("all 204 versions are playable examples with matching notation and selected-instrument audio", () => {
+test("all workbook and extended versions are playable examples with matching notation and selected-instrument audio", () => {
   for (const definition of PRACTICE_CATALOG.definitions) {
     for (const variant of definition.variants) {
       assert.ok(variant.elements.every((el) => el.beats > 0 && (el.type !== "note" || Number.isFinite(el.interval))));
@@ -134,4 +134,83 @@ test("source discrepancies remain explicit and empty chart matches have real exa
     assert.equal(lessonById(item.exampleLessonId).tuneId, null);
   }
   assert.ok(LICKS.every((lick) => PRACTICE_CATALOG.groups.some((g) => g.moduleId === lick.id)));
+});
+
+test("gts note 5 follows the +2 sequence over VI7, including natural ninths", () => {
+  const original = applicationById(group("gts:ii-v-i").variants[0].exampleLessonId);
+  const natural = applicationById(group("gts:ii-v-i").variants[1].exampleLessonId);
+  assert.deepEqual(phraseEvents(original.id).slice(0, 8).map((n) => n.interval), [7, 6, 4, 2, 1, 10, 9, 7]);
+  assert.deepEqual(phraseEvents(natural.id).slice(4, 8).map((n) => n.interval), [1, 11, 9, 7]);
+});
+
+test("jcdp:ii-v and tdp:ii-v use root 2->7 without major-7th clashes on V", () => {
+  for (const id of ["jcdp:ii-v", "tdp:ii-v"]) {
+    const def = PRACTICE_CATALOG.definitions.find((d) => `${d.lickId}:${d.id}` === id);
+    assert.equal(def.variants.length, 2, id);
+    for (const v of def.variants) {
+      assert.deepEqual(v.pattern.map((c) => c.root), [2, 7], `${id}:${v.id}`);
+      const notes = v.elements.filter((el) => el.type === "note");
+      let beat = 0;
+      for (const el of v.elements) {
+        if (el.type === "note" && beat >= 4) {
+          assert.notEqual(((el.interval - 7) % 12 + 12) % 12, 11, `${id}:${v.id} clashes maj7 on V`);
+        }
+        beat += el.beats;
+      }
+      assert.ok(notes.length > 0);
+    }
+  }
+  const tdpEvents = phraseEvents(group("tdp:ii-v").variants[0].exampleLessonId);
+  const bar2Beat2 = tdpEvents.find((ev) => Math.abs(ev.beat - 5) < 1e-6);
+  assert.equal(((bar2Beat2.interval - 7) % 12 + 12) % 12, 4); // Major 3rd of V
+});
+
+test("quality filters handle dominant7sus, 7b13, and m(maj7) honestly", () => {
+  const chord = (root, quality, durationBeats = 4) => ({ intervalFromTonic: root, quality, durationBeats });
+  const form = (...bars) => ({ bars: bars.map((chords) => ({ chords })) });
+  const cmarDom = group("cmar:lydian-dominant");
+  const cmarDomDef = PRACTICE_CATALOG.definitions.find((d) => d.lickId === "cmar" && d.id === "lydian-dominant").variants[0];
+  assert.equal(cmarDom.label, "Dominant 13 / sus");
+  assert.ok(cmarDom.choices.some((c) => c.chartId === "cry-me-a-river"));
+  assert.equal(matchApplication(form([chord(5, "dominant7b13")]), cmarDomDef).length, 0);
+  assert.equal(matchApplication(form([chord(5, "dominant7sus")]), cmarDomDef).length, 1);
+  const summertimeSpots = spotsFor(cmarDom.choices.find((c) => c.chartId === "summertime").lessonId);
+  assert.deepEqual(summertimeSpots.map((s) => s.bar), [6]); // F7, not E7b13 on bar 8.
+
+  const lgB13 = group("lg:dominant-flat-thirteen");
+  const lgB13Def = PRACTICE_CATALOG.definitions.find((d) => d.lickId === "lg" && d.id === "dominant-flat-thirteen").variants[0];
+  assert.equal(formById(applicationById(lgB13.exampleLessonId).formId).bars[0].chords[0].quality, "dominant7b13");
+  assert.equal(matchApplication(form([chord(4, "dominant7b9")]), lgB13Def).length, 0);
+  assert.equal(matchApplication(form([chord(4, "dominant7b13")]), lgB13Def).length, 1);
+  const blueBossaSpots = spotsFor(lgB13.choices.find((c) => c.chartId === "blue-bossa").lessonId);
+  assert.deepEqual(blueBossaSpots.map((s) => s.bar), [10]); // Ab7, not G7b9 on bars 6/14.
+  assert.ok(lgB13.choices.some((c) => c.chartId === "autumn-leaves"));
+
+  const tiscDimMaj = group("tisc:minor-home").choices.filter((c) => c.variantId === "dim-major");
+  assert.equal(tiscDimMaj.some((c) => c.chartId === "so-what" || c.chartId === "blue-bossa"), false);
+});
+
+test("extended jazz superimpositions have honest non-workbook sources and real chart placements", () => {
+  const extendedIds = [
+    "cmar:halfdim", "bo:ii-v-i", "bo:two-bar-v-resolution", "1235:altered-dominant",
+    "1235:lydian-major", "1235:halfdim", "br:lydian-major", "br:minor-from-flat-third",
+    "dlr:tritone-sub", "dlr:backdoor", "jcdp:resolve-to-major", "ssr:major-from-fifth",
+    "ssr:minor-from-flat-seven", "ssr:dominant-sus", "ctdc:lydian-dominant", "ctdc:altered-dominant",
+    "ctdc:melodic-minor", "ctdc:halfdim", "ntp:altered-dominant", "ntp:lydian-dominant",
+    "ae:tritone-sub", "ae:backdoor", "bb:lydian-major", "bb:minor-from-flat-third", "nnr:minor-ii-v-i",
+  ];
+  for (const id of extendedIds) {
+    const g = group(id);
+    assert.ok(g, id);
+    assert.equal(g.page, undefined, id);
+    assert.doesNotMatch(g.source, /Workbook|undefined/, id);
+    assert.ok(g.choices.length > 0, `${id} has real chart matches`);
+  }
+  assert.ok(group("ae:tritone-sub").choices.some((c) => c.chartId === "satin-doll"));
+  assert.ok(group("ae:backdoor").choices.some((c) => c.chartId === "four"));
+  assert.ok(group("dlr:tritone-sub").choices.some((c) => c.chartId === "nutville"));
+  assert.ok(group("dlr:backdoor").choices.some((c) => c.chartId === "four"));
+  assert.ok(group("bo:ii-v-i").choices.some((c) => c.chartId === "autumn-leaves"));
+  assert.ok(group("jcdp:resolve-to-major").choices.some((c) => c.chartId === "tune-up"));
+  assert.ok(group("cmar:halfdim").choices.some((c) => c.chartId === "autumn-leaves"));
 });

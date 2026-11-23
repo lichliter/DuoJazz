@@ -60,6 +60,11 @@ const halfTimeLanding = [...halfTime(southLanding), R(2)];
 const southTonicBar = bar([chord(0, "minor7")]);
 const southLandingBar = bar([chord(5, "minor7")]);
 
+const southMinorQualities = ["minor7", "minor11", "minor"];
+const southDomQualities = ["dominant7", "dominant9", "dominant7s11", "dominant7sus", "dominant7b9", "dominant7s9", "dominant7b13", "dominant7s5", "dominant7alt"];
+const southMajorQualities = ["major7", "major6"];
+const southLydianMajorQualities = ["major7", "major6", "major7b5"];
+
 const southBlocks = [
   {
     id: `${southId}-opening`,
@@ -69,7 +74,38 @@ const southBlocks = [
     elements: halfTimeOpening,
     bars: [southTonicBar],
     summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
-    minorHomeDescription: "Use the natural sixth in the sextuplet, then climb from the ninth to the seventh in straight sixteenths.",
+    minorHomeDescription: "Play ♭VIImaj7 (6–♭7–9–11) into ♭IIImaj7 (9–♭3–5–♭7) — two third-inversion major-seventh arpeggios a fourth apart for a pure Dorian sound.",
+    extraPracticeDefinitions(originalElements) {
+      return [
+        {
+          id: "lydian-major",
+          label: "Lydian major",
+          description: "Outline Vmaj7 (♯11–5–7–9) into Imaj7 (7–1–3–5) for a bright Lydian upper structure that lands on the tonic arpeggio.",
+          source: `${southSource} · Sextuplet Run Lydian practice`,
+          exampleTitle: "Lydian major vamp",
+          pattern: [{ root: 3, family: "major", beats: 4, qualities: southLydianMajorQualities, quality: "major7b5" }],
+          elements: originalElements,
+        },
+        {
+          id: "dominant-sus",
+          label: "Dominant 13 / sus",
+          description: "Play IVmaj7 (3–4–13–1) into ♭VIImaj7 (13–♭7–9–11) for a Mixolydian or sus upper structure.",
+          source: `${southSource} · Sextuplet Run dominant practice`,
+          exampleTitle: "Dominant sus vamp",
+          pattern: [{ root: 5, family: "dominant", beats: 4, qualities: ["dominant7", "dominant9", "dominant7sus"], quality: "dominant7sus" }],
+          elements: originalElements,
+        },
+        {
+          id: "major-home",
+          label: "Major tonic (I → IV)",
+          description: "Outline Imaj7 (7–1–3–5) into IVmaj7 (3–4–6–1) over a major tonic, landing back on the root.",
+          source: `${southSource} · Sextuplet Run major practice`,
+          exampleTitle: "Major tonic vamp",
+          pattern: [{ root: 10, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
+          elements: originalElements,
+        },
+      ];
+    },
   },
   {
     id: `${southId}-climb-and-landing`,
@@ -80,10 +116,35 @@ const southBlocks = [
     bars: [southTonicBar, southLandingBar],
     summary: "Swing the eighths through the climb and chromatic descent, then land on the next downbeat.",
     minorHomeDescription: "Climb from the fifth, then descend chromatically to the minor third over the same chord.",
+    extraPracticeDefinitions(originalElements) {
+      return [
+        {
+          id: "minor-ii-v",
+          label: "Half-bar ii → V",
+          description: "Climb over two beats of ii7, walk down chromatically, and land on the flat seventh guide tone of V7.",
+          source: `${southSource} · Chromatic Landing ii–V practice`,
+          exampleTitle: "Half-bar ii → V vamp",
+          pattern: [
+            { root: 0, family: "minor", beats: 2, qualities: southMinorQualities, quality: "minor7" },
+            { root: 5, family: "dominant", beats: 2, qualities: southDomQualities, quality: "dominant7" },
+          ],
+          elements: originalElements,
+        },
+        {
+          id: "major-home",
+          label: "Relative major",
+          description: "Walk down chromatically from the major third through the flat third and second to land on the tonic root.",
+          source: `${southSource} · Chromatic Landing major practice`,
+          exampleTitle: "Major tonic vamp",
+          pattern: [{ root: 3, family: "major", beats: 4, qualities: southMajorQualities, quality: "major7" }],
+          elements: originalElements,
+        },
+      ];
+    },
   },
 ];
 
-function southBlockEntry({ id, name, blockBeats, originalElements, elements, bars, summary, minorHomeDescription }) {
+function southBlockEntry({ id, name, blockBeats, originalElements, elements, bars, summary, minorHomeDescription, extraPracticeDefinitions }) {
   const learnId = `${id}-learn`;
   return {
     lick: {
@@ -106,6 +167,21 @@ function southBlockEntry({ id, name, blockBeats, originalElements, elements, bar
       }],
     },
     practiceDefinitions() {
+      const extras = (extraPracticeDefinitions?.(originalElements) ?? []).map((def) => ({
+        lickId: id,
+        id: def.id,
+        label: def.label,
+        description: def.description,
+        source: def.source,
+        exampleTitle: def.exampleTitle,
+        variants: [{
+          id: "original",
+          label: "Original",
+          elements: def.elements,
+          pickupBeats: 0,
+          pattern: def.pattern,
+        }],
+      }));
       return [{
         lickId: id,
         id: "minor-home",
@@ -117,7 +193,7 @@ function southBlockEntry({ id, name, blockBeats, originalElements, elements, bar
           id: "original", label: "Original", elements: originalElements, pickupBeats: 0,
           pattern: [{ root: 0, family: "minor", beats: 4, qualities: ["minor7", "minor11"], quality: "minor7" }],
         }],
-      }];
+      }, ...extras];
     },
   };
 }
@@ -170,21 +246,91 @@ export const CUSTOM_LICKS = [
       }],
     },
     practiceDefinitions(lick) {
-      return [{
+      const def = (id, label, description, sourceNote, exampleTitle, pattern) => ({
         lickId: "minor-rise-return",
-        id: "minor-home",
-        label: "Minor home",
-        description: "Play the shape from the minor chord’s root, rising to the fourth and returning home.",
-        source: "Brian’s lick · minor chord practice",
-        exampleTitle: "Minor vamp",
+        id,
+        label,
+        description,
+        source: `Brian’s lick · ${sourceNote}`,
+        exampleTitle,
         variants: [{
           id: "original",
           label: "Original",
-          pattern: [{ root: 0, family: "minor", beats: 4 }],
+          pattern,
           elements: lick.elements,
           pickupBeats: 0,
         }],
-      }];
+      });
+      return [
+        def(
+          "minor-home",
+          "Minor home",
+          "Play the shape from the minor chord’s root, rising to the fourth and returning home.",
+          "minor chord practice",
+          "Minor vamp",
+          [{ root: 0, family: "minor", beats: 4 }],
+        ),
+        def(
+          "altered-dominant",
+          "Altered dominant",
+          "Play the minor tetrachord a half step above an altered dominant (♭9–♯9–3–♯11–♯9–♭9).",
+          "altered dominant practice",
+          "Altered dominant vamp",
+          [{
+            root: 11,
+            family: "dominant",
+            beats: 4,
+            qualities: ["dominant7", "dominant7alt", "dominant7b9", "dominant7s9", "dominant7b13", "dominant7s5"],
+            quality: "dominant7alt",
+          }],
+        ),
+        def(
+          "dominant-13",
+          "Dominant 13 / sus",
+          "Play the minor tetrachord from the fifth of a dominant or sus chord (5–13–♭7–1–13–5).",
+          "dominant 13 / sus practice",
+          "Dominant 13 vamp",
+          [{
+            root: 5,
+            family: "dominant",
+            beats: 4,
+            qualities: ["dominant7", "dominant9", "dominant7s11", "dominant7sus"],
+            quality: "dominant9",
+          }],
+        ),
+        def(
+          "halfdim",
+          "Half-diminished",
+          "Play the minor tetrachord from the minor third of a half-diminished chord (♭3–11–♭5–♭13–11–♭3).",
+          "half-diminished practice",
+          "Half-diminished vamp",
+          [{ root: 9, family: "halfdim", beats: 4, quality: "minor7b5" }],
+        ),
+        def(
+          "lydian-major",
+          "Lydian major",
+          "Play the minor tetrachord from the major third for a bright Lydian color (3–♯11–5–13–♯11–3).",
+          "Lydian major practice",
+          "Lydian major vamp",
+          [{ root: 8, family: "major", beats: 4, qualities: ["major7", "major6", "major7b5"], quality: "major7b5" }],
+        ),
+        def(
+          "major-color",
+          "Major 6/9 color",
+          "Play the minor tetrachord from the sixth of a major chord (6–7–1–9–7–6).",
+          "major color practice",
+          "Major 7 vamp",
+          [{ root: 3, family: "major", beats: 4, qualities: ["major7", "major6"], quality: "major7" }],
+        ),
+        def(
+          "minor-fifth",
+          "Minor from the fifth",
+          "Play the minor tetrachord from the fifth of a Dorian minor chord (5–13–♭7–1–13–5).",
+          "Dorian minor practice",
+          "Dorian minor vamp",
+          [{ root: 5, family: "minor", beats: 4, qualities: ["minor", "minor6", "minor7", "minor11"], quality: "minor7" }],
+        ),
+      ];
     },
   },
   {
@@ -252,6 +398,7 @@ export const CUSTOM_LICKS = [
         quality: "minormaj7",
       };
       const source = "Brian’s simplified adaptation of Shaun Martin’s Lotus · harmonic-minor practice";
+      const melodicSource = "Brian’s simplified adaptation of Shaun Martin’s Lotus · melodic-minor practice";
       const variant = (pattern) => ({
         id: "original",
         label: "Original",
@@ -284,6 +431,47 @@ export const CUSTOM_LICKS = [
           },
           { ...tonic, beats: 4 },
         ])],
+      }, {
+        lickId: "lotus-inspired",
+        id: "lydian-dominant",
+        label: "Lydian dominant",
+        description: "Play the melodic-minor shape from the dominant’s fifth (#11–5–13–♭7 on beat 1), landing on the ninth.",
+        source: melodicSource,
+        exampleTitle: "Lydian dominant vamp",
+        variants: [variant([{
+          root: 5,
+          family: "dominant",
+          beats: 8,
+          qualities: ["dominant7", "dominant9", "dominant7s11"],
+          quality: "dominant7s11",
+        }])],
+      }, {
+        lickId: "lotus-inspired",
+        id: "altered-dominant",
+        label: "Altered dominant",
+        description: "Play the melodic-minor shape a half step above an altered dominant (1–♭9–♯9–3 on beat 1), landing on the flat thirteenth.",
+        source: melodicSource,
+        exampleTitle: "Altered dominant vamp",
+        variants: [variant([{
+          root: 11,
+          family: "dominant",
+          beats: 8,
+          qualities: ["dominant7", "dominant7alt", "dominant7b9", "dominant7s9", "dominant7b13", "dominant7s5"],
+          quality: "dominant7alt",
+        }])],
+      }, {
+        lickId: "lotus-inspired",
+        id: "halfdim",
+        label: "Half-diminished",
+        description: "Play the melodic-minor shape from the half-diminished chord’s minor third (9–♭3–11–♭5 on beat 1), resolving to the flat seventh.",
+        source: melodicSource,
+        exampleTitle: "Half-diminished vamp",
+        variants: [variant([{
+          root: 9,
+          family: "halfdim",
+          beats: 8,
+          quality: "minor7b5",
+        }])],
       }];
     },
   },
@@ -380,6 +568,18 @@ export const CUSTOM_LICKS = [
           variants: [variant([
             { root: 3, family: "major", beats: 4, qualities: majorQualities, quality: "major7" },
             { root: 8, family: "major", beats: 4, qualities: majorQualities, quality: "major7" },
+          ])],
+        },
+        {
+          lickId: "south-of-the-river",
+          id: "minor-ii-v",
+          label: "Minor ii → V",
+          description: "Play the Dorian ascent and chromatic descent over ii7, then land on the flat seventh guide tone of V7 on the next downbeat.",
+          source: `${source} · ii–V practice`,
+          exampleTitle: "Minor ii → V vamp",
+          variants: [variant([
+            { root: 0, family: "minor", beats: 4, qualities: minorQualities, quality: "minor7" },
+            { root: 5, family: "dominant", beats: 4, qualities: southDomQualities, quality: "dominant7" },
           ])],
         },
       ];

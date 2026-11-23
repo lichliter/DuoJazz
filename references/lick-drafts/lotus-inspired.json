@@ -101,6 +101,21 @@
       "id": "minor-cadence",
       "pattern": "Three eighth-note pickups into one bar V7 and one bar tonic minor; example uses C7b9 then Fm(maj7).",
       "matching": "dominant7, dominant7b9, or dominant7b13 for bar 1; compatible tonic minor for the rest of the phrase."
+    },
+    {
+      "id": "lydian-dominant",
+      "pattern": "Melodic-minor shape from the dominant fifth (8 beats); example uses Bb7#11.",
+      "matching": "dominant7, dominant9, or dominant7s11 for 8 continuous beats starting from bar 1."
+    },
+    {
+      "id": "altered-dominant",
+      "pattern": "Melodic-minor shape a half step above an altered dominant (8 beats); example uses E7alt.",
+      "matching": "dominant7, dominant7alt, dominant7b9, dominant7s9, dominant7b13, or dominant7s5 for 8 continuous beats."
+    },
+    {
+      "id": "halfdim",
+      "pattern": "Melodic-minor shape from the minor third of a half-diminished chord (8 beats); example uses Dm7b5.",
+      "matching": "minor7b5 or halfdim7 for 8 continuous beats."
     }
   ],
   "theoryReferences": [

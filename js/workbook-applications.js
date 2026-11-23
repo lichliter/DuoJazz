@@ -6,11 +6,24 @@
  */
 const N = (interval, beats = 0.5, extra = {}) => ({ type: "note", interval, beats, ...extra });
 const R = (beats) => ({ type: "rest", beats });
-const chord = (root, family, beats = 4) => ({ root, family, beats });
-const single = (root, family, beats = 4) => [chord(root, family, beats)];
+const chord = (root, family, beats = 4, extra = {}) => ({ root, family, beats, ...extra });
+const single = (root, family, beats = 4, extra = {}) => [chord(root, family, beats, extra)];
 const cadence = (quality = "major", beats = 2, ii = "minor") => [
   chord(2, ii, beats), chord(7, "dominant", beats), chord(0, quality, 4),
 ];
+
+const DOM_MIXOLYDIAN_SUS = ["dominant7", "dominant9", "dominant7s11", "dominant7sus"];
+const DOM_MIXOLYDIAN_NO_B13 = ["dominant7", "dominant9", "dominant7s11"];
+const DOM_MIXOLYDIAN_4 = ["dominant7", "dominant9"];
+const DOM_MIXOLYDIAN_SUS_4 = ["dominant7", "dominant9", "dominant7sus"];
+const DOM_LYDIAN = ["dominant7", "dominant9", "dominant7s11"];
+const DOM_ALTERED = ["dominant7", "dominant7alt", "dominant7b9", "dominant7s9", "dominant7b13", "dominant7s5"];
+const DOM_HW_DIM = ["dominant7", "dominant7s9", "dominant7b9", "dominant7s11"];
+const DOM_B9_NO_S11 = ["dominant7", "dominant7b9", "dominant7b13", "dominant7alt"];
+const DOM_B13_NAT9 = ["dominant7", "dominant7b13"];
+const MIN_MELODIC = ["minor", "minor6", "minorb6", "minormaj7"];
+const MIN_DORIAN = ["minor", "minor6", "minor7", "minor11"];
+const MIN_AEOLIAN = ["minor", "minorb6", "minor7", "minor11"];
 
 function withPitches(elements, pitches) {
   let index = 0;
@@ -60,16 +73,16 @@ export function workbookApplicationDefinitions(licks, fragments) {
   };
   const g = [];
   const add = (...args) => g.push(group(...args));
-  const one = (lick, id, label, description, root, family, elements = source(lick), beats = 4) =>
-    add(lick, id, label, description, [variant("original", "Original", single(root, family, beats), elements)]);
+  const one = (lick, id, label, description, root, family, elements = source(lick), beats = 4, extra = {}) =>
+    add(lick, id, label, description, [variant("original", "Original", single(root, family, beats, extra), elements)]);
 
   // 1. Same minor cell, six demonstrated harmonic placements (p. 1).
   one("cmar", "minor-home", "Minor home", "Play the minor shape from the chord's root.", 0, "minor");
-  one("cmar", "minor-fifth", "Minor from the fifth", "Play the minor shape a fifth above the minor chord's root.", 5, "minor");
+  one("cmar", "minor-fifth", "Minor from the fifth", "Play the minor shape a fifth above the minor chord's root.", 5, "minor", source("cmar"), 4, { qualities: MIN_DORIAN });
   one("cmar", "major-color", "Major color", "Play the minor shape from the major chord's sixth.", 3, "major");
   one("cmar", "lydian-major", "Lydian major", "Play the minor shape from the major chord's third for a raised-fourth color.", 8, "major");
-  one("cmar", "lydian-dominant", "Lydian dominant", "Play the minor shape from the dominant chord's fifth for a sharp-eleven color.", 5, "dominant");
-  one("cmar", "altered-dominant", "Altered dominant", "Play the minor shape a half step above the dominant root.", 11, "dominant");
+  one("cmar", "lydian-dominant", "Dominant 13 / sus", "Play the minor shape from the dominant chord's fifth for a 13–9–♭7 color (works on 7, 13, 7♯11, and 7sus).", 5, "dominant", source("cmar"), 4, { qualities: DOM_MIXOLYDIAN_SUS, quality: "dominant9" });
+  one("cmar", "altered-dominant", "Altered dominant", "Play the minor shape a half step above the dominant root.", 11, "dominant", source("cmar"), 4, { qualities: DOM_ALTERED });
 
   // 2. All three triadic enclosure entries lead to the same minor resolution.
   add("emr", "minor-resolution", "Resolve to minor", "Embellish the dominant triad, then resolve into minor.",
@@ -95,20 +108,20 @@ export function workbookApplicationDefinitions(licks, fragments) {
   add("bo", "dominant", "Dominant opening", "Use Bird's complete opening over a sustained dominant chord.",
     [base("bo", single(0, "dominant", 12), { pickupBeats: 0.5 })]);
   add("bo", "dominant-first-half", "Dominant first half", "Use the first half to open or extend a dominant phrase.",
-    [variant("original", "First half", single(0, "dominant"), fragments["bo-first"].elements, { pickupBeats: 0.5 })]);
-  one("bo", "dominant-second-half", "Dominant second half", "Use the second half as a dominant continuation.", 0, "dominant", fragments["bo-second"].elements, 8);
+    [variant("original", "First half", single(0, "dominant", 4, { qualities: DOM_MIXOLYDIAN_4 }), fragments["bo-first"].elements, { pickupBeats: 0.5 })]);
+  one("bo", "dominant-second-half", "Dominant second half", "Use the second half as a dominant continuation.", 0, "dominant", fragments["bo-second"].elements, 8, { qualities: DOM_MIXOLYDIAN_4 });
   one("bo", "major-second-half", "Major second half", "Use the second half over a major-nine sound.", 0, "major", fragments["bo-second"].elements, 8);
 
   // 5. The eight chord examples on p. 9, retaining the altered note changes.
   one("hsr", "minor-ii", "Minor ii chord", "Play the original minor shape from the chord's root.", 0, "minor");
-  one("hsr", "dominant", "Dominant chord", "Use the minor shape from the dominant's fifth.", 5, "dominant");
+  one("hsr", "dominant", "Dominant chord", "Use the minor shape from the dominant's fifth.", 5, "dominant", source("hsr"), 4, { qualities: DOM_MIXOLYDIAN_SUS_4 });
   one("hsr", "halfdim", "Half-diminished", "Use the minor shape from the half-diminished chord's minor third.", 9, "halfdim");
   one("hsr", "major-color", "Major color", "Use the minor shape from the major chord's sixth.", 3, "major");
   one("hsr", "lydian-major", "Lydian major", "Use the minor shape from the major chord's third.", 8, "major");
-  one("hsr", "minor-fifth", "Minor from the fifth", "Use the minor shape from the minor chord's fifth.", 5, "minor");
+  one("hsr", "minor-fifth", "Minor from the fifth", "Use the minor shape from the minor chord's fifth.", 5, "minor", source("hsr"), 4, { qualities: MIN_DORIAN });
   add("hsr", "altered-dominant", "Altered dominant", "Change the low note as shown in the workbook's altered figure.", [
-    variant("original", "Flat-nine color · shape from fifth", single(5, "dominant"), fragments["hsr-altered"].elements),
-    variant("from-flat-seven", "Altered color · shape from flat seventh", single(2, "dominant"), fragments["hsr-altered"].elements),
+    variant("original", "Flat-nine color · shape from fifth", single(5, "dominant", 4, { qualities: ["dominant7", "dominant7b9"] }), fragments["hsr-altered"].elements),
+    variant("from-flat-seven", "Altered color · shape from flat seventh", single(2, "dominant", 4, { qualities: DOM_ALTERED }), fragments["hsr-altered"].elements),
   ]);
 
   // 6. Major/minor cells, both directions, and all four dominant placements.
@@ -122,15 +135,15 @@ export function workbookApplicationDefinitions(licks, fragments) {
   add("1235", "major-home", "Major cell", "Use a major 1235 cell, forwards or backwards.", directions("original", "From root", single(0, "major"), cell));
   add("1235", "minor-home", "Minor cell", "Lower the third for the minor version.", directions("original", "From root", single(0, "minor"), minorCell));
   add("1235", "dominant", "Dominant cells", "Use the four diatonic placements demonstrated over a dominant chord.", [
-    ...directions("root", "Major cell from root", single(0, "dominant"), cell),
-    ...directions("ninth", "Minor cell from ninth", single(10, "dominant"), minorCell),
-    ...directions("fifth", "Minor cell from fifth", single(5, "dominant"), minorCell),
-    ...directions("flat-seven", "Major cell from flat seventh", single(2, "dominant"), cell),
+    ...directions("root", "Major cell from root", single(0, "dominant", 4, { qualities: DOM_MIXOLYDIAN_NO_B13 }), cell),
+    ...directions("ninth", "Minor cell from ninth", single(10, "dominant", 4, { qualities: DOM_MIXOLYDIAN_4 }), minorCell),
+    ...directions("fifth", "Minor cell from fifth", single(5, "dominant", 4, { qualities: DOM_MIXOLYDIAN_SUS }), minorCell),
+    ...directions("flat-seven", "Major cell from flat seventh", single(2, "dominant", 4, { qualities: DOM_MIXOLYDIAN_SUS_4 }), cell),
   ]);
 
   // 7–10. Resolution and sequence contexts explicitly taught on these pages.
   one("br", "major-home", "Major resolution", "Use the figure after arriving on a major chord.", 0, "major", source("br"), 8);
-  one("br", "minor-home", "Melodic minor resolution", "Lower the destination third while retaining the leading tone.", 0, "minor", replace(source("br"), { 16: 15 }), 8);
+  one("br", "minor-home", "Melodic minor resolution", "Lower the destination third while retaining the leading tone.", 0, "minor", replace(source("br"), { 16: 15 }), 8, { qualities: ["minor", "minor6", "minormaj7"], quality: "minormaj7" });
   add("dlr", "major-resolution", "Resolve to major", "Use the altered dominant cell and land on a destination chord tone.", [
     variant("original", "Resolve to third", [chord(7, "dominant"), chord(0, "major")], source("dlr")),
     variant("root", "Resolve to root", [chord(7, "dominant"), chord(0, "major")], replace(source("dlr"), { 16: 12 })),
@@ -158,27 +171,34 @@ export function workbookApplicationDefinitions(licks, fragments) {
     variant("original", "From flat seventh", single(0, "dominant"), arp([10, 12, 16, 19, 22])),
     variant("chromatic", "Chromatic approach", single(0, "dominant"), arp([11, 12, 16, 19, 22])),
   ]);
-  one("tisc", "dominant-flat-nine", "Dominant flat-nine color", "Use a diminished-major-seventh structure from the dominant's flat seventh.", 2, "dominant", arp([11, 12, 15, 18, 23]));
+  one("tisc", "dominant-flat-nine", "Dominant flat-nine color", "Use a diminished-major-seventh structure from the dominant's flat seventh.", 2, "dominant", arp([11, 12, 15, 18, 23]), 4, { qualities: DOM_HW_DIM });
 
   one("et", "major-home", "Major triad", "Decorate the descending major triad with its written approach notes.", 0, "major", source("et"), 8);
 
   // 13. Same cell over V, ii and I, plus two distinct color placements.
-  one("cbc", "dominant", "Dominant chord", "Use the original cell over V7.", 7, "dominant");
+  one("cbc", "dominant", "Dominant chord", "Use the original cell over V7.", 7, "dominant", source("cbc"), 4, { qualities: DOM_MIXOLYDIAN_NO_B13 });
   one("cbc", "minor-ii", "Minor ii chord", "Use the same pitches over the related ii chord.", 2, "minor");
   one("cbc", "major-home", "Major arrival", "Use the same pitches over the related I chord.", 0, "major");
   one("cbc", "lydian-major", "Lydian major", "Start the cell on the sixth for a sharp-eleven sound.", 10, "major");
-  one("cbc", "altered-dominant", "Altered dominant", "Start the figure a tritone above the dominant root.", 1, "dominant");
+  one("cbc", "altered-dominant", "Altered dominant", "Start the figure a tritone above the dominant root.", 1, "dominant", source("cbc"), 4, { qualities: DOM_ALTERED });
 
   // 14–15. The four symmetry-related entries are choices, not four tune claims.
-  add("jcdp", "altered-dominant", "Diminished dominant pattern", "Use the four equivalent entries on an altered dominant.",
-    [0, 3, 6, 9].map((amount, i) => variant(["original", "sharp-nine", "sharp-eleven", "thirteen"][i],
-      ["From root", "From sharp ninth", "From sharp eleventh", "From thirteenth"][i], single(7, "dominant", 12), shift(source("jcdp"), amount))));
+  // One-bar cells come first so real chart placements appear immediately in the picker.
+  add("jcdp", "altered-dominant", "Diminished dominant pattern", "Use the four equivalent entries on an altered dominant.", [
+    ...[0, 3, 6, 9].map((amount, i) => variant(`one-bar-${i}`, `One-bar cell · ${["root", "sharp ninth", "sharp eleventh", "thirteenth"][i]}`,
+      single(7, "dominant", 4, { qualities: DOM_HW_DIM }), shift(head(source("jcdp"), 4), amount), { page: 28 })),
+    ...[0, 3, 6, 9].map((amount, i) => variant(`two-bar-${i}`, `Two-bar cell · ${["root", "sharp ninth", "sharp eleventh", "thirteenth"][i]}`,
+      single(7, "dominant", 8, { qualities: DOM_HW_DIM }), shift(head(source("jcdp"), 8), amount), { page: 28 })),
+    ...[0, 3, 6, 9].map((amount, i) => variant(["original", "sharp-nine", "sharp-eleven", "thirteen"][i],
+      ["From root", "From sharp ninth", "From sharp eleventh", "From thirteenth"][i],
+      single(7, "dominant", 12, { qualities: DOM_HW_DIM }), shift(source("jcdp"), amount))),
+  ]);
   add("jcdp", "diminished", "Diminished chord", "Use the entries specified for a diminished-seventh chord.",
     [0, 3, 6, 9].map((amount, i) => variant(["original", "ninth", "eleventh", "flat-thirteen"][i],
       ["From major seventh", "From ninth", "From eleventh", "From flat thirteenth"][i], single(8, "dim", 12), shift(source("jcdp"), amount))));
   add("tdp", "altered-dominant", "Diminished dominant turns", "Use the pattern at its four minor-third-related starting points.",
     [0, 3, 6, 9].map((amount, i) => variant(["original", "sharp-nine", "sharp-eleven", "thirteen"][i],
-      ["From root", "From sharp ninth", "From sharp eleventh", "From thirteenth"][i], single(7, "dominant"), shift(source("tdp"), amount))));
+      ["From root", "From sharp ninth", "From sharp eleventh", "From thirteenth"][i], single(7, "dominant", 4, { qualities: DOM_HW_DIM }), shift(source("tdp"), amount))));
 
   // 16. Standard major/minor ii–V contexts and the explicitly generalized target.
   add("se", "ii-v", "ii–V enclosure", "Enclose the dominant third from the preceding minor chord.", [base("se", cadence().slice(0, 2))]);
@@ -218,13 +238,13 @@ export function workbookApplicationDefinitions(licks, fragments) {
     [...[0, -1, 0, 2, 3, 2, 3, 5, 6, 5, 7, 8, 9, 8, 9, 11].map((pitch) => N(pitch)), N(12, 2), R(2)], 12);
 
   // 23. The book explicitly generalizes the diatonic decoration to other qualities.
-  for (const [id, label, family, scale] of [
-    ["major-home", "Major chord tones", "major", [0, 2, 4, 5, 7, 9, 11]],
-    ["minor-home", "Minor chord tones", "minor", [0, 2, 3, 5, 7, 9, 10]],
-    ["dominant", "Dominant chord tones", "dominant", [0, 2, 4, 5, 7, 9, 10]],
-    ["halfdim", "Half-diminished chord tones", "halfdim", [0, 1, 3, 5, 6, 8, 10]],
-    ["diminished", "Diminished chord tones", "dim", [0, 2, 3, 5, 6, 8, 9]],
-  ]) one("dct", id, label, "Keep the decoration diatonic to the selected chord quality.", 0, family, diatonic(source("dct"), scale), 12);
+  for (const [id, label, family, scale, extra] of [
+    ["major-home", "Major chord tones", "major", [0, 2, 4, 5, 7, 9, 11], {}],
+    ["minor-home", "Minor chord tones", "minor", [0, 2, 3, 5, 7, 9, 10], { qualities: MIN_DORIAN }],
+    ["dominant", "Dominant chord tones", "dominant", [0, 2, 4, 5, 7, 9, 10], { qualities: DOM_MIXOLYDIAN_4 }],
+    ["halfdim", "Half-diminished chord tones", "halfdim", [0, 1, 3, 5, 6, 8, 10], {}],
+    ["diminished", "Diminished chord tones", "dim", [0, 2, 3, 5, 6, 8, 9], {}],
+  ]) one("dct", id, label, "Keep the decoration diatonic to the selected chord quality.", 0, family, diatonic(source("dct"), scale), 12, extra);
 
   add("ae", "altered-dominant", "Altered resolution", "Enclose the fifth of the destination major chord.", [
     base("ae", [chord(7, "dominant", 2), chord(0, "major", 2)]),
@@ -234,22 +254,22 @@ export function workbookApplicationDefinitions(licks, fragments) {
   one("ae", "major-cell", "Diatonic major enclosure", "Use the plain 54123 cell in its major-scale setting.", 0, "major", withPitches(source("ae"), [7, 5, 0, 2, 4]));
   one("fe", "major-home", "Major enclosure", "Enclose the major chord's root with the original chromatic figure.", 0, "major");
   one("fe", "minor-home", "Minor enclosure", "Use the same leading-tone enclosure for a melodic-minor sound.", 0, "minor");
-  one("fe", "dominant", "Dominant enclosure", "Use the root enclosure in the dominant context shown in the solo example.", 0, "dominant");
+  one("fe", "dominant", "Dominant enclosure", "Use the root enclosure in the dominant context shown in the solo example.", 0, "dominant", source("fe"), 4, { qualities: DOM_MIXOLYDIAN_NO_B13 });
 
   // 26. C BB over Dm7 is a whole step BELOW the chord root; G7 needs a new second cell.
   one("bb", "major-home", "Major home", "Use the original 1235 plus major-seventh arpeggio combination.", 0, "major");
-  one("bb", "minor-home", "Minor seventh", "Use the original shape from the minor chord's flat seventh.", 2, "minor");
+  one("bb", "minor-home", "Minor seventh", "Use the original shape from the minor chord's flat seventh.", 2, "minor", source("bb"), 4, { qualities: MIN_DORIAN });
   one("bb", "dominant", "Dominant seventh", "Use the flat-seventh 1235 cell, then replace the second half with a half-diminished arpeggio.", 0, "dominant",
-    withPitches(source("bb"), [10, 12, 14, 17, 14, 16, 19, 22]));
+    withPitches(source("bb"), [10, 12, 14, 17, 14, 16, 19, 22]), 4, { qualities: DOM_MIXOLYDIAN_4 });
 
   // 27. Engraved F LG / G13 and Ab LG / Dø7 determine the actual grip roots.
   one("lg", "lydian", "Lydian major", "Use the grip on its own major sharp-eleven sound.", 0, "major");
   add("lg", "dominant", "Dominant thirteen color", "Use the grip from the dominant's flat seventh, as in the engraved F LG over G13 example.",
-    [base("lg", single(2, "dominant"))], "Page 53 says '13th', but its F LG over G13 notation places the grip on the flat seventh. The engraved pitches are used here.");
-  one("lg", "altered-dominant", "Altered dominant", "Use the grip from the dominant's third.", 8, "dominant");
+    [base("lg", single(2, "dominant", 4, { qualities: DOM_MIXOLYDIAN_NO_B13 }))], "Page 53 says '13th', but its F LG over G13 notation places the grip on the flat seventh. The engraved pitches are used here.");
+  one("lg", "altered-dominant", "Altered dominant", "Use the grip from the dominant's third.", 8, "dominant", source("lg"), 4, { qualities: DOM_ALTERED });
   add("lg", "halfdim", "Half-diminished color", "Use the grip from the half-diminished chord's flat fifth, as in Ab LG over Dø7.",
     [base("lg", single(6, "halfdim"))], "The last prose paragraph calls this a dominant application; the engraved first chord is Dø7. Both shown chord contexts are mapped separately.");
-  one("lg", "dominant-flat-nine", "Dominant flat-nine color", "Continue that grip over the dominant flat-nine chord, as in Ab LG over G7.", 11, "dominant");
+  one("lg", "dominant-flat-nine", "Dominant flat-nine color", "Continue that grip over the dominant flat-nine chord, as in Ab LG over G7.", 11, "dominant", source("lg"), 4, { qualities: DOM_B9_NO_S11, quality: "dominant7b9" });
 
   add("bcf", "ii-v-i", "Major ii–V–I", "Use the full chromatic phrase through the major cadence.", [base("bcf", cadence("major", 4))]);
   add("bcf", "halfdim-sequence", "Half-diminished sequence", "Use the alternate G-sharp half-diminished / C-sharp half-diminished / F-sharp minor setting shown on page 55.",
@@ -279,10 +299,10 @@ export function workbookApplicationDefinitions(licks, fragments) {
 
   context("bo", "major-first-half", "Major first half", "Use the opening half in the major-chord context on page 8.",
     [variant("original", "First half", single(0, "major"), fragments["bo-first"].elements, { pickupBeats: 0.5 })]);
-  context("bo", "minor-first-half", "Minor first half", "Use the chromatic opening half in the minor-chord context.",
+  context("bo", "minor-first-half", "Minor first half", "Use the chromatic opening half over a minor chord, passing through the major third as a bluesy color tone.",
     [variant("original", "First half", single(0, "minor"), fragments["bo-first"].elements, { pickupBeats: 0.5 })]);
   context("bo", "lydian-dominant", "Lydian dominant opening", "Use the opening half from the dominant's ninth for a sharp-eleven color.",
-    [variant("original", "First half from ninth", single(10, "dominant"), fragments["bo-first"].elements, { pickupBeats: 0.5 })]);
+    [variant("original", "First half from ninth", single(10, "dominant", 4, { qualities: DOM_LYDIAN }), fragments["bo-first"].elements, { pickupBeats: 0.5 })]);
 
   extend("1235", "major-home", [
     ...directions("fifth", "Major cell from fifth", single(5, "major"), cell),
@@ -312,54 +332,59 @@ export function workbookApplicationDefinitions(licks, fragments) {
   ]);
 
   extend("tisc", "major-home", [variant("minor-third", "Minor arpeggio from major third", single(8, "major"), arp([10, 12, 15, 19, 22]))]);
-  extend("tisc", "minor-home", [variant("dim-major", "Diminished-major-seventh color", single(0, "minor"), arp([11, 12, 15, 18, 23]))]);
+  extend("tisc", "minor-home", [variant("dim-major", "Diminished-major-seventh color", single(0, "minor", 4, { qualities: MIN_MELODIC, quality: "minormaj7" }), arp([11, 12, 15, 18, 23]))]);
   extend("tisc", "halfdim", [variant("lydian-flat-five", "Major-flat-five arpeggio from flat fifth", single(6, "halfdim"), arp([11, 12, 16, 18, 23]))]);
   extend("tisc", "dominant", [
-    variant("ninth", "Dominant arpeggio from ninth", single(10, "dominant"), arp([10, 12, 16, 19, 22])),
-    variant("flat-seven", "Major arpeggio from flat seventh", single(2, "dominant"), tisc),
+    variant("ninth", "Dominant arpeggio from ninth", single(10, "dominant", 4, { qualities: DOM_LYDIAN }), arp([10, 12, 16, 19, 22])),
+    variant("flat-seven", "Major arpeggio from flat seventh", single(2, "dominant", 4, { qualities: DOM_MIXOLYDIAN_SUS_4 }), tisc),
   ]);
   extend("tisc", "dominant-flat-nine", [
-    variant("dim-flat-nine", "Diminished arpeggio from flat ninth", single(11, "dominant"), arp([9, 12, 15, 18, 21])),
-    variant("lydian-flat-nine", "Major-flat-five arpeggio from flat ninth", single(11, "dominant"), arp([11, 12, 16, 18, 23])),
+    variant("dim-flat-nine", "Diminished arpeggio from flat ninth", single(11, "dominant", 4, { qualities: DOM_HW_DIM }), arp([9, 12, 15, 18, 21])),
+    variant("lydian-flat-nine", "Major-flat-five arpeggio from flat ninth", single(11, "dominant", 4, { qualities: DOM_B9_NO_S11 }), arp([11, 12, 16, 18, 23])),
   ]);
   context("tisc", "major-resolution", "Major anticipation", "Begin the major arpeggio over V and carry it into I.", [base("tisc", [chord(7, "dominant", 2), chord(0, "major", 2)])]);
 
   context("et", "minor-color", "Minor triad colors", "Use major-triad upper structures in the minor-chord contexts on page 24.", [
-    variant("flat-third", "Major triad from flat third", single(9, "minor", 8), source("et")),
-    variant("flat-seven", "Major triad from flat seventh", single(2, "minor", 8), source("et")),
+    variant("flat-third", "Major triad from flat third", single(9, "minor", 8, { qualities: MIN_AEOLIAN }), source("et")),
+    variant("flat-seven", "Major triad from flat seventh", single(2, "minor", 8, { qualities: MIN_DORIAN }), source("et")),
   ]);
   context("et", "dominant-flat-nine", "Dominant flat-nine color", "Decorate the dominant major triad with flat-nine and flat-thirteen upper neighbors.",
-    [variant("original", "Flat-nine / flat-thirteen form", single(0, "dominant", 8), replace(source("et"), { 26: 25, 21: 20, 14: 13 }))]);
-  context("et", "lydian-dominant", "Lydian dominant triad", "Use the major triad from the dominant's ninth.", [base("et", single(10, "dominant", 8))]);
+    [variant("original", "Flat-nine / flat-thirteen form", single(0, "dominant", 8, { qualities: DOM_B9_NO_S11 }), replace(source("et"), { 26: 25, 21: 20, 14: 13 }))]);
+  context("et", "lydian-dominant", "Lydian dominant triad", "Use the major triad from the dominant's ninth.", [base("et", single(10, "dominant", 8, { qualities: DOM_LYDIAN }))]);
 
   const minorCbc = replace(source("cbc"), { 9: 8, 4: 3 });
   context("cbc", "halfdim", "Half-diminished ii", "Use the minor-key form over the half-diminished ii chord.", [variant("original", "Minor-key cell", single(2, "halfdim"), minorCbc)]);
-  context("cbc", "minor-home", "Minor arrival", "Use the minor-key form at the tonic-minor arrival.", [variant("original", "Minor-key cell", single(0, "minor"), minorCbc)]);
-  context("cbc", "dominant-flat-nine", "Dominant flat-nine color", "Use the minor-key cell's flat ninth and flat thirteenth over V.", [variant("original", "Minor-key cell", single(7, "dominant"), minorCbc)]);
+  context("cbc", "minor-home", "Minor arrival", "Use the minor-key form at the tonic-minor arrival.", [variant("original", "Minor-key cell", single(0, "minor", 4, { qualities: MIN_AEOLIAN }), minorCbc)]);
+  context("cbc", "dominant-flat-nine", "Dominant flat-nine color", "Use the minor-key cell's flat ninth and flat thirteenth over V.", [variant("original", "Minor-key cell", single(7, "dominant", 4, { qualities: DOM_B9_NO_S11 }), minorCbc)]);
 
-  extend("jcdp", "altered-dominant", [4, 8].flatMap((beats) => [0, 3, 6, 9].map((amount, i) =>
-    variant(`${beats === 4 ? "one-bar" : "two-bar"}-${i}`, `${beats === 4 ? "One-bar" : "Two-bar"} cell · ${["root", "sharp ninth", "sharp eleventh", "thirteenth"][i]}`,
-      single(7, "dominant", beats), shift(head(source("jcdp"), beats), amount)))));
   context("jcdp", "ii-v", "Diminished ii–V pattern", "Begin the two-bar diminished pattern over ii before reaching the dominant.", [
-    variant("minor-ii", "Minor-seven ii", [chord(4, "minor"), chord(9, "dominant")], head(source("jcdp"), 8)),
-    variant("halfdim-ii", "Half-diminished ii", [chord(4, "halfdim"), chord(9, "dominant")], head(source("jcdp"), 8)),
+    variant("minor-ii", "Minor-seven ii", [chord(2, "minor"), chord(7, "dominant", 4, { qualities: DOM_HW_DIM })], head(source("jcdp"), 8)),
+    variant("halfdim-ii", "Half-diminished ii", [chord(2, "halfdim"), chord(7, "dominant", 4, { qualities: DOM_HW_DIM })], head(source("jcdp"), 8)),
   ]);
-  context("tdp", "ii-v", "Diminished ii–V turns", "Stretch the turning pattern over the ii–V window, as in the continuation examples.",
-    [variant("original", "Two-bar turning pattern", [chord(7, "minor"), chord(0, "dominant")], source("tdp").map((el) => ({ ...el, beats: el.beats * 2 })))]);
+  context("tdp", "ii-v", "Diminished ii–V turns", "Stretch the turning pattern over the ii–V window, as in the continuation examples.", [
+    variant("original", "Minor-seven ii", [chord(2, "minor"), chord(7, "dominant", 4, { qualities: DOM_HW_DIM })], source("tdp").map((el) => ({ ...el, beats: el.beats * 2 }))),
+    variant("halfdim-ii", "Half-diminished ii", [chord(2, "halfdim"), chord(7, "dominant", 4, { qualities: DOM_HW_DIM })], source("tdp").map((el) => ({ ...el, beats: el.beats * 2 }))),
+  ]);
 
   const targetEnclosure = (scale, degree) => {
     const at = (index) => scale[((index % 7) + 7) % 7] + Math.floor(index / 7) * 12;
     return [at(degree + 2), at(degree - 1), at(degree + 1), at(degree - 1), at(degree)];
   };
-  const targets = (scale, family) => [0, 2, 4].map((degree, i) => variant(["root", "third", "fifth"][i],
-    ["Target root", "Target third", "Target fifth"][i], single(0, family), withPitches(source("se"), targetEnclosure(scale, degree))));
+  const targets = (scale, family, qualitiesByIndex = []) => [0, 2, 4].map((degree, i) => variant(["root", "third", "fifth"][i],
+    ["Target root", "Target third", "Target fifth"][i],
+    single(0, family, 4, qualitiesByIndex[i] ? { qualities: qualitiesByIndex[i] } : {}),
+    withPitches(source("se"), targetEnclosure(scale, degree))));
   // The generalized targets must follow their chord's diatonic fourths.
-  g.find((item) => item.lickId === "se" && item.id === "dominant-targets").variants = targets([0, 2, 4, 5, 7, 9, 10], "dominant");
+  g.find((item) => item.lickId === "se" && item.id === "dominant-targets").variants = targets(
+    [0, 2, 4, 5, 7, 9, 10],
+    "dominant",
+    [DOM_MIXOLYDIAN_NO_B13, DOM_MIXOLYDIAN_4, DOM_MIXOLYDIAN_4],
+  );
   context("se", "major-targets", "Major targets", "Apply the sandwich to major-chord targets with diatonic approach notes.", targets([0, 2, 4, 5, 7, 9, 11], "major"));
   context("se", "minor-targets", "Minor targets", "Apply the sandwich to minor-chord targets with diatonic approach notes.", targets([0, 2, 3, 5, 7, 9, 10], "minor"));
 
   context("mp", "halfdim", "Half-diminished color", "Use the minor passage from the half-diminished chord's minor third.", [base("mp", single(9, "halfdim"))]);
-  context("mp", "altered-dominant", "Altered dominant", "Use the minor passage from the dominant's flat ninth.", [base("mp", single(11, "dominant"))]);
+  context("mp", "altered-dominant", "Altered dominant", "Use the minor passage from the dominant's flat ninth.", [base("mp", single(11, "dominant", 4, { qualities: DOM_ALTERED }))]);
   context("mp", "ii-v", "Minor ii–V passage", "Let the minor passage continue over the related dominant.", [base("mp", [chord(0, "minor", 2), chord(5, "dominant", 2)])]);
   context("ctdc", "major-secondary-dominant", "Major to secondary dominant", "Carry the common-tone color from I into its secondary dominant.", [base("ctdc", [chord(0, "major", 2), chord(9, "dominant", 2)])]);
   context("ntp", "ii-v", "Neighbor-tone ii–V", "Sustain the passage's final note across the change to V.", [
@@ -376,15 +401,15 @@ export function workbookApplicationDefinitions(licks, fragments) {
   const phrygianDct = diatonic(source("dct"), [0, 1, 4, 5, 7, 8, 10]);
   const lydianDct = diatonic(source("dct"), [0, 2, 4, 6, 7, 9, 10]);
   extend("dct", "dominant", [
-    variant("flat-nine-flat-thirteen", "Flat-nine / flat-thirteen form", single(0, "dominant", 12), phrygianDct),
-    variant("flat-nine-body", "Flat-nine / flat-thirteen · two-bar body", single(0, "dominant", 8), head(phrygianDct, 8)),
-    variant("lydian", "Sharp-eleven form", single(0, "dominant", 12), lydianDct),
-    variant("lydian-body", "Sharp-eleven · two-bar body", single(0, "dominant", 8), head(lydianDct, 8)),
+    variant("flat-nine-flat-thirteen", "Flat-nine / flat-thirteen form", single(0, "dominant", 12, { qualities: DOM_B9_NO_S11 }), phrygianDct),
+    variant("flat-nine-body", "Flat-nine / flat-thirteen · two-bar body", single(0, "dominant", 8, { qualities: DOM_B9_NO_S11 }), head(phrygianDct, 8)),
+    variant("lydian", "Sharp-eleven form", single(0, "dominant", 12, { qualities: DOM_LYDIAN }), lydianDct),
+    variant("lydian-body", "Sharp-eleven · two-bar body", single(0, "dominant", 8, { qualities: DOM_LYDIAN }), head(lydianDct, 8)),
   ]);
   context("dct", "ii-v-i", "ii–V–I decoration", "Carry the Dorian decoration through ii–V and hold its ninth over I.",
     [variant("original", "Dorian cadence", [chord(0, "minor"), chord(5, "dominant"), chord(10, "major")], diatonic(source("dct"), [0, 2, 3, 5, 7, 9, 10]))]);
   context("dct", "minor-resolution", "Dominant to minor", "Use the flat-nine / flat-thirteen form and carry the final common tone into minor.",
-    [variant("original", "Minor cadence", [chord(0, "dominant", 8), chord(5, "minor")], phrygianDct)]);
+    [variant("original", "Minor cadence", [chord(0, "dominant", 8, { qualities: DOM_B9_NO_S11 }), chord(5, "minor")], phrygianDct)]);
 
   context("ae", "minor-cell", "Diatonic minor enclosure", "Use the 54123 cell with a minor third, as in the minor-chord examples.",
     [variant("original", "Minor cell", single(0, "minor"), withPitches(source("ae"), [7, 5, 0, 2, 3]))]);
@@ -394,8 +419,9 @@ export function workbookApplicationDefinitions(licks, fragments) {
     variant("minor-ii", "Minor-seven ii", [chord(2, "minor", 2), chord(7, "dominant", 2)], shift(source("fe"), 7)),
     variant("halfdim-ii", "Half-diminished ii", [chord(2, "halfdim", 2), chord(7, "dominant", 2)], shift(source("fe"), 7)),
   ]);
-  context("lg", "minor-color", "Minor chord color", "Use the grip from the minor chord's minor third in the Dorian ii-chord setting.", [base("lg", single(9, "minor"))]);
-  extend("lg", "dominant-flat-nine", [variant("flat-thirteen", "Grip from flat thirteenth", single(4, "dominant"), source("lg"))]);
+  context("lg", "minor-color", "Minor chord color", "Use the grip from the minor chord's minor third in the Dorian ii-chord setting.", [base("lg", single(9, "minor", 4, { qualities: MIN_DORIAN }))]);
+  context("lg", "dominant-flat-thirteen", "Dominant flat-thirteen color", "Use the grip from the dominant's flat thirteenth for a natural-nine / flat-thirteen color.",
+    [base("lg", single(4, "dominant", 4, { qualities: DOM_B13_NAT9, quality: "dominant7b13" }))]);
   context("bcf", "minor-ii-v-i", "Minor ii–V–i", "Use the alternate figure in the normal half-diminished / dominant / minor setting on page 56.",
     [variant("original", "Minor cadence", [chord(6, "halfdim"), chord(11, "dominant"), chord(4, "minor")], replace(source("bcf"), { 17: 18 }))]);
   context("nnr", "major-resolution", "Dominant to major", "Start the thirteen-to-flat-thirteen voice-leading on V before its ninth arrival on I.",

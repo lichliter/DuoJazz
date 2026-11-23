@@ -100,7 +100,7 @@ test('Lotus preserves harmonic-minor spelling in note names, ABC, and MEI after 
     assert.ok(firstMeiNote.includes(`pname="${name[0].toLowerCase()}"`));
   }
   assert.match(phraseABC(getKey('G'), 'concert', appId), /clef=bass\n\^F,/);
-  for (const group of groups) {
+  for (const group of groups.filter(g => g.id.endsWith('minor-home') || g.id.endsWith('minor-cadence'))) {
     const applicationId = group.choices.find(c => c.chartId === 'autumn-leaves').lessonId;
     const notes = phraseNotes(getKey('G'), 'concert', applicationId);
     assert.equal(notes[0].concertName.replace(/\d+$/, ''), 'F♯');
@@ -112,8 +112,8 @@ test('Lotus preserves harmonic-minor spelling in note names, ABC, and MEI after 
 });
 
 test('Lotus integrations have honest examples and real full-length Autumn Leaves placements', () => {
-  assert.deepEqual(groups.map(g => g.label), ['Minor home', 'V → minor']);
-  for (const group of groups) {
+  assert.deepEqual(groups.map(g => g.label), ['Minor home', 'V → minor', 'Lydian dominant', 'Altered dominant', 'Half-diminished']);
+  for (const group of groups.filter(g => g.id.endsWith('minor-home') || g.id.endsWith('minor-cadence'))) {
     const isCadence = group.id.endsWith('minor-cadence');
     const form = formById(applicationById(group.exampleLessonId).formId);
     assert.equal(form.bars.length, 8);
@@ -140,6 +140,36 @@ test('Lotus integrations have honest examples and real full-length Autumn Leaves
         assert.deepEqual(phrase.map(n => n.beat), starts.map(beat => beat + origin));
       }
       assert.ok(livePlaybackEvents(recordBackingConfig(session)).every(e => e.type !== 'melody'));
+    }
+  }
+  const melodicSpecs = [
+    { id: 'lotus-inspired:lydian-dominant', quality: 'dominant7s11', chartId: 'take-the-a-train' },
+    { id: 'lotus-inspired:altered-dominant', quality: 'dominant7alt', chartId: 'i-got-rhythm' },
+    { id: 'lotus-inspired:halfdim', quality: 'minor7b5', chartId: null },
+  ];
+  for (const spec of melodicSpecs) {
+    const group = groups.find(g => g.id === spec.id);
+    assert.ok(group);
+    const form = formById(applicationById(group.exampleLessonId).formId);
+    assert.equal(form.bars[0].chords[0].quality, spec.quality);
+    assert.doesNotMatch(form.source + form.title, /Workbook|undefined/);
+    const lessonIds = [group.exampleLessonId];
+    if (spec.chartId) {
+      const choice = group.choices.find(c => c.chartId === spec.chartId);
+      assert.ok(choice, `${spec.id} -> ${spec.chartId}`);
+      lessonIds.push(choice.lessonId);
+    }
+    for (const lessonId of lessonIds) {
+      for (const keyId of TWELVE_KEY_IDS) {
+        const notes = phraseNotes(getKey(keyId), 'concert', lessonId);
+        for (const note of notes) assert.doesNotMatch(note.shownName, /[𝄪𝄫]/u);
+      }
+      const session = createSession({ lessonId, startKeyId: 'F', swing: false });
+      const config = demoAudioConfig(session);
+      const model = livePlaybackEvents(config).filter(e => e.type === 'melody');
+      const notes = phraseNotes(config.concertKey, config.displayMode, config.applicationId, config.melodyRegister);
+      assert.deepEqual(model.map(e => e.midi), notes.map(n => n.concertMidi));
+      assert.deepEqual(model.map(e => e.beat), notes.map(n => n.startBeat));
     }
   }
 });
