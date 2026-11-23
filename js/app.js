@@ -416,7 +416,8 @@ function visualPhase() {
 function notesVisibleInSession() {
   if (!session || session.screen !== "session") return false;
   const lesson = lessonById(session.lessonId);
-  return !(lesson.kind === "master" && !lesson.chartTimed && !notesRevealed);
+  if (lesson.chartPractice || lesson.chartTimed) return false;
+  return lesson.kind !== "master" || notesRevealed;
 }
 
 function demoRetryCue() {
@@ -956,15 +957,10 @@ function finishCelebration(generation, { arm = false, pause = false } = {}) {
 }
 
 function renderShowNotes() {
-  const master = Boolean(
-    session
-    && session.screen === "session"
-    && lessonById(session.lessonId).kind === "master"
-    && !isTimedChart()
-    && !session.demo,
-  );
-  const show = master && !notesRevealed;
   if (!els.showNotes) return;
+  const lesson = session?.screen === "session" ? lessonById(session.lessonId) : null;
+  const show = lesson?.kind === "master" && !lesson.chartPractice && !lesson.chartTimed
+    && !session.demo && !notesRevealed;
   els.showNotes.hidden = !show;
   els.showNotes.textContent = "Show notes";
   els.showNotes.setAttribute("aria-label", "Show notes");
@@ -1714,10 +1710,10 @@ function renderSessionChrome() {
   if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden) && Boolean(els.continueBtn?.hidden);
 }
 
-function renderLearnChart() {
-  const host = els.chartLearnGrid;
+function renderSessionChart() {
+  const host = els.sessionChartGrid;
   const lesson = lessonById(session.lessonId);
-  host.hidden = !isChartLearn();
+  host.hidden = !lesson.chartId || (lesson.kind !== "learn" && !lesson.chartPractice);
   if (host.hidden) return;
 
   const chart = CHART_LIBRARY.find(({ id }) => id === lesson.chartId);
@@ -1860,7 +1856,8 @@ function layoutClickWheel() {
   const space = footerTop() - card.getBoundingClientRect().top;
   const cardStyle = getComputedStyle(card);
   const wrapStyle = getComputedStyle(wrap);
-  const wrapPadY = (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
+  const wrapPadY = wrap.hidden ? 0
+    : (parseFloat(wrapStyle.paddingTop) || 0) + (parseFloat(wrapStyle.paddingBottom) || 0);
   let chrome = (parseFloat(cardStyle.paddingTop) || 0) + (parseFloat(cardStyle.paddingBottom) || 0)
     + (parseFloat(cardStyle.borderTopWidth) || 0) + (parseFloat(cardStyle.borderBottomWidth) || 0)
     + wrapPadY;
@@ -1873,7 +1870,9 @@ function layoutClickWheel() {
   }
   const notationShown = Boolean(svg) && !els.notation?.hidden;
   let metrics;
-  if (notationShown) {
+  if (wrap.hidden) {
+    metrics = staffSystemMetricsFromBoxes();
+  } else if (notationShown) {
     const boxes = [...svg.querySelectorAll(".system")].map((el) => el.getBoundingClientRect());
     const staffPx = fiveLineStaffHeightCss(svg.querySelector(".staff"))
       || lastNotationLayout?.minStaffPx
@@ -1959,6 +1958,8 @@ function renderNotation() {
   const view = sessionPresentation(session);
   const lesson = lessonById(session.lessonId);
   const hideStaff = Boolean(view.hideStaff);
+  const paperWrap = els.notation.closest(".paper-wrap");
+  paperWrap.hidden = Boolean(lesson.chartPractice);
   document.getElementById('timed-chart-panel').hidden = !lesson.chartTimed;
   els.hiddenAnswer.hidden = !hideStaff || lesson.chartTimed;
   els.hiddenAnswer.textContent = currentCard(session) === "quiz" ? "From memory" : "Use your ears";
@@ -1968,8 +1969,7 @@ function renderNotation() {
   const spec = sessionEngraveSpec(session);
   els.notation.classList.toggle("slash", Boolean(view.showSlashNotation && !view.showLandingNotation));
   els.notation.classList.toggle("notation-memory", Boolean(spec.memory && !notesRevealed));
-  const hideNotes = lesson.kind === "master" && !lesson.chartTimed && !notesRevealed;
-  els.notation.closest(".paper-wrap")?.classList.toggle("notes-hidden", hideNotes);
+  paperWrap.classList.toggle("notes-hidden", !hideStaff && !notesVisibleInSession());
   if (hideStaff) {
     notationGen += 1;
     notationRenderKey = null;
@@ -2308,7 +2308,7 @@ function render(snap = transport.snapshot()) {
     renderSessionChrome();
     renderSessionTempo();
     renderSessionOctave();
-    renderLearnChart();
+    renderSessionChart();
     renderNotation();
     renderPrimary();
     renderMeter(snap);
@@ -2784,7 +2784,7 @@ els.autoToggle?.addEventListener("click", () => {
 });
 els.showNotes?.addEventListener("click", () => {
   if (!session || session.screen !== "session" || lessonById(session.lessonId).kind !== "master" || session.demo) return;
-  if (notesRevealed) return;
+  if (els.showNotes.hidden || notesRevealed) return;
   notesRevealed = true;
   notesPeeked = true;
   if (attempt) {

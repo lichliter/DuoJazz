@@ -489,14 +489,14 @@ button.module-banner {
 
 .chart-chord-suffix { font-size: 0.75em; }
 
-#chart-learn-grid {
+#session-chart-grid {
   border-radius: 0 0 17px 17px;
   border-top: 1px solid color-mix(in srgb, var(--paper-ink) 22%, transparent);
 }
 
-#chart-learn-grid[hidden] { display: none; }
+#session-chart-grid[hidden] { display: none; }
 
-#chart-learn-grid .ireal-bar {
+#session-chart-grid .ireal-bar {
   min-height: 2.4rem;
   padding: 0.85rem 0.2rem 0.3rem;
   font-size: 0.95rem;
@@ -504,7 +504,7 @@ button.module-banner {
 
 @container (max-width: 420px) {
   .ireal-bar,
-  #chart-learn-grid .ireal-bar {
+  #session-chart-grid .ireal-bar {
     padding-inline: 0.2rem;
     font-size: clamp(0.75rem, 3.8cqi, 1rem);
   }
@@ -521,11 +521,11 @@ button.module-banner {
   }
 }
 
-#chart-learn-grid .ireal-bar:has([aria-current="step"]) {
+#session-chart-grid .ireal-bar:has([aria-current="step"]) {
   background: color-mix(in srgb, var(--tint-solid) 18%, var(--paper));
 }
 
-#chart-learn-grid [aria-current="step"] {
+#session-chart-grid [aria-current="step"] {
   text-decoration: underline 2px;
   text-underline-offset: 0.2em;
 }
@@ -1150,7 +1150,7 @@ button.module-banner {
   overflow: hidden;
 }
 
-.session-screen .grade-slot:has(+ #chart-learn-grid:not([hidden])) {
+.session-screen .grade-slot:has(+ #session-chart-grid:not([hidden])) {
   border-radius: 0;
 }
 

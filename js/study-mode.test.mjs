@@ -135,7 +135,7 @@ test("Master blurs the staff until Show notes, and a reveal does not count", asy
   assert.doesNotMatch(hig, /\.paper\.staff-blurred \.note/);
   assert.match(app, /notes-hidden/);
   assert.match(app, /closest\("\.paper-wrap"\)/);
-  assert.match(app, /kind === "master" && !lesson.chartTimed && !notesRevealed/);
+  assert.match(app, /return lesson\.kind !== "master" \|\| notesRevealed/);
   assert.doesNotMatch(app, /Hide notes/);
   assert.match(app, /notesShown: notesPeeked/);
   const rapidPass = app.slice(app.indexOf("function recordRapidPass"), app.indexOf("function finishRapid"));
