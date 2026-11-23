@@ -6,7 +6,26 @@ export const PREFERENCE_NAMES = ['instrumentId', 'keyMode', 'startKeyId', 'allKe
 const scalarNames = [...PREFERENCE_NAMES.filter(n => !['lessons', 'modules'].includes(n)), 'selectedModuleId', 'selectedChartId'];
 const zeroId = '00000000-0000-0000-0000-000000000000';
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-const fieldDefault = name => name.startsWith('lesson:') ? (name.endsWith(':tempo') ? 96 : 0)
+const lessonDefaults = { tempo: 96, melodyRegister: 0 };
+export function changedPreferences(previous, next) {
+  const changes = Object.fromEntries(PREFERENCE_NAMES
+    .filter(name => name !== 'lessons' && !same(previous[name], next[name]))
+    .map(name => [name, next[name]]));
+  // A compact snapshot drops a lesson when its last override returns to default.
+  // Send just the fields this player edited so other devices keep their edits.
+  const lessonIds = new Set([...Object.keys(previous.lessons), ...Object.keys(next.lessons)]);
+  for (const id of lessonIds) {
+    for (const [field, fallback] of Object.entries(lessonDefaults)) {
+      const value = next.lessons[id]?.[field] ?? fallback;
+      if (value === (previous.lessons[id]?.[field] ?? fallback)) continue;
+      changes.lessons ??= {};
+      changes.lessons[id] ??= {};
+      changes.lessons[id][field] = value;
+    }
+  }
+  return changes;
+}
+const fieldDefault = name => name.startsWith('lesson:') ? lessonDefaults[name.slice(name.lastIndexOf(':') + 1)]
   : name.startsWith('module:') ? (name.endsWith(':tempo') ? null : 'learn') : undefined;
 const newer = (a, b) => !b || a.edit_clock > b.edit_clock || (a.edit_clock === b.edit_clock && a.edit_id > b.edit_id);
 const validName = name => scalarNames.includes(name) || /^(chart|lick):[a-z0-9-]+$/.test(name)
@@ -35,7 +54,7 @@ function flatten(values) {
   for (const id of Array.isArray(values.myLicks) ? values.myLicks : []) result[`lick:${id}`] = true;
   for (const [id, lesson] of Object.entries(values.lessons ?? {})) {
     if (!record(lesson)) continue;
-    for (const field of ['tempo', 'melodyRegister']) if (Object.hasOwn(lesson, field)) result[`lesson:${id}:${field}`] = lesson[field];
+    for (const field of Object.keys(lessonDefaults)) if (Object.hasOwn(lesson, field)) result[`lesson:${id}:${field}`] = lesson[field];
   }
   for (const [id, module] of Object.entries(values.modules ?? {})) {
     if (!record(module)) continue;

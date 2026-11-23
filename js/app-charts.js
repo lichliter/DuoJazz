@@ -2,7 +2,7 @@ import { transposeToneKey } from "./chord-tones.js";
 import { closeSheet } from "./dialogs.js";
 import { compactChordSymbol, fillMusicLabel } from "./engrave.js";
 import { getKey } from "./music.js";
-import { CHART_MODULES, MODULES, PRACTICE_CATALOG, lessonById, moduleById } from "./registry.js";
+import { CHART_MODULES, MODULES, PRACTICE_CATALOG, moduleById } from "./registry.js";
 import { moduleRoadNodes } from "./session.js";
 
 export function renderChartGrid(host, grid) {
@@ -66,7 +66,7 @@ export function createChartsView({
   chartConcertKey,
   keysByLesson,
   startChartTones,
-  startLesson,
+  startPracticeApplication,
   moduleBanner,
   sleeveButton,
   openLickPicker,
@@ -101,9 +101,7 @@ export function createChartsView({
       button.append(title, detail);
       button.onclick = () => {
         closeSheet(dialog);
-        const lesson = lessonById(choice.lessonId);
-        const delta = getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc;
-        startLesson(lesson.id, { keyId: transposeToneKey(lesson.defaultKeyId, delta) });
+        startPracticeApplication(choice.lessonId);
       };
       return button;
     }));

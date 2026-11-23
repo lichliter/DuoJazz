@@ -3,7 +3,7 @@
  * iPad Safari: start only after a user gesture, same-origin worklet, silent tap to keep the graph alive.
  */
 
-const WORKLET_URL = new URL("./pitch-worklet.js?v=212", import.meta.url);
+const WORKLET_URL = new URL("./pitch-worklet.js?v=241", import.meta.url);
 const loadedWorklets = new WeakSet();
 const OBSERVATION_AMP_FLOOR = 0.0015;
 const OBSERVATION_CONFIDENCE_MIN = 0.8;
@@ -56,8 +56,8 @@ export class PitchMonitor {
     this.onState(state);
   }
 
-  reset() {
-    this.observations = [];
+  reset(observations = []) {
+    this.observations = observations;
     this.silentFrames = 0;
   }
 

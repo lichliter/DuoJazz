@@ -876,9 +876,16 @@ button.module-banner {
 /* Keep the session anchored during rotation, even if the document was scrolled
    on Home. Only .session-body should scroll; hidden overflow on the outer
    frames lets browser focus/scroll restoration move the header offscreen. */
-.app-shell[data-screen="session"] {
+body:has(> .app-shell[data-screen="session"]:not([hidden])) {
   position: fixed;
   inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell[data-screen="session"] {
+  flex: 1 1 0;
+  height: auto;
 }
 
 @supports (overflow: clip) {
@@ -2886,7 +2893,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   }
 }
 
-.offline-status { position: sticky; top: 0; z-index: 100; margin: 0; padding: 8px 16px; background: #edbf7e; color: #201712; text-align: center; font-size: 14px; }
+.offline-status { position: sticky; top: 0; z-index: 100; flex: none; margin: 0; padding: 8px 16px; background: #edbf7e; color: #201712; text-align: center; font-size: 14px; }
 .offline-status[hidden] { display: none; }
 
 /* Shared Licks / Charts library and picker. */

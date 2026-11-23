@@ -5,6 +5,7 @@
  */
 const YIN_THRESHOLD = 0.15;
 const YIN_RMS_FLOOR = 0.0015;
+const MIN_PITCH_HZ = 38;
 
 function rms(buf) {
   let sum = 0;
@@ -17,7 +18,7 @@ function yinPitch(buf, sampleRate, d) {
   const half = n >> 1;
   if (half < 4 || !(sampleRate > 0)) return { hz: 0, confidence: 0 };
   const minTau = Math.max(2, Math.floor(sampleRate / 2200));
-  const maxTau = Math.min(half, Math.ceil(sampleRate / 38) + 2);
+  const maxTau = half;
   d[0] = 1;
   let running = 0;
   let tau = -1;
@@ -63,10 +64,16 @@ function yinPitch(buf, sampleRate, d) {
 class PitchProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.buffer = new Float32Array(2048);
+    // Average adjacent samples to keep the bass lag search affordable at high
+    // device rates. Two periods at the pitch floor fit at every input rate.
+    this.samplesPerPoint = Math.max(1, Math.round(sampleRate / 24000));
+    this.analysisRate = sampleRate / this.samplesPerPoint;
+    this.buffer = new Float32Array(2 * (Math.ceil(this.analysisRate / MIN_PITCH_HZ) + 2));
     this.difference = new Float32Array(this.buffer.length >> 1);
+    this.sampleSum = 0;
+    this.sampleCount = 0;
     this.offset = 0;
-    this.hop = 1024;
+    this.hop = Math.round(this.analysisRate * 1024 / 48000);
     this.stopped = false;
     this.port.onmessage = event => {
       if (event.data === 'stop') this.stopped = true;
@@ -77,23 +84,23 @@ class PitchProcessor extends AudioWorkletProcessor {
     if (this.stopped) return false;
     const channel = inputs[0] && inputs[0][0];
     if (!channel || !channel.length) return true;
-    let i = 0;
-    while (i < channel.length) {
-      const room = this.buffer.length - this.offset;
-      const take = Math.min(room, channel.length - i);
-      this.buffer.set(channel.subarray(i, i + take), this.offset);
-      this.offset += take;
-      i += take;
+    for (let i = 0; i < channel.length; i += 1) {
+      this.sampleSum += channel[i];
+      this.sampleCount += 1;
+      if (this.sampleCount < this.samplesPerPoint) continue;
+      this.buffer[this.offset++] = this.sampleSum / this.sampleCount;
+      this.sampleCount = 0;
+      this.sampleSum = 0;
       if (this.offset >= this.buffer.length) {
         const amp = rms(this.buffer);
         let hz = 0;
         let confidence = 0;
         if (amp > YIN_RMS_FLOOR) {
-          const pitch = yinPitch(this.buffer, sampleRate, this.difference);
+          const pitch = yinPitch(this.buffer, this.analysisRate, this.difference);
           hz = pitch.hz;
           confidence = pitch.confidence;
         }
-        const audioTime = (currentFrame + i - this.buffer.length / 2) / sampleRate;
+        const audioTime = (currentFrame + i + 1 - this.buffer.length * this.samplesPerPoint / 2) / sampleRate;
         this.port.postMessage({ hz, amp, rms: amp, confidence, audioTime });
         this.buffer.copyWithin(0, this.hop);
         this.offset = this.buffer.length - this.hop;

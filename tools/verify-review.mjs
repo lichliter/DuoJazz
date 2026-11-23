@@ -76,12 +76,13 @@ await withAppUrl(async (appUrl) => {
     await page.locator('#library-search').fill('Guide Tone Sequence');
     await page.getByRole('button', { name: 'Add Guide Tone Sequence', exact: true }).click();
     await page.locator('#library-search').fill('');
-    await page.getByRole('button', { name: 'My Rotation', exact: true }).click();
-    await page.getByLabel('Options for Cry Me a River', { exact: true }).click();
+    await page.getByRole('button', { name: 'Close library', exact: true }).click();
+    await page.locator('#lesson-list .module-banner').click();
+    await page.getByTestId('quick-view-module-cmar').press('ArrowLeft');
     await page.getByRole('button', { name: 'Remove Cry Me a River', exact: true }).focus();
     await page.keyboard.press('Enter');
     assert.equal(await page.evaluate(() => document.activeElement?.dataset.testid), 'quick-view-module-gts');
-    await page.getByLabel('Options for Guide Tone Sequence', { exact: true }).click();
+    await page.getByTestId('quick-view-module-gts').press('ArrowLeft');
     await page.getByRole('button', { name: 'Remove Guide Tone Sequence', exact: true }).focus();
     await page.keyboard.press('Enter');
     assert.equal(await page.evaluate(() => document.activeElement?.dataset.testid), 'quick-view-module-chord-tones');

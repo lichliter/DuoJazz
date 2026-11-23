@@ -5,7 +5,8 @@ import vm from "node:vm";
 import * as sessions from "./session.js";
 import * as medals from "./medals.js";
 import * as followers from "./follow.js";
-import { chartPassFeedback, expectedNotesFor } from "./grade.js";
+import { chartPassFeedback, expectedNotesFor, hzFromMidi, synthTrack } from "./grade.js";
+import { PitchMonitor } from "./pitch.js";
 import { getKey } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
 import {
@@ -367,6 +368,35 @@ test("cancelled mic startup does not create an attempt or timer", async () => {
   await harness.context.beginListening();
   assert.equal(harness.context.attempt, null);
   assert.equal(harness.hasTimer(), false);
+});
+
+test("chart Learn hears a held note across a loop boundary as a single attack", async () => {
+  const session = sessions.createSession({ lessonId: "tones-chart-blue-bossa-0-learn", tempo: 96 });
+  const monitor = new PitchMonitor();
+  monitor.start = noop;
+  monitor.isLive = () => true;
+  let nextSegment, dings = 0;
+  const transport = {
+    playing: true, chorusLengthBeats: 4, ensure: noop, prepareBacking: noop,
+    start(config, options) { nextSegment = options.nextSegment; },
+    playSuccessDing() { dings++; },
+  };
+  const context = appContext(["beginTimedChart"], { session, transport, monitor, startGen: 0, resetPitchTake: noop });
+  await context.beginTimedChart();
+  const notes = expectedNotesFor(session);
+  function hear(frame) {
+    monitor.observations.push(frame);
+    monitor.onFrame(frame);
+  }
+  const held = beat => hear({ beat, hz: hzFromMidi(notes[0].midi), amp: 0.2 });
+  for (let i = -18; i < 0; i++) held(4 + i / 32);
+  nextSegment().onStart();
+  for (let i = 0; i < 28; i++) held(i / 32);
+  synthTrack(notes.slice(1)).forEach(hear);
+  assert.equal(dings, 0);
+  nextSegment().onStart();
+  synthTrack(notes).forEach(hear);
+  assert.equal(dings, 1);
 });
 
 test("consecutive attempts reuse live capture instead of stopping the mic", async () => {

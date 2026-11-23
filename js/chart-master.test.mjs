@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CHART_LIBRARY, CHART_MODULES } from './registry.js';
 import { advanceKey, createSession, recordBackingConfig, sessionPresentation, sessionScreenTitle, completeCard, wrapupCopy, wrapupNextModule } from './session.js';
-import { chartPassFeedback, expectedNotesFor, gradeSession, synthTrack } from './grade.js';
+import { chartPassFeedback, expectedNotesFor, gradePerformance, gradeSession, hzFromMidi, synthTrack } from './grade.js';
 import { getKey, beatsToSeconds } from './music.js';
 import { chordToneIntervals } from './chord-tones.js';
 import { emptyMastery, recordQuizPass } from './medals.js';
@@ -76,6 +76,38 @@ test('half-bar chord tones follow swing timing and old per-chord passes never co
   assert.equal(gradeSession(swing, synthTrack(swung)).percent, 100);
   const practiced = recordQuizPass(emptyMastery(), parent.lessons.find(lesson => lesson.chartPractice).id, 'C');
   assert.deepEqual(practiced.lessons[lesson.id].passedKeys, []);
+});
+
+test('timed grading and bar dings use attacks when early notes ring across the beat', () => {
+  const session = createSession({ lessonId: 'tones-chart-honeysuckle-rose-timed-master', tempo: 96, swing: false });
+  const notes = expectedNotesFor(session);
+  for (const early of [0, 0.6]) {
+    const frames = [];
+    const ding = chartPassFeedback(notes, session.tempo);
+    let dings = 0;
+    for (const [i, note] of notes.entries()) {
+      const start = i === 0 ? 0 : note.startBeat - early;
+      const end = (notes[i + 1]?.startBeat ?? note.startBeat + note.beats) - early - 0.07;
+      for (let beat = start; beat < end; beat += 0.032) {
+        frames.push({ beat, hz: hzFromMidi(note.midi), amp: 0.12 });
+        if (ding(beat, frames)) dings++;
+      }
+    }
+    const result = gradeSession(session, frames);
+    assert.equal(result.passedCount, early ? 1 : notes.length);
+    assert.equal(dings, early ? 0 : notes.at(-1).bar);
+  }
+});
+
+test('a repeated pitch needs a release or new attack, including at the end of the count-in', () => {
+  const expected = [0, 1].map((startBeat, i) => ({ startBeat, midi: 60, beats: 1, bar: 1, number: i + 1 }));
+  const frames = Array.from({ length: 55 }, (_, i) => ({ beat: i / 32, hz: hzFromMidi(60), amp: 0.1 }));
+  const grade = observations => gradePerformance({ expected, observations, tempo: 96, strictTiming: true }).passedCount;
+  assert.equal(grade(frames), 1);
+  assert.equal(grade(frames.filter(frame => frame.beat < 0.8 || frame.beat >= 1)), 2);
+  assert.equal(grade(frames.map(frame => ({ ...frame, amp: frame.beat >= 0.9 && frame.beat < 1 ? 0.02 : 0.1 }))), 2);
+  const countIn = frames.slice(0, 32).map(frame => ({ ...frame, beat: frame.beat - 1 }));
+  assert.equal(grade([...countIn, ...frames]), 0);
 });
 
 test('timed Master grades quiet confident horns and ignores low-confidence noise', () => {

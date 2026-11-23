@@ -157,7 +157,7 @@ import {
 } from "./take-dump.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
 import { initAccount } from "./account.js";
-import { createCloudSettings, PREFERENCE_NAMES } from "./cloud-settings.js";
+import { createCloudSettings, changedPreferences } from "./cloud-settings.js";
 import { closeSheet, initDialogInteractions } from "./dialogs.js";
 import { collectElements } from "./app-dom.js";
 import { createHomeView } from "./app-home.js";
@@ -299,12 +299,7 @@ function loadPrefs() {
 function persist() {
   const nextCompact = compactPrefs(prefs);
   if (cloudSettings.userId) {
-    const prevCompact = compactPrefs(savedPrefs);
-    const changed = Object.fromEntries(
-      PREFERENCE_NAMES
-        .filter(name => JSON.stringify(nextCompact[name]) !== JSON.stringify(prevCompact[name]))
-        .map(name => [name, nextCompact[name]]),
-    );
+    const changed = changedPreferences(savedPrefs, nextCompact);
     if (Object.keys(changed).length) cloudSettings.set(changed);
   } else writeStoredJson(PREFS_KEY, nextCompact);
   savedPrefs = structuredClone(nextCompact);
@@ -788,9 +783,9 @@ async function beginTimedChart() {
     if (!monitor.isLive()) throw new Error('Microphone unavailable');
     // Keep the same microphone and audio clock across the whole run.
     let passed = false;
-    function watchSegment() {
+    function watchSegment(leadIn) {
       passed = false;
-      monitor.reset();
+      monitor.reset(leadIn);
       const check = chartPassFeedback(expectedNotesFor(session), session.tempo, { writtenOctave: learn });
       monitor.onFrame = (frame) => {
         if (!transport.playing || !check(frame.beat, monitor.observations)) return;
@@ -808,9 +803,14 @@ async function beginTimedChart() {
           return null;
         }
         const target = next?.session ?? session;
+        const previousLength = transport.chorusLengthBeats;
         return {
           config: { ...recordBackingConfig(target), looping: false },
           onStart() {
+            // Learn loops share the microphone. Keep the preceding chord on the
+            // new beat clock so holding a note over the downbeat is one attack.
+            const leadIn = monitor.observations.filter(frame => frame.beat >= 0)
+              .map(frame => ({ ...frame, beat: frame.beat - previousLength }));
             if (next) {
               recordRapidPass();
               applySession(target);
@@ -820,7 +820,7 @@ async function beginTimedChart() {
                 return;
               }
             }
-            watchSegment();
+            watchSegment(leadIn);
           },
         };
       } : null,
@@ -1137,6 +1137,14 @@ function startLesson(lessonId, options = {}) {
 
 function openSetup(lessonId) {
   startLesson(lessonId);
+}
+
+function startPracticeApplication(lessonId) {
+  const lesson = lessonById(lessonId);
+  const chart = CHART_LIBRARY.find(chart => chart.id === lesson.tuneId);
+  if (!chart) return startLesson(lessonId);
+  const delta = getKey(chartConcertKey(chart)).pc - getKey(chart.key).pc;
+  startLesson(lessonId, { keyId: transposeToneKey(lesson.defaultKeyId, delta) });
 }
 
 function openQuickView() {
@@ -2371,7 +2379,7 @@ const { openChartApplications, renderCharts } = createChartsView({
   chartConcertKey,
   keysByLesson,
   startChartTones,
-  startLesson,
+  startPracticeApplication,
   moduleBanner,
   sleeveButton,
   openLickPicker: () => libraryPicker.open("licks"),
@@ -2615,7 +2623,7 @@ function handleTransportEnded() {
   playback.ended = true;
   if (timedRunActive && isTimedChart()) {
     monitor.stop();
-    const result = gradeSession(session, monitor.observations.filter(frame => frame.beat >= 0));
+    const result = gradeSession(session, monitor.observations);
     recordPassIfNeeded(result);
     const done = completeCard(session, result);
     halt();
@@ -2712,7 +2720,7 @@ const libraryPicker = setupLibraryPicker({
   },
 });
 const practiceUI = setupPracticeUI({
-  onPractice: startLesson, onChanged: renderStorageNotice,
+  onPractice: startPracticeApplication, onChanged: renderStorageNotice,
   onSaveChart: (id, selected) => {
     if (cloudSettings.userId) cloudSettings.setChart(id, selected);
     else writeStoredJson(MY_CHARTS_KEY, practiceUI.getSelected());

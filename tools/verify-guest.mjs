@@ -22,14 +22,14 @@ window.supabase = {createClient: () => ({auth: {
  async upsert(){return {};}
 };}, async rpc(){window.guestTest.cloudRequests++;return {};}})};`;
 
-async function open(browser, appUrl, { offline = false, brokenSdk = false, video = false } = {}) {
+async function open(browser, appUrl, { offline = false, brokenSdk = false, video = false, stubPwa = true, viewport = { width: 390, height: 844 } } = {}) {
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
+    viewport,
     serviceWorkers: 'block',
     ...(video ? { recordVideo: { dir: 'artifacts/guest-videos' } } : {}),
   });
   await context.route('https://*.supabase.co/**', route => route.abort());
-  await context.route('**/js/pwa.js', route => route.fulfill({ contentType: 'application/javascript', body: '' }));
+  if (stubPwa) await context.route('**/js/pwa.js*', route => route.fulfill({ contentType: 'application/javascript', body: '' }));
   await context.route('**/js/vendor/supabase-2.119.0.js', route => brokenSdk ? route.abort() : route.fulfill({ contentType: 'application/javascript', body: sdk }));
   if (offline) await context.addInitScript(() => Object.defineProperty(navigator, 'onLine', { get: () => false }));
   const page = await context.newPage();
@@ -112,6 +112,28 @@ await withAppUrl(async (appUrl) => {
       await altContext.close();
     }
     results.push('PASS: guest access and return to login work offline and when the auth SDK cannot load');
+    for (const [size, viewport] of [['phone', { width: 390, height: 844 }], ['ipad', { width: 820, height: 1180 }]]) {
+      const device = await open(browser, appUrl, { stubPwa: false, viewport, video: true });
+      const lesson = device.page;
+      await lesson.getByRole('button', { name: 'View as guest' }).click();
+      await lesson.getByTestId('lesson-tones-major7-learn').click();
+      await lesson.locator('#offline-status').waitFor();
+      await lesson.locator('#notation svg .note').first().waitFor();
+      const banner = await lesson.locator('#offline-status').boundingBox();
+      const back = await lesson.locator('#session-exit').boundingBox();
+      assert.ok(back.y >= banner.y + banner.height - 1);
+      for (const selector of ['#primary', '#continue-btn', '#session-exit']) {
+        await lesson.locator(selector).click({ trial: true, timeout: 3000 });
+      }
+      assert.equal(await lesson.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await lesson.screenshot({ path: `artifacts/offline-session-${size}.png` });
+      await lesson.locator('#session-exit').click();
+      await lesson.locator('#screen-home').waitFor();
+      const recording = lesson.video();
+      await device.context.close();
+      await recording.saveAs(`artifacts/offline-session-${size}.webm`);
+    }
+    results.push('PASS: the offline setup warning leaves practice controls and Back accessible on phone and iPad');
     assert.deepEqual(errors, []);
     console.log(results.join('\n'));
   } finally {

@@ -16,6 +16,30 @@ async function device(browser, appUrl, viewport = { width: 1100, height: 950 }) 
   return { context, page, errors };
 }
 
+async function playChart(page, { earlyBeats = 0, wrongFirst = false } = {}) {
+  await page.locator('#primary').click();
+  await page.waitForFunction(() => window.__DUOJAZZ__.transport.playing);
+  assert.equal(await page.locator('#primary').getAttribute('aria-label'), 'Stop run');
+  await page.evaluate(async ({ earlyBeats, wrongFirst }) => {
+    const { expectedNotesFor, hzFromMidi } = await import('/js/grade.js');
+    const app = window.__DUOJAZZ__, session = app.getSession(), transport = app.transport;
+    const { ctx, dest } = window.chartTestMic;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    gain.gain.value = 0; osc.connect(gain); gain.connect(dest);
+    const notes = expectedNotesFor(session), seconds = 60 / session.tempo;
+    notes.forEach((note, index) => {
+      const start = note.startBeat - (index ? earlyBeats : 0);
+      const next = notes[index + 1];
+      const end = next ? next.startBeat - earlyBeats : note.startBeat + note.beats;
+      const t = transport.startedAt + start * seconds;
+      osc.frequency.setValueAtTime(hzFromMidi(note.midi + (wrongFirst && index === 0 ? 1 : 0)), t);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.setValueAtTime(0, transport.startedAt + (end - Math.min(0.07, note.beats * 0.15)) * seconds);
+    });
+    osc.start(); osc.stop(transport.startedAt + transport.chorusLengthBeats * seconds + 0.1);
+  }, { earlyBeats, wrongFirst });
+}
+
 const results = [];
 await withAppUrl(async (appUrl) => {
   const browser = await launchBrowser();
@@ -45,23 +69,7 @@ await withAppUrl(async (appUrl) => {
         return dest.stream;
       };
     });
-    await a.page.locator('#primary').click();
-    await a.page.waitForFunction(() => window.__DUOJAZZ__.transport.playing);
-    assert.equal(await a.page.locator('#primary').getAttribute('aria-label'), 'Stop run');
-    await a.page.evaluate(async () => {
-      const { expectedNotesFor, hzFromMidi } = await import('/js/grade.js');
-      const app = window.__DUOJAZZ__, session = app.getSession(), transport = app.transport;
-      const { ctx, dest } = window.chartTestMic;
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      gain.gain.value = 0; osc.connect(gain); gain.connect(dest);
-      const notes = expectedNotesFor(session), seconds = 60 / session.tempo;
-      notes.forEach((note, index) => {
-        const t = transport.startedAt + note.startBeat * seconds;
-        osc.frequency.setValueAtTime(hzFromMidi(note.midi + (index === 0 ? 1 : 0)), t);
-        gain.gain.setValueAtTime(0.3, t); gain.gain.setValueAtTime(0, t + note.beats * seconds * 0.85);
-      });
-      osc.start(); osc.stop(transport.startedAt + transport.chorusLengthBeats * seconds + 0.1);
-    });
+    await playChart(a.page, { wrongFirst: true });
     await a.page.waitForFunction(() => window.__DUOJAZZ__.transport.snapshot().bar >= 3);
     assert.equal(await a.page.locator('#screen-wrapup').isVisible(), false);
     assert.equal(await a.page.locator('#grade-line').isVisible(), false);
@@ -82,6 +90,17 @@ await withAppUrl(async (appUrl) => {
     assert.equal(await a.page.locator('#wrapup-close').evaluate(el => el.getBoundingClientRect().bottom <= innerHeight), true);
     await a.page.screenshot({ animations: 'disabled', path: 'artifacts/chart-master-grade-detail.png' });
     results.push('PASS: real microphone worklet grades a complete timed chart, continues after a wrong note, and saves the final pass');
+    await a.page.locator('#wrapup-close').click();
+    await a.page.evaluate(() => {
+      window.__DUOJAZZ__.createAndShow({ lessonId: 'tones-chart-honeysuckle-rose-timed-master', tempo: 96 });
+    });
+    await playChart(a.page, { earlyBeats: 0.6 });
+    await a.page.locator('#screen-wrapup').waitFor({ timeout: 60000 });
+    const early = await a.page.evaluate(() => window.__DUOJAZZ__.getSession().cardResults[0]);
+    assert.equal(early.passed, false);
+    assert.ok(early.passedCount <= 2, `Early take received ${early.percent}%`);
+    await a.page.screenshot({ path: 'artifacts/chart-master-early-attacks.png' });
+    results.push(`PASS: notes held across the beat after a 375 ms early attack scored ${early.percent}%`);
     await a.page.locator('#wrapup-close').click();
     await a.page.locator('#chart-tree .sleeve-node').nth(2).click();
     await a.page.locator('#primary').click();

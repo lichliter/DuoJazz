@@ -114,6 +114,32 @@ export function expectedNotesFor(session) {
   });
 }
 
+// The microphone supplies voiced frames. A sustained tone is one attack, even
+// when it crosses a beat or bar. A gap or amplitude dip can separate repeats.
+function timedOnsets(observations, tempo) {
+  const onsets = [];
+  const releaseGap = 0.075 * tempo / 60;
+  let pitch = null;
+  let lastBeat = -Infinity;
+  let peak = 0;
+  let trough = Infinity;
+  for (const frame of observations) {
+    if (!isUsableObservation(frame)) continue;
+    const midi = Math.round(midiFromHz(frame.hz));
+    if (midi !== pitch || frame.beat - lastBeat >= releaseGap || frame.amp >= 2 * trough) {
+      pitch = midi;
+      if (frame.beat >= 0) onsets.push({ ...frame });
+      peak = frame.amp;
+      trough = Infinity;
+    } else if (frame.amp < peak * 0.5) {
+      trough = Math.min(trough, frame.amp);
+    }
+    peak = Math.max(peak, frame.amp);
+    lastBeat = frame.beat;
+  }
+  return onsets;
+}
+
 function pickOnset(pool, note, windowBeats, strictTiming, nextStartBeat) {
   const start = note.startBeat - windowBeats;
   const lateEnd = note.startBeat + (strictTiming ? 0 : Math.max(note.beats, 1)) + windowBeats;
@@ -138,6 +164,7 @@ function pickOnset(pool, note, windowBeats, strictTiming, nextStartBeat) {
   if (best < 0) return null;
   const onset = pool[best];
   onset.used = true;
+  if (strictTiming) return onset;
   for (const row of pool) {
     if (row.used) continue;
     if (Math.abs(row.beat - onset.beat) < 0.3 && Math.abs(row.hz - onset.hz) < 1) row.used = true;
@@ -225,7 +252,7 @@ export function mostUsefulCorrection(noteResults) {
 }
 
 export function gradePerformance({ expected, observations, tempo, passThreshold = PASS_THRESHOLD, strictTiming = false }) {
-  const pool = observations.map((row) => ({ ...row }));
+  const pool = strictTiming ? timedOnsets(observations, tempo) : observations.map((row) => ({ ...row }));
   const notes = expected.map((note, index) =>
     gradeNoteWithPool(note, pool, tempo, strictTiming, expected[index + 1]?.startBeat));
   const passedCount = notes.filter((note) => note.passed).length;
@@ -277,10 +304,9 @@ export function chartPassFeedback(expected, tempo, { writtenOctave = false } = {
         index += 1;
         continue;
       }
-      const from = Math.max(0, notes[0].startBeat - timingWindowBeats(tempo));
       const result = gradePerformance({
         expected: notes,
-        observations: observations.filter((frame) => frame.beat >= from),
+        observations,
         tempo,
         strictTiming: true,
       });

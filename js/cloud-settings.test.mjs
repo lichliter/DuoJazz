@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCloudSettings } from './cloud-settings.js';
+import { changedPreferences, createCloudSettings } from './cloud-settings.js';
 import { storageWarning } from './storage.js';
 
 const storage = () => {
@@ -37,6 +37,13 @@ function server() {
   return api;
 }
 const empty = { myCharts: [], myLicks: [], lessons: {}, modules: {} };
+
+test('compacted lessons send explicit resets for only the changed account fields', () => {
+  const previous = { lessons: { bass: { tempo: 96, melodyRegister: 1 }, horn: { tempo: 120, melodyRegister: -1 } } };
+  const next = { lessons: { horn: { tempo: 96, melodyRegister: -1 } } };
+  assert.deepEqual(changedPreferences(previous, next), { lessons: { bass: { melodyRegister: 0 }, horn: { tempo: 96 } } });
+  assert.deepEqual(changedPreferences(next, next), {});
+});
 
 test('settings and favorites restore in a fresh browser; stale caches do not overwrite them', async () => {
   const api = server();
