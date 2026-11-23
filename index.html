@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=204">
-  <link rel="stylesheet" href="./css/hig.css?v=235">
+  <link rel="stylesheet" href="./css/hig.css?v=236">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
   <script type="module" src="./js/app.js?v=235"></script>
@@ -314,17 +314,17 @@
         <footer class="session-footer">
           <div class="key-cycle" id="key-cycle" data-testid="key-cycle" role="img" aria-label="Key 1 of 12"></div>
           <div class="session-footer-bar">
-            <div class="auto-switch">
-              <button type="button" class="auto-toggle" id="auto-toggle" data-testid="auto-toggle" role="switch" aria-checked="true" aria-label="Auto">
-                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-              </button>
-              <label class="auto-switch-label" id="auto-label" for="auto-toggle">Auto</label>
-            </div>
             <div class="auto-switch note-names-switch" id="note-names-control" hidden>
               <button type="button" class="auto-toggle" id="note-names-toggle" role="switch" aria-checked="false" aria-label="Show note names">
                 <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
               </button>
               <label class="auto-switch-label" id="note-names-label" for="note-names-toggle">Note names</label>
+            </div>
+            <div class="auto-switch">
+              <button type="button" class="auto-toggle" id="auto-toggle" data-testid="auto-toggle" role="switch" aria-checked="true" aria-label="Auto">
+                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+              </button>
+              <label class="auto-switch-label" id="auto-label" for="auto-toggle">Auto</label>
             </div>
             <button type="button" class="transport-icon" id="continue-btn" data-testid="skip" aria-label="Skip" title="Skip">
               <svg class="transport-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
