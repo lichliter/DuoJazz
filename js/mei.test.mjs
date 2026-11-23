@@ -73,14 +73,14 @@ test("integration reference roots follow each lick entrance and the written key"
   const placements = measures.filter(([, , content]) => content.includes('type="lick-reference"'));
 
   assert.deepEqual(placements.map(([_, bar, content]) => [bar, harms(content), dirs(content)]), [
-    ["2", ["F7"], ["Think E♭"]],
-    ["6", ["D7"], ["Think C"]],
+    ["2", ["F7"], ["Think B♭"]],
+    ["6", ["D7"], ["Think G"]],
   ]);
   for (const [, , content] of placements) {
     const firstNoteId = content.match(/<note\b[^>]*\bxml:id="([^"]+)"/)[1];
     assert.ok(content.includes(`startid="#${firstNoteId}"`));
   }
-  assert.deepEqual(dirs(written), ["Think F", "Think D"]);
+  assert.deepEqual(dirs(written), ["Think C", "Think A"]);
   assert.deepEqual(dirs(slashMEI(key, "trombone", applicationId)), []);
   assert.deepEqual(dirs(phraseMEI(key, "trombone", "south-of-the-river-opening-learn")), []);
 });

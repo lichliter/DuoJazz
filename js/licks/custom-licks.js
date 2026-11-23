@@ -82,6 +82,7 @@ const southBlocks = [
     keyQuality: "major",
     defaultKeyId: "Bb",
     context: "Major · Half-time practice",
+    referenceInterval: -5, // Think of the first major-seventh arpeggio.
     elements: halfTimeOpeningMajor,
     bars: [southMajorTonicBar],
     summary: "Play the even sextuplet across beats 1 and 2, then swing the eighths on beats 3 and 4.",
@@ -169,6 +170,7 @@ function southBlockEntry({
   keyQuality = "minor",
   defaultKeyId = "G",
   context = "Minor · Half-time practice",
+  referenceInterval,
   elements,
   bars,
   summary,
@@ -179,7 +181,7 @@ function southBlockEntry({
   const learnId = `${id}-learn`;
   return {
     lick: {
-      id, name, shortName: name, elements,
+      id, name, shortName: name, elements, referenceInterval,
       source: southSource, octave: -2, pickupBeats: 0, learnBeats: bars.length * 4, keyQuality, defaultKeyId,
     },
     learnForm: {

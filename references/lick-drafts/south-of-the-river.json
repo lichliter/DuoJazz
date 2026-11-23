@@ -78,6 +78,7 @@
       "name": "Sextuplet Run",
       "sourceBeats": "Bar 1 beats 1–2, including the sextuplet entrance rest",
       "learnHarmony": "B♭maj7 for one bar (relative major of Gm7; same concert notes E–F–A–C, A–B♭–D–F)",
+      "integrationReference": "Think of the first major-seventh arpeggio. Over F7 in Autumn Leaves the lick starts A–B♭–D–F, so the cue is B♭.",
       "applications": ["lydian-major", "minor-home", "dominant-sus", "major-home"],
       "endRestBeats": 0
     },
