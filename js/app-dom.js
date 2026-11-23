@@ -56,6 +56,8 @@ export function collectElements(doc = document) {
     primary: doc.getElementById("primary"),
     continueBtn: doc.getElementById("continue-btn"),
     showNotes: doc.getElementById("show-notes"),
+    noteNamesControl: doc.getElementById("note-names-control"),
+    noteNamesToggle: doc.getElementById("note-names-toggle"),
     meter: doc.getElementById("meter"),
     gradeLine: doc.getElementById("grade-line"),
     debugStrip: doc.getElementById("debug-strip"),

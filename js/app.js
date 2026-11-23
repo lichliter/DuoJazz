@@ -207,6 +207,7 @@ let lastDebug = null;
 let takeLog = null;
 let lastTake = null;
 let notesRevealed = false;
+let showNoteNames = false;
 let notesPeeked = false;
 let sealToken = 0;
 let liveAt = 0;
@@ -1718,21 +1719,24 @@ function resetSessionTempo() {
 }
 
 function renderSessionChrome() {
+  const lesson = lessonById(session.lessonId);
   els.shell.dataset.sleeve = lessonSleeve(session.lessonId);
   if (els.cardBadge) els.cardBadge.textContent = sessionModeHeading(session);
-  const practice = isPracticeLesson(session.lessonId);
+  const practice = isPracticeLesson(lesson);
   if (els.sessionModule) els.sessionModule.textContent = moduleForLesson(session.lessonId).name;
   if (els.sessionTitle) fillMusicLabel(els.sessionTitle, sessionScreenTitle(session));
   els.sessionKey.hidden = !practice;
-  fillMusicLabel(els.sessionKey, practice ? applicationById(lessonById(session.lessonId).applicationId).label : "");
+  fillMusicLabel(els.sessionKey, practice ? applicationById(lesson.applicationId).label : "");
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
-  if (autoHost) autoHost.hidden = isPracticeLesson(session.lessonId) || isTimedChart();
+  if (autoHost) autoHost.hidden = practice || isTimedChart();
   if (els.sessionOctave) els.sessionOctave.hidden = isTimedChart();
-  if (els.continueBtn) els.continueBtn.hidden = !isCyclingLesson(lessonById(session.lessonId)) && !session.sequence;
+  if (els.continueBtn) els.continueBtn.hidden = !isCyclingLesson(lesson) && !session.sequence;
+  els.noteNamesControl.hidden = lesson.kind !== "learn";
   renderKeyCycle();
   const footer = els.session?.querySelector('.session-footer');
-  if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden) && Boolean(els.continueBtn?.hidden);
+  if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden)
+    && els.noteNamesControl.hidden && Boolean(els.continueBtn?.hidden);
 }
 
 function renderSessionChart() {
@@ -2017,6 +2021,7 @@ function renderNotation() {
     notationScale: resolveNotationScale(),
   });
   const concertKey = getKey(currentKeyId(session));
+  const noteNames = showNoteNames && lesson.kind === "learn" && !concealNotes;
   const mei = spec.mei === "phrase"
     ? phraseMEI(
       concertKey,
@@ -2024,7 +2029,7 @@ function renderNotation() {
       lesson.applicationId,
       session.clef,
       session.melodyRegister,
-      { barsPerLine: layout.barsPerLine },
+      { barsPerLine: layout.barsPerLine, showNoteNames: noteNames },
     )
     : chorusStaffMEI({
       concertKey,
@@ -2865,6 +2870,11 @@ els.autoToggle?.addEventListener("click", () => {
   prefs.auto = prefs.auto === false;
   persist();
   renderAuto();
+});
+els.noteNamesToggle.addEventListener("click", () => {
+  showNoteNames = !showNoteNames;
+  els.noteNamesToggle.setAttribute("aria-checked", String(showNoteNames));
+  renderNotation();
 });
 els.showNotes?.addEventListener("click", () => {
   if (!session || session.screen !== "session" || lessonById(session.lessonId).kind !== "master" || session.demo) return;

@@ -149,7 +149,7 @@ function notePitchAttrs(item, ctx) {
     pname: letter.toLowerCase(),
     oct,
     accid,
-    shownMidi,
+    name: spelled.name,
   };
 }
 
@@ -170,7 +170,8 @@ function noteXml(item, ctx, beats, tie = "") {
   const artic = articAttr(item);
   const accid = pitch.accid ? ` accid="${pitch.accid}"` : "";
   const tieAttr = tie ? ` tie="${tie}"` : "";
-  const inner = artic ? `<artic artic="${artic}"/>` : "";
+  const articulation = artic ? `<artic artic="${artic}"/>` : "";
+  const noteName = ctx.showNoteNames ? `<verse n="1"><syl>${esc(pitch.name)}</syl></verse>` : "";
   return {
     id,
     beats,
@@ -178,7 +179,7 @@ function noteXml(item, ctx, beats, tie = "") {
     tuplet: Boolean(item.tuplet),
     pname: pitch.pname,
     oct: pitch.oct,
-    xml: `<note xml:id="${id}" pname="${pitch.pname}" oct="${pitch.oct}" ${durAttrs(beats)}${accid}${tieAttr}>${inner}</note>`,
+    xml: `<note xml:id="${id}" pname="${pitch.pname}" oct="${pitch.oct}" ${durAttrs(beats)}${accid}${tieAttr}>${articulation}${noteName}</note>`,
   };
 }
 
@@ -579,10 +580,12 @@ function renderFormMei({
   melodyRegister = DEFAULT_MELODY_REGISTER,
   mode = "model",
   showCues = false,
+  showNoteNames = false,
   barsPerLine = 4,
   isolated = false,
 }) {
   const ctx = formContext(concertKey, displayMode, applicationId, melodyRegister, clef);
+  ctx.showNoteNames = showNoteNames;
   const form = formForApplication(applicationId);
   const isolatedCell = isolated && (mode === "phrase" || mode === "chords");
   const chords = isolatedCell
@@ -690,6 +693,7 @@ export function phraseMEI(
     melodyRegister,
     mode: "phrase",
     showCues: false,
+    showNoteNames: options.showNoteNames,
     barsPerLine,
     isolated: true,
   });

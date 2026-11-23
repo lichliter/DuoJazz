@@ -2444,6 +2444,11 @@ button.module-banner {
   min-height: var(--tap);
 }
 
+.note-names-switch {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .auto-toggle {
   width: 51px;
   min-width: 51px;

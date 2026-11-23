@@ -171,14 +171,14 @@ export function verovioOptions(layout = {}, cssWidth = 760, { hasSb = false } = 
     pageMarginRight: 16,
     harmDist: 1.05,
     topMarginHarm: 0.7,
-    lyricSize: 2.6,
-    lyricTopMinMargin: 1.2,
+    lyricSize: 3,
+    lyricTopMinMargin: 2.5,
     leftMarginAccid: 2,
     rightMarginAccid: 1.2,
     spacingLinear: globalThis.DUOJAZZ_VEROVIO_SPACING?.spacingLinear ?? 0.7,
     spacingNonLinear: globalThis.DUOJAZZ_VEROVIO_SPACING?.spacingNonLinear ?? 0.35,
     xmlIdSeed: 1,
-    svgCss: `.harm, .harm text, .harm tspan { font-family: ${MUSIC_FONT_FAMILY}; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; }`,
+    svgCss: `.harm, .harm text, .harm tspan { font-family: ${MUSIC_FONT_FAMILY}; font-weight: 700; font-stretch: normal; letter-spacing: 0; fill: ${INK}; } .dir, .dir text, .dir tspan { font-family: "Source Sans 3", sans-serif; font-weight: 400; font-style: italic; fill: ${INK}; } .syl text, .syl tspan { font-family: ${MUSIC_FONT_FAMILY}; fill: ${INK}; }`,
   };
 }
 
@@ -878,6 +878,7 @@ export async function engraveMei(target, mei, options = {}) {
     separateChordSymbols(svg, layout);
     centerSlashNoteheads(svg);
     clearChordInkGap(svg);
+    layoutNoteNames(svg);
     layoutCueLabels(svg);
     applyFixedStaffSize(target, svg, layout);
     // The width lock changes the scale. Measure after that, then once more
@@ -1127,6 +1128,22 @@ function translateSvg(el, dx, dy) {
   if (!el || (Math.abs(dx) < 0.4 && Math.abs(dy) < 0.4)) return;
   const prev = el.getAttribute("transform") || "";
   el.setAttribute("transform", `${prev} translate(${dx} ${dy})`.trim());
+}
+
+function layoutNoteNames(svg) {
+  for (const system of svg.querySelectorAll(".system:has(.syl)")) {
+    const ink = system.querySelectorAll(".notehead, .stem, .beam > polygon, .tupletNum");
+    const floor = Math.max(...[...ink].map((part) => screenBox(part)?.bottom ?? 0));
+    for (const name of system.querySelectorAll(".note .syl")) {
+      const head = screenBox(name.closest(".note").querySelector(".notehead"));
+      const label = screenBox(name);
+      if (!head || !label) continue;
+      const dx = head.left + head.width / 2 - (label.left + label.width / 2);
+      const dy = Math.max(0, floor + 4 - label.top);
+      const move = screenDeltaToLocal(name, dx, dy);
+      if (move) translateSvg(name, move.dx, move.dy);
+    }
+  }
 }
 
 function firstLickNote(measure) {

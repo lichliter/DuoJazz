@@ -64,6 +64,19 @@ function clefShape(mei) {
   return String(mei).match(/clef\.shape="([^"]+)"/)?.[1];
 }
 
+test("optional note names use written pitch spelling without changing the score", () => {
+  const key = getKey("Ab");
+  const applicationId = "south-of-the-river-climb-and-landing-learn";
+  for (const instrumentId of ["trombone", "trumpet"]) {
+    const session = createSession({ lessonId: applicationId, instrumentId, startKeyId: key.id });
+    const args = [key, session.displayMode, applicationId, session.clef, session.melodyRegister];
+    const labeled = phraseMEI(...args, { showNoteNames: true });
+    const labels = [...labeled.matchAll(/<verse n="1"><syl>([^<]+)<\/syl><\/verse>/g)];
+    assert.deepEqual(labels.map((label) => label[1]), expectedNotesFor(session).map((note) => note.shownName.replace(/-?\d+$/, "")));
+    assert.equal(labeled.replace(/<verse n="1"><syl>[^<]+<\/syl><\/verse>/g, ""), phraseMEI(...args));
+  }
+});
+
 test("integration reference roots follow each lick entrance and the written key", () => {
   const applicationId = "practice-south-of-the-river-opening-dominant-sus-autumn-leaves";
   const key = getKey("G");
