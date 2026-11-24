@@ -77,6 +77,27 @@ test("optional note names use written pitch spelling without changing the score"
   }
 });
 
+test("note names skip tied continuations so every Learn and Master lesson matches expected notes 1-to-1", () => {
+  for (const lesson of LESSONS) {
+    if ((lesson.kind !== "learn" && lesson.kind !== "master") || lesson.chartTimed) continue;
+    const key = getKey(lesson.defaultKeyId ?? "G");
+    for (const instrumentId of ["trombone", "trumpet"]) {
+      const session = createSession({ lessonId: lesson.id, instrumentId, startKeyId: key.id });
+      const labeled = phraseMEI(
+        key,
+        session.displayMode,
+        lesson.applicationId,
+        session.clef,
+        session.melodyRegister,
+        { showNoteNames: true },
+      );
+      const labels = [...labeled.matchAll(/<verse n="1"><syl>([^<]+)<\/syl><\/verse>/g)].map((m) => m[1]);
+      const expected = expectedNotesFor(session).map((note) => note.shownName.replace(/-?\d+$/, ""));
+      assert.deepEqual(labels, expected, `${lesson.id} (${instrumentId})`);
+    }
+  }
+});
+
 test("integration reference roots follow each lick entrance and the written key", () => {
   const applicationId = "practice-south-of-the-river-opening-dominant-sus-autumn-leaves";
   const key = getKey("G");

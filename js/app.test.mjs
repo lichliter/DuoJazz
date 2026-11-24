@@ -7,8 +7,9 @@ import * as medals from "./medals.js";
 import * as followers from "./follow.js";
 import { chartPassFeedback, expectedNotesFor, hzFromMidi, synthTrack } from "./grade.js";
 import { PitchMonitor } from "./pitch.js";
-import { getKey } from "./music.js";
+import { getKey, phraseSpanBars } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
+import { notationLayout } from "./lesson.js";
 import {
   CELEBRATE_MS,
   READ_MS,
@@ -23,7 +24,7 @@ import {
 } from "./rapid.js";
 import { parseTabState } from "./tabs.js";
 import { storageWarning, writeStoredJson } from "./storage.js";
-import { CHART_LIBRARY } from "./registry.js";
+import { applicationById, CHART_LIBRARY } from "./registry.js";
 import { sessionVinylTier } from "./app-wrapup.js";
 
 const source = await readFile(new URL("./app.js", import.meta.url), "utf8");
@@ -1118,4 +1119,186 @@ test("passing a key honors Auto OFF vs Auto ON, including toggling Auto during c
   assert.equal(onToOff.micStops(), 1);
   assert.equal(onToOff.listened(), 0);
   assert.equal(onToOff.primary.dataset.action, "record");
+});
+
+test("Note names toggle shows on Learn and Master (and chart practice), stays hidden on timed Master and Integrate", () => {
+  const autoHost = { hidden: false };
+  const footer = { hidden: false };
+  const noteNamesControl = { hidden: true };
+  const continueBtn = { hidden: false };
+  const context = appContext(["renderSessionChrome"], {
+    applicationById,
+    fillMusicLabel: (el, text) => { if (el) el.textContent = String(text ?? ""); },
+    renderKeyCycle: noop,
+    els: {
+      storageNotice: { textContent: "", hidden: true },
+      shell: { dataset: {} },
+      cardBadge: { textContent: "" },
+      sessionModule: { textContent: "" },
+      sessionTitle: { textContent: "" },
+      sessionKey: { hidden: false, textContent: "" },
+      autoToggle: { closest: () => autoHost },
+      sessionOctave: { hidden: false },
+      continueBtn,
+      noteNamesControl,
+      session: { querySelector: (selector) => (selector === ".session-footer" ? footer : null) },
+    },
+  });
+
+  for (const lessonId of [
+    "learn-lick",
+    "master-lick",
+    "tones-major7-learn",
+    "tones-major7-master",
+    "tones-chart-attya-0-learn",
+    "tones-chart-attya-0-master",
+  ]) {
+    context.session = sessions.createSession({ lessonId, startKeyId: "G" });
+    context.renderSessionChrome();
+    assert.equal(noteNamesControl.hidden, false, `${lessonId} shows Note names`);
+    assert.equal(footer.hidden, false, `${lessonId} shows footer`);
+  }
+
+  for (const lessonId of ["tones-chart-attya-timed-master", "integrate-minor-home"]) {
+    context.session = sessions.createSession({ lessonId, startKeyId: "G" });
+    context.renderSessionChrome();
+    assert.equal(noteNamesControl.hidden, true, `${lessonId} hides Note names`);
+    assert.equal(footer.hidden, true, `${lessonId} hides empty footer`);
+  }
+});
+
+test("renderNotation withholds note names in Master and Chart Practice until notes are revealed", () => {
+  const classListStub = () => {
+    const classes = new Set();
+    return {
+      add(name) { classes.add(name); },
+      remove(name) { classes.delete(name); },
+      toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
+      contains(name) { return classes.has(name); },
+    };
+  };
+  const paperWrap = { classList: classListStub() };
+  const notationClasses = classListStub();
+  const calls = [];
+  const timedPanel = { hidden: true };
+  const context = appContext(["notesVisibleInSession", "renderNotation"], {
+    getKey,
+    phraseSpanBars,
+    notationLayout,
+    resolveNotationScale: () => 1,
+    staffWidth: () => 390,
+    chordTimingsFor: () => [],
+    phraseMEI: (_key, _mode, appId, _clef, _reg, options) => {
+      calls.push({ appId, showNoteNames: options.showNoteNames });
+      return `<mei app="${appId}" names="${String(options.showNoteNames)}"/>`;
+    },
+    chorusStaffMEI: () => "<mei/>",
+    meiNoteIdGroups: () => [],
+    fillListenState: noop,
+    layoutClickWheel: noop,
+    renderTimedPosition: noop,
+    updatePlaybackTimemap: noop,
+    fitNotationInView: noop,
+    updatePlayhead: noop,
+    renderFailedNote: noop,
+    engraveMei: async () => null,
+    whenVerovioReady: () => Promise.resolve(null),
+    window: { innerWidth: 390, innerHeight: 844 },
+    document: { getElementById: (id) => (id === "timed-chart-panel" ? timedPanel : null) },
+    notationGen: 0,
+    notationRenderKey: null,
+    lastTimemap: [],
+    lastPlaybackTimemap: [],
+    lastChordTimings: [],
+    lastNoteIdGroups: [],
+    lastNotationLayout: null,
+    lastPlayheadSystem: null,
+    showNoteNames: true,
+    notesRevealed: false,
+    els: {
+      storageNotice: { textContent: "", hidden: true },
+      notation: { hidden: false, classList: notationClasses, closest: () => paperWrap, replaceChildren: noop },
+      hiddenAnswer: { hidden: false, textContent: "" },
+      session: { dataset: {} },
+    },
+  });
+
+  context.session = sessions.createSession({ lessonId: "master-lick", startKeyId: "G" });
+  context.renderNotation();
+  assert.equal(calls.at(-1).showNoteNames, false);
+  assert.equal(paperWrap.classList.contains("notes-hidden"), true);
+
+  context.notesRevealed = true;
+  context.renderNotation();
+  assert.equal(calls.at(-1).showNoteNames, true);
+  assert.equal(paperWrap.classList.contains("notes-hidden"), false);
+
+  context.notesRevealed = false;
+  context.session = sessions.createSession({ lessonId: "tones-chart-attya-0-master", startKeyId: "F" });
+  context.renderNotation();
+  assert.equal(calls.at(-1).showNoteNames, false);
+  assert.equal(notationClasses.contains("notes-concealed"), true);
+
+  context.notesRevealed = true;
+  context.renderNotation();
+  assert.equal(calls.at(-1).showNoteNames, true);
+  assert.equal(notationClasses.contains("notes-concealed"), false);
+
+  context.notesRevealed = false;
+  context.session = sessions.createSession({ lessonId: "learn-lick", startKeyId: "G" });
+  context.renderNotation();
+  assert.equal(calls.at(-1).showNoteNames, true);
+
+  context.showNoteNames = false;
+  context.notesRevealed = true;
+  context.session = sessions.createSession({ lessonId: "master-lick", startKeyId: "G" });
+  context.renderNotation();
+  assert.equal(calls.at(-1).showNoteNames, false);
+});
+
+test("Note names setting persists per viewer and syncs switch ARIA state", () => {
+  const stored = new Map();
+  const localStorage = {
+    getItem: (key) => stored.get(key) ?? null,
+    setItem: (key, value) => stored.set(key, value),
+  };
+  const toggleAttrs = new Map();
+  const context = appContext(["noteNamesStorageKey", "loadShowNoteNames", "saveShowNoteNames", "renderNoteNames"], {
+    NOTE_NAMES_KEY: "duojazz.noteNames.v1",
+    localStorage,
+    writeStoredJson: (key, value) => writeStoredJson(key, value, localStorage),
+    renderStorageNotice: noop,
+    showNoteNames: false,
+    els: {
+      storageNotice: { textContent: "", hidden: true },
+      noteNamesToggle: {
+        setAttribute(name, value) { toggleAttrs.set(name, String(value)); },
+      },
+    },
+  });
+
+  assert.equal(context.loadShowNoteNames(), false);
+  context.saveShowNoteNames(true);
+  assert.equal(stored.get("duojazz.noteNames.v1"), "true");
+  assert.equal(context.loadShowNoteNames(), true);
+
+  context.cloudSettings.userId = "user-a";
+  assert.equal(context.loadShowNoteNames(), false);
+  context.saveShowNoteNames(true);
+  assert.equal(stored.get("duojazz.noteNames.v1:user-a"), "true");
+  context.saveShowNoteNames(false);
+  assert.equal(context.loadShowNoteNames(), false);
+
+  context.cloudSettings.userId = null;
+  assert.equal(context.loadShowNoteNames(), true);
+
+  context.showNoteNames = true;
+  context.renderNoteNames();
+  assert.equal(toggleAttrs.get("role"), "switch");
+  assert.equal(toggleAttrs.get("aria-checked"), "true");
+  assert.equal(toggleAttrs.get("aria-label"), "Show note names");
+
+  context.showNoteNames = false;
+  context.renderNoteNames();
+  assert.equal(toggleAttrs.get("aria-checked"), "false");
 });

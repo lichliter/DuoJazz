@@ -885,7 +885,7 @@ export async function engraveMei(target, mei, options = {}) {
     // after the new viewBox has been laid out, so a HERE under the last system
     // is inside the page rather than clipped by it.
     padViewBoxToInk(svg);
-    for (const el of svg.querySelectorAll(".dir.cue, .harm, .system")) el.getBoundingClientRect();
+    for (const el of svg.querySelectorAll(".dir.cue, .harm, .syl, .system")) el.getBoundingClientRect();
     padViewBoxToInk(svg);
   }
   return {
@@ -1132,16 +1132,35 @@ function translateSvg(el, dx, dy) {
 
 function layoutNoteNames(svg) {
   for (const system of svg.querySelectorAll(".system:has(.syl)")) {
-    const ink = system.querySelectorAll(".notehead, .stem, .beam > polygon, .tupletNum");
-    const floor = Math.max(...[...ink].map((part) => screenBox(part)?.bottom ?? 0));
+    const ink = system.querySelectorAll(
+      ".staff > path, .notehead, .stem, .flag, .beam > polygon, .tupletNum, .tupletBracket, .tuplet > path, .tuplet > polyline, .tuplet > line, .artic, .ledgerLines",
+    );
+    const floor = Math.max(0, ...[...ink].map((part) => screenBox(part)?.bottom ?? 0));
+    const lines = staffLineScreenCenters(system.querySelector(".staff"));
+    const staffBottom = lines.length ? lines[lines.length - 1] : floor;
+    let maxLabelBottom = null;
     for (const name of system.querySelectorAll(".note .syl")) {
-      const head = screenBox(name.closest(".note").querySelector(".notehead"));
+      const head = screenBox(name.closest(".note")?.querySelector(".notehead"));
       const label = screenBox(name);
       if (!head || !label) continue;
       const dx = head.left + head.width / 2 - (label.left + label.width / 2);
       const dy = Math.max(0, floor + 4 - label.top);
       const move = screenDeltaToLocal(name, dx, dy);
       if (move) translateSvg(name, move.dx, move.dy);
+      const placedBottom = label.bottom + (move ? dy : 0);
+      maxLabelBottom = maxLabelBottom == null ? placedBottom : Math.max(maxLabelBottom, placedBottom);
+    }
+    if (maxLabelBottom == null) continue;
+    const ceiling = nextHarmTop(svg, staffBottom);
+    if (ceiling != null && maxLabelBottom + 6 > ceiling) {
+      const drop = maxLabelBottom + 6 - ceiling;
+      for (const other of svg.querySelectorAll(".system")) {
+        if (other === system) continue;
+        const box = screenBox(other);
+        if (!box || box.top < staffBottom) continue;
+        const shift = screenDeltaToLocal(other, 0, drop);
+        if (shift) translateSvg(other, shift.dx, shift.dy);
+      }
     }
   }
 }
@@ -1307,7 +1326,7 @@ export function padViewBoxToInk(svg, { topPad = 8, bottomPad = 8 } = {}) {
   const ink = inkUserBounds(svg);
   let overflowTop = ink ? vb.y - ink.y : 0;
   let overflowBottom = ink ? (ink.y + ink.height) - (vb.y + vb.height) : 0;
-  for (const el of svg.querySelectorAll(".harm, .dir.cue, .dir.lick-reference")) {
+  for (const el of svg.querySelectorAll(".harm, .dir.cue, .dir.lick-reference, .syl")) {
     const box = screenBox(el.querySelector("text") ?? el);
     if (!box) continue;
     overflowTop = Math.max(overflowTop, (rect.top - box.top) * userPerPx);

@@ -92,6 +92,7 @@ import {
   wrapupNextLesson,
   lessonSessionPlan,
   sessionCreateArgs,
+  isIsolatedLesson,
   isCyclingLesson,
   isPracticeLesson,
   sessionShowsCycle,
@@ -214,6 +215,7 @@ let liveAt = 0;
 const debugOn = new URLSearchParams(location.search).get("debug") === "1";
 const SELECTED_MODULE_KEY = "duojazz.selectedModule.v1";
 const LAST_ROTATION_KEY = "duojazz.lastRotation.v1";
+const NOTE_NAMES_KEY = "duojazz.noteNames.v1";
 let selectedModuleId = loadSelectedModule();
 const deepLinkOverrides = { module: null, auto: null };
 let nav = parseTabState(location.search);
@@ -624,6 +626,31 @@ function renderAuto() {
   els.autoToggle.setAttribute("role", "switch");
   els.autoToggle.setAttribute("aria-checked", String(on));
   els.autoToggle.setAttribute("aria-label", "Auto");
+}
+
+function noteNamesStorageKey() {
+  return cloudSettings.userId ? `${NOTE_NAMES_KEY}:${cloudSettings.userId}` : NOTE_NAMES_KEY;
+}
+
+function loadShowNoteNames() {
+  try {
+    return JSON.parse(localStorage.getItem(noteNamesStorageKey())) === true;
+  } catch {
+    return false;
+  }
+}
+
+function saveShowNoteNames(value) {
+  writeStoredJson(noteNamesStorageKey(), Boolean(value));
+  renderStorageNotice();
+}
+
+function renderNoteNames() {
+  if (!els.noteNamesToggle) return;
+  const on = Boolean(showNoteNames);
+  els.noteNamesToggle.setAttribute("role", "switch");
+  els.noteNamesToggle.setAttribute("aria-checked", String(on));
+  els.noteNamesToggle.setAttribute("aria-label", "Show note names");
 }
 
 function recordRapidPass() {
@@ -1740,11 +1767,11 @@ function renderSessionChrome() {
   if (autoHost) autoHost.hidden = practice || isTimedChart();
   if (els.sessionOctave) els.sessionOctave.hidden = isTimedChart();
   if (els.continueBtn) els.continueBtn.hidden = !isCyclingLesson(lesson) && !session.sequence;
-  els.noteNamesControl.hidden = lesson.kind !== "learn";
+  if (els.noteNamesControl) els.noteNamesControl.hidden = !isIsolatedLesson(lesson);
   renderKeyCycle();
   const footer = els.session?.querySelector('.session-footer');
   if (footer) footer.hidden = !cycling && Boolean(autoHost?.hidden)
-    && els.noteNamesControl.hidden && Boolean(els.continueBtn?.hidden);
+    && Boolean(els.noteNamesControl?.hidden ?? true) && Boolean(els.continueBtn?.hidden);
 }
 
 function renderSessionChart() {
@@ -2025,7 +2052,7 @@ function renderNotation() {
     notationScale: resolveNotationScale(),
   });
   const concertKey = getKey(currentKeyId(session));
-  const noteNames = showNoteNames && lesson.kind === "learn" && !concealNotes;
+  const noteNames = showNoteNames && isIsolatedLesson(lesson) && !concealNotes;
   const mei = spec.mei === "phrase"
     ? phraseMEI(
       concertKey,
@@ -2427,6 +2454,7 @@ function render(snap = transport.snapshot()) {
     renderCelebrate();
     renderDebug();
     renderAuto();
+    renderNoteNames();
     renderHearIt();
   } else if (els.celebrate) {
     els.celebrate.hidden = true;
@@ -2875,9 +2903,10 @@ els.autoToggle?.addEventListener("click", () => {
   persist();
   renderAuto();
 });
-els.noteNamesToggle.addEventListener("click", () => {
+els.noteNamesToggle?.addEventListener("click", () => {
   showNoteNames = !showNoteNames;
-  els.noteNamesToggle.setAttribute("aria-checked", String(showNoteNames));
+  saveShowNoteNames(showNoteNames);
+  renderNoteNames();
   renderNotation();
 });
 els.showNotes?.addEventListener("click", () => {
@@ -3210,6 +3239,7 @@ window.__DUOJAZZ__ = {
 
 if (els.appVersion) els.appVersion.textContent = APP_VERSION;
 resolveNotationScale();
+showNoteNames = loadShowNoteNames();
 applyDeepLink();
 renderSetup();
 render();
@@ -3225,6 +3255,7 @@ void initAccount({
   onSettingsAccount(id) {
     cloudSettings.activate(id, id ? guestLegacySettings() : {});
     restoreLastRotation();
+    showNoteNames = loadShowNoteNames();
     if (id) applyAccountSettings();
     else applyGuestSettings();
   },

@@ -171,7 +171,9 @@ function noteXml(item, ctx, beats, tie = "") {
   const accid = pitch.accid ? ` accid="${pitch.accid}"` : "";
   const tieAttr = tie ? ` tie="${tie}"` : "";
   const articulation = artic ? `<artic artic="${artic}"/>` : "";
-  const noteName = ctx.showNoteNames ? `<verse n="1"><syl>${esc(pitch.name)}</syl></verse>` : "";
+  const noteName = ctx.showNoteNames && tie !== "t" && tie !== "m"
+    ? `<verse n="1"><syl>${esc(pitch.name)}</syl></verse>`
+    : "";
   return {
     id,
     beats,
