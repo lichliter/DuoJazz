@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=239">
-  <link rel="stylesheet" href="./css/hig.css?v=241">
+  <link rel="stylesheet" href="./css/hig.css?v=245">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=242"></script>
+  <script type="module" src="./js/app.js?v=245"></script>
   <script type="module" src="./js/pwa.js?v=231"></script>
 </head>
 <body>
@@ -438,8 +438,18 @@
       <button type="button" class="dismiss-button" aria-label="Close application" data-close>×</button>
     </header>
     <div class="collection-body">
-      <p class="group-label" id="application-charts-lick"></p>
-      <p id="application-charts-description"></p>
+      <div class="app-sheet-summary">
+        <div class="app-fraction" id="application-charts-fraction" aria-hidden="true" hidden>
+          <span class="app-fraction-top"></span>
+          <span class="app-fraction-bar"></span>
+          <span class="app-fraction-bottom"></span>
+        </div>
+        <div class="app-sheet-summary-copy">
+          <p class="group-label" id="application-charts-lick"></p>
+          <p class="app-degrees" id="application-charts-degrees" hidden></p>
+          <p id="application-charts-description"></p>
+        </div>
+      </div>
       <div id="application-variant-row" class="application-variant-row" hidden>
         <label class="group-label" for="application-variant">Version</label>
         <select id="application-variant"></select>

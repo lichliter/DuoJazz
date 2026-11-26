@@ -1,4 +1,6 @@
-import { PRACTICE_CATALOG, lessonById } from "./registry.js";
+import { describeApplicationHarmony, findDefinitionVariant } from "./application-harmony.js";
+import { fillMusicLabel } from "./engrave.js";
+import { PRACTICE_CATALOG, lessonById, lickById } from "./registry.js";
 import { MY_CHARTS_KEY, loadMyCharts, normalizeMyCharts, chartChoices } from "./practice-catalog.js";
 import { writeStoredJson } from "./storage.js";
 import { closeSheet } from "./dialogs.js";
@@ -28,6 +30,21 @@ export function setupPracticeUI({ onPractice, onChanged, onSaveChart, onManageCh
       return option;
     }));
     variantSelect.value = currentVariantId;
+    const { definition, variant: fullVariant } = findDefinitionVariant(currentGroup.id, currentVariantId);
+    const lick = lickById(currentGroup.moduleId);
+    const harmony = describeApplicationHarmony({ definition, variant: fullVariant, lick });
+    const fraction = document.getElementById("application-charts-fraction");
+    if (fraction) {
+      fraction.hidden = !harmony.top;
+      fraction.classList.toggle("is-wide", Boolean(harmony.wideFraction));
+      fillMusicLabel(fraction.querySelector(".app-fraction-top"), harmony.top);
+      fillMusicLabel(fraction.querySelector(".app-fraction-bottom"), harmony.bottom);
+    }
+    const degrees = document.getElementById("application-charts-degrees");
+    if (degrees) {
+      degrees.hidden = !harmony.degreesLabel;
+      fillMusicLabel(degrees, harmony.degreesLabel);
+    }
     document.getElementById("application-workbook-source").textContent = currentGroup.source ?? `Workbook · page ${variant.page}`;
     document.getElementById("application-workbook-example").textContent = currentGroup.exampleTitle
       ? `Practice ${currentGroup.exampleTitle.toLowerCase()}` : "Practice workbook example";

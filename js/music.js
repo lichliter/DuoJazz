@@ -435,7 +435,7 @@ export function chordRootPc(concertTonicPc, intervalFromTonic) {
   return wrapPc(concertTonicPc + intervalFromTonic);
 }
 
-function shownPc(concertPc, displayMode) {
+export function shownPc(concertPc, displayMode) {
   return wrapPc(concertPc + writtenSemitones(displayMode));
 }
 

@@ -1,8 +1,21 @@
+import {
+  describeChartApplicationChoice,
+  findDefinitionVariant,
+  groupChartApplications,
+} from "./application-harmony.js";
 import { transposeToneKey } from "./chord-tones.js";
 import { closeSheet } from "./dialogs.js";
 import { compactChordSymbol, fillMusicLabel } from "./engrave.js";
-import { getKey } from "./music.js";
-import { CHART_MODULES, MODULES, PRACTICE_CATALOG, moduleById } from "./registry.js";
+import { displayKey, getKey } from "./music.js";
+import {
+  CHART_MODULES,
+  MODULES,
+  PRACTICE_CATALOG,
+  applicationById,
+  lessonById,
+  lickById,
+  moduleById,
+} from "./registry.js";
 import { moduleRoadNodes } from "./session.js";
 
 export function renderChartGrid(host, grid) {
@@ -78,33 +91,125 @@ export function createChartsView({
       .flatMap((group) => group.choices.filter((choice) => choice.chartId === chartId).map((choice) => ({ group, choice })));
   }
 
+  function buildFractionElement(info) {
+    const fraction = document.createElement("span");
+    fraction.className = "app-fraction";
+    if (info.wideFraction) fraction.classList.add("is-wide");
+    fraction.setAttribute("aria-hidden", "true");
+    const top = document.createElement("span");
+    top.className = "app-fraction-top";
+    fillMusicLabel(top, info.top);
+    const bar = document.createElement("span");
+    bar.className = "app-fraction-bar";
+    const bottom = document.createElement("span");
+    bottom.className = "app-fraction-bottom";
+    fillMusicLabel(bottom, info.bottom);
+    fraction.append(top, bar, bottom);
+    return fraction;
+  }
+
   function openChartApplications(moduleId) {
     const chart = currentChart();
     const matches = chartApplications(chart.id, moduleId);
     if (!matches.length) return;
 
     const module = moduleById(moduleId);
+    const prefs = getPrefs();
+    const displayMode = prefs.instrumentId ?? prefs.displayMode ?? "piano";
+    const chartKeyId = chartConcertKey(chart);
+    const writtenChartKey = displayKey(getKey(chartKeyId), displayMode, chart.keyQuality).shortName;
+    const delta = getKey(chartKeyId).pc - getKey(chart.key).pc;
+
     const dialog = document.getElementById("chart-applications");
     document.getElementById("chart-applications-title").textContent = module.name;
-    document.getElementById("chart-applications-description").textContent = `Applications in ${chart.title}`;
-    const list = document.getElementById("chart-applications-list");
-    list.replaceChildren(...matches.map(({ group, choice }) => {
+    fillMusicLabel(
+      document.getElementById("chart-applications-description"),
+      `${chart.title} · ${writtenChartKey}`,
+    );
+
+    const enriched = matches.map(({ group, choice }) => {
+      const lesson = lessonById(choice.lessonId);
+      const app = applicationById(lesson.applicationId);
+      const lick = lickById(app.lickId);
+      const { definition, variant } = findDefinitionVariant(app.workbookApplicationId, app.workbookVariantId);
+      const concertKey = getKey(transposeToneKey(lesson.defaultKeyId, delta));
+      const info = describeChartApplicationChoice({
+        definition,
+        variant,
+        lick,
+        application: app,
+        concertKey,
+        displayMode,
+      });
+      return { group, choice, info };
+    });
+
+    const renderChoiceButton = ({ group, choice, info }) => {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "chart-application-choice";
       button.dataset.lesson = choice.lessonId;
-      const title = document.createElement("strong");
-      title.textContent = group.label;
+
       const version = group.variants.find((variant) => variant.id === choice.variantId);
-      const detail = document.createElement("span");
-      detail.textContent = `${group.description} ${group.variants.length > 1 ? `${version.label}. ` : ""}${choice.context}`;
-      button.append(title, detail);
+      const titleText = group.variants.length > 1 && version
+        ? `${group.label} · ${version.label}`
+        : group.label;
+
+      const body = document.createElement("div");
+      body.className = "app-choice-body";
+      const head = document.createElement("div");
+      head.className = "app-choice-head";
+      const title = document.createElement("strong");
+      title.className = "app-choice-title";
+      title.textContent = titleText;
+      head.append(title);
+      if (info.degreesLabel) {
+        const degrees = document.createElement("span");
+        degrees.className = "app-choice-degrees";
+        fillMusicLabel(degrees, info.degreesLabel);
+        head.append(degrees);
+      }
+
+      const concrete = document.createElement("span");
+      concrete.className = "app-choice-concrete";
+      if (info.concreteSummary && info.barsLabel) {
+        fillMusicLabel(concrete, info.concreteSummary);
+        const barsSpan = document.createElement("span");
+        barsSpan.className = "app-choice-bars";
+        barsSpan.textContent = info.barsLabel;
+        concrete.append(" · ", barsSpan);
+      } else {
+        fillMusicLabel(concrete, info.line || choice.context);
+      }
+
+      body.append(head, concrete);
+      button.append(buildFractionElement(info), body);
+      button.setAttribute(
+        "aria-label",
+        [`Play ${info.spoken}`, titleText, info.line || choice.context].filter(Boolean).join(". "),
+      );
       button.onclick = () => {
         closeSheet(dialog);
         startPracticeApplication(choice.lessonId);
       };
       return button;
-    }));
+    };
+
+    const sections = groupChartApplications(enriched);
+    const list = document.getElementById("chart-applications-list");
+    if (sections.length > 1) {
+      list.replaceChildren(...sections.map((section) => {
+        const groupEl = document.createElement("section");
+        groupEl.className = "chart-application-group";
+        const heading = document.createElement("h3");
+        heading.className = "chart-application-group-title";
+        heading.textContent = section.heading;
+        groupEl.append(heading, ...section.items.map(renderChoiceButton));
+        return groupEl;
+      }));
+    } else {
+      list.replaceChildren(...enriched.map(renderChoiceButton));
+    }
     dialog.showModal();
   }
 

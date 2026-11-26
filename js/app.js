@@ -113,6 +113,7 @@ import {
 } from "./session.js";
 import { parseTabState, tabSearch } from "./tabs.js";
 import { chartGrid, chartKeyChoices } from "./charts.js";
+import { formatSessionApplicationLabel } from "./application-harmony.js";
 import { applicationById, PRACTICE_CATALOG, CHART_LIBRARY, CHART_MODULES } from "./registry.js";
 import { MY_CHARTS_KEY, MY_LICKS_KEY, loadMyCharts, loadMyLicks } from "./practice-catalog.js";
 import { gradedMasteryPercent } from "./library-progress.js";
@@ -1760,8 +1761,14 @@ function renderSessionChrome() {
   const practice = isPracticeLesson(lesson);
   if (els.sessionModule) els.sessionModule.textContent = moduleForLesson(session.lessonId).name;
   if (els.sessionTitle) fillMusicLabel(els.sessionTitle, sessionScreenTitle(session));
+  const app = applicationById(lesson.applicationId);
   els.sessionKey.hidden = !practice;
-  fillMusicLabel(els.sessionKey, practice ? applicationById(lesson.applicationId).label : "");
+  fillMusicLabel(
+    els.sessionKey,
+    practice
+      ? (typeof formatSessionApplicationLabel === "function" ? formatSessionApplicationLabel(app) : (app?.label ?? ""))
+      : "",
+  );
   const cycling = sessionShowsCycle(session);
   const autoHost = els.autoToggle?.closest(".auto-switch");
   if (autoHost) autoHost.hidden = practice || isTimedChart();
