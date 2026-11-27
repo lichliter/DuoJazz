@@ -384,21 +384,38 @@ function releaseMic(reason) {
   renderPrimary();
 }
 
+function syncGradeSlot() {
+  const hasError = Boolean(audioError);
+  const hasMic = !hasError && Boolean(micCopy(monitor.state));
+  const hasGrade = !hasError && !hasMic && visualPhase() !== "celebrate"
+    && Boolean(currentCue() || liveGrade?.graded || liveGrade?.outcome === "skipped");
+  const hasNotice = !hasError && !hasMic && !hasGrade
+    && Boolean(audioNotice && els.meter?.dataset?.kind === "notice");
+  if (els.meter) els.meter.hidden = !(hasError || hasNotice);
+  if (els.sessionMic) els.sessionMic.hidden = !hasMic;
+  if (els.gradeLine) els.gradeLine.hidden = !hasGrade;
+}
+
 function clearGradeLine() {
   liveGrade = null;
-  if (cue || sessionShot === "retry") return;
-  if (!els.gradeLine) return;
-  els.gradeLine.hidden = true;
-  delete els.gradeLine.dataset.kind;
-  delete els.gradeLine.dataset.tone;
-  els.gradeLine.classList.remove("grade-flash");
-  const main = document.getElementById("grade-main");
-  const hint = document.getElementById("grade-hint");
-  if (main) main.textContent = "";
-  if (hint) {
-    hint.hidden = true;
-    hint.textContent = "";
+  if (cue || sessionShot === "retry") {
+    syncGradeSlot();
+    return;
   }
+  if (els.gradeLine) {
+    delete els.gradeLine.dataset.kind;
+    delete els.gradeLine.dataset.tone;
+    els.gradeLine.classList.remove("grade-flash");
+    els.gradeLine.removeAttribute("aria-label");
+    const main = document.getElementById("grade-main");
+    const hint = document.getElementById("grade-hint");
+    if (main) main.textContent = "";
+    if (hint) {
+      hint.hidden = true;
+      hint.textContent = "";
+    }
+  }
+  syncGradeSlot();
   renderFailedNote();
 }
 
@@ -462,6 +479,7 @@ function renderFailedNote() {
 function renderCue() {
   const line = els.gradeLine;
   if (!line) {
+    syncGradeSlot();
     renderFailedNote();
     return;
   }
@@ -469,15 +487,16 @@ function renderCue() {
   const main = document.getElementById("grade-main");
   const hint = document.getElementById("grade-hint");
   if (!current) {
-    if (liveGrade?.graded) {
+    if (liveGrade?.graded || liveGrade?.outcome === "skipped") {
+      syncGradeSlot();
       renderFailedNote();
       return;
     }
-    line.hidden = true;
     delete line.dataset.kind;
     delete line.dataset.tone;
     line.classList.remove("grade-flash");
     line.removeAttribute("aria-label");
+    syncGradeSlot();
     renderFailedNote();
     return;
   }
@@ -495,7 +514,6 @@ function renderCue() {
         verdictText: "Try again",
         ariaLabel: `Try again. ${current.hint ?? ""}`.trim(),
       };
-    line.hidden = false;
     line.dataset.kind = "retry";
     line.dataset.tone = formatted.tone;
     if (main) fillMusicLabel(main, formatted.verdictText);
@@ -510,10 +528,10 @@ function renderCue() {
       void line.offsetWidth;
       line.classList.add("grade-flash");
     }
+    syncGradeSlot();
     renderFailedNote();
     return;
   }
-  line.hidden = false;
   line.dataset.kind = current.kind;
   delete line.dataset.tone;
   if (main) main.textContent = current.kind === "check" ? "✓" : "Try again";
@@ -522,6 +540,7 @@ function renderCue() {
     hint.textContent = current.hint ?? "";
   }
   line.setAttribute("aria-label", current.kind === "check" ? "Pass" : `Try again. ${current.hint ?? ""}`.trim());
+  syncGradeSlot();
   renderFailedNote();
 }
 
@@ -800,6 +819,7 @@ async function beginTimedChart() {
   timedRunActive = true;
   rapidPhase = "listening";
   sessionShot = null;
+  monitor.holdSignal = true;
   render();
   try {
     await transport.ensure();
@@ -821,7 +841,6 @@ async function beginTimedChart() {
         transport.playSuccessDing();
       };
     }
-    watchSegment();
     const config = { ...recordBackingConfig(session), looping: false };
     await transport.start(config, {
       nextSegment: learn ? () => {
@@ -853,6 +872,8 @@ async function beginTimedChart() {
         };
       } : null,
     });
+    if (generation !== startGen || !timedRunActive) return;
+    watchSegment();
   } catch {
     if (generation !== startGen) return;
     halt();
@@ -1043,9 +1064,11 @@ function fillListenState(gradeResult = liveGrade) {
 function renderMic() {
   const copy = micCopy(monitor.state);
   if (els.sessionMic) {
-    els.sessionMic.hidden = !copy;
     els.sessionMic.textContent = copy;
+    if (copy) els.sessionMic.dataset.tone = monitor.state === "no-signal" ? "warn" : "error";
+    else delete els.sessionMic.dataset.tone;
   }
+  syncGradeSlot();
   fillListenState();
 }
 
@@ -2274,23 +2297,19 @@ function renderPrimary(snap = transport.snapshot()) {
 
 function renderMeter(snap = transport.snapshot()) {
   if (!session || session.screen !== "session") return;
-  if (audioError) {
-    els.meter.hidden = false;
-    els.meter.textContent = audioError;
-    return;
+  const text = audioError
+    ? audioError
+    : (!snap.inCountIn && audioNotice && !snap.playing && !snap.paused ? audioNotice : "");
+  const kind = audioError ? "error" : text ? "notice" : "";
+  const tone = audioError ? "error" : text ? "warn" : "";
+  if (els.meter) {
+    if (els.meter.textContent !== text) els.meter.textContent = text;
+    if (kind) els.meter.dataset.kind = kind;
+    else delete els.meter.dataset.kind;
+    if (tone) els.meter.dataset.tone = tone;
+    else delete els.meter.dataset.tone;
   }
-  if (snap.inCountIn) {
-    els.meter.hidden = true;
-    els.meter.textContent = "";
-    return;
-  }
-  if (audioNotice && !snap.playing && !snap.paused) {
-    els.meter.hidden = false;
-    els.meter.textContent = audioNotice;
-    return;
-  }
-  els.meter.hidden = true;
-  els.meter.textContent = "";
+  syncGradeSlot();
 }
 
 const { renderWrapup } = createWrapupView({
@@ -2602,12 +2621,17 @@ transport.onUpdate = (snap) => {
 function showGrade(result) {
   liveGrade = result ?? null;
   fillListenState(result?.graded ? result : null);
-  if (cue || sessionShot === "retry" || visualPhase() === "celebrate") return;
-  if (!els.gradeLine) return;
+  if (cue || sessionShot === "retry" || visualPhase() === "celebrate") {
+    syncGradeSlot();
+    return;
+  }
+  if (!els.gradeLine) {
+    syncGradeSlot();
+    return;
+  }
   const main = document.getElementById("grade-main");
   const hint = document.getElementById("grade-hint");
   if (result?.graded) {
-    els.gradeLine.hidden = false;
     els.gradeLine.dataset.kind = "legacy";
     delete els.gradeLine.dataset.tone;
     els.gradeLine.classList.remove("grade-flash");
@@ -2618,10 +2642,10 @@ function showGrade(result) {
       hint.hidden = true;
       hint.textContent = "";
     }
+    syncGradeSlot();
     return;
   }
   if (result?.outcome === "skipped") {
-    els.gradeLine.hidden = false;
     els.gradeLine.dataset.kind = "legacy";
     delete els.gradeLine.dataset.tone;
     els.gradeLine.classList.remove("grade-flash");
@@ -2630,9 +2654,9 @@ function showGrade(result) {
       hint.hidden = true;
       hint.textContent = "";
     }
+    syncGradeSlot();
     return;
   }
-  els.gradeLine.hidden = true;
   delete els.gradeLine.dataset.kind;
   delete els.gradeLine.dataset.tone;
   els.gradeLine.classList.remove("grade-flash");
@@ -2641,6 +2665,7 @@ function showGrade(result) {
     hint.hidden = true;
     hint.textContent = "";
   }
+  syncGradeSlot();
 }
 
 function restoreStoredGrade() {

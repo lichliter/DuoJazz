@@ -2558,6 +2558,47 @@ body:has(> .app-shell[data-screen="session"]:not([hidden])) {
   color: var(--paper-ink);
 }
 
+.session-screen .grade-slot .meter,
+.session-screen .grade-slot .mic-line {
+  flex: 0 1 auto;
+  margin: 0;
+  min-height: 0;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  padding: 4px 14px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--paper-ink);
+  background: rgba(43, 33, 26, 0.08);
+  border: 1px solid rgba(43, 33, 26, 0.16);
+}
+
+.session-screen .grade-slot .meter[hidden],
+.session-screen .grade-slot .mic-line[hidden] {
+  display: none !important;
+}
+
+.session-screen .grade-slot .meter[data-tone="warn"],
+.session-screen .grade-slot .mic-line[data-tone="warn"] {
+  background: rgba(164, 92, 10, 0.12);
+  border: 1px solid rgba(164, 92, 10, 0.3);
+  color: #7d4506;
+}
+
+.session-screen .grade-slot .meter[data-tone="error"],
+.session-screen .grade-slot .mic-line[data-tone="error"] {
+  background: rgba(184, 50, 39, 0.11);
+  border: 1px solid rgba(184, 50, 39, 0.28);
+  color: #8c2219;
+}
+
 .session-screen .grade-line.grade-flash {
   animation: grade-in 0.22s ease-out both;
 }
@@ -2808,6 +2849,12 @@ body:has(> .app-shell[data-screen="session"]:not([hidden])) {
 
   .session-screen .grade-line {
     padding: 6px 18px;
+  }
+
+  .session-screen .grade-slot .meter,
+  .session-screen .grade-slot .mic-line {
+    padding: 6px 18px;
+    font-size: 15px;
   }
 
   .session-screen .grade-hint {

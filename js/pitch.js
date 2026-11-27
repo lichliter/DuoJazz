@@ -233,12 +233,11 @@ export class PitchMonitor {
 }
 
 export function micCopy(state) {
-  if (state === "interrupted") return "Microphone disconnected. Reconnect it, then record again.";
-  if (state === "denied") return "Microphone blocked. Allow microphone access in your browser settings to grade.";
-  if (state === "no-mic") return "No microphone found. Connect a microphone, then try again.";
-  if (state === "mic-busy") return "Microphone is in use by another app. Close it, then try again.";
-  if (state === "unsupported") return "This browser cannot run pitch detection. Try iPad Safari.";
-  if (state === "no-signal") return "No signal. Play closer to the mic, or use headphones for the backing.";
-  if (state === "requesting") return "Asking for the microphone…";
+  if (state === "interrupted") return "Microphone disconnected.";
+  if (state === "denied") return "Microphone blocked in browser settings.";
+  if (state === "no-mic") return "No microphone found.";
+  if (state === "mic-busy") return "Microphone is in use by another app.";
+  if (state === "unsupported") return "Pitch detection unavailable. Try iPad Safari.";
+  if (state === "no-signal") return "No signal";
   return "";
 }

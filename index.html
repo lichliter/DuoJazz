@@ -18,10 +18,10 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=239">
-  <link rel="stylesheet" href="./css/hig.css?v=246">
+  <link rel="stylesheet" href="./css/hig.css?v=247">
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=246"></script>
+  <script type="module" src="./js/app.js?v=247"></script>
   <script type="module" src="./js/pwa.js?v=231"></script>
 </head>
 <body>
@@ -246,8 +246,6 @@
         <div class="session-body">
           <div class="session-stage">
             <h2 class="session-step" id="card-badge">Play</h2>
-            <p class="meter" id="meter" hidden></p>
-            <p class="mic-line" id="session-mic" hidden></p>
             <div class="debug-strip" id="debug-strip" data-testid="debug-strip" hidden>
               <p class="debug-live" id="debug-live" data-testid="debug-live"></p>
               <p class="debug-attempt" id="debug-attempt" data-testid="debug-attempt"></p>
@@ -289,6 +287,8 @@
                   </div>
                 </div>
                 <div class="grade-slot" id="grade-slot" data-testid="grade-slot">
+                  <p class="meter" id="meter" role="status" aria-live="polite" hidden></p>
+                  <p class="mic-line" id="session-mic" role="status" aria-live="polite" hidden></p>
                   <p class="grade-line" id="grade-line" hidden aria-live="polite">
                     <span class="grade-hint" id="grade-hint" hidden></span>
                     <span id="grade-main"></span>

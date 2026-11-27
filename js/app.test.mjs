@@ -6,7 +6,7 @@ import * as sessions from "./session.js";
 import * as medals from "./medals.js";
 import * as followers from "./follow.js";
 import { chartPassFeedback, expectedNotesFor, hzFromMidi, synthTrack } from "./grade.js";
-import { PitchMonitor } from "./pitch.js";
+import { PitchMonitor, micCopy } from "./pitch.js";
 import { getKey, phraseSpanBars } from "./music.js";
 import { instrumentOrDefault } from "./instruments.js";
 import { notationLayout } from "./lesson.js";
@@ -398,6 +398,41 @@ test("chart Learn hears a held note across a loop boundary as a single attack", 
   nextSegment().onStart();
   synthTrack(notes).forEach(hear);
   assert.equal(dings, 1);
+});
+
+test("beginTimedChart holds signal across count-in/backing and discards pre-start frames", async () => {
+  for (const lessonId of ["tones-chart-blue-bossa-0-learn", "tones-chart-blue-bossa-timed-master"]) {
+    const monitor = new PitchMonitor();
+    monitor.isLive = () => true;
+    monitor.start = async () => {
+      monitor.state = "listening";
+      monitor.handleFrame({ hz: 220, amp: 0.2, confidence: 0.95 });
+      assert.equal(monitor.observations.length, 1);
+    };
+    const transport = {
+      playing: false,
+      chorusLengthBeats: 4,
+      ensure: noop,
+      prepareBacking: noop,
+      async start() { transport.playing = true; },
+      playSuccessDing: noop,
+    };
+    const context = appContext(["beginTimedChart"], {
+      session: sessions.createSession({ lessonId, tempo: 96 }),
+      transport,
+      monitor,
+      startGen: 0,
+      resetPitchTake: noop,
+    });
+    await context.beginTimedChart();
+    assert.equal(monitor.holdSignal, true, lessonId);
+    assert.equal(monitor.observations.length, 0, `${lessonId} clears pre-start frames`);
+    for (let i = 0; i < 30; i += 1) {
+      monitor.handleFrame({ hz: 0, amp: 0, confidence: 0.1 });
+      monitor.handleFrame({ hz: 196, amp: 0.05, confidence: 0.4 });
+    }
+    assert.equal(monitor.state, "listening", lessonId);
+  }
 });
 
 test("consecutive attempts reuse live capture instead of stopping the mic", async () => {
@@ -1301,4 +1336,128 @@ test("Note names setting persists per viewer and syncs switch ARIA state", () =>
   context.showNoteNames = false;
   context.renderNoteNames();
   assert.equal(toggleAttrs.get("aria-checked"), "false");
+});
+
+test("grade-slot status messages stay mutually exclusive by priority", () => {
+  const makeEl = () => ({
+    hidden: true,
+    textContent: "",
+    dataset: {},
+    attrs: new Map(),
+    classes: new Set(),
+    classList: {
+      add(name) { this._owner.classes.add(name); },
+      remove(name) { this._owner.classes.delete(name); },
+    },
+    setAttribute(name, value) { this.attrs.set(name, String(value)); },
+    removeAttribute(name) { this.attrs.delete(name); },
+  });
+  const meter = makeEl();
+  const sessionMic = makeEl();
+  const gradeLine = makeEl();
+  gradeLine.classList._owner = gradeLine;
+  const gradeMain = makeEl();
+  const gradeHint = makeEl();
+  const context = appContext([
+    "sessionKeyToken",
+    "syncGradeSlot",
+    "clearGradeLine",
+    "currentCue",
+    "renderCue",
+    "renderMic",
+    "renderMeter",
+    "showGrade",
+  ], {
+    micCopy,
+    session: sessions.createSession({ lessonId: "learn-lick", startKeyId: "G" }),
+    audioError: "",
+    audioNotice: "Using synth backing — samples didn’t load.",
+    cue: null,
+    liveGrade: null,
+    sessionShot: null,
+    lastRenderedCueSeq: 0,
+    visualPhase: () => "idle",
+    notesVisibleInSession: () => true,
+    shownKeyForSession: () => getKey("G"),
+    formatFailureFeedback: () => ({ tone: "warn", noteText: "1st note", verdictText: "Slightly flat", ariaLabel: "Slightly flat" }),
+    fillMusicLabel: (el, text) => { el.textContent = String(text ?? ""); },
+    renderFailedNote: noop,
+    fillListenState: noop,
+    monitor: { state: "idle" },
+    transport: { snapshot: () => ({ playing: false, paused: false, inCountIn: false }) },
+    document: {
+      getElementById: (id) => (id === "grade-main" ? gradeMain : id === "grade-hint" ? gradeHint : null),
+    },
+    els: {
+      storageNotice: { textContent: "", hidden: true },
+      meter,
+      sessionMic,
+      gradeLine,
+    },
+  });
+
+  // 1. Lowest priority: audioNotice shows in #meter when idle and no higher message is active.
+  context.renderMeter();
+  assert.equal(meter.hidden, false);
+  assert.equal(meter.dataset.kind, "notice");
+  assert.equal(meter.dataset.tone, "warn");
+  assert.equal(sessionMic.hidden, true);
+  assert.equal(gradeLine.hidden, true);
+
+  // 2. Grade/cue takes precedence over audioNotice.
+  context.showGrade({ outcome: "skipped", graded: false, passed: false });
+  assert.equal(gradeLine.hidden, false);
+  assert.equal(gradeMain.textContent, "Skipped");
+  assert.equal(meter.hidden, true);
+  assert.equal(sessionMic.hidden, true);
+
+  // 3. Mic error takes precedence over cue/grade and audioNotice.
+  context.cue = { kind: "retry", keyToken: "learn-lick:G", seq: 1, failure: { kind: "slightly-flat", index: 0 } };
+  context.monitor.state = "denied";
+  context.renderMic();
+  assert.equal(sessionMic.hidden, false);
+  assert.equal(sessionMic.dataset.tone, "error");
+  assert.equal(gradeLine.hidden, true);
+  assert.equal(meter.hidden, true);
+
+  // 4. Audio error takes top precedence over micCopy, cue/grade, and audioNotice.
+  context.audioError = "Microphone failed to start.";
+  context.renderMeter();
+  assert.equal(meter.hidden, false);
+  assert.equal(meter.dataset.kind, "error");
+  assert.equal(meter.dataset.tone, "error");
+  assert.equal(sessionMic.hidden, true);
+  assert.equal(gradeLine.hidden, true);
+
+  // 5. Clearing audioError hides #meter even before renderMeter runs again, revealing micCopy.
+  context.audioError = "";
+  context.renderCue();
+  assert.equal(meter.hidden, true);
+  assert.equal(sessionMic.hidden, false);
+  assert.equal(gradeLine.hidden, true);
+
+  // 6. Clearing mic state reveals cue; clearing cue leaves stale error hidden until renderMeter restores audioNotice.
+  context.monitor.state = "idle";
+  context.renderMic();
+  assert.equal(sessionMic.hidden, true);
+  assert.equal(gradeLine.hidden, false);
+
+  context.cue = null;
+  context.clearGradeLine();
+  assert.equal(gradeLine.hidden, true);
+  assert.equal(meter.hidden, true);
+
+  context.renderMeter();
+  assert.equal(meter.hidden, false);
+  assert.equal(meter.dataset.kind, "notice");
+  assert.equal(meter.textContent, context.audioNotice);
+
+  // 7. When audioNotice is already rendered in #meter, showing then clearing a grade restores it cleanly.
+  context.showGrade({ outcome: "skipped", graded: false, passed: false });
+  assert.equal(meter.hidden, true);
+  assert.equal(gradeLine.hidden, false);
+  context.clearGradeLine();
+  assert.equal(gradeLine.hidden, true);
+  assert.equal(meter.hidden, false);
+  assert.equal(meter.dataset.kind, "notice");
 });

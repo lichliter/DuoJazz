@@ -114,6 +114,12 @@ test("home uses the record road and a shared library sheet; session keeps the ro
   assert.match(index, /class="session-transport play-well"/);
   assert.match(index, /class="lick-tools"/);
   assert.match(index, /class="session-footer"/);
+  const gradeSlot = index.slice(index.indexOf('id="grade-slot"'), index.indexOf('id="session-chart-grid"'));
+  assert.match(gradeSlot, /id="meter"/);
+  assert.match(gradeSlot, /id="session-mic"/);
+  assert.match(gradeSlot, /id="grade-line"/);
+  const hig = await readFile(new URL("../css/hig.css", import.meta.url), "utf8");
+  assert.match(hig, /\.session-screen \.grade-slot \.meter,\s*\.session-screen \.grade-slot \.mic-line/);
   assert.match(index, /id="key-cycle"[^>]*aria-label="Key 1 of 12"/);
   assert.match(index, /play-well/);
   assert.match(index, /id="continue-btn"[^>]*aria-label="Skip"/);

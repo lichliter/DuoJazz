@@ -401,6 +401,8 @@ test('missing or busy microphones report specific states and addModule runs once
     assert.equal(monitor.state, expectedState);
     assert.match(micCopy(expectedState), pattern);
   }
+  assert.equal(micCopy("requesting"), "");
+  assert.match(micCopy("interrupted"), /disconnected/i);
 });
 
 test('quiet confident horn frames are captured while low-confidence noise is ignored', () => {
