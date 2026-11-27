@@ -229,7 +229,7 @@ test("index and gallery bind Verovio WASM before the page module", async () => {
   const wasmAt = index.indexOf("verovio-6.3.0.js");
   const bindAt = index.indexOf("verovio-bind.js");
   const appAt = index.indexOf("js/app.js");
-  assert.ok(wasmAt >= 0 && bindAt > wasmAt && appAt > bindAt);
+  assert.ok(wasmAt >= 0 && bindAt > wasmAt && appAt >= 0 && appAt < wasmAt);
   const gWasm = gallery.indexOf("verovio-6.3.0.js");
   const gBind = gallery.indexOf("verovio-bind.js");
   const gApp = gallery.indexOf("js/gallery.js");

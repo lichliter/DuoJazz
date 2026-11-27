@@ -18,11 +18,11 @@
   <link rel="stylesheet" href="./css/webfonts.css">
   <link rel="stylesheet" href="./css/tokens.css?v=190">
   <link rel="stylesheet" href="./css/styles.css?v=239">
-  <link rel="stylesheet" href="./css/hig.css?v=247">
+  <link rel="stylesheet" href="./css/hig.css?v=249">
+  <script id="app-module" type="module" src="./js/app.js?v=249" onerror="window.__duojazzModuleFailed=true"></script>
+  <script type="module" src="./js/pwa.js?v=249"></script>
   <script src="./js/vendor/verovio-6.3.0.js" defer></script>
   <script src="./js/verovio-bind.js?v=150" defer></script>
-  <script type="module" src="./js/app.js?v=247"></script>
-  <script type="module" src="./js/pwa.js?v=231"></script>
 </head>
 <body>
   <p id="offline-status" class="offline-status" role="status" hidden></p>
@@ -32,7 +32,10 @@
     <div class="account-loading-card">
       <img class="login-record" src="./icons/icon-512.png?v=dj-record-6" alt="" width="98" height="98">
       <h1 id="account-loading-title" tabindex="-1">DuoJazz</h1>
-      <p class="help" role="status">Loading…</p>
+      <p id="account-loading-status" class="help" role="status">Loading…</p>
+      <div class="account-loading-actions">
+        <button type="button" id="account-loading-retry" class="auth-link" hidden>Reload</button>
+      </div>
     </div>
   </section>
 
@@ -477,5 +480,22 @@
     <header class="sheet-toolbar"><h2 id="chart-applications-title">Applications</h2><button type="button" class="dismiss-button" data-close aria-label="Close applications">×</button></header>
     <div class="collection-body"><p id="chart-applications-description" class="help"></p><div id="chart-applications-list"></div></div>
   </dialog>
+  <script>
+    (function () {
+      function showBootFailure() {
+        if (document.documentElement.dataset.appBooted === "1") return;
+        var status = document.getElementById("account-loading-status");
+        var retry = document.getElementById("account-loading-retry");
+        if (status) status.textContent = "Couldn\u2019t load DuoJazz.";
+        if (retry) {
+          retry.hidden = false;
+          retry.onclick = function () { location.reload(); };
+        }
+      }
+      if (window.__duojazzModuleFailed) showBootFailure();
+      document.getElementById("app-module")?.addEventListener("error", showBootFailure, { once: true });
+      window.__duojazzBootTimer = setTimeout(showBootFailure, 15000);
+    })();
+  </script>
 </body>
 </html>

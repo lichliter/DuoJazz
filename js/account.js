@@ -14,6 +14,35 @@ export function authReturnUrl(href) {
 export function accountInitials(name) {
   return String(name).trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join("").toUpperCase() || "?";
 }
+export function hasAuthCallbackInUrl(href) {
+  try {
+    const url = new URL(href);
+    for (const key of ["code", "token_hash", "error", "error_code", "error_description"]) {
+      if (url.searchParams.has(key)) return true;
+    }
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+    for (const key of ["access_token", "refresh_token", "type", "error", "error_code", "error_description"]) {
+      if (hash.has(key)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+export function readStoredSession(key, storage = globalThis.localStorage) {
+  try {
+    const saved = JSON.parse(storage?.getItem(key) ?? "null");
+    return saved?.user?.id && saved?.access_token && saved?.refresh_token ? saved : null;
+  } catch {
+    return null;
+  }
+}
+export function isRetryableAuthError(error) {
+  if (!error) return false;
+  if (error.name === "AuthRetryableFetchError" || error.isRetryable === true) return true;
+  if (error.status === 0 || (typeof error.status === "number" && error.status >= 500)) return true;
+  return /timed out|network|failed to fetch|load failed|aborted/i.test(String(error.message ?? ""));
+}
 
 export async function initAccount({ getProgress, onProgress, onOpenProfile, settings, onSettings, onSettingsAccount }) {
   const $ = id => document.getElementById(id);
@@ -112,34 +141,47 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
   showView(view, { navigate: false, focus: false });
   showApp();
   $("account-google").hidden = !GOOGLE_SIGN_IN_ENABLED;
-  let client;
-  try {
-    await withTimeout(new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = new URL("./vendor/supabase-2.119.0.js", import.meta.url).href;
-      script.onload = resolve; script.onerror = reject; document.head.append(script);
-    }));
-    client = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-      global: { fetch: fetchWithTimeout },
-    });
-  } catch {
-    restoring = false;
-    showApp();
-    say("Couldn’t load sign-in. Refresh the page to try again.");
-    return;
-  }
-
   const authStorageKey = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+  let client = null, manualSignOut = false;
+
+  async function act(button, action, inAccount = false) {
+    if (busy) return;
+    busy = true;
+    const original = button.textContent;
+    button.disabled = true; button.textContent = "Please wait…";
+    if (inAccount) syncError(""); else say("");
+    try { await action(); }
+    catch (error) { (inAccount ? syncError : say)(error.message || "Couldn’t connect. Please try again."); }
+    finally { busy = false; button.disabled = false; button.textContent = original; }
+  }
+  function ensure(result) { if (result.error) throw result.error; return result.data; }
+
   // The offline path removes the local session without a network sign-out.
   // Other tabs must also discard their in-memory identity and stop playback.
   addEventListener("storage", event => {
     if (event.storageArea !== localStorage || (event.key !== authStorageKey && event.key !== null)) return;
     if (localStorage.getItem(authStorageKey) !== null) return;
     void changeAccount(null);
-    void client.auth.stopAutoRefresh();
+    void client?.auth.stopAutoRefresh();
     location.reload();
   });
+
+  $("account-signout").onclick = event => act(event.currentTarget, async () => {
+    if (!navigator.onLine || !client) {
+      manualSignOut = true;
+      localStorage.removeItem(authStorageKey);
+      localStorage.removeItem(`${authStorageKey}-code-verifier`);
+      location.reload();
+      return;
+    }
+    manualSignOut = true;
+    try {
+      ensure(await client.auth.signOut({ scope: "local" }));
+    } catch (error) {
+      manualSignOut = false;
+      throw error;
+    }
+  }, true);
 
   async function sync({ pull = true } = {}) {
     if (!navigator.onLine) {
@@ -148,7 +190,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     }
     pending = true;
     if (pull) pendingPull = true;
-    if (running || !user) return;
+    if (running || !user || !client) return;
     clearTimeout(retryTimer);
     running = true;
     let requestGeneration = generation;
@@ -220,7 +262,7 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
       }
     } finally {
       applying = false; running = false;
-      if (pending && user) void sync({ pull: pendingPull });
+      if (pending && user && client) void sync({ pull: pendingPull });
     }
   }
 
@@ -233,10 +275,13 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     viewingGuest = false;
     clearTimeout(retryTimer); syncError("");
     const version = generation;
-    onSettingsAccount(user?.id ?? null, switchingAccount);
-    setMasteryAccount(user?.id);
-    onProgress(loadMastery(), switchingAccount);
-    clearPasswords(); say(""); showApp();
+    try {
+      onSettingsAccount(user?.id ?? null, switchingAccount);
+      setMasteryAccount(user?.id);
+      onProgress(loadMastery(), switchingAccount);
+    } finally {
+      clearPasswords(); say(""); showApp();
+    }
     if (!user) {
       document.querySelectorAll("dialog[open]").forEach(node => node.close());
       if (switchingAccount) showView("signin");
@@ -244,7 +289,20 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     }
     const id = user.id;
     const claim = () => claimGuestProgress(id);
-    const rows = navigator.locks ? await navigator.locks.request("duojazz-guest-migration", claim) : claim();
+    let rows = [];
+    if (navigator.locks) {
+      const controller = new AbortController();
+      const lockTimer = setTimeout(() => controller.abort(), 5000);
+      try {
+        rows = await navigator.locks.request("duojazz-guest-migration", { mode: "exclusive", signal: controller.signal }, claim);
+      } catch {
+        rows = controller.signal.aborted ? [] : claim();
+      } finally {
+        clearTimeout(lockTimer);
+      }
+    } else {
+      rows = claim();
+    }
     if (generation !== version) return;
     if (rows.length) {
       onProgress(mergeProgress(getProgress(), rows), false);
@@ -256,50 +314,114 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     }
     void sync();
   }
+
+  // Returning signed-in players open into their cached account immediately while session verification runs in the background.
+  // Skip pre-restoration on auth callbacks so OAuth/recovery links still hand off cleanly after token exchange.
+  const savedSession = hasAuthCallbackInUrl(location.href) ? null : readStoredSession(authStorageKey);
+  if (savedSession) {
+    try {
+      await changeAccount(savedSession.user);
+    } catch {
+      /* showApp() already ran in changeAccount's finally block. */
+    }
+  }
+
+  try {
+    if (!globalThis.supabase) {
+      await withTimeout(new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = new URL("./vendor/supabase-2.119.0.js", import.meta.url).href;
+        script.onload = resolve; script.onerror = reject; document.head.append(script);
+      }));
+    }
+    client = globalThis.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+      global: { fetch: fetchWithTimeout },
+    });
+  } catch {
+    restoring = false;
+    showApp();
+    if (user) {
+      syncError(navigator.onLine
+        ? "Couldn’t connect to account sync. Reload to try again."
+        : "Offline — account sync will resume when you reconnect.");
+    } else {
+      say("Couldn’t load sign-in. Refresh the page to try again.");
+    }
+    return;
+  }
+
   client.auth.onAuthStateChange((event, session) => {
-    setTimeout(() => {
-      if (event === "PASSWORD_RECOVERY") recovery = true;
-      if (event === "SIGNED_OUT") recovery = false;
-      if (!navigator.onLine && user && !session && event !== "SIGNED_OUT") return;
-      void changeAccount(session?.user ?? null);
-      if (recovery) showView("password", { navigate: false });
+    setTimeout(async () => {
+      try {
+        if (event === "PASSWORD_RECOVERY") recovery = true;
+        if (event === "SIGNED_OUT") recovery = false;
+        if (!session && user && event !== "SIGNED_OUT" && (!navigator.onLine || readStoredSession(authStorageKey))) {
+          if (event === "INITIAL_SESSION" && navigator.onLine) {
+            syncError("Your changes haven’t reached your account yet. We’ll retry automatically.");
+          }
+          return;
+        }
+        const hadUser = Boolean(user);
+        await changeAccount(session?.user ?? null);
+        if (event === "SIGNED_OUT") {
+          if (hadUser && !manualSignOut && !recovery) say("Your session expired. Please sign in again.");
+          manualSignOut = false;
+        }
+        if (event === "TOKEN_REFRESHED" && session?.user && user?.id === session.user.id) {
+          void sync({ pull: true });
+        }
+        if (recovery) showView("password", { navigate: false });
+      } catch {
+        restoring = false;
+        showApp();
+      }
     }, 0);
   });
-  // This identity only selects local practice data; server access still requires auth.
-  if (!navigator.onLine) {
-    try {
-      const key = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
-      const saved = JSON.parse(localStorage.getItem(key));
-      if (saved?.user?.id && saved?.access_token && saved?.refresh_token) await changeAccount(saved.user);
-    } catch { /* Missing or unavailable local session: keep the sign-in screen. */ }
-  }
+
   try {
     if (navigator.onLine) {
       const version = generation;
       const { data, error } = await withTimeout(client.auth.getSession());
       if (error) throw error;
-      if (version === generation) await changeAccount(data.session?.user ?? null);
+      if (version === generation) {
+        const nextUser = data.session?.user ?? null;
+        if (nextUser) {
+          const sameUser = user?.id === nextUser.id;
+          await changeAccount(nextUser);
+          if (sameUser) void sync({ pull: true });
+        } else if (!user || !readStoredSession(authStorageKey)) {
+          const hadCachedUser = Boolean(user);
+          await changeAccount(null);
+          if (hadCachedUser && !manualSignOut) say("Your session expired. Please sign in again.");
+        }
+      }
     } else {
       restoring = false;
       showApp();
     }
-  } catch {
+  } catch (error) {
     restoring = false;
-    showApp();
-    if (!user) say("Couldn’t restore your account. Please sign in again.");
+    if (user && readStoredSession(authStorageKey) && (isRetryableAuthError(error) || !navigator.onLine)) {
+      showApp();
+      syncError(navigator.onLine
+        ? "Your changes haven’t reached your account yet. We’ll retry automatically."
+        : "Offline — account sync will resume when you reconnect.");
+      if (navigator.onLine) {
+        clearTimeout(retryTimer);
+        retryTimer = setTimeout(() => void sync({ pull: true }), retryDelay);
+      }
+    } else {
+      if (user && !readStoredSession(authStorageKey)) await changeAccount(null);
+      else showApp();
+      if (!user) say("Couldn’t restore your account. Please sign in again.");
+    }
+  } finally {
+    if (restoring) {
+      restoring = false;
+      showApp();
+    }
   }
-
-  async function act(button, action, inAccount = false) {
-    if (busy) return;
-    busy = true;
-    const original = button.textContent;
-    button.disabled = true; button.textContent = "Please wait…";
-    if (inAccount) syncError(""); else say("");
-    try { await action(); }
-    catch (error) { (inAccount ? syncError : say)(error.message || "Couldn’t connect. Please try again."); }
-    finally { busy = false; button.disabled = false; button.textContent = original; }
-  }
-  function ensure(result) { if (result.error) throw result.error; return result.data; }
   function onSubmit(id, buttonId, action) {
     $(id).addEventListener("submit", event => {
       event.preventDefault();
@@ -361,16 +483,6 @@ export async function initAccount({ getProgress, onProgress, onOpenProfile, sett
     if (sentOk) cooldown();
   };
   $("account-google").onclick = event => act(event.currentTarget, async () => ensure(await client.auth.signInWithOAuth(googleOptions(returnUrl))));
-  $("account-signout").onclick = event => act(event.currentTarget, async () => {
-    if (!navigator.onLine) {
-      const key = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
-      localStorage.removeItem(key);
-      localStorage.removeItem(`${key}-code-verifier`);
-      location.reload();
-      return;
-    }
-    ensure(await client.auth.signOut({ scope: "local" }));
-  }, true);
   addEventListener("duojazz-settings-changed", () => { if (user) void sync({ pull: false }); });
   addEventListener("duojazz-progress-saved", () => { if (!applying && user) void sync({ pull: false }); });
   addEventListener("online", () => { if (user) void sync({ pull: true }); });

@@ -33,3 +33,26 @@ test('network deadline remains active through response reading and preserves cal
   assert.equal(passedSignal.aborted, true);
   assert.equal(passedSignal.reason.message, 'caller cancelled');
 });
+
+test('fetchWithTimeout falls back cleanly when AbortSignal.timeout is unavailable', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const originalTimeout = AbortSignal.timeout;
+  Object.defineProperty(AbortSignal, 'timeout', { value: undefined, configurable: true });
+  try {
+    let passedSignal;
+    t.mock.method(globalThis, 'fetch', async (_, init) => {
+      passedSignal = init.signal;
+      return { json: () => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason))) };
+    });
+    const original = new AbortController();
+    const response = await fetchWithTimeout('https://example.test', { signal: original.signal });
+    const reading = response.json();
+    const rejected = assert.rejects(reading, /timed out/);
+    t.mock.timers.tick(20000);
+    await rejected;
+    assert.equal(passedSignal.aborted, true);
+    assert.equal(original.signal.aborted, false);
+  } finally {
+    Object.defineProperty(AbortSignal, 'timeout', { value: originalTimeout, configurable: true });
+  }
+});

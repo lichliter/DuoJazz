@@ -32,7 +32,11 @@ self.addEventListener('fetch', event => {
   }
   if (!urls.has(url.href)) return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    return await cache.match(url.href) || fetch(request);
+    try {
+      const cache = await caches.open(CACHE);
+      const cached = await cache.match(url.href);
+      if (cached) return cached;
+    } catch { /* Fall back to network if CacheStorage is unavailable or fails. */ }
+    return fetch(request);
   })());
 });

@@ -2893,6 +2893,9 @@ body:has(> .app-shell[data-screen="session"]:not([hidden])) {
 .account-loading-card .login-record { margin: 0 auto 20px; }
 .account-loading-card h1 { font: var(--text-title-1); margin: 0 0 12px; }
 #account-loading-title:focus { outline: none; }
+.account-loading-actions { min-height: 44px; margin-top: 8px; display: flex; justify-content: center; align-items: center; }
+.account-loading-actions [hidden] { display: none !important; }
+.account-loading-actions .auth-link { min-height: 44px; padding: 8px 16px; border: 1px solid var(--separator); border-radius: var(--radius-sm); background: var(--fill); color: var(--tint); font: var(--text-subhead); cursor: pointer; }
 .login-card { width: min(100%, 400px); margin: auto; padding: 42px 0 22px; }
 .login-record { width: 98px; height: 98px; margin: 0 0 17px; display: block; border-radius: 18px; }
 .login-card h1 { font: 600 clamp(36px, 8vw, 48px)/1.15 var(--font); letter-spacing: 0; margin: 10px 0 28px; }

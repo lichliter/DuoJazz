@@ -10,19 +10,36 @@ export function withTimeout(promise, milliseconds = 15000) {
 // Keep the deadline signal alive through reading the response body as well as
 // receiving headers. This covers auth, preference saves, and progress requests.
 export function fetchWithTimeout(input, init = {}) {
-  const signal = AbortSignal.timeout(20000);
   const original = init.signal ?? (input instanceof Request ? input.signal : undefined);
-  if (!original) return fetch(input, { ...init, signal });
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    const signal = AbortSignal.timeout(20000);
+    if (!original) return fetch(input, { ...init, signal });
+    const controller = new AbortController();
+    const abort = event => {
+      controller.abort(event.target.reason);
+      original.removeEventListener('abort', abort);
+      signal.removeEventListener('abort', abort);
+    };
+    if (original.aborted) controller.abort(original.reason);
+    else {
+      original.addEventListener('abort', abort, { once: true });
+      signal.addEventListener('abort', abort, { once: true });
+    }
+    return fetch(input, { ...init, signal: controller.signal });
+  }
   const controller = new AbortController();
-  const abort = event => {
-    controller.abort(event.target.reason);
-    original.removeEventListener('abort', abort);
-    signal.removeEventListener('abort', abort);
+  let timer;
+  const abortFromOriginal = () => {
+    clearTimeout(timer);
+    controller.abort(original?.reason);
   };
-  if (original.aborted) controller.abort(original.reason);
-  else {
-    original.addEventListener('abort', abort, { once: true });
-    signal.addEventListener('abort', abort, { once: true });
+  timer = setTimeout(() => {
+    if (original) original.removeEventListener('abort', abortFromOriginal);
+    controller.abort(new Error('Connection timed out. Please try again.'));
+  }, 20000);
+  if (original) {
+    if (original.aborted) abortFromOriginal();
+    else original.addEventListener('abort', abortFromOriginal, { once: true });
   }
   return fetch(input, { ...init, signal: controller.signal });
 }

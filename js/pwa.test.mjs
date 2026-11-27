@@ -181,3 +181,20 @@ test('worker serves scoped assets and query navigation without intercepting auth
   assert.equal(await request(scope + 'index.html', 'POST'), null);
   assert.equal(await request(scope + 'api/private'), null);
 });
+
+test('worker falls back to fetch when cache open fails', async () => {
+  const events = {};
+  const scope = 'https://example.test/DuoJazz/';
+  const context = {
+    URL, Request, importScripts() {}, PRECACHE_VERSION: 'test',
+    PRECACHE_URLS: ['./index.html', './js/app.js'],
+    fetch: async request => new Response(`network:${request.url}`),
+    self: { registration: { scope }, location: { origin: 'https://example.test' },
+      addEventListener: (name, handler) => { events[name] = handler; } },
+    caches: { open: async () => { throw new Error('CacheStorage failed'); } },
+  };
+  vm.runInNewContext(await readFile(new URL('../sw.js', import.meta.url), 'utf8'), context);
+  let response;
+  events.fetch({ request: { url: scope + 'js/app.js?v=150', method: 'GET', mode: 'cors' }, respondWith(value) { response = value; } });
+  assert.equal(await (await response).text(), `network:${scope}js/app.js?v=150`);
+});

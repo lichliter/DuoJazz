@@ -3270,17 +3270,23 @@ window.__DUOJAZZ__ = {
 };
 
 if (els.appVersion) els.appVersion.textContent = APP_VERSION;
-resolveNotationScale();
-showNoteNames = loadShowNoteNames();
-applyDeepLink();
-renderSetup();
-render();
-if (new URLSearchParams(location.search).get("sheet") === "modules") {
-  openQuickView();
+try {
+  resolveNotationScale();
+  showNoteNames = loadShowNoteNames();
+  applyDeepLink();
+  renderSetup();
+  render();
+  if (new URLSearchParams(location.search).get("sheet") === "modules") {
+    openQuickView();
+  }
+} catch (error) {
+  console.error(error);
 }
 whenVerovioReady().then(() => {
   if (session?.screen === "session") renderNotation();
-});
+}).catch(() => {});
+document.documentElement.dataset.appBooted = "1";
+clearTimeout(window.__duojazzBootTimer);
 void initAccount({
   settings: cloudSettings,
   onSettings: applyAccountSettings,

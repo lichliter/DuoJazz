@@ -43,16 +43,27 @@ function waitForVerovioScript() {
   if (globalThis.verovio) return Promise.resolve(globalThis.verovio);
   return new Promise((resolve, reject) => {
     const started = Date.now();
+    let timer = null;
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      if (typeof window !== "undefined") window.removeEventListener("load", tick);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("DOMContentLoaded", tick);
+        document.removeEventListener("verovio-ready", tick);
+      }
+    };
     const tick = () => {
       if (globalThis.verovio) {
+        cleanup();
         resolve(globalThis.verovio);
         return;
       }
       if (Date.now() - started > READY_TIMEOUT_MS) {
+        cleanup();
         reject(new Error("Verovio toolkit is not loaded"));
         return;
       }
-      setTimeout(tick, 40);
+      timer = setTimeout(tick, 40);
     };
     if (typeof window !== "undefined") {
       window.addEventListener("load", tick, { once: true });
