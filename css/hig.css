@@ -1780,10 +1780,13 @@ body:has(> .app-shell[data-screen="session"]:not([hidden])) {
   color: var(--label);
   padding: 0;
   box-shadow: var(--shadow-sheet);
+  overscroll-behavior: contain;
 }
 
 .form-sheet::backdrop {
   background: var(--overlay);
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 @keyframes drawer-in {
@@ -2897,7 +2900,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .offline-status[hidden] { display: none; }
 
 /* Shared Licks / Charts library and picker. */
-:root:has(#quick-view:modal) {
+/* Lock background scrolling whenever any modal dialog is open (without altering html height). */
+:root:has(dialog:modal),
+html:has(.app-shell[data-screen="home"]):has(dialog:modal),
+:root:has(dialog:modal) body,
+html:has(.app-shell[data-screen="home"]):has(dialog:modal) body,
+:root:has(dialog:modal) .workspace,
+:root:has(dialog:modal) .wrapup-screen,
+:root:has(dialog:modal) .app-shell[data-screen="session"] .session-screen[data-column-scroll="true"] .session-body {
   overflow: hidden;
   overscroll-behavior: none;
 }
